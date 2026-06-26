@@ -1,0 +1,34 @@
+﻿@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudAlert Severity="@AlertSeverity" Elevation="0" Role="alert">
+            <strong>@(Titulo ?? "Información")</strong>
+            <div>@(Mensaje ?? "")</div>
+        </MudAlert>
+    </DialogContent>
+    <DialogActions>
+        @* <MudButton Color="Color.Primary" OnClick="Close">Cerrar</MudButton> *@
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IDialogReference DialogReference { get; set; }
+
+    [Parameter] public string Titulo { get; set; }
+    [Parameter] public string Mensaje { get; set; }
+    [Parameter] public Severity AlertSeverity { get; set; } = Severity.Info;
+
+    private void Close() => DialogReference?.Close();
+
+    private string GetIcon(Severity severity) => severity switch
+    {
+        Severity.Info => Icons.Material.Filled.Info,
+        Severity.Success => Icons.Material.Filled.CheckCircle,
+        Severity.Warning => Icons.Material.Filled.Warning,
+        Severity.Error => Icons.Material.Filled.Error,
+        _ => Icons.Material.Filled.Info
+    };
+}
+

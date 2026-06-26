@@ -1,0 +1,100 @@
+﻿@page "/index"
+@using System.Security.Claims
+@inject NavigationManager navigationManager
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-8">
+    <MudText Typo="MudBlazor.Typo.h3" Color="MudBlazor.Color.Primary" Style="font-weight: 800;" Class="mb-2">
+        Bienvenido, @(user?.Identity?.Name ?? "Usuario")
+    </MudText>
+    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Secondary" Class="mb-8">
+        Panel de Control - Módulo de Operaciones Logísticas
+    </MudText>
+
+    @if (IsUserAuthenticated)
+    {
+        <MudGrid>
+            @* Tarjeta Principal de Bienvenida *@
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="4" Class="pa-6" Style="height: 100%; background-color: #1a237e; color: white; border-radius: 16px;">
+                    <MudText Typo="MudBlazor.Typo.h5" Class="mb-4" Style="font-weight: 700;">Gestión Operativa</MudText>
+                    <MudText Typo="MudBlazor.Typo.body1" Class="mb-6" Style="opacity: 0.9;">
+                        Usted se encuentra en el centro de control de BUSSERSA. Desde aquí puede sincronizar la asistencia de campo con la facturación final en el Admin.
+                    </MudText>
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Secondary"
+                               Size="MudBlazor.Size.Large"
+                               OnClick="@(() => navigationManager.NavigateTo("/importacion-marcaciones"))"
+                               Class="rounded-pill">
+                        IR A MARCACIONES
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+            @* Sección de Accesos Rápidos *@
+            <MudItem xs="12" md="8">
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" Class="mb-4" />
+                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Importación de Datos</MudText>
+                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Subida masiva de archivos desde relojes biométricos.</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
+                            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="MudBlazor.Color.Info" Size="MudBlazor.Size.Large" Class="mb-4" />
+                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Validación de Nómina</MudText>
+                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Control de horas laboradas y validación de turnos.</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
+                            <MudIcon Icon="@Icons.Material.Filled.SyncAlt" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" Class="mb-4" />
+                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Conexión</MudText>
+                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Sincronización directa hacia el ERP institucional.</MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
+                            <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Large" Class="mb-4" />
+                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Horas a Facturar</MudText>
+                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Reportes detallados listos para facturación.</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="mt-4" Style="border-radius: 12px;">
+                    Estado del sistema: <b>Operativo</b>. Todos los módulos están sincronizados con Admin.
+                </MudAlert>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    bool IsUserAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            IsUserAuthenticated = true;
+        }
+        else
+        {
+            navigationManager.NavigateTo("/");
+        }
+    }
+}

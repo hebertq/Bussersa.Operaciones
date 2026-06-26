@@ -1,0 +1,228 @@
+@page "/dias-trabajados"
+
+@using BsOperaciones.Application.Features.Odoo.Commands;
+@using BsOperaciones.Application.Features.Odoo.Queries;
+@using BsOperaciones.Component.DialogModal
+@using Modelo.ClasesGenericas
+@using Utilidades.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using MediatR
+
+@inject IJSRuntime JS
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IUserInfo _Iuser
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@* Loader Corporativo *@
+<MudOverlay Visible="isloading" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando información...</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-6 mb-6">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.EventAvailable" Class="mr-2" />
+            Control de Días Trabajados
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-end">
+            @* Filtro Fecha Desde *@
+            <MudItem xs="12" sm="3">
+                <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper"
+                               Variant="MudBlazor.Variant.Outlined" 
+                               Color="MudBlazor.Color.Primary"
+                               DateFormat="dd/MM/yyyy" />
+            </MudItem>
+
+            @* Filtro Fecha Hasta *@
+            <MudItem xs="12" sm="3">
+                <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper"
+                               Variant="MudBlazor.Variant.Outlined" 
+                               Color="MudBlazor.Color.Primary"
+                               DateFormat="dd/MM/yyyy" />
+            </MudItem>
+
+            @* Selección de Operación (MudSelect en lugar de Radzen) *@
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int" Label="Operación" 
+                           Value="operacion" 
+                           ValueChanged="OnChangeCliente"
+                           Variant="MudBlazor.Variant.Outlined"
+                           AnchorOrigin="MudBlazor.Origin.BottomCenter">
+                    <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                    @foreach (var item in PayLoadOper)
+                    {
+                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>          
+        </MudGrid>
+    </MudPaper>
+
+    @* Tabla de Resultados (Componente personalizado) *@
+    <div class="mt-4">
+        <TablaDiasTrabajados _PayLoadList="@PayLoadList" 
+                             OnDelete="OnDelete" 
+                             OnUpdate="OnUpdate" 
+                             OnCreate="OnUpdate" 
+                             OperacionName="@NombreOperacion"
+                             BotonEnabled="@BotonEnabled" />
+    </div>
+</MudContainer>
+
+@code {
+    public List<Combos> PayLoadOper = new List<Combos>(); 
+    public DiasTrabajados payload { get; set; }  = new DiasTrabajados();
+    public ModaComponentBS ErrorModal { get; set; } = new ModaComponentBS();
+    
+    public DateTime FchaDesde { set; get; } = DateTime.Now.AddDays(-5);
+    public DateTime FchaHasta { set; get; } = DateTime.Now;
+    
+    // Wrappers para MudDatePicker (convierten DateTime a DateTime?)
+    private DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now.AddDays(-5); }
+    private DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
+
+    public DateTime HoraHasta { get; set; } 
+    public DateTime HoraDesde { get; set; } 
+    public int operacion { set; get; } = 0;
+    public int operacioncrud { set; get; } = 0;
+    public bool isloading { set; get; }    = false;
+    public string formTitle { set; get; }
+    public bool BotonEnabled { set; get; } = true;
+    string NombreOperacion { set; get; } = "";
+
+    IList<DiasxempleadosOpera?> PayLoadList = new List<DiasxempleadosOpera>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+        PayLoadOper = regop.Model; 
+    }
+
+    private async Task OnUpdate(DiasTrabajados reg)
+    {
+        // 1. Identificar si es Insert (1) o Update (2)
+        int tipoOperacion = reg.idmarca == 0 ? 1 : 2;
+
+        // 2. Configurar Parámetros para tu componente AddUpdDiasTrabajados
+        var parameters = new DialogParameters
+        {
+            { "payload", reg },
+            { "ReportName", tipoOperacion == 1 ? "Agregar Día Laborado" : "Editar Día Laborado" },
+            { "Operacion", operacion } // Esto es lo que recibe tu componente para el Mediator
+        };
+
+        // 3. Opciones del Modal
+        var options = new MudBlazor.DialogOptions
+        {
+            CloseButton = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            BackdropClick = false
+        };
+
+        // 4. Invocar tu componente
+        var dialog = await DialogService.ShowAsync<AddUpdDiasTrabajados>("Gestión de Asistencia", parameters, options);
+        var result = await dialog.Result;
+
+        // 5. Procesar el resultado cuando cierras el modal con MudDialog.Close(DialogResult.Ok(response))
+        if (!result.Canceled && result.Data != null)
+        {
+            var response = (SingleResponse<DiasTrabajados>)result.Data;
+
+            if (!response.Respuesta.ExisteError)
+            {
+                // Refrescar la lista local para que el usuario vea el cambio sin recargar la página
+                await GetAllMarcadas(); // Recargamos de la base de datos para asegurar consistencia
+                Snackbar.Add("Cambios sincronizados con éxito", MudBlazor.Severity.Success);
+            }
+        }
+    }
+
+    private async Task OnDelete(DiasTrabajados reg)
+    {
+        if (reg == null || reg.idmarca == 0)
+        {
+            Snackbar.Add("Seleccione un registro válido para eliminar", MudBlazor.Severity.Warning);
+            return;
+        }
+
+        // El diálogo de confirmación se muestra aquí en el Padre
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmar Eliminación",
+            $"¿Desea eliminar la marcación del empleado {reg.nombre} el día {reg.fecha:dd/MM/yyyy}?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            isloading = true; // Mostramos el loader corporativo
+            try
+            {
+                // Ejecutamos el comando original (Operación 3 = Delete)
+                var response = await _mediator.Send(new AddMarcadasIdCommand(reg, 3));
+
+                if (!response.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Registro eliminado correctamente", MudBlazor.Severity.Success);
+                    await GetAllMarcadas(); // Refrescamos la lista de la DB
+                }
+                else
+                {
+                    await ErrorModal.setError(response.Respuesta.MensajeError, DialogService);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error al eliminar: " + ex.Message, MudBlazor.Severity.Error);
+            }
+            finally
+            {
+                isloading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OnChangeCliente(int value)
+    {
+        operacion = value;
+        var selected = PayLoadOper.FirstOrDefault(x => x.id == operacion);
+        NombreOperacion = selected?.nombre ?? "";      
+        await GetAllMarcadas(); 
+        BotonEnabled = PayLoadList.Count > 0 ? false : true;
+    }
+
+    private async Task GetAllMarcadas()
+    {
+        if (operacion == 0) return;
+
+        isloading = true;
+        try 
+        {
+            typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = operacion };
+            PayLoadList = new List<DiasxempleadosOpera>();
+
+            var dataload = await _mediator.Send(new GetAllDiasTrabajadosOperacionQuery(rango));
+            if (dataload.Respuesta.ExisteError)
+            {
+                Snackbar.Add(dataload.Respuesta.MensajeError, MudBlazor.Severity.Error);
+            }      
+            else
+            {
+                PayLoadList = dataload.Model ?? new List<DiasxempleadosOpera>();
+                if (!PayLoadList.Any()) Snackbar.Add("No hay datos para el rango seleccionado", MudBlazor.Severity.Info);
+            } 
+        }
+        finally 
+        {
+            isloading = false;
+        }
+    }
+}

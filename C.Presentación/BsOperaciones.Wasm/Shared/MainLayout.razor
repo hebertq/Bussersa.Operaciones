@@ -1,0 +1,121 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_bussersaTheme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    @* --- BARRA SUPERIOR (APPBAR) --- *@
+    <MudAppBar Elevation="0" Color="Color.Primary" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <div class="d-flex align-center px-2">
+            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:30px;" class="mr-3" />
+            <MudText Typo="Typo.h6" Class="d-none d-sm-flex" Style="font-weight: 800; letter-spacing: 1px; font-family: 'Inter', sans-serif;">
+                OPERACIONES
+            </MudText>
+        </div>
+        <MudSpacer />
+        <MudBadge Content="@("3")" Color="Color.Secondary" Overlap="true" Class="mr-5">
+            <MudIcon Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" />
+        </MudBadge>
+        <div class="d-flex align-center ml-2 py-1 px-3" style="border-radius: 24px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1);">
+            <div class="d-flex flex-column align-end mr-3 d-none d-md-flex">
+                <MudText Typo="Typo.caption" Class="text-white" Style="line-height: 1; font-weight: 600;">Admin Usuario</MudText>
+                <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.7); font-size: 0.65rem;">ADMINISTRADOR</MudText>
+            </div>
+            <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled">AD</MudAvatar>
+        </div>
+    </MudAppBar>
+
+    @* --- MENÚ LATERAL (DRAWER) --- *@
+    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Mini" Class="border-light">
+        <MudDrawerHeader Class="pa-4 d-flex align-center">
+            @if (_drawerOpen)
+            {
+                <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem;">SISTEMA DE GESTIÓN</MudText>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Outlined.Business" Color="Color.Primary" />
+            }
+        </MudDrawerHeader>
+
+        @* AQUÍ LLAMAMOS AL COMPONENTE NAVMENU *@
+        <NavMenu />
+
+    </MudDrawer>
+
+    @* --- CONTENIDO PRINCIPAL --- *@
+    <MudMainContent Style="background-color: #F4F7F9; min-height: 100vh;">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .mud-nav-link.active {
+        background-color: rgba(1, 49, 97, 0.05) !important;
+        border-right: 4px solid #f26631;
+        color: #013161 !important;
+        font-weight: 600;
+    }
+
+        .mud-nav-link.active .mud-nav-link-icon {
+            color: #f26631 !important;
+        }
+
+    .text-muted {
+        color: #94a3b8;
+    }
+
+    .border-light {
+        border-right: 1px solid #e2e8f0 !important;
+    }
+    /* Esto garantiza que el texto desaparezca totalmente en modo mini */
+    .mud-drawer--mini:not(.mud-drawer--open) .mud-nav-link-text {
+        display: none !important;
+    }
+</style>
+
+@code {
+    private bool _drawerOpen = true;
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private MudTheme _bussersaTheme = new MudTheme()
+        {
+            PaletteLight = new PaletteLight()
+            {
+                Primary = "#013161",
+                Secondary = "#f26631",
+                AppbarBackground = "#013161",
+                AppbarText = "#ffffff",
+                Background = "#F4F7F9",
+                Surface = "#ffffff",
+                DrawerBackground = "#ffffff",
+                DrawerText = "#013161",
+                DrawerIcon = "#013161",
+                ActionDefault = "#013161",
+                Divider = "#e2e8f0",
+                TextPrimary = "#1e293b",
+                TextSecondary = "#64748b"
+            },
+            LayoutProperties = new LayoutProperties()
+            {
+                DefaultBorderRadius = "8px"
+            },
+            Typography = new Typography()
+            {
+                Default = new DefaultTypography()
+                {
+                    FontFamily = new[] { "Inter", "Roboto", "Arial", "sans-serif" },
+                    FontSize = ".875rem"
+                },
+                H4 = new H4Typography() { FontSize = "1.75rem", FontWeight = "800" },
+                H6 = new H6Typography() { FontSize = "1.1rem", FontWeight = "700" },
+                Subtitle1 = new Subtitle1Typography() { FontSize = "1rem", FontWeight = "500" },
+                Caption = new CaptionTypography() { FontSize = "0.75rem", FontWeight = "400" }
+            }
+        };
+}

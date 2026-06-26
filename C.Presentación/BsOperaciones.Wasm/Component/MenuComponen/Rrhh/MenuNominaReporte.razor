@@ -1,0 +1,10 @@
+﻿
+<AuthorizeView Policy="@Policies.IsMenu" Resource="11">
+    <Authorized>
+        <MudNavGroup Title="Reportes" Icon="@Icons.Material.Filled.Report" Expanded="false">
+            <MenuItem MenuId="17" Name="Nomina a pagar" Url="/nomina/reportes/pagar" IconName="@Icons.Material.Filled.Paid" />
+            <MenuItem MenuId="21" Name="Nomina mensual" Url="/nomina/reportes/cierremensual" IconName="@Icons.Material.Filled.CalendarMonth" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized/>
+</AuthorizeView>

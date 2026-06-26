@@ -1,0 +1,96 @@
+﻿@using Modelo.Entidades.Entradas.Odoo
+@using System.IO
+@using Utilidades.ClasesGenericas
+@inject IJSRuntime JS
+
+<MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px;">
+    <MudGrid Spacing="3" Class="align-center">
+        <MudItem xs="12" md="6">
+            <InputFile id="fileInputInss" OnChange="LoadFiles" hidden accept=".xls,.xlsx" />
+            <MudButton HtmlTag="label" Variant="MudBlazor.Variant.Outlined" Color="MudBlazor.Color.Primary"
+                       StartIcon="@Icons.Material.Filled.FileUpload" for="fileInputInss" FullWidth="true" Style="height: 50px;">
+                CARGAR EXCEL INSS
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info" StartIcon="@Icons.Material.Filled.Update"
+                       OnClick="UpdateEmpleados" Disabled="@BotonEnabled" FullWidth="true" Style="height: 50px;">
+                SINCRONIZAR CON ADMIN
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudDataGrid T="EmpleadosActivos" Items="@_PayLoadList" Dense="true" Elevation="0" RowsPerPage="10">
+    <ToolBarContent>
+        <MudText Typo="MudBlazor.Typo.h6">Resultados de Comparación</MudText>
+        <MudSpacer />
+        @* Botón para descargar el archivo de la tabla *@
+        <MudIconButton Icon="@Icons.Material.Filled.FileDownload"
+                       Color="MudBlazor.Color.Success"
+                       OnClick="DownloadFile"
+                       Disabled="@BotonEnabled"
+                       Title="Descargar Revisión" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Sincronización" HeaderStyle="width: 200px">
+            <CellTemplate>
+                @if (context.Item.IdNomina == 0)
+                {
+                    <MudChip T="string" Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Error" Size="MudBlazor.Size.Small">
+                        SIN REGISTRO EN ADMIN
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Variant="MudBlazor.Variant.Outlined" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Small">
+                        VINCULADO CORRECTO
+                    </MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.IdNomina" Title="ID Nómina" />
+        <PropertyColumn Property="x => x.NoCedula" Title="Cédula" />
+        <PropertyColumn Property="x => x.NoInss" Title="No. INSS" />
+        <PropertyColumn Property="x => x.NombreCompleto" Title="Nombre" />
+
+        <TemplateColumn Title="Estado en Archivo">
+            <CellTemplate>
+                <MudChip T="string" Variant="MudBlazor.Variant.Text"
+                         Color="@(context.Item.ActivoInss ? MudBlazor.Color.Success : MudBlazor.Color.Error)">
+                    @(context.Item.ActivoInss ? "ACTIVO" : "INACTIVO")
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="EmpleadosActivos" />
+    </PagerContent>
+</MudDataGrid>
+
+@code {
+    [Parameter] public List<EmpleadosActivos> _PayLoadList { get; set; } = new();
+    [Parameter] public EventCallback<InputFileChangeEventArgs> OnLoadFiles { get; set; }
+    [Parameter] public EventCallback OnUpdateEmpleados { get; set; }
+    [Parameter] public bool BotonEnabled { get; set; } = true;
+
+    private async Task LoadFiles(InputFileChangeEventArgs e) => await OnLoadFiles.InvokeAsync(e);
+
+    private async Task UpdateEmpleados() => await OnUpdateEmpleados.InvokeAsync();
+
+    // Lógica para descargar el archivo basado en la lista actual de la tabla
+    private async Task DownloadFile()
+    {
+        if (_PayLoadList == null || !_PayLoadList.Any()) return;
+
+        // Generar el Excel usando la utilidad DataExcel
+        var exceldata = DataExcel.CreateExcel(_PayLoadList, "Revision_Cierre_Mensual");
+
+        // Convertir a Base64 para la descarga
+        string base64Data = Convert.ToBase64String(exceldata.Data);
+
+        // Invocar función de JavaScript para descargar el archivo
+        await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, "Revision_Empleados_Cierre.xlsx");
+    }
+}

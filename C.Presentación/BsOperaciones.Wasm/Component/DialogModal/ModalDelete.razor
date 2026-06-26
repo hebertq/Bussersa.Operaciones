@@ -1,0 +1,21 @@
+﻿<div class="modal" tabindex="-1" role="dialog" id="@ModalId">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Eliminar registro</h5>
+                <button type="button" class="close" @onclick="(e => CloseModal())" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="font-weight-bold mb-2"> ¿Estás seguro de que quieres eliminar el registro?</p>             
+                <p class="text-muted "> Este proceso no se puedra deshacer.</p>
+            </div>
+            <div class="modal-footer">
+
+                <button type="button" class="btn btn-danger" @onclick="(e => OnDeleteClick())">Si</button>
+                <button type="button" class="btn btn-secondary" @onclick="(e => CloseModal())">No</button>
+            </div>
+        </div>
+    </div>
+</div>

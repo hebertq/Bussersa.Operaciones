@@ -1,0 +1,43 @@
+<MudDrawer Open="true" Elevation="1" Variant="DrawerVariant.Persistent" Color="Color.Primary">
+    <MudNavMenu>
+
+        <MudNavGroup Text="Peter" Icon="@Icons.Material.Filled.Person">
+            <MudNavLink Href="#" OnClick="@(() => ItemClicked("Anne"))">Anne</MudNavLink>
+            <MudNavLink Href="#" OnClick="@(() => ItemClicked("Fredrik"))">Fredrik</MudNavLink>
+        </MudNavGroup>
+
+        <MudNavGroup Text="Check this out" Icon="@Icons.Material.Filled.Notifications">
+            <MudNavGroup Text="Anders" Icon="@Icons.Material.Filled.Alarm">
+                <MudNavLink Href="#" OnClick="@(() => ItemClicked("Frida"))">Frida</MudNavLink>
+                <MudNavLink Href="#" OnClick="@(() => ItemClicked("Lemon"))">Lemon</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Text="Helen" Icon="@Icons.Material.Filled.Alarm">
+                <MudNavLink Href="#" OnClick="@(() => ItemClicked("Carl"))">Carl</MudNavLink>
+                <MudNavGroup Text="Karin" Icon="@Icons.Material.Filled.Alarm">
+                    <MudNavGroup Text="Helen" Icon="@Icons.Material.Filled.Alarm">
+                        <MudNavLink Href="#" OnClick="@(() => ItemClicked("Carl"))">Carl</MudNavLink>
+                        <MudNavLink Href="#" OnClick="@(() => ItemClicked("Karin"))">Karin</MudNavLink>
+                    </MudNavGroup>
+                </MudNavGroup>
+            </MudNavGroup>
+        </MudNavGroup>
+
+    </MudNavMenu>
+</MudDrawer>
+
+<h3>@message</h3>
+
+@code {
+    private string message;
+
+    private void ItemClicked(string title)
+    {
+        message = $"You clicked: {title}";
+    }
+}
+           
+      
+
+
+

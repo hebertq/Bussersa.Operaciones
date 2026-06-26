@@ -1,0 +1,228 @@
+@page "/dias-pagar"
+@using BsOperaciones.Application.Features.Odoo.Queries;
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using Utilidades.ClasesGenericas
+@using MediatR
+
+@inject IJSRuntime JS
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IUserInfo _Iuser
+@inject ISnackbar Snackbar
+
+@* Loader Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Calculando días y horas...</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-6 mb-6">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.Payments" Class="mr-2" />
+            Cálculo de Días por Pagar
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-end">
+            @* Filtro Fecha Desde *@
+            <MudItem xs="12" sm="3">
+                <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper"
+                               Variant="MudBlazor.Variant.Outlined"
+                               Color="MudBlazor.Color.Primary"
+                               DateFormat="dd/MM/yyyy" />
+            </MudItem>
+
+            @* Filtro Fecha Hasta *@
+            <MudItem xs="12" sm="3">
+                <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper"
+                               Variant="MudBlazor.Variant.Outlined"
+                               Color="MudBlazor.Color.Primary"
+                               DateFormat="dd/MM/yyyy" />
+            </MudItem>
+
+            @* Selección de Operación *@
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int" Label="Operación / Cliente"
+                           Value="operacion"
+                           ValueChanged="OnChangeCliente"
+                           Variant="MudBlazor.Variant.Outlined"
+                           AnchorOrigin="MudBlazor.Origin.BottomCenter">
+                    <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                    @foreach (var item in PayLoadOper)
+                    {
+                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>         
+        </MudGrid>
+    </MudPaper>
+
+    @* DataGrid de Resultados *@
+    <MudDataGrid T="diasxpagarperiodo" Items="@PayLoadList"
+                 SortMode="MudBlazor.SortMode.Multiple"
+                 Filterable="true"
+                 QuickFilter="@_quickFilter"
+                 Hideable="true"
+                 Dense="true"
+                 Hover="true"
+                 Bordered="false"
+                 Striped="true"
+                 Elevation="1">
+        <ToolBarContent>
+            @if (PayLoadList.Any())
+            {
+                <MudButton Variant="MudBlazor.Variant.Filled"
+                           Color="MudBlazor.Color.Success"
+                           StartIcon="@Icons.Material.Outlined.FileDownload"
+                           OnClick="@DownloadFile"
+                           Class="mr-4">
+                    EXPORTAR EXCEL
+                </MudButton>
+            }
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString"
+                          Placeholder="Buscar empleado, área o tipo..."
+                          Adornment="MudBlazor.Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="MudBlazor.Size.Medium"
+                          Class="mt-0"
+                          Immediate="true" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.id" Title="Empleado" StickyLeft="true" />
+            <PropertyColumn Property="x => x.nombre" Title="Nombre Completo" />
+            <PropertyColumn Property="x => x.tipoempleado" Title="Tipo" />
+            <PropertyColumn Property="x => x.totaldias" Title="Días Totales" />
+            <PropertyColumn Property="x => x.hexpagar" Title="Hrs Extras" />
+            <PropertyColumn Property="x => x.bono" Title="Bonificaciones"/>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="diasxpagarperiodo" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    public List<diasxpagarperiodo> PayLoadList = new();
+    public List<Combos> PayLoadOper = new();
+
+    public DateTime FchaDesde { set; get; } = DateTime.Now.AddDays(-15);
+    public DateTime FchaHasta { set; get; } = DateTime.Now;
+
+    // Wrappers para MudDatePicker
+    private DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now.AddDays(-15); }
+    private DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
+
+    public int operacion { set; get; } = 0;
+    public bool isloaddata { set; get; } = false;
+    private string _searchString;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isloaddata = true;
+        try
+        {
+            var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+            PayLoadOper = regop.Model.Where(x => x.id > 0).ToList();
+        }
+        catch (Exception ex) { Snackbar.Add("Error al cargar operaciones: " + ex.Message, MudBlazor.Severity.Error); }
+        finally { isloaddata = false; }
+    }
+
+    private async Task OnChangeCliente(int value)
+    {
+        operacion = value;
+        if (operacion > 0)
+        {
+            await GetAllMarcadas();
+        }
+    }
+
+    private async Task GetAllMarcadas()
+    {
+        if (operacion == 0)
+        {
+            Snackbar.Add("Seleccione una operación primero.", MudBlazor.Severity.Warning);
+            return;
+        }
+
+        isloaddata = true;
+        try
+        {
+            typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = operacion };
+            var registros = await _mediator.Send(new GetAllDiasxPagarQuery(rango));
+
+            PayLoadList = registros.Model;
+
+            if (!PayLoadList.Any())
+                Snackbar.Add("No se encontraron registros en este rango de fechas.", MudBlazor.Severity.Info);
+            else
+                Snackbar.Add($"{PayLoadList.Count} registros cargados correctamente.", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex) { Snackbar.Add("Error al consultar datos: " + ex.Message, MudBlazor.Severity.Error); }
+        finally { isloaddata = false; StateHasChanged(); }
+    }
+
+    private async Task DownloadFile()
+    {
+        if (!PayLoadList.Any()) return;
+
+        isloaddata = true;
+        try
+        {
+            // Se mantiene el nombre exacto de la propiedad del modelo
+            // El orden de declaración define el orden de las columnas en el Excel
+            var datosParaExcel = PayLoadList.Select(x => new
+            {
+                x.area,
+                x.tipoempleado,
+                x.id,
+                x.nombre,
+                x.dias_habiles,
+                x.diastrabajados,
+                x.diasferiados,    // <--- Antes de totaldias
+                x.aguinaldo,   // <--- Antes de totaldias
+                x.vacdes,
+                x.vacpag,
+                x.subsidios,
+                x.justificados,
+                x.injustificados,
+                x.cuarentena,
+                x.suspension,
+                x.septimo,
+                x.totaldias,
+                x.hexpagar,
+                x.bono,
+                x.otros_ingresos,
+                x.otras_deducciones
+            }).ToList();
+
+            var exceldata = DataExcel.CreateExcel(datosParaExcel, "Desgloce");
+            string base64Data = Convert.ToBase64String(exceldata.Data);
+
+            // Nombre del archivo basado en la operación seleccionada
+            string cliente = PayLoadOper.FirstOrDefault(x => x.id == operacion)?.nombre.Replace(" ", "_") ?? "General";
+            string nombreArchivo = $"Nomina_{cliente}_{DateTime.Now:ddMMyy}.xlsx";
+
+            await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, nombreArchivo);
+            Snackbar.Add("Excel generado exitosamente.", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al exportar: " + ex.Message, MudBlazor.Severity.Error);
+        }
+        finally { isloaddata = false; }
+    }
+
+    private Func<diasxpagarperiodo, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (x.id.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.nombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (x.area?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
+        return false;
+    };
+}

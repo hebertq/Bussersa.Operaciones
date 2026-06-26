@@ -1,0 +1,186 @@
+/* --- IMPORTACIONES ORIGINALES --- */
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+/* --- VARIABLES DE MARCA BUSSERSA --- */
+:root {
+    --bussersa-azul: #013161; /* Azul marino del logo */
+    --bussersa-naranja: #f26631; /* Naranja de acento/botones */
+    --bussersa-gris-bg: #f4f7f9; /* Fondo suave para la app */
+    --bussersa-texto: #2c4964;
+}
+
+/* --- ESTILOS GENERALES --- */
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: var(--bussersa-gris-bg);
+    color: var(--bussersa-texto);
+}
+
+h1:focus {
+    outline: none;
+}
+
+/* Enlaces con el color de la marca */
+a, .btn-link {
+    color: var(--bussersa-azul);
+    transition: color 0.3s ease;
+}
+
+    a:hover, .btn-link:hover {
+        color: var(--bussersa-naranja);
+        text-decoration: none;
+    }
+
+/* --- BOTONES PERSONALIZADOS --- */
+.btn-primary {
+    color: #fff !important;
+    background-color: var(--bussersa-naranja) !important;
+    border-color: var(--bussersa-naranja) !important;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+    .btn-primary:hover {
+        background-color: #d85626 !important;
+        border-color: #d85626 !important;
+        transform: translateY(-1px);
+    }
+
+/* --- COMPONENTES DEL MÓDULO DE OPERACIONES (Why-Us) --- */
+.why-us .content {
+    padding: 30px;
+    background: var(--bussersa-azul); /* Fondo Azul Bussersa */
+    border-radius: 8px;
+    color: #fff;
+}
+
+    .why-us .content h3 {
+        font-weight: 700;
+        font-size: 34px;
+        margin-bottom: 30px;
+        color: #ffffff;
+    }
+
+    .why-us .content p {
+        margin-bottom: 30px;
+        opacity: 0.9;
+    }
+
+    .why-us .content .more-btn {
+        display: inline-block;
+        background: var(--bussersa-naranja);
+        padding: 6px 30px 8px 30px;
+        color: #fff;
+        border-radius: 50px;
+        transition: all ease-in-out 0.4s;
+    }
+
+        .why-us .content .more-btn:hover {
+            color: var(--bussersa-azul);
+            background: #fff;
+        }
+
+.why-us .icon-boxes .icon-box {
+    text-align: center;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0px 2px 15px rgba(0, 0, 0, 0.1);
+    padding: 40px 30px;
+    width: 100%;
+}
+
+    .why-us .icon-boxes .icon-box i {
+        font-size: 40px;
+        color: var(--bussersa-naranja); /* Iconos en Naranja */
+        margin-bottom: 30px;
+    }
+
+    .why-us .icon-boxes .icon-box h4 {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 30px 0;
+        color: var(--bussersa-azul);
+    }
+
+/* --- SECCIÓN HERO (AJUSTADA) --- */
+#hero {
+    width: 100%;
+    height: 65vh;
+    background: linear-gradient(rgba(1, 49, 97, 0.7), rgba(1, 49, 97, 0.7)), url("../img/rh3.jpg") top center;
+    background-size: cover;
+    margin-bottom: -200px;
+}
+
+    #hero h1 {
+        margin: 0;
+        font-size: 48px;
+        font-weight: 700;
+        line-height: 56px;
+        text-transform: uppercase;
+        color: #ffffff; /* Texto sobre el azul */
+    }
+
+    #hero h2 {
+        color: #f0f0f0;
+        margin: 10px 0 0 0;
+        font-size: 24px;
+    }
+
+    #hero .btn-get-started {
+        font-family: "Raleway", sans-serif;
+        text-transform: uppercase;
+        font-weight: 500;
+        font-size: 14px;
+        letter-spacing: 1px;
+        display: inline-block;
+        padding: 12px 35px;
+        margin-top: 30px;
+        border-radius: 50px;
+        transition: 0.5s;
+        color: #fff;
+        background: var(--bussersa-naranja);
+    }
+
+        #hero .btn-get-started:hover {
+            background: #ffffff;
+            color: var(--bussersa-azul);
+        }
+
+/* --- COMPONENTES BLAZOR & UTILS --- */
+.content {
+    padding-top: 1.1rem;
+}
+
+.loader {
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    background: url('../img/pgld-01.gif') 50% 50% no-repeat rgb(249,249,249);
+    opacity: .8;
+}
+
+.navbar-brand-image {
+    margin-top: -0.7rem;
+    display: block;
+    height: 3rem; /* Aumentado para mejor visibilidad del logo */
+    width: auto;
+    padding: 0;
+}
+
+/* Validaciones */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--bussersa-naranja);
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+/*

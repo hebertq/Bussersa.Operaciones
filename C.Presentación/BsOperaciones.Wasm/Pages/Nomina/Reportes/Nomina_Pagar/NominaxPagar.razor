@@ -1,0 +1,248 @@
+@using System.Drawing
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using BsOperaciones.Component.DialogModal
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using Utilidades.ClasesGenericas
+@using global::Reportes.Operaciones
+@inject IJSRuntime JS
+@inject IUserInfo _Iuser
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@* Overlay de Carga Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando nómina...</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-6 mb-6">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.Payments" Class="mr-2" />
+            Consulta de Nóminas Pagadas
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-center">
+            @* Selector de Nóminas Modernizado *@
+            <MudItem xs="12" md="8">
+                <MudSelect T="int" Label="Nóminas Activas"
+                           Value="operacion"
+                           ValueChanged="OnChangeNomina"
+                           Variant="MudBlazor.Variant.Outlined"
+                           AnchorOrigin="MudBlazor.Origin.BottomCenter"
+                           StartIcon="@Icons.Material.Filled.ListAlt">
+                    <MudSelectItem Value="0">Seleccione una nómina para consultar...</MudSelectItem>
+                    @foreach (var item in PayLoadNomina)
+                    {
+                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Botones de Acción Agrupados *@
+            <MudItem xs="12" md="4">
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Error"
+                               StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                               OnClick="ImprimirPdf"
+                               Disabled="@BotonEnabled"
+                               FullWidth="true"
+                               Style="height: 56px; border-radius: 12px;">
+                        PDF
+                    </MudButton>
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Success"
+                               StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                               OnClick="ExcelPrint"
+                               Disabled="@BotonEnabled"
+                               FullWidth="true"
+                               Style="height: 56px; border-radius: 12px;">
+                        EXCEL
+                    </MudButton>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* Grid de Resultados *@
+    <MudDataGrid T="nominatype" Items="@PayLoadList" SortMode="MudBlazor.SortMode.Multiple" Filterable="true"
+                 QuickFilter="@_quickFilter" Dense="true" Elevation="0">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6">Detalle de Pagos</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por cédula o nombre..."
+                          Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="MudBlazor.Size.Medium" Class="mt-0" Immediate="true" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.cedula" Title="Cédula" />
+            <PropertyColumn Property="x => x.empleado" Title="Empleado" />
+            <PropertyColumn Property="x => x.tipoempleado" Title="Tipo de Empleado" />
+            <PropertyColumn Property="x => x.salbasico" Title="Sal. Base" Format="N2" />
+            <PropertyColumn Property="x => x.dias" Title="Días" />
+            <PropertyColumn Property="x => x.he" Title="Horas Extras" />
+            <PropertyColumn Property="x => x.vacaciones" Title="Vacaciones" Format="N2" />
+            <PropertyColumn Property="x => x.neto" Title="Neto a Pagar" Format="N2">
+                <HeaderTemplate>
+                    <MudText Typo="MudBlazor.Typo.subtitle2" Style="font-weight: bold; color: var(--mud-palette-primary);">Neto a Pagar</MudText>
+                </HeaderTemplate>
+            </PropertyColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="nominatype" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    public List<nominatype> PayLoadList = new();
+    public List<Combos> PayLoadNomina = new();
+    public ModaComponentBS ErrorModal { get; set; } = new();
+    public int operacion { set; get; } = 0;
+    public bool isloaddata { set; get; } = false;
+    public bool BotonEnabled { get; set; } = true;
+    private string _searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var regop = await _mediator.Send(new GetAllCombosQuery("Nominas"));
+        PayLoadNomina = regop.Model;
+    }
+
+    private async Task OnChangeNomina(int value)
+    {
+        operacion = value;
+        if (operacion == 0) return;
+
+        isloaddata = true;
+        try
+        {
+            await GetAllNominaxPagar();
+            BotonEnabled = !PayLoadList.Any();
+            if (BotonEnabled) Snackbar.Add("No se encontraron registros para esta nómina", MudBlazor.Severity.Info);
+        }
+        finally
+        {
+            isloaddata = false;
+        }
+    }
+
+    private async Task GetAllNominaxPagar()
+    {
+        PayLoadList = new List<nominatype>();
+        var registros = await _mediator.Send(new GetAllPagoNominaQuery(operacion));
+        if (registros.Model.Count > 0) PayLoadList = registros.Model;
+    }
+
+    private async Task ImprimirPdf()
+    {
+        isloaddata = true;
+        try { await GeneraImpresion(); }
+        finally { isloaddata = false; }
+    }
+
+    private async Task ExcelPrint()
+    {
+        isloaddata = true;
+        try { await CrearLibroExcel(); }
+        finally { isloaddata = false; }
+    }
+
+    private async Task CrearLibroExcel()
+    {
+        var pagarnomina = GenerarAchivo();
+        string nombre = PayLoadNomina.FirstOrDefault(x => x.id == operacion)?.nombre ?? "Nomina";
+        var base64Data = CreateExcel(pagarnomina.nominatotal, pagarnomina.desglocetarjeta, pagarnomina.desgloceefectivo);
+        await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"{nombre.Replace(" ", "")}.xlsx");
+    }
+
+    public repnominapago GenerarAchivo()
+    {
+        string nombre = PayLoadNomina.FirstOrDefault(x => x.id == operacion)?.nombre ?? "";
+        var nomina = PayLoadList.Select(n => new nominaall
+        {
+            cedula = n.cedula,
+            empleado = n.empleado,
+            tipoempleado = n.tipoempleado,
+            tarjeta = n.bitotal > 0 ? false : true,
+            salbasico = n.salbasico,
+            dias = n.dias,
+            basico = n.basico,
+            transporte = n.transporte,
+            alimento = n.alimento,
+            bonocump = n.bonocump,
+            he = n.he,
+            horaextra = n.horaextra,
+            vacaciones = n.vacaciones,
+            otrosing = n.otrosing,
+            totaldev = n.totaldev,
+            inss = n.inss,
+            ir = n.ir,
+            otdeduc = n.otdeduc,
+            totalded = n.totalded,
+            neto = n.neto
+        }).ToList();
+
+        var desglocetarj = PayLoadList.Where(x => x.bitotal == 0)
+            .Select(n => new nominaalltarjeta { cedula = n.cedula, empleado = n.empleado, neto = n.neto }).ToList();
+
+        var desgolceefect = PayLoadList.Where(x => x.bitotal > 0)
+            .Select(n => new nominadesgefectivo
+            {
+                cedula = n.cedula,
+                neto = n.neto,
+                empleado = n.empleado,
+                bi1 = n.bi1,
+                bi5 = n.bi5,
+                bi10 = n.bi10,
+                bi20 = n.bi20,
+                bi50 = n.bi50,
+                bi100 = n.bi100,
+                bi200 = n.bi200,
+                bi500 = n.bi500,
+                bi1000 = n.bi1000,
+                bitotal = n.bitotal
+            }).ToList();
+
+        return new repnominapago { nominatotal = nomina, desgloceefectivo = desgolceefect, desglocetarjeta = desglocetarj, titulo = nombre };
+    }
+
+    public string CreateExcel(List<nominaall> nomina, List<nominaalltarjeta> desgloce, List<nominadesgefectivo> desgloceefectivo)
+    {
+        try
+        {
+            var hoja1 = DataExcel.CreateExcel<nominaall>(nomina, "Detalle Nómina");
+            var hoja2 = DataExcel.CreateExcel<nominaalltarjeta>(desgloce, "Desglose Tarjeta");
+            var hoja3 = DataExcel.CreateExcel<nominadesgefectivo>(desgloceefectivo, "Desglose Efectivo");
+
+            return DataExcel.CreateExcel(new List<ExcelArray> { hoja1, hoja2, hoja3 });
+        }
+        catch { return ""; }
+    }
+
+    private async Task GeneraImpresion()
+    {
+        var documento = new NominaxPagarDocument();
+        var pagarnomina = GenerarAchivo();
+        string nombre = PayLoadNomina.FirstOrDefault(x => x.id == operacion)?.nombre ?? "";
+        var response = documento.PrintPdf(nombre, pagarnomina);
+
+        if (response.Respuesta.ExisteError)
+            await ErrorModal.setErrorInfo(response.Respuesta.MensajeError, DialogService);
+        else
+            await JS.InvokeVoidAsync("downloadFile", "application/pdf", response.Model.File, $"{nombre.Replace(" ", "")}.pdf");
+    }
+
+    private Func<nominatype, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return x.cedula.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+               x.empleado.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    };
+}

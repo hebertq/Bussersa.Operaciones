@@ -1,0 +1,10 @@
+﻿
+<AuthorizeView Policy="@Policies.IsMenu" Resource="12">
+    <Authorized>
+        <MudNavGroup Title="Cierre de nóminas" Icon="@Icons.Material.Filled.ClearAll" Expanded="false">
+            <MenuItem MenuId="13" Name="Activas" Url="/nomina/cerrar/activa" IconName="@Icons.Material.Filled.NotificationsActive" />
+            <MenuItem MenuId="14" Name="Mensuales" Url="/nomina/cerrar/mensual" IconName="@Icons.Material.Filled.CalendarViewMonth" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized />
+</AuthorizeView>

@@ -1,0 +1,103 @@
+﻿@using BsOperaciones.Component.MenuComponen
+@using BsOperaciones.Component.MenuComponen.Rrhh
+@using BsOperaciones.Component.MenuComponen.Operaciones
+@using Modelo.Admin
+@using Modelo.Entidades;
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUserInfo _Iuser;
+
+@* IMPORTANTE: Se eliminó MudPaper y el ancho fijo. 
+   MudNavMenu ahora se ajusta automáticamente al ancho del Drawer (250px o 56px).
+*@
+<MudNavMenu Class="mud-width-full">
+
+    @* Sección Inicio *@
+    <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/index" Match="NavLinkMatch.All">
+        Inicio
+    </MudNavLink>
+
+    <MudDivider Class="my-2" />
+
+    @* Subcomponentes de Menú:
+       Asegúrate que dentro de MenuRrhh y MenuOperaciones uses MudNavLink o MudNavGroup
+    *@
+    <MenuRrhh />
+    <MenuOperaciones />
+
+    <MudDivider Class="my-2" />
+
+    @* Sección de Seguridad / Usuario *@
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Icon="@Icons.Material.Filled.Logout"
+                        IconColor="Color.Error"
+                        OnClick="Logout"
+                        Style="cursor:pointer">
+                Cerrar Sesión
+            </MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="/"
+                        Match="NavLinkMatch.Prefix"
+                        Icon="@Icons.Material.Filled.Login"
+                        IconColor="Color.Success">
+                Iniciar Sesión
+            </MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+
+</MudNavMenu>
+
+@code {
+    public IList<NavMenuModel> MenuList = new List<NavMenuModel>();
+
+    public async Task Logout()
+    {
+        if (AuthenticationStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            await customAuth.MarkUserAsLoggedOut();
+        }
+        _Iuser.SetUserInfo(new User());
+        _Iuser.SetMenu(0);
+        _Iuser.SetPermisos(new Menus());
+        NavigationManager.NavigateTo("");
+    }
+
+    // --- Métodos de Lógica de Menú Dinámico ---
+
+    private IList<NavMenuModel> GetChildrenMenu(int parentId = 0)
+    {
+        return MenuList.Where(x => x.parentid == parentId).OrderBy(x => x.order).ToList();
+    }
+
+    private NavMenuModel GetMenuItem(int id)
+    {
+        return MenuList.FirstOrDefault(x => x.id == id);
+    }
+
+    private IList<MenuViewModel> GetMenu(int parentId)
+    {
+        var children = GetChildrenMenu(parentId);
+
+        if (!children.Any())
+        {
+            return new List<MenuViewModel>();
+        }
+
+        var vmList = new List<MenuViewModel>();
+        foreach (var item in children)
+        {
+            var menu = GetMenuItem(item.id);
+            var vm = new MenuViewModel();
+            vm.id = menu.id;
+            vm.content = menu.content;
+            vm.icontype = menu.icontype;
+            vm.url = menu.url;
+            vm.Children = GetMenu(menu.id);
+            vmList.Add(vm);
+        }
+
+        return vmList;
+    }
+}

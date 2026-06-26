@@ -1,0 +1,173 @@
+@using BsOperaciones.Application.Features.Odoo.Commands
+@using Modelo.Entidades.Entradas.Odoo
+@using MediatR
+@inject IMediator _mediator
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center">
+            <MudIcon Icon="@(Item.cierre? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                     Color="@(Item.cierre ? Color.Success : Color.Default)" Class="mr-3" Size="Size.Large" />
+            <div>
+                <MudText Typo="Typo.h6" Style="line-height: 1.1;">
+                    Gestión de Registro @(Item.cierre ? "[CERRADO]" : "")
+                </MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                    Fecha: @Item.fecha.ToString("dd/MM/yyyy")
+                </MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 600px; overflow-y: auto">
+            <MudGrid Spacing="2">
+                @* Encabezado *@
+                <MudItem xs="12">
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.h5" Style="font-weight: bold;">@Item.nombre</MudText>
+                            <MudText Typo="Typo.caption">ID: @Item.id | Op: @operacion</MudText>
+                        </div>
+                        <MudChip T="string" Color="@(Item.estado_calculado == "OK" ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
+                            ESTADO: @Item.estado_calculado
+                        </MudChip>
+                    </div>
+                </MudItem>
+
+                @* --- CASO: OPERACIÓN MIXTA --- *@
+                @if (Item.es_op_mixta)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Icon="@Icons.Material.Filled.Info">
+                            <b>Operación Mixta:</b> Gestión exclusiva en el módulo de Operaciones Mixtas.
+                        </MudAlert>
+                    </MudItem>
+                }
+                @* --- BOTÓN DE ACCIÓN: AGREGAR MARCADA --- *@
+                else if ((Item.estado_calculado == "S. MARC" || Item.estado_calculado == "S. MOV") && !editandoManual)
+                {
+                    <MudItem xs="12" Class="d-flex justify-center py-4">
+                        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.AddCircle"
+                                   Color="Color.Success" Size="Size.Large" OnClick="HabilitarEdicion">
+                            Agregar Marcada Manual
+                        </MudButton>
+                    </MudItem>
+                }
+
+                @* --- SECCIÓN DINÁMICA: INFORMACIÓN DEL MOVIMIENTO (Se oculta al editar) --- *@
+                @if (!editandoManual)
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">INFORMACIÓN DEL MOVIMIENTO</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudField Label="Área Registrada" Variant="Variant.Outlined">@Item.areamov</MudField>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudField Label="Entrada Área" Variant="Variant.Outlined">@Item.entrada_movimiento</MudField>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudField Label="Salida Área" Variant="Variant.Outlined">@Item.salida_movimineto</MudField>
+                    </MudItem>
+                }
+
+                @* --- SECCIÓN DINÁMICA: FORMULARIO DE MARCACIÓN --- *@
+                @if (editandoManual || (Item.idmarca > 0 && !Item.es_op_mixta))
+                {
+                    <MudItem xs="12" Class="mt-2">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Success">DATOS DE LA MARCACIÓN</MudText>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Label="Entrada" @bind-Value="Item.entrada" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Label="Salida" @bind-Value="Item.salida" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+
+                    @* --- MOSTRAR BONO Y COMIDA SOLO SI NO ES S. MOV --- *@
+                    @if (Item.estado_calculado != "S. MOV")
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="Bono" @bind-Value="Item.bono" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AttachMoney" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField Label="Comida" @bind-Value="Item.comida" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Restaurant" />
+                        </MudItem>
+                    }
+                }
+
+                @* --- COMENTARIOS --- *@
+                <MudItem xs="12" Class="mt-2">
+                    <MudTextField T="string" @bind-Value="Item.comentario" Label="Observaciones / Comentarios" Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" OnClick="Cancelar">Cerrar</MudButton>
+        <MudSpacer />
+        @if (editandoManual && !Item.es_op_mixta)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                       OnClick="ConfirmarGuardado" StartIcon="@Icons.Material.Filled.Save">
+                Confirmar y Enviar
+            </MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public DiasTrabajadosAreas Item { get; set; }
+    [Parameter] public int operacion { get; set; }
+
+    private bool editandoManual = false;
+
+    private void HabilitarEdicion()
+    {
+        editandoManual = true;
+        // Sugerencia de horas
+        if (string.IsNullOrEmpty(Item.entrada) || Item.entrada == "00:00:00")
+            Item.entrada = Item.entrada_movimiento ?? "08:00:00";
+        if (string.IsNullOrEmpty(Item.salida) || Item.salida == "00:00:00")
+            Item.salida = Item.salida_movimineto ?? "17:00:00";
+    }
+
+    private async Task ConfirmarGuardado()
+    {
+        var resultado = MapearDiasTrabajados();
+        var response = await _mediator.Send(new AddMarcadasIdCommand(resultado, operacion));
+
+        if (response.Respuesta.ExisteError)
+        { 
+            Snackbar.Add($"Error al registrar la marcación: {response.Respuesta.MensajeError}", Severity.Error);
+            MudDialog.Cancel();
+        }
+        else
+        {
+            Snackbar.Add($"Marcación registrada para {Item.nombre}", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(resultado));
+        }
+    }
+
+    private DiasTrabajados MapearDiasTrabajados()
+    {
+        return new DiasTrabajados
+        {
+            fecha = Item.fecha,
+            id = Item.id,
+            nombre = Item.nombre,
+            entrada = Item.entrada,
+            salida = Item.salida,
+            bono = Item.bono,
+            comida =  Item.comida,
+            idmarca = Item.idmarca
+        };
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+}

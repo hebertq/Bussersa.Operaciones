@@ -1,0 +1,38 @@
+﻿@using Modelo.Entidades;
+
+@foreach (var item in Items.Where(x => x.parentid == ParentID))
+{
+    var hasChildren = Items.Any(c => c.parentid == item.id);
+
+    @if (hasChildren)
+    {
+        @* MudNavGroup maneja automáticamente el abrir/cerrar y oculta el texto al colapsar *@
+        <MudNavGroup Title="@item.content" Icon="@GetIcon(item.icontype)" Expanded="false">
+            <RecursiveMenu ParentID="item.id" />
+        </MudNavGroup>
+    }
+    else
+    {
+        @* MudNavLink es el estándar para links simples *@
+        <MudNavLink Href="@item.url" Icon="@GetIcon(item.icontype)" Match="NavLinkMatch.Prefix">
+            @item.content
+        </MudNavLink>
+    }
+}
+
+@code
+{
+    [CascadingParameter]
+    IList<NavMenuModel> Items { get; set; }
+
+    [Parameter]
+    public int? ParentID { get; set; }
+
+    // Método auxiliar para manejar los iconos de tu base de datos
+    private string GetIcon(string iconType)
+    {
+        // Si en tu BD guardas nombres de iconos de Material, esto funcionará.
+        // Si no tienes icono, puedes retornar un icono por defecto:
+        return string.IsNullOrEmpty(iconType) ? Icons.Material.Outlined.Label : iconType;
+    }
+}

@@ -1,0 +1,66 @@
+﻿@using Modelo.Entidades.Nomina
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3 mb-n1" />
+            Editar Liquidación: @Item.nombre
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 450px; overflow-y: scroll">
+            <MudGrid Spacing="2">
+                <MudItem xs="12">
+                    <MudAlert Severity="Severity.Info" Dense="true">Ajuste los valores calculados por el sistema.</MudAlert>
+                </MudItem>
+
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.diasvac" Label="Días Vac." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.diasagui" Label="Días Agui." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.diasinde" Label="Días Inde." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.diasnomina" Label="Días Nomina" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.horaextnom" Label="Horas Extras" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudNumericField @bind-Value="Item.bonosnomina" Label="Bonos" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Error">Deducciones y Otros</MudText>
+                </MudItem>
+
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="Item.prestamos" Label="Préstamos" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoneyOff" AdornmentColor="Color.Error" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField @bind-Value="Item.otrasdeduc" Label="Otras Deduc." Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="Item.otrosingre" Label="Otros Ingresos" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Guardar Cambios</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public SeveranceDetail Item { get; set; }
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(Item));
+    private void Cancel() => MudDialog.Cancel();
+}

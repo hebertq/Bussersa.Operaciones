@@ -1,0 +1,10 @@
+﻿
+<AuthorizeView Policy="@Policies.IsMenu" Resource="10">
+    <Authorized>
+        <MudNavGroup Title="Crear nomina" Icon="@Icons.Material.Filled.Payments" Expanded="false">
+            <MenuItem MenuId="19" Name="Quincenal" Url="/nomina/quincenal" IconName="@Icons.Material.Filled.EventRepeat" />
+            <MenuItem MenuId="20" Name="Liquidación" Url="/nomina/liquidacion" IconName="@Icons.Material.Filled.PersonRemoveAlt1" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized/>
+</AuthorizeView>

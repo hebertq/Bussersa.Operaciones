@@ -1,0 +1,377 @@
+@page "/importacion-marcaciones"
+@using BsOperaciones.Application.Common.Strategy.Reloj
+@using BsOperaciones.Application.Features.Odoo.Commands
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using BsOperaciones.Component.DialogModal
+@using Modelo.ClasesGenericas
+@using Modelo.Enum 
+@using Modelo.Entidades.Entradas.Odoo
+@using MudBlazor
+@using MediatR
+@using System.IO
+@using Utilidades.ClasesGenericas
+
+@inject IJSRuntime JS
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject RelojSelector _relojSelector
+
+@* Estilos para corregir solapamiento visual y mejorar la edición en celdas *@
+<style>
+    /* Oculta el texto de la celda cuando MudBlazor entra en modo edición */
+    .mud-table-cell-editing .visualizacion-celda {
+        display: none !important;
+    }
+
+    /* Asegura que el input ocupe el fondo y no se vea transparencia */
+    .mud-table-cell-editing .mud-input-control {
+        background-color: white !important;
+        margin-top: 0 !important;
+    }
+
+    /* Resalta filas con errores de estado */
+    .fila-incompleta {
+        background-color: rgba(244, 67, 54, 0.08) !important;
+    }
+</style>
+
+@* Loader Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando información...</MudText>
+    </div>
+</MudOverlay>
+
+<MudPaper Elevation="0" Class="pa-6 mb-4">
+    <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+        <MudIcon Icon="@Icons.Material.Outlined.Assessment" Class="mr-2" />
+        Marcaciones Diarias
+    </MudText>
+
+    <MudGrid Spacing="3">
+        @* 1. Fecha de Carga *@
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="Fecha de Marcación" @bind-Date="FchaCargaWrapper"
+                           Variant="MudBlazor.Variant.Outlined" Color="MudBlazor.Color.Primary"
+                           DateFormat="dd/MM/yyyy" />
+        </MudItem>
+
+        @* 2. Tipo de Reloj (Estrategia) *@
+        <MudItem xs="12" sm="3">
+            <MudSelect T="TipoReloj?" Label="Tipo de Marcación"
+                       Value="operacion"
+                       ValueChanged="OnChangeReloj"
+                       Variant="MudBlazor.Variant.Outlined"
+                       Placeholder="Seleccione de la lista"
+                       AnchorOrigin="MudBlazor.Origin.BottomCenter"
+                       Clearable="true">
+                @foreach (TipoReloj item in Enum.GetValues(typeof(TipoReloj)))
+                {
+                    <MudSelectItem Value="@((TipoReloj?)item)">@item.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        @* 3. Botón para subir archivo *@
+        @if (operacion.HasValue)
+        {
+            <MudItem xs="12" sm="6" Class="d-flex align-end">
+                <MudFileUpload T="IBrowserFile" OnFilesChanged="LoadFiles" Accept=".csv, .xls, .xlsx, .txt" Style="width: 100%">
+                    <ActivatorContent>
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Color="MudBlazor.Color.Primary"
+                                   StartIcon="@Icons.Material.Outlined.CloudUpload"
+                                   Style="height: 56px;"
+                                   FullWidth="true">
+                            PASO 1: SUBIR DATOS DEL RELOJ
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            </MudItem>
+        }
+
+        @* 4. Operación Destino y Guardado *@
+        @if (PayLoadList.Count > 0)
+        {
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" Label="Operación Destino (Odoo)" @bind-Value="empresa"
+                           Variant="MudBlazor.Variant.Outlined" 
+                           Placeholder="Seleccione de la lista"
+                           AnchorOrigin="MudBlazor.Origin.BottomCenter">
+                    @foreach (var item in PayLoadOper)
+                    {
+                        <MudSelectItem Value="@((int?)item.id)">@item.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="4" Class="d-flex align-end">
+                <MudButton Variant="MudBlazor.Variant.Filled"
+                           Color="MudBlazor.Color.Info"
+                           StartIcon="@Icons.Material.Outlined.DeleteSweep"
+                           OnClick="LimpiarDuplicados"
+                           Style="height: 56px;"
+                           FullWidth="true">
+                    LIMPIAR DUPLICADOS
+                </MudButton>
+            </MudItem>
+
+            @if (empresa.HasValue && empresa > 0)
+            {
+                <MudItem xs="12" sm="4" Class="d-flex align-end">
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Success"
+                               StartIcon="@Icons.Material.Outlined.Save"
+                               OnClick="SendMarca"
+                               Style="height: 56px;"
+                               FullWidth="true"
+                               Class="rounded-pill">
+                        PASO 2: GUARDAR MARCACIONES
+                    </MudButton>
+                </MudItem>
+            }
+        }
+    </MudGrid>
+</MudPaper>
+
+@* DataGrid con edición de celdas y máscaras *@
+<MudDataGrid T="HoraEntrada" Items="@PayLoadList" Dense="true" ReadOnly="false"
+             RowStyleFunc="@((item, index) => item.Estado != EstadoMarcacion.Completo ? "background-color:rgba(255, 0, 0, 0.05);" : "")"
+             EditMode="MudBlazor.DataGridEditMode.Cell" CommittedItemChanges="@CommittedItemChanges"
+             QuickFilter="QuickFilterMethod" RowsPerPage="15" Bordered="false" Striped="true" Elevation="1">
+    <ToolBarContent>
+        <MudIconButton Size="MudBlazor.Size.Small" Icon="@Icons.Material.Outlined.FileDownload" OnClick="@DownloadFile" Color="MudBlazor.Color.Primary" />
+        <MudSpacer />
+        <MudText Typo="MudBlazor.Typo.h6">Revisión de Marcaciones</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nombre o ID..." Adornment="MudBlazor.Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+    </ToolBarContent>
+    <Columns>
+        <TemplateColumn Title="Estado" Editable="false">
+            <CellTemplate>
+                @switch (context.Item.Estado)
+                {
+                    case EstadoMarcacion.Completo:
+                        <MudChip T="string" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Small" Icon="@Icons.Material.Filled.CheckCircle">OK</MudChip>
+                        break;
+                    case EstadoMarcacion.FaltaEntrada:
+                        <MudChip T="string" Color="MudBlazor.Color.Error" Size="MudBlazor.Size.Small" Icon="@Icons.Material.Filled.Login">FALTA ENTRADA</MudChip>
+                        break;
+                    case EstadoMarcacion.FaltaSalida:
+                        <MudChip T="string" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Small" Icon="@Icons.Material.Filled.Logout">FALTA SALIDA</MudChip>
+                        break;
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.fecha" Title="Fecha" Editable="false" />
+        <PropertyColumn Property="x => x.id" Title="No empleado" Editable="false" />
+        <PropertyColumn Property="x => x.nombre" Title="Nombre" Editable="false" />
+        
+        <PropertyColumn Property="x => x.entrada" Title="Entrada">
+            <CellTemplate><div class="visualizacion-celda">@context.Item.entrada</div></CellTemplate>
+            <EditTemplate>
+                <MudTextField @bind-Value="context.Item.entrada" Label="HH:mm:ss" 
+                              Variant="MudBlazor.Variant.Outlined" Margin="MudBlazor.Margin.Dense"
+                              Mask="@horaMask" Placeholder="00:00:00" />
+            </EditTemplate>
+        </PropertyColumn>
+        
+        <PropertyColumn Property="x => x.salida" Title="Salida">
+            <CellTemplate><div class="visualizacion-celda">@context.Item.salida</div></CellTemplate>
+            <EditTemplate>
+                <MudTextField @bind-Value="context.Item.salida" Label="HH:mm:ss" 
+                              Variant="MudBlazor.Variant.Outlined" Margin="MudBlazor.Margin.Dense"
+                              Mask="@horaMask" Placeholder="00:00:00" />
+            </EditTemplate>
+        </PropertyColumn>
+
+        <PropertyColumn Property="x => x.bono" Title="Bono" />
+        <PropertyColumn Property="x => x.almuerzocena" Title="Hora comida" />
+
+        <TemplateColumn CellClass="d-flex justify-end" Editable="false" Sortable="false">
+            <CellTemplate>
+                <MudIconButton Size="MudBlazor.Size.Small" Icon="@Icons.Material.Filled.Delete" 
+                               Color="MudBlazor.Color.Error" OnClick="@(() => EliminarFila(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent><MudDataGridPager T="HoraEntrada" /></PagerContent>
+</MudDataGrid>
+
+@code {
+    public List<HoraEntrada> PayLoadList = new();
+    public List<Combos> PayLoadOper = new();
+    public DateTime FchaCarga { set; get; } = DateTime.Now.Date.AddDays(-1);
+    private DateTime? FchaCargaWrapper { get => FchaCarga; set => FchaCarga = value ?? DateTime.Now.Date; }
+
+    public TipoReloj? operacion { set; get; }
+    public int? empresa { set; get; }
+    public bool isloaddata { set; get; } = false;
+    private string _searchString = "";
+    private long maxFileSize = 1024 * 1024 * 15;
+
+    // Máscara para obligar al formato HH:mm:ss
+    public PatternMask horaMask = new PatternMask("00:00:00");
+    public ModaComponentBS ErrorModal { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+        // Solo mostramos operaciones válidas (ID mayor a 0)
+        PayLoadOper = regop.Model.Where(x => x.id > 0).ToList();
+    }
+
+    private void OnChangeReloj(TipoReloj? val)
+    {
+        operacion = val;
+        PayLoadList.Clear();
+        empresa = null; 
+        StateHasChanged();
+    }
+
+    private async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        if (operacion == null) return;
+        isloaddata = true;
+        try
+        {
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(maxFileSize).CopyToAsync(ms);
+            ms.Position = 0;
+
+            var strategy = _relojSelector.ObtenerEstrategia(operacion.Value);
+            var listaCruda = strategy.Parsear(ms, FchaCarga);
+
+            if (listaCruda != null && listaCruda.Any())
+            {
+                var emps = await _mediator.Send(new GetAllCombosQuery("Empleados"));
+                PayLoadList = (from lh in listaCruda
+                               join em in emps.Model on lh.id equals em.id
+                               select new HoraEntrada {
+                                   fecha = lh.fecha, id = lh.id, nombre = em.nombre,
+                                   entrada = lh.entrada, salida = lh.salida,
+                                   bono = lh.bono, almuerzocena = lh.almuerzocena
+                               })
+                               .GroupBy(x => new { x.id, x.fecha,x.entrada })
+                               .Select(g => g.First()).ToList();
+                
+                Snackbar.Add($"Proceso exitoso: {PayLoadList.Count} registros cargados.", Severity.Info);
+            }
+            else 
+            {
+                Snackbar.Add("El archivo no contiene marcas para la fecha seleccionada.", Severity.Warning);
+            }
+        }
+        catch (Exception ex) 
+        { 
+            Snackbar.Add($"Error al procesar archivo: {ex.Message}", Severity.Error); 
+        }
+        finally 
+        { 
+            isloaddata = false; 
+            StateHasChanged(); 
+        }
+    }
+
+    private void LimpiarDuplicados() 
+    {
+        var inicial = PayLoadList.Count;
+        PayLoadList = PayLoadList.GroupBy(x => new { x.id, x.fecha, x.entrada, x.salida })
+                                 .Select(g => g.First()).ToList();
+        Snackbar.Add($"Limpieza completa: {inicial - PayLoadList.Count} duplicados eliminados.", Severity.Info);
+    }
+
+    private void EliminarFila(HoraEntrada item) 
+    {
+        PayLoadList.Remove(item);
+        Snackbar.Add("Registro eliminado de la vista previa.", Severity.Normal);
+    }
+    
+    private void CommittedItemChanges(object item)
+    {
+        // La máscara asegura el formato, solo refrescamos estados visuales
+        StateHasChanged();
+    }
+
+    private async Task SendMarca()
+    {
+        if (!empresa.HasValue) 
+        {
+            Snackbar.Add("Debe seleccionar una operación destino.", Severity.Warning);
+            return;
+        }
+
+        // Validación estricta: No permitir guardar si hay estados incompletos
+        var registrosError = PayLoadList.Where(x => x.Estado != EstadoMarcacion.Completo).ToList();
+        if (registrosError.Any())
+        {
+            Snackbar.Add($"BLOQUEO: Hay {registrosError.Count} registros incompletos (rojos). Corríjalos para continuar.", 
+                         Severity.Error, config => config.VisibleStateDuration = 10000);
+            return;
+        }
+
+        isloaddata = true;
+        try
+        {
+            var res = await _mediator.Send(new AddAllMarcadasCommand(PayLoadList, empresa.Value, NombreOperacion()));
+            if (!res.Respuesta.ExisteError) 
+            { 
+                Snackbar.Add("Marcaciones sincronizadas con Odoo correctamente.", Severity.Success); 
+                PayLoadList.Clear(); 
+                empresa = null;
+            }
+            else 
+            {
+                Snackbar.Add($"Odoo respondió con error: {res.Respuesta.MensajeError}", Severity.Error);
+            }
+        }
+        catch (Exception ex) 
+        { 
+            Snackbar.Add($"Error de red: {ex.Message}", Severity.Error); 
+        }
+        finally 
+        { 
+            isloaddata = false; 
+        }
+    }
+    private string NombreOperacion()
+    {
+        if (!empresa.HasValue) return "N/A";
+        var oper = PayLoadOper.FirstOrDefault(x => x.id == empresa.Value);
+        return oper != null ? $"{empresa}-{oper.nombre}": "N/A";
+    }
+
+    private async Task DownloadFile()
+    {
+        if (!PayLoadList.Any()) return;
+        isloaddata = true;
+        try 
+        {
+            var query = PayLoadList.Select(d => new { d.id, d.nombre, d.fecha, d.entrada, d.salida, d.bono, d.almuerzocena }).ToList();
+            var exceldata = DataExcel.CreateExcel(query, "Marcaciones");
+            string base64Data = Convert.ToBase64String(exceldata.Data);
+            await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"Marcas_{FchaCarga:ddMMyyyy}.xlsx");
+            Snackbar.Add("Descarga de Excel iniciada.", Severity.Success);
+        }
+        catch(Exception ex) 
+        { 
+            Snackbar.Add("Fallo al exportar Excel: " + ex.Message, Severity.Error); 
+        }
+        finally 
+        { 
+            isloaddata = false; 
+        }
+    }
+
+    private bool QuickFilterMethod(HoraEntrada x) 
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return (x.nombre?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) || 
+               x.id.ToString().Contains(_searchString);
+    }
+}

@@ -1,0 +1,38 @@
+﻿@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <div class="text-center">
+            @if (string.IsNullOrEmpty(ReportName))
+            {
+                <h3>¿Eliminar registro?</h3>
+            }
+            else
+            {
+                <h3>@ReportName</h3>
+            }
+
+            <p class="text-secondary">
+                ¿Estás seguro de que quieres realizar esta operación?<br />
+                Esta acción podría no ser revertida.
+            </p>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Default" OnClick="CerrarNo">No</MudButton>
+        <MudButton Color="Color.Error" OnClick="CerrarSi">Sí</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IDialogReference DialogReference { get; set; }
+
+    [Parameter]
+    public string ReportName { get; set; } = string.Empty;
+
+    private void CerrarSi() => DialogReference?.Close(DialogResult.Ok(true));
+    private void CerrarNo() => DialogReference?.Close(DialogResult.Ok(false));
+}
+

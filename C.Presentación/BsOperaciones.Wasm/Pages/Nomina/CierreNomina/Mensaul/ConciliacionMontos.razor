@@ -1,0 +1,177 @@
+@using BsOperaciones.Application.Features.Odoo.Command
+@using Modelo.Entidades.Entradas.Odoo
+@using BsOperaciones.Application.Features.Odoo.Commands
+@using Modelo.Report
+@using Utilidades.ClasesGenericas
+@inject IMediator _mediator
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+
+<MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
+    <MudGrid Spacing="3" Class="align-end">
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int" Label="Año a Cerrar" @bind-Value="_anioSeleccionado"
+                       Variant="MudBlazor.Variant.Outlined" Margin="MudBlazor.Margin.Dense">
+                <MudSelectItem Value="@(DateTime.Now.Year)">@(DateTime.Now.Year)</MudSelectItem>
+                <MudSelectItem Value="@(DateTime.Now.Year - 1)">@(DateTime.Now.Year - 1)</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int" Label="Mes a Cerrar" @bind-Value="_mesSeleccionado"
+                       Variant="MudBlazor.Variant.Outlined" Margin="MudBlazor.Margin.Dense">
+                <MudSelectItem Value="1">Enero</MudSelectItem>
+                <MudSelectItem Value="2">Febrero</MudSelectItem>
+                <MudSelectItem Value="3">Marzo</MudSelectItem>
+                <MudSelectItem Value="4">Abril</MudSelectItem>
+                <MudSelectItem Value="5">Mayo</MudSelectItem>
+                <MudSelectItem Value="6">Junio</MudSelectItem>
+                <MudSelectItem Value="7">Julio</MudSelectItem>
+                <MudSelectItem Value="8">Agosto</MudSelectItem>
+                <MudSelectItem Value="9">Septiembre</MudSelectItem>
+                <MudSelectItem Value="10">Octubre</MudSelectItem>
+                <MudSelectItem Value="11">Noviembre</MudSelectItem>
+                <MudSelectItem Value="12">Diciembre</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Primary"
+                       StartIcon="@Icons.Material.Filled.LockOpen"
+                       OnClick="ConfirmarEjecucionCierre" FullWidth="true" Style="height: 40px;">
+                EJECUTAR CIERRE MENSUAL
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-6" />
+
+    <MudDataGrid T="NominaMensualReportar" Items="@_nominaFinal" Dense="true" Elevation="0"
+                 ReadOnly="true" Bordered="true" Striped="true" Class="mt-4" Height="400px" FixedHeader="true">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Primary">
+                <b>Previsualización de Nómina Generada</b>
+            </MudText>
+            <MudSpacer />
+            @if (_nominaFinal != null && _nominaFinal.Any())
+            {
+                <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Success"
+                           StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                           OnClick="DescargarNominaInss" Size="MudBlazor.Size.Small">
+                    DESCARGAR EXCEL NOMINA
+                </MudButton>
+            }
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.emp_noinss" Title="No Inss" />
+            <PropertyColumn Property="x => x.emp_nombre" Title="Nombre" />
+            <PropertyColumn Property="x => x.emp_sal_basico" Title="Salario Básico" Format="N2" />
+            <PropertyColumn Property="x => x.emp_pago_recibir" Title="A Recibir" Format="N2" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="NominaMensualReportar" />
+        </PagerContent>
+    </MudDataGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public int Anio { get; set; }
+    [Parameter] public EventCallback<int> AnioChanged { get; set; }
+
+    [Parameter] public int Mes { get; set; }
+    [Parameter] public EventCallback<int> MesChanged { get; set; }
+
+    [Parameter] public List<NominaMensualReportar> NominaFinalGlobal { get; set; }
+    [Parameter] public EventCallback<List<NominaMensualReportar>> OnNominaGenerated { get; set; }
+    [Parameter] public EventCallback<bool> OnProcessing { get; set; }
+
+    @* Usamos propiedades vinculadas para que el Select no pierda el valor *@
+    private int _anioSeleccionado
+    {
+        get => Anio;
+        set { Anio = value; AnioChanged.InvokeAsync(value); }
+    }
+    private int _mesSeleccionado
+    {
+        get => Mes;
+        set { Mes = value; MesChanged.InvokeAsync(value); }
+    }
+
+    @* La grilla ahora apunta directamente a NominaFinalGlobal del padre *@
+    private List<NominaMensualReportar> _nominaFinal => NominaFinalGlobal;
+
+    private async Task ConfirmarEjecucionCierre()
+    {
+        string mes = new DateTime(2000, _mesSeleccionado, 1).ToString("MMMM").ToUpper();
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar Cierre",
+            (MarkupString)$"¿Ejecutar el cierre para <b>{_anioSeleccionado} - {mes}</b>?",
+            yesText: "Ejecutar", cancelText: "Cancelar");
+
+        if (result == true) await EjecutarCierreMensual();
+    }
+
+    private async Task EjecutarCierreMensual()
+    {
+        await OnProcessing.InvokeAsync(true);
+        try
+        {
+            var response = await _mediator.Send(new CerrarMesNominaCommand(_anioSeleccionado, _mesSeleccionado));
+            if (!response.Respuesta.ExisteError)
+            {
+                var resultado = response.Model ?? new();
+                await OnNominaGenerated.InvokeAsync(resultado); // Notifica al padre
+                Snackbar.Add("Cierre finalizado con éxito.", MudBlazor.Severity.Success);
+            }
+            else Snackbar.Add(response.Respuesta.MensajeError, MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            await OnProcessing.InvokeAsync(false);
+        }
+    }
+
+    private async Task DescargarNominaInss()
+    {
+        try
+        {
+            var reporteExcel = _nominaFinal.Select(x => new
+            {
+                Mes = x.anyo_mes_cierre,
+                Inicio = x.fec_inicio?.ToString("yyyy-MM-dd"),
+                Fin = x.fec_fin?.ToString("yyyy-MM-dd"),
+                EmpId = x.emp_nomina,
+                No_Inss = string.IsNullOrEmpty(x.emp_noinss) ? 0 : Convert.ToInt64(decimal.Parse(x.emp_noinss)),
+                Nombre = x.emp_nombre,
+                Novedad = x.emp_novedad,
+                Semanas = x.emp_semanas_labs,
+                DiasLab = x.emp_diaslab,
+                ExtrasLab = x.emp_no_hras_extra,
+                SalBase = x.emp_sal_fijo,
+                SalBasico = x.emp_sal_basico,
+                HrasExtras = x.emp_pago_hras_extras,
+                Trasnporte = x.emp_viatico_trasporte,
+                Alimnetacion = x.emp_viatico_alimentacion,
+                Combustible = x.emp_viatico_combustible,
+                Depreciacion = x.emb_depre_vehiculo,
+                Vacaciones = x.emp_vacaciones,
+                Aguinaldo = x.emp_aguinaldo,
+                Otros_Ingresos = x.emp_otros_ingresos,
+                TotalIngresos = x.emp_total_ingresos,
+                Deducibles = x.emp_ingresos_deducir,
+                Inss = x.emp_deduc_inss,
+                Ir = x.emp_ir_reportar,
+                Otras_Deduciones = x.emp_otras_deduciones,
+                Prestamos = x.emp_prestamos,
+                TotalDeduciones = x.emp_total_deducciones,
+                TotalRecibir = x.emp_pago_recibir
+            }).ToList();
+
+            var excelData = DataExcel.CreateExcel(reporteExcel, "Nomina_Cierre_INSS");
+            await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Convert.ToBase64String(excelData.Data), $"PLANILLA_INSS_{_mesSeleccionado}_{_anioSeleccionado}.xlsx");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al generar el Excel: " + ex.Message, MudBlazor.Severity.Error);
+        }       
+    }
+}

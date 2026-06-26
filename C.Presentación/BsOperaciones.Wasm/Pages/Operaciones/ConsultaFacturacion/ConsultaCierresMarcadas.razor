@@ -1,0 +1,282 @@
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@using Modelo.Report
+@using Utilidades.ClasesGenericas
+@inject IMediator _mediator
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<MudText Typo="Typo.h5" Class="mb-4 fw-bold" Color="Color.Primary">REPORTE DE AUDITORÍA Y CIERRE</MudText>
+
+@* --- PANEL DE FILTROS --- *@
+<MudPaper Elevation="0" Class="pa-5 mb-4" Style="background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+    <MudGrid Spacing="3" Class="align-center">
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                <MudSelectItem Value="0">Seleccione un cliente...</MudSelectItem>
+                @if (PayLoadOper != null)
+                {
+                    @foreach (var item in PayLoadOper)
+                    {
+                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="2">
+            <MudSelect T="bool" Label="Filtrar por" @bind-Value="esRango" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                <MudSelectItem Value="false">Mes y Año</MudSelectItem>
+                <MudSelectItem Value="true">Rango de Fecha</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        @if (!esRango)
+        {
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Año" @bind-Value="anio" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    @foreach (var year in YearsList)
+                    {
+                        <MudSelectItem T="int" Value="@year">@year</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Mes" @bind-Value="mes" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem Value="1">ENERO</MudSelectItem>
+                    <MudSelectItem Value="2">FEBRERO</MudSelectItem>
+                    <MudSelectItem Value="3">MARZO</MudSelectItem>
+                    <MudSelectItem Value="4">ABRIL</MudSelectItem>
+                    <MudSelectItem Value="5">MAYO</MudSelectItem>
+                    <MudSelectItem Value="6">JUNIO</MudSelectItem>
+                    <MudSelectItem Value="7">JULIO</MudSelectItem>
+                    <MudSelectItem Value="8">AGOSTO</MudSelectItem>
+                    <MudSelectItem Value="9">SEPTIEMBRE</MudSelectItem>
+                    <MudSelectItem Value="10">OCTUBRE</MudSelectItem>
+                    <MudSelectItem Value="11">NOVIEMBRE</MudSelectItem>
+                    <MudSelectItem Value="12">DICIEMBRE</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        }
+        else
+        {
+            <MudItem xs="6" sm="2"><MudDatePicker Label="Inicio" @bind-Date="fchaInicio" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+            <MudItem xs="6" sm="2"><MudDatePicker Label="Fin" @bind-Date="fchaFin" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        }
+
+        <MudItem xs="12" sm="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConsultarReporte" FullWidth="true" Disabled="@isloading" Style="height: 40px;">
+                @(isloading ? "Buscando..." : "CONSULTAR")
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@* --- CONTENEDOR DE RESULTADOS SIEMPRE VISIBLE --- *@
+<div style="position: relative;">
+    <div style="position: absolute; right: 10px; top: 8px; z-index: 10;">
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                   StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                   Disabled="@(DatosCierre == null || !DatosCierre.Any())"
+                   OnClick="ExportarExcelCompleto" Class="rounded-pill px-4">
+            EXPORTAR EXCEL (2 HOJAS)
+        </MudButton>
+    </div>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary">
+
+        @* TAB 1: CONSOLIDADO *@
+        <MudTabPanel Text="CONSOLIDADO POR ÁREA" Icon="@Icons.Material.Filled.Assignment">
+            <MudDataGrid Items="@ResumenPorArea" Dense="true" Hover="true" Striped="true"
+                         RowsPerPage="10" QuickFilter="@_filterMaestro" Loading="@isloading">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Resumen Áreas</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_searchMaestro" Placeholder="Buscar área..." Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.Area" Title="Área / Proyecto" />
+                    <TemplateColumn Title="Periodo">
+                        <CellTemplate>
+                            @(context.Item.FechaMin == default ? "---" : $"{context.Item.FechaMin:dd/MM} al {context.Item.FechaMax:dd/MM/yyyy}")
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.DiasLaborados" Title="Días" />
+                    <PropertyColumn Property="x => x.TotalColaboradores" Title="Pers." />
+                    <PropertyColumn Property="x => x.TotalHoras" Title="Horas" Format="N1" />
+                    <PropertyColumn Property="x => x.TotalExtras" Title="Extras" Format="N1" />
+                </Columns>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2" Class="pa-4 text-center">No hay datos disponibles. Realice una consulta.</MudText>
+                </NoRecordsContent>
+                <PagerContent><MudDataGridPager T="ConsolidadoCierre" /></PagerContent>
+            </MudDataGrid>
+        </MudTabPanel>
+
+        @* TAB 2: DETALLE *@
+        <MudTabPanel Text="DETALLE NOMINAL" Icon="@Icons.Material.Filled.People">
+            <MudDataGrid Items="@DatosCierre" Dense="true" Hover="true" Striped="true"
+                         RowsPerPage="10" QuickFilter="@_filterDetalle" Loading="@isloading">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Listado Detallado</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_searchDetalle" Placeholder="Buscar colaborador..." Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.fecha_asistencia" Title="Fecha" Format="dd/MM/yyyy" />
+                    <PropertyColumn Property="x => x.area_nombre" Title="Área" />
+                    <PropertyColumn Property="x => x.nombre_empleado" Title="Colaborador" />
+                    <PropertyColumn Property="x => x.entrada_movimiento" Title="Entrada" />
+                    <PropertyColumn Property="x => x.salida_movimiento" Title="Salida" />
+                    <PropertyColumn Property="x => x.horas_totales" Title="Horas" />
+                    <PropertyColumn Property="x => x.horas_extras" Title="Extras" />
+                </Columns>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2" Class="pa-4 text-center">No hay registros detallados para mostrar.</MudText>
+                </NoRecordsContent>
+                <PagerContent><MudDataGridPager T="ReporteCierreMarcadasDetalle" /></PagerContent>
+            </MudDataGrid>
+        </MudTabPanel>
+    </MudTabs>
+</div>
+
+@code {
+    private List<ReporteCierreMarcadasDetalle> DatosCierre = new();
+    private List<ConsolidadoCierre> ResumenPorArea = new();
+    private List<Combos> PayLoadOper = new();
+    private List<int> YearsList = new();
+
+    private int operacionId = 0, anio = DateTime.Now.Year, mes = DateTime.Now.Month;
+    private bool esRango, isloading;
+    private DateTime? fchaInicio = DateTime.Now.Date.AddDays(-30), fchaFin = DateTime.Now.Date;
+    private string _searchMaestro = "", _searchDetalle = "";
+
+    public class ConsolidadoCierre
+    {
+        public string Area { get; set; }
+        public DateTime FechaMin { get; set; }
+        public DateTime FechaMax { get; set; }
+        public int DiasLaborados { get; set; }
+        public decimal TotalHoras { get; set; }
+        public decimal TotalExtras { get; set; }
+        public int TotalColaboradores { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Inicializar lista de años (Actual y Anterior)
+        YearsList = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1 };
+
+        var res = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+        PayLoadOper = res.Model ?? new();
+    }
+
+    private async Task ConsultarReporte()
+    {
+        if (operacionId == 0)
+        {
+            Snackbar.Add("Seleccione un cliente para consultar.", Severity.Warning);
+            return;
+        }
+
+        isloading = true;
+        try
+        {
+            var response = esRango
+                ? await _mediator.Send(new GetReporteCierreClienteRangoQuery(operacionId, fchaInicio ?? DateTime.Now, fchaFin ?? DateTime.Now))
+                : await _mediator.Send(new GetReporteCierreClienteMesQuery(operacionId, anio, mes));
+
+            if (response.Model != null)
+            {
+                // Mapeo a clase Detalle
+                DatosCierre = response.Model.Select(x => new ReporteCierreMarcadasDetalle
+                {
+                    fecha_asistencia = x.fecha_asistencia,
+                    id_empleado = x.id_empleado,
+                    nombre_empleado = x.nombre_empleado,
+                    tipo_empleado = x.tipo_empleado,
+                    area_nombre = x.area_nombre,
+                    entrada_movimiento = x.entrada_movimiento,
+                    salida_movimiento = x.salida_movimiento,
+                    horas_totales = x.horas_totales,
+                    horas_extras = x.horas_extras
+                }).ToList();
+
+                // Lógica de Consolidado por Área
+                ResumenPorArea = DatosCierre.GroupBy(x => x.area_nombre).Select(g => new ConsolidadoCierre
+                {
+                    Area = g.Key ?? "SIN ÁREA",
+                    FechaMin = g.Min(x => x.fecha_asistencia),
+                    FechaMax = g.Max(x => x.fecha_asistencia),
+                    DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
+                    TotalHoras = g.Sum(x => x.horas_totales),
+                    TotalExtras = g.Sum(x => x.horas_extras),
+                    TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
+                }).OrderBy(x => x.Area).ToList();
+
+                if (!DatosCierre.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al consultar: " + ex.Message, Severity.Error);
+        }
+        finally { isloading = false; }
+    }
+
+    private async Task ExportarExcelCompleto()
+    {
+        if (DatosCierre == null || !DatosCierre.Any()) return;
+
+        try
+        {
+            // Mapeo a objetos con fechas como String para evitar el formato numérico en Excel
+            var consolidadoExport = ResumenPorArea.Select(x => new
+            {
+                x.Area,
+                Desde = x.FechaMin.ToString("yyyy-MM-dd"),
+                Hasta = x.FechaMax.ToString("yyyy-MM-dd"),
+                Días = x.DiasLaborados,
+                Personal = x.TotalColaboradores,
+                Total_Horas = x.TotalHoras,
+                Total_Extras = x.TotalExtras
+            }).ToList();
+
+            var detalleExport = DatosCierre.Select(x => new
+            {
+                Fecha = x.fecha_asistencia.ToString("yyyy-MM-dd"),
+                Área = x.area_nombre,
+                ID = x.id_empleado,
+                Nombre = x.nombre_empleado,
+                Entrada = x.entrada_movimiento,
+                Salida = x.salida_movimiento,
+                Horas = x.horas_totales,
+                Extras = x.horas_extras
+            }).ToList();
+
+            var hoja1 = DataExcel.CreateExcel(consolidadoExport, "Consolidado por Area");
+            var hoja2 = DataExcel.CreateExcel(detalleExport, "Detalle de Marcaciones");
+
+            string base64File = DataExcel.CreateExcel(new List<ExcelArray> { hoja1, hoja2 });
+
+            if (!string.IsNullOrEmpty(base64File))
+            {
+                string cliente = PayLoadOper.FirstOrDefault(x => x.id == operacionId)?.nombre ?? "Reporte";
+                string fchaStr = DateTime.Now.ToString("ddMMyy");
+                await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64File, $"Cierre_{cliente.Replace(" ", "_")}_{fchaStr}.xlsx");
+                Snackbar.Add("Excel generado con éxito", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al exportar: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private Func<ConsolidadoCierre, bool> _filterMaestro => x => string.IsNullOrWhiteSpace(_searchMaestro) || x.Area.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase);
+    private Func<ReporteCierreMarcadasDetalle, bool> _filterDetalle => x => string.IsNullOrWhiteSpace(_searchDetalle) || x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase);
+}

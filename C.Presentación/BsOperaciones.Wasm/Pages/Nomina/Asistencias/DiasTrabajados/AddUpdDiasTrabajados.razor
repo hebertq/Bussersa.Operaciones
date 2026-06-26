@@ -1,0 +1,133 @@
+@using BsOperaciones.Application.Features.Odoo.Commands
+@using Modelo.Entidades.Entradas.Odoo
+@using MediatR
+@using MudBlazor
+@inject IMediator _mediator
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Outlined.EditCalendar" Class="mr-3 mb-n1" />
+            @ReportName
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+
+        <MudContainer Style="max-height: 450px; overflow-y: auto" Class="pt-4">
+            <MudGrid Spacing="3">
+                @* Fecha *@
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="Fecha de Marcación"
+                                   @bind-Date="fechaWrapper"
+                                   Variant="MudBlazor.Variant.Outlined"
+                                   DateFormat="dd/MM/yyyy"
+                                   Color="Color.Primary" />
+                </MudItem>
+
+                @* Bono *@
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="payload.bono"
+                                     Label="Bono por día"
+                                     Variant="MudBlazor.Variant.Outlined"
+                                     Format="N2"
+                                     Adornment="Adornment.Start"
+                                     AdornmentIcon="@Icons.Material.Outlined.Payments" />
+                </MudItem>
+
+                @* Hora Inicio *@
+                <MudItem xs="12" sm="6">
+                    <MudTimePicker Label="Hora Inicio"
+                                   @bind-Time="horaDesdeWrapper"
+                                   Variant="MudBlazor.Variant.Outlined"
+                                   AmPm="false" />
+                </MudItem>
+
+                @* Hora Fin *@
+                <MudItem xs="12" sm="6">
+                    <MudTimePicker Label="Hora Fin"
+                                   @bind-Time="horaHastaWrapper"
+                                   Variant="MudBlazor.Variant.Outlined"
+                                   AmPm="false" />
+                </MudItem>
+
+                @* Comida *@
+                <MudItem xs="12">
+                    <MudNumericField @bind-Value="payload.comida"
+                                     Label="Tiempo de comida (minutos)"
+                                     Variant="MudBlazor.Variant.Outlined"
+                                     Adornment="Adornment.Start"
+                                     AdornmentIcon="@Icons.Material.Outlined.Restaurant" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="MudBlazor.Variant.Text" Class="px-6">Cancelar</MudButton>
+        <MudButton OnClick="OnUpdate"
+                   Variant="MudBlazor.Variant.Filled"
+                   Color="Color.Secondary"
+                   Disabled="isloading"
+                   Class="rounded-pill px-8 py-2 ml-2">
+            @((isloading) ? "Registrando..." : "Registrar datos")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudBlazor.IMudDialogInstance MudDialog { get; set; } // Referencia para cerrar el diálogo
+
+    [Parameter] public string ReportName { get; set; } = "Registro de Datos";
+    [Parameter] public DiasTrabajados payload { get; set; } = new DiasTrabajados();
+    [Parameter] public int Operacion { get; set; }
+
+    public bool isloading { get; set; }
+
+    // Wrappers para sincronizar los tipos de datos de MudBlazor con tu modelo
+    private DateTime? fechaWrapper
+    {
+        get => payload.fecha;
+        set => payload.fecha = value ?? DateTime.Now;
+    }
+
+    private TimeSpan? horaDesdeWrapper
+    {
+        get => TimeSpan.TryParse(payload.entrada, out var t) ? t : null;
+        set => payload.entrada = value?.ToString(@"hh\:mm") + ":00";
+    }
+
+    private TimeSpan? horaHastaWrapper
+    {
+        get => TimeSpan.TryParse(payload.salida, out var t) ? t : null;
+        set => payload.salida = value?.ToString(@"hh\:mm") + ":00";
+    }
+
+    private async Task OnUpdate()
+    {
+        try
+        {
+            isloading = true;
+            // Enviamos el comando a través de Mediator
+            var response = await _mediator.Send(new AddMarcadasIdCommand(payload, Operacion));
+            isloading = false;
+
+            Snackbar.Add("Datos registrados correctamente", Severity.Success);
+
+            // CERRAMOS EL DIÁLOGO con éxito
+            MudDialog.Close(DialogResult.Ok(response));
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error al registrar: " + ex.Message, Severity.Error);
+        }
+    }
+
+    // MÉTODO PARA SOLO CERRAR EL DIÁLOGO
+    private void Cancel() => MudDialog.Cancel();
+}

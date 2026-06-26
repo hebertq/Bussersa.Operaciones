@@ -1,0 +1,253 @@
+@page "/cargar-nomina"
+
+@using BsOperaciones.Application.Features.Odoo.Commands;
+@using BsOperaciones.Application.Features.Odoo.Queries;
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using NPOI.SS.UserModel;
+@using NPOI.HSSF.UserModel;
+@using NPOI.XSSF.UserModel;
+@using NPOI.Extensions;
+@using System.IO
+@using MediatR
+
+@inject IJSRuntime JS
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject ISnackbar Snackbar
+
+@* Overlay de carga corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">@loadingText</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-6 mb-6">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.FileUpload" Class="mr-2" />
+            Cargar Archivo de Nómina
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-center">
+
+            @* SOLUCIÓN INFALIBLE: InputFile oculto + Botón vinculado *@
+            <MudItem xs="12" md="6">
+                <div class="d-flex flex-column">
+                    <InputFile id="fileInput" OnChange="LoadFiles" hidden accept=".xls,.xlsx" />
+
+                    <MudButton HtmlTag="label"
+                               Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Primary"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               for="fileInput"
+                               FullWidth="true"
+                               Size="MudBlazor.Size.Large"
+                               Style="height: 60px; border-radius: 12px; font-weight: bold;">
+                        @(fileLoaded ? "CAMBIAR ARCHIVO EXCEL" : "SUBIR EXCEL DE NÓMINA")
+                    </MudButton>
+
+                    @if (fileLoaded)
+                    {
+                        <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Success" Class="mt-2 ml-2">
+                            <b>Archivo cargado correctamente</b>
+                        </MudText>
+                    }
+                </div>
+            </MudItem>
+
+            @if (isLoading)
+            {
+                <MudItem xs="12" md="3">
+                    <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper" Variant="MudBlazor.Variant.Outlined" DateFormat="dd/MM/yyyy" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper" Variant="MudBlazor.Variant.Outlined" DateFormat="dd/MM/yyyy" />
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    <MudSelect T="int" Label="Operación / Cliente" Value="empresa" ValueChanged="OnChangeCliente" Variant="MudBlazor.Variant.Outlined">
+                        <MudSelectItem Value="0">Seleccione la operación...</MudSelectItem>
+                        @foreach (var item in PayLoadOper)
+                        {
+                            <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Secondary"
+                               FullWidth="true"
+                               OnClick="AgregarNomina"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               Style="height: 56px; border-radius: 12px; font-weight: 700;">
+                        REGISTRAR NOMINA
+                    </MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+
+    <MudDataGrid T="diasxpagarperiodo" Items="@PayLoadList" Dense="true" Striped="true" RowsPerPage="15">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6">Vista Previa de Nómina</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar..." Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="MudBlazor.Size.Medium" Class="mt-0" Immediate="true" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.id" Title="No empleado" />
+            <PropertyColumn Property="x => x.nombre" Title="Nombre" />
+            <PropertyColumn Property="x => x.tipoempleado" Title="Tipo" />
+            <PropertyColumn Property="x => x.area" Title="Area" />
+            <PropertyColumn Property="x => x.totaldias" Title="Dias" />
+            <PropertyColumn Property="x => x.hexpagar" Title="Horas ext" />
+            <PropertyColumn Property="x => x.bono" Title="Bono" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="diasxpagarperiodo" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    public List<diasxpagarperiodo> PayLoadList = new();
+    public List<Combos> PayLoadOper = new();
+    public DateTime FchaDesde { set; get; } = DateTime.Now.AddDays(-5);
+    public DateTime FchaHasta { set; get; } = DateTime.Now;
+    public int empresa { set; get; } = 0;
+
+    private bool isLoading = false;
+    private bool isloaddata = false;
+    private bool fileLoaded = false;
+    private string loadingText = "Cargando...";
+    private string _searchString;
+    private long maxFileSize = 1024 * 1024 * 15;
+
+    private DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now; }
+    private DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+        PayLoadOper = regop.Model;
+    }
+
+    private async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        loadingText = "Procesando Excel...";
+        isloaddata = true;
+        try
+        {
+            string sFileExtension = Path.GetExtension(e.File.Name).ToLower();
+            ISheet sheet;
+
+            using (MemoryStream fs = new MemoryStream())
+            {
+                await e.File.OpenReadStream(maxFileSize).CopyToAsync(fs);
+                fs.Position = 0;
+
+                if (sFileExtension == ".xls")
+                {
+                    HSSFWorkbook hssfwb = new HSSFWorkbook(fs);
+                    sheet = hssfwb.GetSheetAt(0);
+                }
+                else
+                {
+                    XSSFWorkbook hssfwb = new XSSFWorkbook(fs);
+                    sheet = hssfwb.GetSheetAt(0);
+                }
+
+                // TU LÓGICA DE MAPEO ORIGINAL
+                PayLoadList = sheet.MapTo<diasxpagarperiodo>(true, rowMapper =>
+                {
+                    return new diasxpagarperiodo()
+                    {
+                        id = rowMapper.GetValue<int>("id"),
+                        nombre = rowMapper.GetValue<string>("nombre"),
+                        tipoempleado = rowMapper.GetValue<string>("tipoempleado"),
+                        area = rowMapper.GetValue<string>("area"),
+                        dias_habiles = rowMapper.GetValue<decimal>("dias habiles"),
+                        diastrabajados = rowMapper.GetValue<decimal>("diastrabajados"),
+                        vacdes = rowMapper.GetValue<decimal>("vacdes"),
+                        vacpag = rowMapper.GetValue<decimal>("vacpag"),
+                        subsidios = rowMapper.GetValue<decimal>("subsidios"),
+                        justificados = rowMapper.GetValue<decimal>("justificados"),
+                        injustificados = rowMapper.GetValue<decimal>("injustificados"),
+                        cuarentena = rowMapper.GetValue<decimal>("cuarentena"),
+                        suspension = rowMapper.GetValue<decimal>("suspension"),
+                        septimo = rowMapper.GetValue<decimal>("septimo"),
+                        diasferiados = rowMapper.GetValue<decimal>("diasferiados"),
+                        totaldias = rowMapper.GetValue<decimal>("totaldias"),
+                        hexpagar = rowMapper.GetValue<decimal>("hexpagar"),
+                        bono = rowMapper.GetValue<decimal>("bono"),
+                        aguinaldo = rowMapper.GetValue<decimal>("aguinaldo"),
+                        otros_ingresos = rowMapper.GetValue<decimal>("otros ingresos"),
+                        otras_deducciones = rowMapper.GetValue<decimal>("otras deducciones")
+                    };
+                });
+
+                isLoading = PayLoadList.Any();
+                fileLoaded = true;
+                Snackbar.Add($"{PayLoadList.Count} registros mapeados con éxito.", MudBlazor.Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al leer Excel: " + ex.Message, MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            isloaddata = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnChangeCliente(int value) => empresa = value;
+
+    private async Task AgregarNomina()
+    {
+        if (empresa == 0)
+        {
+            Snackbar.Add("Seleccione la operación antes de registrar.", MudBlazor.Severity.Warning);
+            return;
+        }
+
+        loadingText = "Enviando a Odoo...";
+        isloaddata = true;
+        try
+        {
+            var oper = PayLoadOper.FirstOrDefault(x => x.id == empresa);
+            string clientenomina = oper?.nombre ?? "";
+            string nominanombre = (FchaHasta.Day <= 20 ? "1ra " : "2da ") + "Nómina de " + clientenomina + " " + _Util.AnyoMesLetras(FchaHasta);
+
+            var nomina = new SolicitarNomina
+            {
+                nombre = nominanombre,
+                cliente = clientenomina,
+                perido = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = empresa },
+                detalle = PayLoadList
+            };
+
+            var registros = await _mediator.Send(new CrearNominaComnnad(nomina));
+            if (registros.Respuesta.ExisteError) Snackbar.Add(registros.Respuesta.MensajeError, MudBlazor.Severity.Error);
+            else
+            {
+                Snackbar.Add("Nómina enviada correctamente.", MudBlazor.Severity.Success);
+                PayLoadList.Clear();
+                isLoading = false;
+                fileLoaded = false;
+            }
+        }
+        catch (Exception ex) { Snackbar.Add("Fallo: " + ex.Message, MudBlazor.Severity.Error); }
+        finally { isloaddata = false; }
+    }
+
+    private Func<diasxpagarperiodo, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return x.nombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase) || x.id.ToString().Contains(_searchString);
+    };
+}

@@ -1,0 +1,150 @@
+@using BsOperaciones.Application.Features.Odoo.Command
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@inject IMediator _mediator
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando datos...</MudText>
+    </div>
+</MudOverlay>
+
+<MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px;">
+    <MudGrid Spacing="3" Class="align-end">
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="int" Label="Operación / Cliente" Value="operacion" ValueChanged="OnChangeCliente" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                @if (PayLoadOper != null)
+                {
+                    @foreach (var item in PayLoadOper)
+                    {
+                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                    }
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="ConfirmarCierre" Disabled="@BotonEnabled" FullWidth="true" Style="height: 40px; margin-bottom: 6px;">
+                CERRAR DIAS
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<TablaMarcadasxFacturar PayLoadList="@PayLoadList"
+                        OperacionName="@nombreOperacion"
+                        OperacionId="@operacion"
+                        OnValidationChanged="HandleValidationChange" 
+                        OnRefreshData="GetAllMarcadasFacturar" />
+
+@code {
+    public List<DiasTrabajadosAreas> PayLoadList = new();
+    public List<Combos> PayLoadOper = new();
+    public int operacion { set; get; } = 0;
+    public bool isloaddata { set; get; } = false;
+    public bool BotonEnabled { set; get; } = true;
+    public string nombreOperacion { set; get; } = "";
+
+    public DateTime FchaDesde { set; get; } = DateTime.Now.AddDays(-5);
+    public DateTime FchaHasta { set; get; } = DateTime.Now;
+    private DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now.AddDays(-5); }
+    private DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+        PayLoadOper = regop.Model ?? new();
+    }
+
+    private async Task OnChangeCliente(int value)
+    {
+        operacion = value;
+        if (operacion > 0)
+        {
+            BotonEnabled = true;
+            await GetAllMarcadasFacturar();
+        }
+    }
+
+    private void HandleValidationChange(bool deshabilitar)
+    {
+        InvokeAsync(() =>
+        {
+            if (BotonEnabled != deshabilitar)
+            {
+                BotonEnabled = deshabilitar;
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task GetAllMarcadasFacturar()
+    {
+        isloaddata = true;
+        try
+        {
+            var opSelected = PayLoadOper.FirstOrDefault(x => x.id == operacion);
+            nombreOperacion = opSelected?.nombre ?? "";
+            typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = operacion };
+           // var registros = await _mediator.Send(new GetAllMarcadasFacturarQuery(rango));
+
+            // 1.Traer pendientes(Tu lógica actual)
+            var registrosPendientes = await _mediator.Send(new GetAllMarcadasFacturarQuery(rango));
+            // 2. Traer cerrados (Nueva lógica)
+            var registrosCerrados = await _mediator.Send(new GetReporteCierreClienteRangoQuery(operacion, FchaDesde , FchaHasta));
+
+            var listaFinal = registrosPendientes.Model ?? new();
+
+            // 3. Marcar los registros cerrados antes de unirlos o compararlos
+            if (registrosCerrados.Model != null)
+            {
+                foreach (var cerrado in registrosCerrados.Model)
+                {
+                    var itemExistente = listaFinal.FirstOrDefault(x => x.id == cerrado.id_empleado && x.tarea == cerrado.tarea_id);
+                    if (itemExistente != null && itemExistente.id > 0)
+                    {
+                        // Marcamos con una bandera especial o comentario para la lógica de alertas
+                        itemExistente.cierre = true;
+                    }      
+                }
+            }
+
+            PayLoadList = listaFinal ?? new();
+        }
+        finally { isloaddata = false; }
+    }
+
+    private async Task ConfirmarCierre()
+    {
+        bool? result = await DialogService.ShowMessageBox("Confirmar Cierre", $"¿Desea cerrar {PayLoadList.Count} registros?", yesText: "Confirmar", cancelText: "Cancelar");
+        if (result == true) await EjecutarCierreMarcadas();
+    }
+
+    private async Task EjecutarCierreMarcadas()
+    {
+        isloaddata = true;
+        try
+        {
+            var response = await _mediator.Send(new AddCierreMarcadasCommand(PayLoadList, operacion));
+            if (!response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Cierre exitoso.", Severity.Success);
+                PayLoadList.Clear();
+                BotonEnabled = true;
+            }
+            else Snackbar.Add(response.Respuesta.MensajeError, Severity.Error);
+        }
+        finally { isloaddata = false; }
+    }
+}

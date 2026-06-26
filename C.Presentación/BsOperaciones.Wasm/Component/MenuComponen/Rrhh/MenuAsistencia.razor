@@ -1,0 +1,9 @@
+﻿<AuthorizeView Policy="@Policies.IsMenu" Resource="3">
+    <Authorized>
+        <MudNavGroup Title="Asistencias" Icon="@Icons.Material.Filled.CalendarToday" Expanded="false">
+            <MenuItem MenuId="4" Name="Ingresar marcadas" Url="/asistencias/marcadas" IconName="@Icons.Material.Filled.CalendarMonth" />
+            <MenuItem MenuId="5" Name="Dias trabajados" Url="/asistencia/diastrabajados" IconName="@Icons.Material.Filled.EditCalendar" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized />
+</AuthorizeView>

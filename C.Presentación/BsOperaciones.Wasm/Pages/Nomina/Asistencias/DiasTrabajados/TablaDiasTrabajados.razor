@@ -1,0 +1,194 @@
+﻿@using Modelo.ClasesGenericas
+@using Utilidades.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using MediatR
+
+@* Solución a la ambigüedad de servicios entre Radzen y MudBlazor *@
+@inject MudBlazor.IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IUtilidades _Util
+@inject IJSRuntime JS
+
+@* Loader corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+</MudOverlay>
+
+<MudPaper Elevation="0" Class="pa-4">
+    <div class="d-flex align-center mb-4">
+        <MudIcon Icon="@Icons.Material.Outlined.Assessment" Color="MudBlazor.Color.Primary" Class="mr-2" Size="MudBlazor.Size.Large" />
+        <div>
+            <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Style="font-weight: 800;">Marcaciones Diarias</MudText>
+            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Gestión por empleado (@OperacionName)</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="MudBlazor.Variant.Filled"
+                   Color="MudBlazor.Color.Secondary"
+                   StartIcon="@Icons.Material.Outlined.FileDownload"
+                   OnClick="@DownloadFile"
+                   Disabled="@BotonEnabled"
+                   Style="border-radius: 20px; font-weight: 700;">
+            Exportar Consolidado
+        </MudButton>
+    </div>
+
+    @* MudDataGrid reemplaza al RadzenDataGrid *@
+    <MudDataGrid Items="@_PayLoadList" T="DiasxempleadosOpera" ReadOnly="true"
+                 Hideable="true" Filterable="true" Hover="true" Striped="true" Dense="true">
+        <Columns>
+            @* Columna de expansión para ver el detalle de cada empleado *@
+            <HierarchyColumn T="DiasxempleadosOpera" />
+            <PropertyColumn Property="x => x.id" Title="ID" />
+            <PropertyColumn Property="x => x.nombre" Title="Nombre" />
+            <PropertyColumn Property="x => x.tipoempleado" Title="Tipo" />
+            <PropertyColumn Property="x => x.dias" Title="Días" />
+            <PropertyColumn Property="x => x.horasextras" Title="Extras" />
+            <PropertyColumn Property="x => x.bono" Title="Bono" />
+        </Columns>
+        <ChildRowContent>
+            @* Contenido expandible (Detalle de Asistencia) *@
+            <MudCard Elevation="0" Style="background-color: #f8fafc; border: 1px solid #e2e8f0; margin: 15px; border-radius: 12px;">
+                <MudCardHeader>
+                    <CardHeaderActions>
+                        <MudButton Variant="MudBlazor.Variant.Outlined"
+                                   Color="MudBlazor.Color.Success"
+                                   Size="MudBlazor.Size.Small"
+                                   StartIcon="@Icons.Material.Outlined.FileDownload"
+                                   OnClick="@(() => DownloadDetailFile(context.Item))"
+                                   Class="rounded-pill mr-2">
+                            Exportar Detalle
+                        </MudButton>
+
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Color="MudBlazor.Color.Primary"
+                                   Size="MudBlazor.Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="@((args) => OnCreateChange(context.Item))"
+                                   Class="rounded-pill">
+                            Nuevo Día
+                        </MudButton>
+                    </CardHeaderActions>
+                    <CardHeaderContent>
+                        <MudText Typo="MudBlazor.Typo.subtitle2" Color="MudBlazor.Color.Primary">
+                            Historial de: <b>@context.Item.nombre</b>
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent Class="pa-0">
+                    <MudTable Items="@context.Item.detalleall" Context="detail" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
+                        <HeaderContent>
+                            <MudTh Style="text-align:center">Acciones</MudTh>
+                            <MudTh>Fecha</MudTh>
+                            <MudTh>Entrada</MudTh>
+                            <MudTh>Salida</MudTh>
+                            <MudTh>Días</MudTh>
+                            <MudTh>Extras</MudTh>
+                            <MudTh>Bono</MudTh>                           
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd Style="text-align:center">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Info" OnClick="@((args) => OnUpdateChange(detail))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@((args) => OnDeleteChange(detail))" />
+                            </MudTd>
+                            <MudTd>@detail.fecha.ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>@detail.entrada</MudTd>
+                            <MudTd>@detail.salida</MudTd>
+                            <MudTd>@detail.dias</MudTd>
+                            <MudTd>@detail.horasextras</MudTd>
+                            <MudTd>@detail.bono</MudTd>                          
+                        </RowTemplate>
+                        @* Se agrega el PagerContent para habilitar los controles de página *@
+                        <PagerContent>
+                            <MudTablePager InfoText="Registros:" RowsPerPageString="Filas por página:" />
+                        </PagerContent>
+                    </MudTable>
+                </MudCardContent>
+            </MudCard>
+        </ChildRowContent>
+        <PagerContent>
+            <MudDataGridPager T="DiasxempleadosOpera" />
+        </PagerContent>
+    </MudDataGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public EventCallback<DiasTrabajados> OnUpdate { get; set; }
+    [Parameter] public EventCallback<DiasTrabajados> OnDelete { get; set; }
+    [Parameter] public EventCallback<DiasTrabajados> OnCreate { get; set; }
+    [Parameter] public string OperacionName { get; set; }
+    [Parameter] public IList<DiasxempleadosOpera?> _PayLoadList { get; set; }
+    [Parameter] public bool BotonEnabled { get; set; }
+
+    public bool isloaddata { set; get; } = false;
+
+    // --- MÉTODOS DE COMUNICACIÓN CON EL PADRE ---
+
+    protected async Task OnUpdateChange(DiasTrabajados payload) => await OnUpdate.InvokeAsync(payload);
+
+    protected async Task OnCreateChange(DiasxempleadosOpera master)
+    {
+        var nuevo = new DiasTrabajados { id = master.id, fecha = DateTime.Now };
+        await OnCreate.InvokeAsync(nuevo);
+    }
+
+    protected async Task OnDeleteChange(DiasTrabajados payload) => await OnDelete.InvokeAsync(payload);
+
+    // --- LÓGICA DE EXPORTACIÓN (MANTENIENDO EL MAPEO ORIGINAL) ---
+
+    private async Task DownloadDetailFile(DiasxempleadosOpera? master)
+    {
+        if (master?.detalleall == null || !master.detalleall.Any())
+        {
+            Snackbar.Add("No hay detalles para exportar", MudBlazor.Severity.Warning);
+            return;
+        }
+
+        isloaddata = true;
+        try
+        {
+            var datosExcel = master.detalleall.Select(x => new
+            {
+                x.fecha,
+                x.id,
+                x.nombre,
+                x.entrada,
+                x.salida,
+                x.comida,
+                x.dias,
+                x.horasextras,
+                x.bono
+            }).ToList();
+
+            var exceldata = DataExcel.CreateExcel(datosExcel, $"Detalle_{master.id}");
+            string base64Data = Convert.ToBase64String(exceldata.Data);
+            await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"Detalle_Asistencia_{master.id}.xlsx");
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, MudBlazor.Severity.Error); }
+        finally { isloaddata = false; }
+    }
+
+    private async Task DownloadFile()
+    {
+        if (_PayLoadList == null || !_PayLoadList.Any()) return;
+        isloaddata = true;
+        try
+        {
+            var datosExcel = _PayLoadList.Select(x => new
+            {
+                x.area,
+                x.tipoempleado,
+                x.id,
+                x.nombre,
+                x.dias,
+                x.horasextras,
+                x.bono
+            }).ToList();
+
+            var exceldata = DataExcel.CreateExcel(datosExcel, "Consolidado");
+            string base64Data = Convert.ToBase64String(exceldata.Data);
+            await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"Consolidado_{OperacionName?.Replace(" ", "_")}.xlsx");
+        }
+        catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, MudBlazor.Severity.Error); }
+        finally { isloaddata = false; }
+    }
+}

@@ -1,0 +1,68 @@
+﻿@{
+    var dataVlass = @ShowSnippet ? "col-9" : "col-12";
+}
+<AuthorizeView Policy="@Policies.IsPage" Resource="@IdPage">
+	<Authorized>
+        <div class="row justify-content-center">
+            @if (ShowSnippet)
+            {
+                <div class="d-none d-lg-block col-lg-3 order-lg-1 mb-4">
+                    <div class="sticky-top">
+                        <h5 class="subheader">Sobre esta pagina</h5>
+                        <ul class="list-unstyled">
+                            @foreach (var codeSnippet in CodeSnippets)
+                            {
+                                <li class="toc-entry toc-h2"><a href="javascript:void(0)" @onclick="@(()=> NavigateTo(codeSnippet))">@codeSnippet.Title</a></li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+            <div class="row @dataVlass">
+                <Card Size="CardSize.Default">                   
+                    <CardBody>
+                        <div class="row mb-2">
+                            <div class="col-sm-9">
+                                <h1 class="m-0 text-dark">@Title</h1>
+                            </div><!-- /.col -->
+                        </div>
+                        <br />
+                        @Description
+                        <CascadingValue Value="@this">
+                            @ChildContent
+                        </CascadingValue>
+                    </CardBody>
+                </Card>
+            </div>
+        </div>
+	</Authorized>	
+    <NotAuthorized>
+        <div>
+            <br /><br /><br />
+        </div>
+        <div class="col-12">
+            <div class="row text-center">
+                <div class="col-3"> </div>
+                <div class="col-6">
+                    <div id="app">
+                        <div>403</div>
+                        <div class="txt"> Acceso denegado<span class="blink">_</span> </div>
+                    </div>
+                </div>
+                <div class="col-3"> </div>
+
+            </div>
+            <div class="row text-center">
+                <div class="col-3"> </div>
+                <div class="col-6">
+                    <div id="app">
+                        <h3 class="w3-center w3-animate-right">No tienes permiso para ver esta pagina.</h3>
+                        <h3 class="w3-center w3-animate-zoom">🚫🚫🚫🚫</h3>
+                    </div>
+                </div>
+                <div class="col-3"> </div>
+            </div>
+        </div>
+	</NotAuthorized>
+</AuthorizeView>
+

@@ -1,0 +1,15 @@
+﻿<AuthorizeView Policy="@Policies.IsMenu" Resource="@MenuId">
+    <Authorized>
+        <MudNavLink Href="@Url" Match="NavLinkMatch.Prefix" Icon="@IconName?.ToString()">
+            @Name
+        </MudNavLink>
+    </Authorized>
+    <NotAuthorized />
+</AuthorizeView>
+
+@code {
+    [Parameter] public int MenuId { get; set; }
+    [Parameter] public string Name { get; set; }
+    [Parameter] public string IconName { get; set; }  // Migrado como string
+    [Parameter] public string Url { get; set; }
+}

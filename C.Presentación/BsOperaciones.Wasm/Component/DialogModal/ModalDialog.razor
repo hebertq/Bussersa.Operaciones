@@ -1,0 +1,19 @@
+﻿<div class="modal" tabindex="-1" role="dialog" id="@ModalId">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@FormTitle</h5>
+                <button type="button" class="close" @onclick="@(e => CloseModal())" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                @ChildContent
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="@(e => OnUpdateClick())"><i class="fa fa-floppy-o"> <span> Guardar</span></i></button>
+                <button type="button" class="btn btn-secondary" @onclick="@(e => CloseModal())"><i class="fa fa-times-circle"> <span> Cerrar</span></i></button>
+            </div>
+        </div>
+    </div>
+</div>

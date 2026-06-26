@@ -1,0 +1,157 @@
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using BsOperaciones.Component.DialogModal
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Nomina
+@using Utilidades.ClasesGenericas
+@inject IJSRuntime JS
+@inject IUserInfo _Iuser
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+@* Overlay de Carga Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando nómina...</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-6 mb-6">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.Payments" Class="mr-2" />
+            Consulta de Nóminas Pagadas
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-center">
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Año" @bind-Value="anio" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    @foreach (var year in YearsList)
+                    {
+                        <MudSelectItem T="int" Value="@year">@year</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Mes" @bind-Value="mes" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem Value="1">ENERO</MudSelectItem>
+                    <MudSelectItem Value="2">FEBRERO</MudSelectItem>
+                    <MudSelectItem Value="3">MARZO</MudSelectItem>
+                    <MudSelectItem Value="4">ABRIL</MudSelectItem>
+                    <MudSelectItem Value="5">MAYO</MudSelectItem>
+                    <MudSelectItem Value="6">JUNIO</MudSelectItem>
+                    <MudSelectItem Value="7">JULIO</MudSelectItem>
+                    <MudSelectItem Value="8">AGOSTO</MudSelectItem>
+                    <MudSelectItem Value="9">SEPTIEMBRE</MudSelectItem>
+                    <MudSelectItem Value="10">OCTUBRE</MudSelectItem>
+                    <MudSelectItem Value="11">NOVIEMBRE</MudSelectItem>
+                    <MudSelectItem Value="12">DICIEMBRE</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnChangeNomina" FullWidth="true" Disabled="@isloaddata" Style="height: 40px;">
+                    @(isloaddata ? "Buscando..." : "CONSULTAR")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudDataGrid T="PayrollMonthRecord" Items="@PayLoadList" SortMode="MudBlazor.SortMode.Multiple" Filterable="true" Dense="true" Elevation="0">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6">Detalle de Pagos</MudText>
+        </ToolBarContent>
+        <ToolBarContent>
+            <MudIconButton Size="MudBlazor.Size.Small" Icon="@Icons.Material.Outlined.FileDownload" OnClick="@DownloadFile" Color="MudBlazor.Color.Primary" />
+            <MudSpacer />
+            <MudText Typo="MudBlazor.Typo.h6">Revisión de Marcaciones</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nombre o ID..." Adornment="MudBlazor.Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.contrato" Title="Contrato" />
+            <PropertyColumn Property="x => x.id" Title="Empleado" />
+            <PropertyColumn Property="x => x.nombre" Title="Nombre" />
+            <PropertyColumn Property="x => x.sal_basico" Title="Basico" />
+            <PropertyColumn Property="x => x.diaslab" Title="Dias" />
+            <PropertyColumn Property="x => x.no_hras_extra" Title="Extras" Format="N2" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="PayrollMonthRecord" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>
+
+@code {
+    public List<PayrollMonthRecord> PayLoadList = new();
+    public ModaComponentBS ErrorModal { get; set; } = new();
+    public bool isloaddata { set; get; } = false;
+    public bool BotonEnabled { get; set; } = true;
+    private string _searchString = "";
+    private int anio = DateTime.Now.Year, mes = DateTime.Now.Month;
+    private List<int> YearsList = new();
+
+    protected override  void  OnInitialized()
+    {
+        YearsList = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1 };
+    }
+
+    private async Task OnChangeNomina()
+    {
+        isloaddata = true;
+        try
+        {
+            await GetAllNominaxPagar();
+            BotonEnabled = !PayLoadList.Any();
+            if (BotonEnabled) Snackbar.Add("No se encontraron registros para esta nómina", MudBlazor.Severity.Info);
+        }
+        finally
+        {
+            isloaddata = false;
+        }
+    }
+
+    private async Task GetAllNominaxPagar()
+    {
+        PayLoadList = new List<PayrollMonthRecord>();
+        var registros = await _mediator.Send(new GetAllNominaMensualCierreQuery(AnioMes()));
+        if (registros.Model.Count > 0) PayLoadList = registros.Model;
+    }
+
+    private int AnioMes()
+    {      
+        return int.Parse($"{anio}{mes:00}");
+    }
+
+    private async Task DownloadFile()
+    {
+        if (!PayLoadList.Any()) return;
+        isloaddata = true;
+        try
+        {
+            string nombre = $"Nomina-{AnioMes()}";
+            var exceldata = DataExcel.CreateExcel(PayLoadList, "Nomina");
+            string base64Data = Convert.ToBase64String(exceldata.Data);
+            await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"{nombre}.xlsx");
+            Snackbar.Add("Descarga de Excel iniciada.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Fallo al exportar Excel: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloaddata = false;
+        }
+    }
+
+    private Func<nominatype, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        return x.cedula.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+               x.empleado.Contains(_searchString, StringComparison.OrdinalIgnoreCase);
+    };
+}

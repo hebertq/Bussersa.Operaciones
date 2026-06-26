@@ -1,0 +1,180 @@
+@page "/"
+@layout LoginLayout
+
+@using BsOperaciones.Application.Features.Admin.Commands;
+@using Modelo.Admin;
+@using Modelo.Entidades
+@using Modelo.Interfaces
+@using BsOperaciones.Services
+@using System.Security.Claims
+@using System.Text.RegularExpressions
+@using Utilidades.Interfaces
+@using MediatR
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IMediator _mediator
+@inject IUtilidades _Util
+@inject IUserInfo _Iuser
+
+<MudPaper Elevation="25" Class="pa-10" Style="border-radius: 24px; position: relative; overflow: hidden;">
+    @* Barra de progreso superior si está cargando *@
+    @if (_isProcessing)
+    {
+        <MudProgressLinear Color="MudBlazor.Color.Secondary" Indeterminate="true" Style="position:absolute; top:0; left:0;" />
+    }
+
+    <div class="d-flex flex-column align-center">
+
+        <div class="mb-6">
+            <img src="/img/brand/logo.png" style="width: 200px;" alt="BUSSERSA" />
+        </div>
+
+        <MudText Typo="MudBlazor.Typo.h5" Style="font-weight: 900; color: #0d1231;" Align="MudBlazor.Align.Center">
+            OPERACIONES
+        </MudText>
+        <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary" Class="mb-8" Style="font-weight: 600; letter-spacing: 1px;">
+            PORTAL DE ASISTENCIA
+        </MudText>
+
+        @if (!string.IsNullOrEmpty(LoginMesssage))
+        {
+            <MudAlert Severity="MudBlazor.Severity.Error" Variant="MudBlazor.Variant.Filled" Class="mb-6 w-100 shadow-sm">
+                @LoginMesssage
+            </MudAlert>
+        }
+
+        <EditForm Model="@user" OnValidSubmit="ProcessLogin" Style="width: 100%;">
+            <MudTextField T="string" @bind-Value="user.Email_Address"
+                          Label="Correo Electrónico"
+                          Variant="MudBlazor.Variant.Outlined"
+                          FullWidth="true"
+                          Class="mb-4"
+                          Adornment="MudBlazor.Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Email"
+                          AdornmentColor="MudBlazor.Color.Primary"
+                          Disabled="_isProcessing" />
+
+            <MudTextField T="string" @bind-Value="user.Password"
+                          Label="Contraseña"
+                          Variant="MudBlazor.Variant.Outlined"
+                          FullWidth="true"
+                          Class="mb-8"
+                          InputType="@_passwordInput"
+                          Adornment="MudBlazor.Adornment.End"
+                          AdornmentIcon="@_passwordInputIcon"
+                          OnAdornmentClick="TogglePasswordVisibility"
+                          AdornmentColor="MudBlazor.Color.Primary"
+                          Disabled="_isProcessing" />
+
+            <MudButton Variant="MudBlazor.Variant.Filled"
+                       ButtonType="MudBlazor.ButtonType.Submit"
+                       Class="btn-bussersa-primary rounded-pill py-4 w-100"
+                       Size="MudBlazor.Size.Large"
+                       Disabled="_isProcessing">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="MudBlazor.Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">AUTENTICANDO...</MudText>
+                }
+                else
+                {
+                    <MudText Style="font-weight: 800;">INICIAR SESIÓN</MudText>
+                }
+            </MudButton>
+        </EditForm>
+
+        <div class="mt-8 d-flex justify-center w-100">
+            <MudText Typo="MudBlazor.Typo.caption" Style="color: #9e9e9e; text-transform: uppercase;">
+                Software de Gestión © @DateTime.Now.Year
+            </MudText>
+        </div>
+    </div>
+</MudPaper>
+
+@code {
+    private UserLogin user = new();
+    public string LoginMesssage { get; set; }
+    private bool _isProcessing = false;
+
+    // Lógica para mostrar/ocultar contraseña
+    private bool _passwordVisible = false;
+    private MudBlazor.InputType _passwordInput = MudBlazor.InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        if (authState.User.Identity.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/index");
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        if (_passwordVisible)
+        {
+            _passwordVisible = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = MudBlazor.InputType.Password;
+        }
+        else
+        {
+            _passwordVisible = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = MudBlazor.InputType.Text;
+        }
+    }
+
+    private async Task ProcessLogin()
+    {
+        if (_isProcessing) return;
+
+        _isProcessing = true;
+        LoginMesssage = string.Empty;
+
+        try
+        {
+            await ValidateUser();
+        }
+        catch (Exception ex)
+        {
+            LoginMesssage = "Error inesperado en el servidor.";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task<bool> ValidateUser()
+    {
+        // Validaciones locales
+        if (string.IsNullOrEmpty(user.Email_Address) || string.IsNullOrEmpty(user.Password))
+        {
+            LoginMesssage = "Por favor, complete todos los campos.";
+            return false;
+        }
+
+        string originalPassword = user.Password;
+        user.Password = _Util.Encrypt(user.Password);
+
+        var response = await _mediator.Send(new AddLoginUserCommand(user));
+
+        if (response.Model?.email != null)
+        {
+            await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).MarkUserAsAuthenticated(response.Model);
+            _Iuser.SetUserInfo(response.Model);
+            NavigationManager.NavigateTo("/index");
+            return true;
+        }
+
+        LoginMesssage = "Credenciales no válidas.";
+        user.Password = originalPassword;
+        return false;
+    }
+}

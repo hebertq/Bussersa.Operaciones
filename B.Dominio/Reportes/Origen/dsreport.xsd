@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema id="dsreport" targetNamespace="http://tempuri.org/dsreport.xsd" xmlns:mstns="http://tempuri.org/dsreport.xsd" xmlns="http://tempuri.org/dsreport.xsd" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" xmlns:msprop="urn:schemas-microsoft-com:xml-msprop" attributeFormDefault="qualified" elementFormDefault="qualified">
+  <xs:annotation>
+    <xs:appinfo source="urn:schemas-microsoft-com:xml-msdatasource">
+      <DataSource DefaultConnectionIndex="0" FunctionsComponentName="QueriesTableAdapter" Modifier="AutoLayout, AnsiClass, Class, Public" SchemaSerializationMode="IncludeSchema" xmlns="urn:schemas-microsoft-com:xml-msdatasource">
+        <Connections />
+        <Tables />
+        <Sources />
+      </DataSource>
+    </xs:appinfo>
+  </xs:annotation>
+  <xs:element name="dsreport" msdata:IsDataSet="true" msdata:UseCurrentLocale="true" msprop:EnableTableAdapterManager="true" msprop:Generator_UserDSName="dsreport" msprop:Generator_DataSetName="dsreport">
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="Nomina_Empleados" msprop:Generator_RowEvHandlerName="Nomina_EmpleadosRowChangeEventHandler" msprop:Generator_RowDeletedName="Nomina_EmpleadosRowDeleted" msprop:Generator_RowDeletingName="Nomina_EmpleadosRowDeleting" msprop:Generator_RowEvArgName="Nomina_EmpleadosRowChangeEvent" msprop:Generator_TablePropName="Nomina_Empleados" msprop:Generator_RowChangedName="Nomina_EmpleadosRowChanged" msprop:Generator_RowChangingName="Nomina_EmpleadosRowChanging" msprop:Generator_TableClassName="Nomina_EmpleadosDataTable" msprop:Generator_RowClassName="Nomina_EmpleadosRow" msprop:Generator_TableVarName="tableNomina_Empleados" msprop:Generator_UserTableName="Nomina_Empleados">
+          <xs:complexType>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
