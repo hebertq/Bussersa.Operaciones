@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Modelo\Modelo.csproj" />
-    <ProjectReference Include="..\Seguridad\Seguridad.csproj" />
     <ProjectReference Include="..\Utilidades\Utilidades.csproj" />
   </ItemGroup>
 
