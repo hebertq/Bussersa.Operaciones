@@ -77,17 +77,91 @@ namespace Utilidades.ClasesGenericas
         }
         public string Encrypt(string password)
         {
-            var provider = MD5.Create();
-            byte[] salt = provider.ComputeHash(Encoding.UTF32.GetBytes(GetKey + password));
-            var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 1000);
-            byte[] hash = pbkdf2.GetBytes(20);
-            byte[] hashBytes = new byte[36];
+            byte[] keybytes = Encoding.UTF8.GetBytes(GetKey);
+            byte[] ivbytes = Encoding.UTF8.GetBytes(GetIV);
 
-            Array.Copy(salt, 0, hashBytes, 0, 16);
-            Array.Copy(hash, 0, hashBytes, 16, 20);
+            if (keybytes.Length > 0 && keybytes.Length < 16)
+                Array.Resize(ref keybytes, 16);
+            if ((keybytes.Length > 16 && keybytes.Length < 32) || keybytes.Length > 32)
+                Array.Resize(ref keybytes, 32);
 
-            return BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+            if (ivbytes.Length != 16)
+                Array.Resize(ref ivbytes, 16);
+
+            byte[] encrypted;
+            using (var rijAlg = new RijndaelManaged())
+            {
+                rijAlg.Mode = CipherMode.CBC;
+                rijAlg.Padding = PaddingMode.ISO10126;
+                rijAlg.FeedbackSize = 128;
+                rijAlg.Key = keybytes;
+                rijAlg.IV = ivbytes;
+
+                var encryptor = rijAlg.CreateEncryptor(rijAlg.Key, rijAlg.IV);
+                using (var msEncrypt = new MemoryStream())
+                {
+                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                    {
+                        using (var swEncrypt = new StreamWriter(csEncrypt))
+                        {
+                            swEncrypt.Write(password);
+                        }
+                        encrypted = msEncrypt.ToArray();
+                    }
+                }
+            }
+
+            return Convert.ToBase64String(encrypted);
         }
+
+        public string Decrypt(string cipherText)
+        {
+            if (string.IsNullOrEmpty(cipherText)) return string.Empty;
+
+            byte[] cipherTextBytes = Convert.FromBase64String(cipherText);
+            byte[] keybytes = Encoding.UTF8.GetBytes(GetKey);
+            byte[] ivbytes = Encoding.UTF8.GetBytes(GetIV);
+
+            if (keybytes.Length > 0 && keybytes.Length < 16)
+                Array.Resize(ref keybytes, 16);
+            if ((keybytes.Length > 16 && keybytes.Length < 32) || keybytes.Length > 32)
+                Array.Resize(ref keybytes, 32);
+
+            if (ivbytes.Length != 16)
+                Array.Resize(ref ivbytes, 16);
+
+            string plaintext = null;
+            using (var rijAlg = new RijndaelManaged())
+            {
+                rijAlg.Mode = CipherMode.CBC;
+                rijAlg.Padding = PaddingMode.ISO10126;
+                rijAlg.FeedbackSize = 128;
+                rijAlg.Key = keybytes;
+                rijAlg.IV = ivbytes;
+
+                var decryptor = rijAlg.CreateDecryptor(rijAlg.Key, rijAlg.IV);
+                try
+                {
+                    using (var msDecrypt = new MemoryStream(cipherTextBytes))
+                    {
+                        using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                        {
+                            using (var srDecrypt = new StreamReader(csDecrypt))
+                            {
+                                plaintext = srDecrypt.ReadToEnd();
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    plaintext = "Key o IV Incorrecto";
+                }
+            }
+
+            return plaintext;
+        }
+
         private string GetKey
         {
             get { return config.AppSettingsKey.key ?? ""; }

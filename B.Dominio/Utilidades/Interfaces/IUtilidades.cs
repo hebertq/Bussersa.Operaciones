@@ -1,4 +1,4 @@
-﻿using Modelo.ClasesGenericas;
+using Modelo.ClasesGenericas;
 using Modelo.Validaciones;
 using System;
 using System.Collections.Generic;
@@ -38,6 +38,7 @@ namespace Utilidades.Interfaces
         XmlDocument ToXmldoc<T>(T tipo);
         AppConfig Options { set; get; }
         string Encrypt(string password);
+        string Decrypt(string cipherText);
         string AnyoMesLetras(DateTime fecha);
         DateTime DateFormat(string fecha);
         string Right(string value, int length);
