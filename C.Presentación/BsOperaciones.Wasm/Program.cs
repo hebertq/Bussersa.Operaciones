@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Warning);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
