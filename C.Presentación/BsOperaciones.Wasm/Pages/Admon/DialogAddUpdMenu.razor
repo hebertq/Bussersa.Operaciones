@@ -1,0 +1,99 @@
+@using Modelo.Admin
+@using HostService.Interfaces
+@inject ISnackbar Snackbar
+@inject IOdooService OdooService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Menu" Class="mr-3 mb-n1" />
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+        <MudContainer Style="max-height: 450px; overflow-y: auto" Class="pt-4">
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="payload.nombre" Label="Nombre del Menú" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="payload.url" Label="URL" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="payload.icon" Label="Icono (MudBlazor Icon)" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="payload.parentid" Label="Menú Padre" Variant="Variant.Outlined">
+                        <MudSelectItem Value="0">Ninguno (Menú Raíz)</MudSelectItem>
+                        @foreach (var parent in Menus.Where(m => m.parentid == 0 && m.id != payload.id))
+                        {
+                            <MudSelectItem Value="@parent.id">@parent.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="payload.descripcion" Label="Descripción" Variant="Variant.Outlined" Lines="2" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public string Title { get; set; } = "Registro de Menú";
+    [Parameter] public AdmonMenu payload { get; set; } = new AdmonMenu();
+    [Parameter] public List<AdmonMenu> Menus { get; set; } = new List<AdmonMenu>();
+    [Parameter] public bool IsEdit { get; set; }
+
+    private bool isloading;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(payload.nombre) || string.IsNullOrWhiteSpace(payload.url))
+        {
+            Snackbar.Add("El nombre y la URL son obligatorios.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            isloading = true;
+            IResponse response;
+            if (IsEdit)
+            {
+                response = await OdooService.UpdateMenu(payload);
+            }
+            else
+            {
+                response = await OdooService.AddMenu(payload);
+            }
+
+            isloading = false;
+            if (response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al guardar: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Menú guardado con éxito.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,186 @@
+@page "/admon/menus"
+@using Modelo.Admin
+@using HostService.Interfaces
+@using BsOperaciones.Component
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<DocsPages Title="Administración de Menús" IdPage="25" ComponentType="typeof(AdmonMenus)">
+    <CodeSnippet ClassName="@typeof(AdmonMenus).ToString()" Title="Menús del Sistema">
+        <PagesData>
+            @if (isloading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mx-auto my-4" />
+            }
+            else
+            {
+                <div class="d-flex justify-end mb-4">
+                    <MudButton OnClick="OpenNewMenuDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                        Nuevo Menú
+                    </MudButton>
+                </div>
+
+                <MudTable Items="Menus" Hover="true" Bordered="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>ID</MudTh>
+                        <MudTh>Nombre del Menú</MudTh>
+                        <MudTh>Descripción</MudTh>
+                        <MudTh>URL / Ruta</MudTh>
+                        <MudTh>Icono</MudTh>
+                        <MudTh>Menú Padre</MudTh>
+                        <MudTh Style="width:120px; text-align:center;">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">@context.id</MudTd>
+                        <MudTd DataLabel="Nombre del Menú">
+                            @if (context.parentid > 0)
+                            {
+                                <span class="text-muted">— </span>
+                            }
+                            @context.nombre
+                        </MudTd>
+                        <MudTd DataLabel="Descripción">@context.descripcion</MudTd>
+                        <MudTd DataLabel="URL / Ruta"><code>@context.url</code></MudTd>
+                        <MudTd DataLabel="Icono">
+                            @if (!string.IsNullOrWhiteSpace(context.icon))
+                            {
+                                <MudIcon Icon="@GetIcon(context.icon)" Size="Size.Small" Class="mr-2" />
+                                <span>@context.icon</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted text-italic">Ninguno</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Menú Padre">@GetParentName(context.parentid)</MudTd>
+                        <MudTd Style="text-align:center;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditMenuDialog(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteMenu(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </PagesData>
+    </CodeSnippet>
+</DocsPages>
+
+@code {
+    private List<AdmonMenu> Menus = new List<AdmonMenu>();
+    private bool isloading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isloading = true;
+            var result = await OdooService.GetMenus();
+            if (!result.Respuesta.ExisteError)
+            {
+                // Order by parent hierarchy
+                Menus = result.Model
+                    .OrderBy(m => m.parentid == 0 ? m.id : m.parentid)
+                    .ThenBy(m => m.id)
+                    .ToList();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar menús: " + result.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar datos: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+        }
+    }
+
+    private string GetParentName(int parentId)
+    {
+        if (parentId == 0) return "Menú Raíz";
+        return Menus.FirstOrDefault(m => m.id == parentId)?.nombre ?? $"Menú #{parentId}";
+    }
+
+    private string GetIcon(string iconName)
+    {
+        // Simple mapping helper for MudBlazor Icons if needed
+        return typeof(Icons.Material.Filled).GetField(iconName)?.GetValue(null)?.ToString() ?? Icons.Material.Filled.Menu;
+    }
+
+    private async Task OpenNewMenuDialog()
+    {
+        var parameters = new DialogParameters { ["Title"] = "Nuevo Menú", ["payload"] = new AdmonMenu { parentid = 0 }, ["Menus"] = Menus, ["IsEdit"] = false };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdMenu>("Nuevo Menú", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditMenuDialog(AdmonMenu menu)
+    {
+        var editMenu = new AdmonMenu
+        {
+            id = menu.id,
+            nombre = menu.nombre,
+            descripcion = menu.descripcion,
+            url = menu.url,
+            icon = menu.icon,
+            parentid = menu.parentid
+        };
+
+        var parameters = new DialogParameters { ["Title"] = "Editar Menú", ["payload"] = editMenu, ["Menus"] = Menus, ["IsEdit"] = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdMenu>("Editar Menú", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteMenu(AdmonMenu menu)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmar Eliminación",
+            $"¿Desea eliminar de forma permanente al menú '{menu.nombre}'?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            try
+            {
+                isloading = true;
+                var result = await OdooService.DeleteMenu(menu.id);
+                if (!result.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Menú eliminado con éxito.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al eliminar: " + result.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                await LoadData();
+            }
+        }
+    }
+}

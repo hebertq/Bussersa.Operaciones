@@ -1,10 +1,3 @@
-@using BsOperaciones.Application.Features.Odoo.Commands
-@using Modelo.Entidades.Entradas.Odoo
-@using MediatR
-@using MudBlazor
-@inject IMediator _mediator
-@inject ISnackbar Snackbar
-
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">
@@ -77,57 +70,3 @@
         </MudButton>
     </DialogActions>
 </MudDialog>
-
-@code {
-    [CascadingParameter]
-    private MudBlazor.IMudDialogInstance MudDialog { get; set; } // Referencia para cerrar el diálogo
-
-    [Parameter] public string ReportName { get; set; } = "Registro de Datos";
-    [Parameter] public DiasTrabajados payload { get; set; } = new DiasTrabajados();
-    [Parameter] public int Operacion { get; set; }
-
-    public bool isloading { get; set; }
-
-    // Wrappers para sincronizar los tipos de datos de MudBlazor con tu modelo
-    private DateTime? fechaWrapper
-    {
-        get => payload.fecha;
-        set => payload.fecha = value ?? DateTime.Now;
-    }
-
-    private TimeSpan? horaDesdeWrapper
-    {
-        get => TimeSpan.TryParse(payload.entrada, out var t) ? t : null;
-        set => payload.entrada = value?.ToString(@"hh\:mm") + ":00";
-    }
-
-    private TimeSpan? horaHastaWrapper
-    {
-        get => TimeSpan.TryParse(payload.salida, out var t) ? t : null;
-        set => payload.salida = value?.ToString(@"hh\:mm") + ":00";
-    }
-
-    private async Task OnUpdate()
-    {
-        try
-        {
-            isloading = true;
-            // Enviamos el comando a través de Mediator
-            var response = await _mediator.Send(new AddMarcadasIdCommand(payload, Operacion));
-            isloading = false;
-
-            Snackbar.Add("Datos registrados correctamente", Severity.Success);
-
-            // CERRAMOS EL DIÁLOGO con éxito
-            MudDialog.Close(DialogResult.Ok(response));
-        }
-        catch (Exception ex)
-        {
-            isloading = false;
-            Snackbar.Add("Error al registrar: " + ex.Message, Severity.Error);
-        }
-    }
-
-    // MÉTODO PARA SOLO CERRAR EL DIÁLOGO
-    private void Cancel() => MudDialog.Cancel();
-}

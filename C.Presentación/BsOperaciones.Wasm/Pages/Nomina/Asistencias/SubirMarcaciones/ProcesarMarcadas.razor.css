@@ -1,0 +1,15 @@
+/* Oculta el texto de la celda cuando MudBlazor entra en modo edición */
+::deep .mud-table-cell-editing .visualizacion-celda {
+    display: none !important;
+}
+
+/* Asegura que el input ocupe el fondo y no se vea transparencia */
+::deep .mud-table-cell-editing .mud-input-control {
+    background-color: white !important;
+    margin-top: 0 !important;
+}
+
+/* Resalta filas con errores de estado */
+::deep .fila-incompleta {
+    background-color: rgba(244, 67, 54, 0.08) !important;
+}

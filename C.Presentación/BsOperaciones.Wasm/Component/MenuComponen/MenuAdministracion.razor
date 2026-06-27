@@ -1,0 +1,12 @@
+@using BsOperaciones.Application.Extensions
+
+<AuthorizeView Policy="@Policies.IsMenu" Resource="22">
+    <Authorized>
+        <MudNavGroup Title="Administración" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+            <MenuItem MenuId="23" Name="Usuarios" Url="/admon/usuarios" IconName="@Icons.Material.Filled.People" />
+            <MenuItem MenuId="24" Name="Roles y Grupos" Url="/admon/roles" IconName="@Icons.Material.Filled.Security" />
+            <MenuItem MenuId="25" Name="Menús" Url="/admon/menus" IconName="@Icons.Material.Filled.Menu" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized />
+</AuthorizeView>

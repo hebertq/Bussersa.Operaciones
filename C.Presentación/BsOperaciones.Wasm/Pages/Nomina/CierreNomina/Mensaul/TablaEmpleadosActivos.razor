@@ -1,7 +1,11 @@
-﻿@using Modelo.Entidades.Entradas.Odoo
-@using System.IO
-@using Utilidades.ClasesGenericas
-@inject IJSRuntime JS
+@using Modelo.Entidades.Entradas.Odoo
+
+<MudOverlay Visible="isloading" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Generando reporte Excel...</MudText>
+    </div>
+</MudOverlay>
 
 <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px;">
     <MudGrid Spacing="3" Class="align-center">
@@ -68,29 +72,3 @@
         <MudDataGridPager T="EmpleadosActivos" />
     </PagerContent>
 </MudDataGrid>
-
-@code {
-    [Parameter] public List<EmpleadosActivos> _PayLoadList { get; set; } = new();
-    [Parameter] public EventCallback<InputFileChangeEventArgs> OnLoadFiles { get; set; }
-    [Parameter] public EventCallback OnUpdateEmpleados { get; set; }
-    [Parameter] public bool BotonEnabled { get; set; } = true;
-
-    private async Task LoadFiles(InputFileChangeEventArgs e) => await OnLoadFiles.InvokeAsync(e);
-
-    private async Task UpdateEmpleados() => await OnUpdateEmpleados.InvokeAsync();
-
-    // Lógica para descargar el archivo basado en la lista actual de la tabla
-    private async Task DownloadFile()
-    {
-        if (_PayLoadList == null || !_PayLoadList.Any()) return;
-
-        // Generar el Excel usando la utilidad DataExcel
-        var exceldata = DataExcel.CreateExcel(_PayLoadList, "Revision_Cierre_Mensual");
-
-        // Convertir a Base64 para la descarga
-        string base64Data = Convert.ToBase64String(exceldata.Data);
-
-        // Invocar función de JavaScript para descargar el archivo
-        await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, "Revision_Empleados_Cierre.xlsx");
-    }
-}

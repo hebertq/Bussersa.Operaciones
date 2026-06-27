@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -691,6 +691,12 @@ namespace Modelo.Validaciones
         public static string Right(string input, int count)
         {
             return input.Substring(Math.Max(input.Length - count, 0), Math.Min(count, input.Length));
+        }
+
+        public static List<Dictionary<string, object>> ToDictionaryList<T>(IEnumerable<T> items)
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(items);
+            return System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, object>>>(json);
         }
     }
 

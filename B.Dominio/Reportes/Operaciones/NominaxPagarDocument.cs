@@ -1,4 +1,4 @@
-﻿using Modelo.ClasesGenericas;
+using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Interfaces;
 using QuestPDF.Fluent;
@@ -67,16 +67,15 @@ namespace Reportes.Operaciones
                 {
                     page.Margin(15);
                     page.Size(PageSizes.A4.Landscape());
-                    page.Header().AlignCenter()
-                                 .AlignMiddle()
-                                 .Component(_Header);
+                    page.Header().PaddingLeft(15).Component(_Header);
                     page.Content().Element(container  => 
                     {
-                        container.PaddingVertical(15).Column(column =>
+                        container.PaddingTop(5).PaddingBottom(5).Column(column =>
                         {
                             column.Item().Element(conta => {
                                 conta
-                                .Padding(10)
+                                .PaddingLeft(15)
+                                .PaddingVertical(2)
                                 .Table(table =>
                                 {
                                     table.ColumnsDefinition(columns =>
@@ -196,16 +195,15 @@ namespace Reportes.Operaciones
                 {
                     page.Margin(15);
                     page.Size(PageSizes.A4.Landscape());
-                    page.Header().AlignCenter()
-                                 .AlignMiddle()
-                                 .Component(_Header);
+                    page.Header().PaddingLeft(15).Component(_Header);
                     page.Content().Element(container =>
                     {
-                        container.PaddingVertical(15).Column(column =>
+                        container.PaddingTop(5).PaddingBottom(5).Column(column =>
                         {
                             column.Item().Element(conta => {
                                 conta
-                                .Padding(10)
+                                .PaddingLeft(15)
+                                .PaddingVertical(2)
                                 .Table(table =>
                                 {
                                     table.ColumnsDefinition(columns =>

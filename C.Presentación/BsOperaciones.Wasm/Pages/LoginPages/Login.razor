@@ -1,23 +1,7 @@
 @page "/"
 @layout LoginLayout
 
-@using BsOperaciones.Application.Features.Admin.Commands;
-@using Modelo.Admin;
-@using Modelo.Entidades
-@using Modelo.Interfaces
-@using BsOperaciones.Services
-@using System.Security.Claims
-@using System.Text.RegularExpressions
-@using Utilidades.Interfaces
-@using MediatR
-
-@inject AuthenticationStateProvider AuthenticationStateProvider
-@inject NavigationManager NavigationManager
-@inject IMediator _mediator
-@inject IUtilidades _Util
-@inject IUserInfo _Iuser
-
-<MudPaper Elevation="25" Class="pa-10" Style="border-radius: 24px; position: relative; overflow: hidden;">
+<MudPaper Elevation="0" Class="pa-10 shadow-lg" Style="border-radius: 24px; position: relative; overflow: hidden; background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.4);">
     @* Barra de progreso superior si está cargando *@
     @if (_isProcessing)
     {
@@ -27,13 +11,13 @@
     <div class="d-flex flex-column align-center">
 
         <div class="mb-6">
-            <img src="/img/brand/logo.png" style="width: 200px;" alt="BUSSERSA" />
+            <img src="/img/brand/logo.png?v=2" style="width: 200px;" alt="BUSSERSA" />
         </div>
 
-        <MudText Typo="MudBlazor.Typo.h5" Style="font-weight: 900; color: #0d1231;" Align="MudBlazor.Align.Center">
+        <MudText Typo="MudBlazor.Typo.h5" Style="font-weight: 900; color: var(--mud-palette-primary); letter-spacing: 1px;" Align="MudBlazor.Align.Center">
             OPERACIONES
         </MudText>
-        <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary" Class="mb-8" Style="font-weight: 600; letter-spacing: 1px;">
+        <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary" Class="mb-8" Style="font-weight: 700; letter-spacing: 2px;">
             PORTAL DE ASISTENCIA
         </MudText>
 
@@ -69,7 +53,7 @@
 
             <MudButton Variant="MudBlazor.Variant.Filled"
                        ButtonType="MudBlazor.ButtonType.Submit"
-                       Class="btn-bussersa-primary rounded-pill py-4 w-100"
+                       Class="btn-login-premium rounded-pill py-4 w-100"
                        Size="MudBlazor.Size.Large"
                        Disabled="_isProcessing">
                 @if (_isProcessing)
@@ -91,91 +75,3 @@
         </div>
     </div>
 </MudPaper>
-
-@code {
-    private UserLogin user = new();
-    public string LoginMesssage { get; set; }
-    private bool _isProcessing = false;
-
-    // Lógica para mostrar/ocultar contraseña
-    private bool _passwordVisible = false;
-    private MudBlazor.InputType _passwordInput = MudBlazor.InputType.Password;
-    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
-
-    [CascadingParameter]
-    private Task<AuthenticationState> authenticationStateTask { get; set; }
-
-    protected async override Task OnInitializedAsync()
-    {
-        var authState = await authenticationStateTask;
-        if (authState.User.Identity.IsAuthenticated)
-        {
-            NavigationManager.NavigateTo("/index");
-        }
-    }
-
-    private void TogglePasswordVisibility()
-    {
-        if (_passwordVisible)
-        {
-            _passwordVisible = false;
-            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
-            _passwordInput = MudBlazor.InputType.Password;
-        }
-        else
-        {
-            _passwordVisible = true;
-            _passwordInputIcon = Icons.Material.Filled.Visibility;
-            _passwordInput = MudBlazor.InputType.Text;
-        }
-    }
-
-    private async Task ProcessLogin()
-    {
-        if (_isProcessing) return;
-
-        _isProcessing = true;
-        LoginMesssage = string.Empty;
-
-        try
-        {
-            await ValidateUser();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[LoginException] {ex}");
-            LoginMesssage = $"Error: {ex.Message} (Consulte F12 para detalles)";
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
-
-    private async Task<bool> ValidateUser()
-    {
-        // Validaciones locales
-        if (string.IsNullOrEmpty(user.Email_Address) || string.IsNullOrEmpty(user.Password))
-        {
-            LoginMesssage = "Por favor, complete todos los campos.";
-            return false;
-        }
-
-        string originalPassword = user.Password;
-        user.Password = _Util.Encrypt(user.Password);
-
-        var response = await _mediator.Send(new AddLoginUserCommand(user));
-
-        if (response.Model?.email != null)
-        {
-            await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).MarkUserAsAuthenticated(response.Model);
-            _Iuser.SetUserInfo(response.Model);
-            NavigationManager.NavigateTo("/index");
-            return true;
-        }
-
-        LoginMesssage = "Credenciales no válidas.";
-        user.Password = originalPassword;
-        return false;
-    }
-}

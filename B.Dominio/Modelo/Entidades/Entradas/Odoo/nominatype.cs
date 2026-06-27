@@ -1,12 +1,12 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Modelo.Entidades.Entradas.Odoo
 {
     public class nominatype
     {
-        public string cedula { set; get; } = string.Empty;
-        public string empleado { set; get; } = string.Empty;
-        public string tipoempleado { set; get; } = string.Empty;
+        public string? cedula { set; get; } = string.Empty;
+        public string? empleado { set; get; } = string.Empty;
+        public string? tipoempleado { set; get; } = string.Empty;
         public decimal salbasico { set; get; } = 0;
         public decimal dias { set; get; } = 0;
         public decimal basico { set; get; } = 0;
@@ -39,18 +39,18 @@ namespace Modelo.Entidades.Entradas.Odoo
 
     public class repnominapago
     {
-        public string fecha_ini { set; get; }
-        public string fecha_fin { set; get; }
-        public List<nominaall> nominatotal { set; get; }
-        public List<nominaalltarjeta> desglocetarjeta { set; get; }
-        public List<nominadesgefectivo> desgloceefectivo { set; get; }
-        public string titulo { set; get; }
+        public string? fecha_ini { set; get; }
+        public string? fecha_fin { set; get; }
+        public List<nominaall>? nominatotal { set; get; }
+        public List<nominaalltarjeta>? desglocetarjeta { set; get; }
+        public List<nominadesgefectivo>? desgloceefectivo { set; get; }
+        public string? titulo { set; get; }
     }
     public class nominaall
     {
-        public string cedula { set; get; } = string.Empty;
-        public string empleado { set; get; } = string.Empty;
-        public string tipoempleado { set; get; } = string.Empty;
+        public string? cedula { set; get; } = string.Empty;
+        public string? empleado { set; get; } = string.Empty;
+        public string? tipoempleado { set; get; } = string.Empty;
         public bool tarjeta { set; get; } = false;
         public decimal salbasico { set; get; } = 0;
         public decimal dias { set; get; } = 0;
@@ -73,16 +73,16 @@ namespace Modelo.Entidades.Entradas.Odoo
 
     public class nominaalltarjeta
     {
-        public string cedula { set; get; } = string.Empty;
-        public string empleado { set; get; } = string.Empty;
+        public string? cedula { set; get; } = string.Empty;
+        public string? empleado { set; get; } = string.Empty;
         public decimal neto { set; get; } = 0;
 
     }
 
     public class nominadesgefectivo
     {
-        public string cedula { set; get; } = string.Empty;
-        public string empleado { set; get; } = string.Empty;
+        public string? cedula { set; get; } = string.Empty;
+        public string? empleado { set; get; } = string.Empty;
         public decimal neto { set; get; } = 0;
         public decimal bi1000 { set; get; } = 0;
         public decimal bi500 { set; get; } = 0;

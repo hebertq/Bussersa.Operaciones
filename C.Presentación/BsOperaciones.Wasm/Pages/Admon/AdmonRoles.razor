@@ -1,0 +1,258 @@
+@page "/admon/roles"
+@using Modelo.Admin
+@using HostService.Interfaces
+@using BsOperaciones.Component
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<DocsPages Title="Administración de Roles y Grupos" IdPage="24" ComponentType="typeof(AdmonRoles)">
+    <CodeSnippet ClassName="@typeof(AdmonRoles).ToString()" Title="Roles y Grupos de Permisos">
+        <PagesData>
+            @if (isloading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mx-auto my-4" />
+            }
+            else
+            {
+                <MudTabs Elevation="2" Rounded="true" ApplyEffectsToInnerViews="true" PanelClass="pa-6">
+                    @* Pestaña Grupos *@
+                    <MudTabPanel Text="Grupos de Roles" Icon="@Icons.Material.Filled.Group">
+                        <div class="d-flex justify-end mb-4">
+                            <MudButton OnClick="OpenNewGroupDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                                Nuevo Grupo
+                            </MudButton>
+                        </div>
+
+                        <MudTable Items="Groups" Hover="true" Bordered="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>ID</MudTh>
+                                <MudTh>Nombre del Grupo</MudTh>
+                                <MudTh>Descripción</MudTh>
+                                <MudTh Style="width:200px; text-align:center;">Acciones</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="ID">@context.id</MudTd>
+                                <MudTd DataLabel="Nombre del Grupo">@context.nombre</MudTd>
+                                <MudTd DataLabel="Descripción">@context.descripcion</MudTd>
+                                <MudTd Style="text-align:center;">
+                                    <MudButton OnClick="() => OpenAssignRolesDialog(context)" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Security" Class="mr-2">
+                                        Roles
+                                    </MudButton>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditGroupDialog(context)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteGroup(context)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+
+                    @* Pestaña Roles *@
+                    <MudTabPanel Text="Roles" Icon="@Icons.Material.Filled.Security">
+                        <div class="d-flex justify-end mb-4">
+                            <MudButton OnClick="OpenNewRoleDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                                Nuevo Rol
+                            </MudButton>
+                        </div>
+
+                        <MudTable Items="Roles" Hover="true" Bordered="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>ID</MudTh>
+                                <MudTh>Nombre del Rol</MudTh>
+                                <MudTh>Descripción</MudTh>
+                                <MudTh Style="width:200px; text-align:center;">Acciones</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="ID">@context.id</MudTd>
+                                <MudTd DataLabel="Nombre del Rol">@context.nombre</MudTd>
+                                <MudTd DataLabel="Descripción">@context.descripcion</MudTd>
+                                <MudTd Style="text-align:center;">
+                                    <MudButton OnClick="() => OpenAssignMenusDialog(context)" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Menu" Class="mr-2">
+                                        Menús
+                                    </MudButton>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditRoleDialog(context)" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteRole(context)" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudTabPanel>
+                </MudTabs>
+            }
+        </PagesData>
+    </CodeSnippet>
+</DocsPages>
+
+@code {
+    private List<AdmonGroup> Groups = new List<AdmonGroup>();
+    private List<AdmonRole> Roles = new List<AdmonRole>();
+    private bool isloading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isloading = true;
+            var groupsResult = await OdooService.GetGroups();
+            var rolesResult = await OdooService.GetRoles();
+
+            if (!groupsResult.Respuesta.ExisteError)
+            {
+                Groups = groupsResult.Model.ToList();
+            }
+            if (!rolesResult.Respuesta.ExisteError)
+            {
+                Roles = rolesResult.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar roles y grupos: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+        }
+    }
+
+    #region Group Methods
+    private async Task OpenNewGroupDialog()
+    {
+        var parameters = new DialogParameters { ["Title"] = "Nuevo Grupo", ["payload"] = new AdmonGroup(), ["IsEdit"] = false };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdGroup>("Nuevo Grupo", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditGroupDialog(AdmonGroup group)
+    {
+        var editGroup = new AdmonGroup { id = group.id, nombre = group.nombre, descripcion = group.descripcion };
+        var parameters = new DialogParameters { ["Title"] = "Editar Grupo", ["payload"] = editGroup, ["IsEdit"] = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdGroup>("Editar Grupo", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteGroup(AdmonGroup group)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmar Eliminación",
+            $"¿Desea eliminar de forma permanente al grupo '{group.nombre}'?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            try
+            {
+                isloading = true;
+                var result = await OdooService.DeleteGroup(group.id);
+                if (!result.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Grupo eliminado con éxito.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al eliminar: " + result.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                await LoadData();
+            }
+        }
+    }
+
+    private async Task OpenAssignRolesDialog(AdmonGroup group)
+    {
+        var parameters = new DialogParameters { ["GroupId"] = group.id, ["GroupName"] = group.nombre };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<DialogGroupRoles>("Asignar Roles", parameters, options);
+    }
+    #endregion
+
+    #region Role Methods
+    private async Task OpenNewRoleDialog()
+    {
+        var parameters = new DialogParameters { ["Title"] = "Nuevo Rol", ["payload"] = new AdmonRole(), ["IsEdit"] = false };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdRole>("Nuevo Rol", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditRoleDialog(AdmonRole role)
+    {
+        var editRole = new AdmonRole { id = role.id, nombre = role.nombre, descripcion = role.descripcion };
+        var parameters = new DialogParameters { ["Title"] = "Editar Rol", ["payload"] = editRole, ["IsEdit"] = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdRole>("Editar Rol", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteRole(AdmonRole role)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmar Eliminación",
+            $"¿Desea eliminar de forma permanente al rol '{role.nombre}'?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            try
+            {
+                isloading = true;
+                var result = await OdooService.DeleteRole(role.id);
+                if (!result.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Rol eliminado con éxito.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al eliminar: " + result.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                await LoadData();
+            }
+        }
+    }
+
+    private async Task OpenAssignMenusDialog(AdmonRole role)
+    {
+        var parameters = new DialogParameters { ["RoleId"] = role.id, ["RoleName"] = role.nombre };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<DialogRoleMenus>("Asignar Menús", parameters, options);
+    }
+    #endregion
+}

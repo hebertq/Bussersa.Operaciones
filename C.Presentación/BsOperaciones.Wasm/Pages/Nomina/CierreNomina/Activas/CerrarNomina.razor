@@ -1,13 +1,4 @@
-@using BsOperaciones.Application.Features.Odoo.Commands;
-@using BsOperaciones.Application.Features.Odoo.Queries
-@using BsOperaciones.Component.DialogModal
-@using Modelo.ClasesGenericas
 @using Modelo.Entidades.Entradas.Odoo
-@inject IJSRuntime JS
-@inject IMediator _mediator
-@inject IUserInfo _Iuser
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
 
 @* Overlay de Carga Corporativo *@
 <MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
@@ -18,7 +9,7 @@
 </MudOverlay>
 
 <MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
-    <MudPaper Elevation="0" Class="pa-6 mb-6">
+    <MudPaper Elevation="0" Class="pa-6 mb-6 glass-card card-lift">
         <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
             <MudIcon Icon="@Icons.Material.Outlined.LockClock" Class="mr-2" />
             Cierre de Nóminas Activas
@@ -81,103 +72,3 @@
         </PagerContent>
     </MudDataGrid>
 </MudContainer>
-
-@code {
-    public List<nominatype> PayLoadList = new();
-    public List<Combos> PayLoadNomina = new();
-    public nominatype payload { get; set; } = new();
-    public ModaComponentBS ErrorModal { get; set; } = new();
-    public int operacion { set; get; } = 0;
-    public bool isloaddata { set; get; } = false;
-    public bool BotonEnabled { get; set; } = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await CargarNominas();
-    }
-
-    private async Task CargarNominas()
-    {
-        var regop = await _mediator.Send(new GetAllCombosQuery("Nominas"));
-        PayLoadNomina = regop.Model;
-    }
-
-    private async Task OnChangeNomina(int value)
-    {
-        PayLoadList = new List<nominatype>();
-        operacion = value;
-
-        if (operacion > 0)
-        {
-            isloaddata = true;
-            try
-            {
-                await GetAllMarcadasFacturar();
-                BotonEnabled = PayLoadList.Count == 0;
-            }
-            finally
-            {
-                isloaddata = false;
-            }
-        }
-        else
-        {
-            BotonEnabled = true;
-        }
-    }
-
-    private async Task GetAllMarcadasFacturar()
-    {
-        var registros = await _mediator.Send(new GetAllPagoNominaQuery(operacion));
-        if (registros.Model.Count > 0)
-        {
-            PayLoadList = registros.Model;
-            StateHasChanged();
-        }
-    }
-
-    private async Task RefrescarCierre()
-    {
-        bool? result = await DialogService.ShowMessageBox(
-            "Confirmación de Cierre",
-            "¿Está seguro que desea cerrar esta nómina? Esta acción no se puede deshacer.",
-            yesText: "Sí, Cerrar", cancelText: "Cancelar");
-
-        if (result == true)
-        {
-            isloaddata = true;
-            try
-            {
-                await CerrarNominas();
-            }
-            finally
-            {
-                isloaddata = false;
-            }
-        }
-    }
-
-    private async Task CerrarNominas()
-    {
-        if (operacion == 0)
-        {
-            Snackbar.Add("Debe seleccionar una nómina válida", Severity.Warning);
-            return;
-        }
-
-        var respuesta = await _mediator.Send(new CerrarNominaActivasCommand(operacion));
-        if (respuesta.Respuesta.ExisteError)
-        {
-            await ErrorModal.setError(respuesta.Respuesta.MensajeError, DialogService);
-        }
-        else
-        {
-            Snackbar.Add("Nómina cerrada exitosamente", Severity.Success);
-            operacion = 0;
-            PayLoadList.Clear();
-            await CargarNominas();
-            BotonEnabled = true;
-            StateHasChanged();
-        }
-    }
-}

@@ -1,0 +1,114 @@
+@using Modelo.Admin
+@using HostService.Interfaces
+@inject ISnackbar Snackbar
+@inject IOdooService OdooService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-3 mb-n1" />
+            Asignar Roles a: @GroupName
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+        <MudContainer Style="max-height: 400px; overflow-y: auto" Class="pt-4">
+            <MudText Class="mb-4" Typo="Typo.body2">Marque los roles que desea asignar a este grupo:</MudText>
+            @foreach (var role in AllRoles)
+            {
+                var roleId = role.id;
+                <MudCheckBox T="bool" Value="@SelectedRoleIds.Contains(roleId)" ValueChanged="@((val) => OnCheckboxChanged(roleId, val))" Color="Color.Primary">
+                    @role.nombre <span class="text-muted text-sm">(@role.descripcion)</span>
+                </MudCheckBox>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar Cambios</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public int GroupId { get; set; }
+    [Parameter] public string GroupName { get; set; }
+
+    private List<AdmonRole> AllRoles = new List<AdmonRole>();
+    private HashSet<int> SelectedRoleIds = new HashSet<int>();
+    private bool isloading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var rolesResult = await OdooService.GetRoles();
+            var groupRolesResult = await OdooService.GetGroupRoles(GroupId);
+
+            if (!rolesResult.Respuesta.ExisteError)
+            {
+                AllRoles = rolesResult.Model.ToList();
+            }
+            if (!groupRolesResult.Respuesta.ExisteError)
+            {
+                SelectedRoleIds = new HashSet<int>(groupRolesResult.Model.Select(r => r.id));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar roles: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+        }
+    }
+
+    private void OnCheckboxChanged(int roleId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            SelectedRoleIds.Add(roleId);
+        }
+        else
+        {
+            SelectedRoleIds.Remove(roleId);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        try
+        {
+            isloading = true;
+            var request = new GroupRolesRequest
+            {
+                grupoid = GroupId,
+                roles = SelectedRoleIds.ToList()
+            };
+
+            var response = await OdooService.SaveGroupRoles(request);
+            isloading = false;
+
+            if (response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al guardar: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Roles asignados correctamente.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+    }
+}

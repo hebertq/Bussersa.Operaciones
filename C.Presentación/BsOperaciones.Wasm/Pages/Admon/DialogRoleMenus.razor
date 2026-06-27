@@ -1,0 +1,207 @@
+@using Modelo.Admin
+@using HostService.Interfaces
+@inject ISnackbar Snackbar
+@inject IOdooService OdooService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Menu" Class="mr-3 mb-n1" />
+            Asignar Menús a: @RoleName
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+        <MudContainer Style="max-height: 400px; overflow-y: auto" Class="pt-4">
+            <MudText Class="mb-4" Typo="Typo.body2">Marque los menús que desea asignar a este rol:</MudText>
+            @foreach (var menu in AllMenus)
+            {
+                if (!IsMenuVisible(menu)) continue;
+
+                var menuId = menu.id;
+                var depth = GetMenuDepth(menu);
+                var hasChildren = AllMenus.Any(m => m.parentid == menu.id);
+                var prefix = depth > 0 ? "— " : "";
+                var isMandatory = menuId == 1 || menuId == 21;
+                
+                <div style="@($"margin-left: {depth * 24}px; display: flex; align-items: center; min-height: 40px;")">
+                    @if (hasChildren)
+                    {
+                        var isExpanded = IsExpanded.GetValueOrDefault(menuId, false);
+                        <MudIconButton 
+                            Icon="@(isExpanded ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ChevronRight)" 
+                            Size="Size.Small" 
+                            OnClick="() => ToggleExpand(menuId)" 
+                            Class="mr-1" />
+                    }
+                    else
+                    {
+                        <div style="width: 32px;" class="mr-1"></div>
+                    }
+                    
+                    <MudCheckBox T="bool" Value="@SelectedMenuIds.Contains(menuId)" ValueChanged="@((val) => OnCheckboxChanged(menuId, val))" Color="Color.Primary" Class="ml-0" Disabled="isMandatory">
+                        @prefix @menu.nombre <span class="text-muted text-sm">(@menu.url)</span>
+                    </MudCheckBox>
+                </div>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar Cambios</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public int RoleId { get; set; }
+    [Parameter] public string RoleName { get; set; }
+
+    private List<AdmonMenu> AllMenus = new List<AdmonMenu>();
+    private HashSet<int> SelectedMenuIds = new HashSet<int>();
+    private Dictionary<int, bool> IsExpanded = new Dictionary<int, bool>();
+    private bool isloading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var menusResult = await OdooService.GetMenus();
+            var roleMenusResult = await OdooService.GetRoleMenus(RoleId);
+
+            if (!menusResult.Respuesta.ExisteError)
+            {
+                var rawMenus = menusResult.Model.ToList();
+                var rootMenus = rawMenus
+                    .Where(m => m.parentid == 0 || m.parentid == m.id || !rawMenus.Any(p => p.id == m.parentid))
+                    .OrderBy(m => m.id)
+                    .ToList();
+                
+                var orderedList = new List<AdmonMenu>();
+                var visited = new HashSet<int>();
+                
+                foreach (var root in rootMenus)
+                {
+                    if (visited.Add(root.id))
+                    {
+                        orderedList.Add(root);
+                        FlattenMenuTree(rawMenus, root.id, orderedList, visited);
+                    }
+                }
+                AllMenus = orderedList;
+            }
+            if (!roleMenusResult.Respuesta.ExisteError)
+            {
+                SelectedMenuIds = new HashSet<int>(roleMenusResult.Model.Select(m => m.id));
+                SelectedMenuIds.Add(1);
+                SelectedMenuIds.Add(21);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar menús: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+        }
+    }
+
+    private void FlattenMenuTree(List<AdmonMenu> source, int parentId, List<AdmonMenu> target, HashSet<int> visited)
+    {
+        var children = source.Where(m => m.parentid == parentId && m.id != parentId).OrderBy(m => m.id).ToList();
+        foreach (var child in children)
+        {
+            if (visited.Add(child.id))
+            {
+                target.Add(child);
+                FlattenMenuTree(source, child.id, target, visited);
+            }
+        }
+    }
+
+    private void OnCheckboxChanged(int menuId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            SelectedMenuIds.Add(menuId);
+        }
+        else
+        {
+            SelectedMenuIds.Remove(menuId);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        try
+        {
+            isloading = true;
+            var request = new RoleMenusRequest
+            {
+                rolid = RoleId,
+                menus = SelectedMenuIds.ToList()
+            };
+
+            var response = await OdooService.SaveRoleMenus(request);
+            isloading = false;
+
+            if (response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al guardar: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Menús asignados correctamente.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private int GetMenuDepth(AdmonMenu menu)
+    {
+        int depth = 0;
+        var current = menu;
+        var visited = new HashSet<int>();
+        while (current.parentid > 0)
+        {
+            if (!visited.Add(current.id)) break;
+            var parent = AllMenus.FirstOrDefault(m => m.id == current.parentid);
+            if (parent == null) break;
+            depth++;
+            current = parent;
+        }
+        return depth;
+    }
+
+    private bool IsMenuVisible(AdmonMenu menu)
+    {
+        var current = menu;
+        var visited = new HashSet<int>();
+        while (current.parentid > 0)
+        {
+            if (!visited.Add(current.id)) break;
+            var parent = AllMenus.FirstOrDefault(m => m.id == current.parentid);
+            if (parent == null) return true;
+            if (!IsExpanded.GetValueOrDefault(parent.id, false)) return false;
+            current = parent;
+        }
+        return true;
+    }
+
+    private void ToggleExpand(int menuId)
+    {
+        var current = IsExpanded.GetValueOrDefault(menuId, false);
+        IsExpanded[menuId] = !current;
+    }
+}

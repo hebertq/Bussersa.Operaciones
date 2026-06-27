@@ -1,4 +1,4 @@
-﻿using Modelo.ClasesGenericas;
+using Modelo.ClasesGenericas;
 using Modelo.Validaciones;
 using OfficeOpenXml;
 using OfficeOpenXml.Table;
@@ -7,11 +7,51 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace Utilidades.ClasesGenericas
 {
     public static class DataExcel
     {
+        private static byte[] _logoBytesCache = null;
+        private static readonly object _lock = new object();
+
+        private static byte[] LoadLogoBytes()
+        {
+            if (_logoBytesCache != null)
+                return _logoBytesCache;
+
+            lock (_lock)
+            {
+                if (_logoBytesCache != null)
+                    return _logoBytesCache;
+
+                try
+                {
+                    var assembly = typeof(DataExcel).Assembly;
+                    string resourceName = assembly.GetManifestResourceNames()
+                        .FirstOrDefault(x => x.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase));
+
+                    if (resourceName != null)
+                    {
+                        using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                        {
+                            if (stream != null)
+                            {
+                                using (MemoryStream ms = new MemoryStream())
+                                {
+                                    stream.CopyTo(ms);
+                                    _logoBytesCache = ms.ToArray();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+            return _logoBytesCache;
+        }
+
         public static string CreateExceltoDatatable(DataTable data, string NombreHoja)
         {
             MemoryStream stream = new MemoryStream();
@@ -25,7 +65,7 @@ namespace Utilidades.ClasesGenericas
             return Convert.ToBase64String(Util.ToByteArray(stream));
         }
 
-        public static ExcelArray CreateExcel<T>(List<T> table, string hoja)
+        public static ExcelArray CreateExcel<T>(List<T> table, string hoja, bool includeHeader = true)
         {
             ExcelArray libro = new ExcelArray();
             try
@@ -34,7 +74,80 @@ namespace Utilidades.ClasesGenericas
                 using ExcelPackage pack = new ExcelPackage();
 
                 ExcelWorksheet ws = pack.Workbook.Worksheets.Add(hoja);
-                ws.Cells["A1"].LoadFromCollection(table, true, TableStyles.Light2);               
+                
+                if (includeHeader)
+                {
+                    // Load data collection starting at A5 to leave space for logo and title
+                    ws.Cells["A5"].LoadFromCollection(table, true, TableStyles.Light2);               
+
+                    // Add Logo to the Worksheet
+                    try
+                    {
+                        byte[] logoBytes = LoadLogoBytes();
+                        if (logoBytes != null)
+                        {
+                            using (MemoryStream imageStream = new MemoryStream(logoBytes))
+                            {
+                                var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), imageStream);
+                                picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                picture.SetSize(105, 70);
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to disk file if assembly resource is not found
+                            string logoPath = "logo.png";
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.png");
+                            }
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/img/brand/logo.png");
+                            }
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = "wwwroot/img/brand/logo.png";
+                            }
+
+                            if (File.Exists(logoPath))
+                            {
+                                var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), new FileInfo(logoPath));
+                                picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                picture.SetSize(105, 70);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error al agregar logo a excel: " + ex.Message);
+                    }
+
+                    // Add Title and Subtitle
+                    try
+                    {
+                        ws.Cells["D2:H2"].Merge = true;
+                        ws.Cells["D2"].Value = "BUSSERSA";
+                        ws.Cells["D2"].Style.Font.Size = 14;
+                        ws.Cells["D2"].Style.Font.Bold = true;
+
+                        ws.Cells["D3:H3"].Merge = true;
+                        ws.Cells["D3"].Value = "Reporte: " + hoja;
+                        ws.Cells["D3"].Style.Font.Size = 10;
+                        ws.Cells["D3"].Style.Font.Italic = true;
+                        ws.Cells["D3"].Style.Font.Color.SetColor(System.Drawing.Color.Gray); // Gray color
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error al agregar texto a excel: " + ex.Message);
+                    }
+                }
+                else
+                {
+                    // Load starting at A1 (headers on row 1)
+                    ws.Cells["A1"].LoadFromCollection(table, true, TableStyles.Light2);
+                }
+
                 ws.Cells[ws.Dimension.Address].AutoFitColumns();
 
                 libro.Data = pack.GetAsByteArray();
@@ -75,6 +188,127 @@ namespace Utilidades.ClasesGenericas
 
             return buffer;
         }
+
+        public static byte[] GenerateExcelFromJson(MultiSheetExcelRequest request)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using ExcelPackage pack = new ExcelPackage();
+
+            foreach (var sheetReq in request.Hojas)
+            {
+                ExcelWorksheet ws = pack.Workbook.Worksheets.Add(sheetReq.Hoja);
+                
+                if (sheetReq.Datos == null || !sheetReq.Datos.Any())
+                    continue;
+
+                // Get headers (keys from first row)
+                var headers = sheetReq.Datos.First().Keys.ToList();
+                int startRow = sheetReq.IncludeHeader ? 5 : 1;
+
+                // Write headers
+                for (int col = 0; col < headers.Count; col++)
+                {
+                    ws.Cells[startRow, col + 1].Value = headers[col];
+                    ws.Cells[startRow, col + 1].Style.Font.Bold = true;
+                }
+
+                // Write data rows
+                int currentRow = startRow + 1;
+                foreach (var rowData in sheetReq.Datos)
+                {
+                    for (int col = 0; col < headers.Count; col++)
+                    {
+                        var key = headers[col];
+                        var value = rowData.ContainsKey(key) ? rowData[key] : null;
+
+                        // Check if value is a JSON Element (due to HTTP deserialization)
+                        if (value is System.Text.Json.JsonElement jsonEl)
+                        {
+                            switch (jsonEl.ValueKind)
+                            {
+                                case System.Text.Json.JsonValueKind.String:
+                                    ws.Cells[currentRow, col + 1].Value = jsonEl.GetString();
+                                    break;
+                                case System.Text.Json.JsonValueKind.Number:
+                                    if (jsonEl.TryGetInt64(out long lVal))
+                                        ws.Cells[currentRow, col + 1].Value = lVal;
+                                    else if (jsonEl.TryGetDouble(out double dVal))
+                                        ws.Cells[currentRow, col + 1].Value = dVal;
+                                    break;
+                                case System.Text.Json.JsonValueKind.True:
+                                    ws.Cells[currentRow, col + 1].Value = true;
+                                    break;
+                                case System.Text.Json.JsonValueKind.False:
+                                    ws.Cells[currentRow, col + 1].Value = false;
+                                    break;
+                                case System.Text.Json.JsonValueKind.Null:
+                                    ws.Cells[currentRow, col + 1].Value = null;
+                                    break;
+                                default:
+                                    ws.Cells[currentRow, col + 1].Value = jsonEl.ToString();
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            ws.Cells[currentRow, col + 1].Value = value;
+                        }
+                    }
+                    currentRow++;
+                }
+
+                // Style the header row
+                var headerRange = ws.Cells[startRow, 1, startRow, headers.Count];
+                headerRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                headerRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#003815"));
+                headerRange.Style.Font.Color.SetColor(System.Drawing.Color.White);
+
+                // Add simple borders to data
+                if (currentRow > startRow + 1)
+                {
+                    var dataRange = ws.Cells[startRow, 1, currentRow - 1, headers.Count];
+                    dataRange.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    dataRange.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    dataRange.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    dataRange.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                }
+
+                if (sheetReq.IncludeHeader)
+                {
+                    // Add Logo
+                    try
+                    {
+                        byte[] logoBytes = LoadLogoBytes();
+                        if (logoBytes != null)
+                        {
+                            using (MemoryStream imageStream = new MemoryStream(logoBytes))
+                            {
+                                var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), imageStream);
+                                picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                picture.SetSize(105, 70);
+                            }
+                        }
+                    }
+                    catch { }
+
+                    // Add Title
+                    ws.Cells["D2:H2"].Merge = true;
+                    ws.Cells["D2"].Value = "BUSSERSA";
+                    ws.Cells["D2"].Style.Font.Size = 14;
+                    ws.Cells["D2"].Style.Font.Bold = true;
+
+                    ws.Cells["D3:H3"].Merge = true;
+                    ws.Cells["D3"].Value = "Reporte: " + sheetReq.Hoja;
+                    ws.Cells["D3"].Style.Font.Size = 10;
+                    ws.Cells["D3"].Style.Font.Italic = true;
+                    ws.Cells["D3"].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
+                }
+
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
+            }
+
+            return pack.GetAsByteArray();
+        }
     }
 
     public static class TableHtml
@@ -103,8 +337,8 @@ namespace Utilidades.ClasesGenericas
                           current +
                           ("<th align = \"center\" valign=\"top\"style='font-size: 11pt; font-weight: bold;min-width:100%;background:linear-gradient(to bottom,#003815 0%,#008559 100%);color:#FFFFFF;padding:5px;'>" +
                            (Convert.ToString(propValue).Length <= 100
-                               ? Convert.ToString(propValue)
-                               : Convert.ToString(propValue).Substring(0, 100)) + "</th>")) +
+                                ? Convert.ToString(propValue)
+                                : Convert.ToString(propValue).Substring(0, 100)) + "</th>")) +
                   "</tr>";
         }
 
@@ -115,14 +349,14 @@ namespace Utilidades.ClasesGenericas
                 ? ret
                 : "<tr>" +
                   classObject.GetType()
-                      .GetProperties()
-                      .Aggregate(ret,
-                          (current, prop) =>
-                              current + ("<td align = \"left\" style='font-size: 10pt; font-weight: normal;padding-left:5px;padding-left:5px;padding-right:5px;'>" +
-                                         (Convert.ToString(prop.GetValue(classObject, null)).Length <= 100
-                                             ? Convert.ToString(prop.GetValue(classObject, null))
-                                             : Convert.ToString(prop.GetValue(classObject, null)).Substring(0, 100)) +
-                                         "</td>")) + "</tr>";
+                       .GetProperties()
+                       .Aggregate(ret,
+                           (current, prop) =>
+                               current + ("<td align = \"left\" style='font-size: 10pt; font-weight: normal;padding-left:5px;padding-left:5px;padding-right:5px;'>" +
+                                          (Convert.ToString(prop.GetValue(classObject, null)).Length <= 100
+                                              ? Convert.ToString(prop.GetValue(classObject, null))
+                                              : Convert.ToString(prop.GetValue(classObject, null)).Substring(0, 100)) +
+                                          "</td>")) + "</tr>";
         }
     }
 }

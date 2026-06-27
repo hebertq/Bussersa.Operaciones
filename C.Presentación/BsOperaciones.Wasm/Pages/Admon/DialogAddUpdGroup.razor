@@ -1,0 +1,83 @@
+@using Modelo.Admin
+@using HostService.Interfaces
+@inject ISnackbar Snackbar
+@inject IOdooService OdooService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Group" Class="mr-3 mb-n1" />
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+        <MudContainer Style="max-height: 400px; overflow-y: auto" Class="pt-4">
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="payload.nombre" Label="Nombre del Grupo" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="payload.descripcion" Label="Descripción" Variant="Variant.Outlined" Lines="3" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public string Title { get; set; } = "Registro de Grupo";
+    [Parameter] public AdmonGroup payload { get; set; } = new AdmonGroup();
+    [Parameter] public bool IsEdit { get; set; }
+
+    private bool isloading;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(payload.nombre))
+        {
+            Snackbar.Add("El nombre del grupo es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            isloading = true;
+            IResponse response;
+            if (IsEdit)
+            {
+                response = await OdooService.UpdateGroup(payload);
+            }
+            else
+            {
+                response = await OdooService.AddGroup(payload);
+            }
+
+            isloading = false;
+            if (response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al guardar: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Grupo guardado con éxito.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+    }
+}

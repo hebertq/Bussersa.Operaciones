@@ -1,39 +1,49 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@implements IDisposable
 
-<MudThemeProvider Theme="_bussersaTheme" />
+<MudThemeProvider Theme="_bussersaTheme" @bind-IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <MudLayout>
     @* --- BARRA SUPERIOR (APPBAR) --- *@
-    <MudAppBar Elevation="0" Color="Color.Primary" Dense="true">
+    <MudAppBar Elevation="0" Color="Color.Default" Dense="true" Class="mud-appbar">
         <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
         <div class="d-flex align-center px-2">
-            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:30px;" class="mr-3" />
-            <MudText Typo="Typo.h6" Class="d-none d-sm-flex" Style="font-weight: 800; letter-spacing: 1px; font-family: 'Inter', sans-serif;">
+            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:32px;" class="mr-3" />
+            <MudText Typo="Typo.h6" Class="d-none d-sm-flex" Style="font-weight: 800; letter-spacing: 1px; font-family: 'Outfit', sans-serif;">
                 OPERACIONES
             </MudText>
         </div>
         <MudSpacer />
+
+        @* Dark Mode Toggler *@
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                       Color="Color.Inherit"
+                       OnClick="@ToggleDarkMode"
+                       Class="mr-2"
+                       Title="Alternar Modo Oscuro" />
+
         <MudBadge Content="@("3")" Color="Color.Secondary" Overlap="true" Class="mr-5">
             <MudIcon Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" />
         </MudBadge>
-        <div class="d-flex align-center ml-2 py-1 px-3" style="border-radius: 24px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.1);">
+        
+        <div class="d-flex align-center ml-2 py-1 px-3 profile-pill">
             <div class="d-flex flex-column align-end mr-3 d-none d-md-flex">
-                <MudText Typo="Typo.caption" Class="text-white" Style="line-height: 1; font-weight: 600;">Admin Usuario</MudText>
-                <MudText Typo="Typo.caption" Style="color: rgba(255,255,255,0.7); font-size: 0.65rem;">ADMINISTRADOR</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1; font-weight: 600;">Admin Usuario</MudText>
+                <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 500;">ADMINISTRADOR</MudText>
             </div>
             <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled">AD</MudAvatar>
         </div>
     </MudAppBar>
 
     @* --- MENÚ LATERAL (DRAWER) --- *@
-    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Mini" Class="border-light">
+    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Mini" Class="border-light mud-drawer">
         <MudDrawerHeader Class="pa-4 d-flex align-center">
             @if (_drawerOpen)
             {
-                <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem;">SISTEMA DE GESTIÓN</MudText>
+                <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem; font-family: 'Outfit';">SISTEMA DE GESTIÓN</MudText>
             }
             else
             {
@@ -41,38 +51,48 @@
             }
         </MudDrawerHeader>
 
-        @* AQUÍ LLAMAMOS AL COMPONENTE NAVMENU *@
+        @* COMPONENTE NAVMENU *@
         <NavMenu />
-
     </MudDrawer>
 
     @* --- CONTENIDO PRINCIPAL --- *@
-    <MudMainContent Style="background-color: #F4F7F9; min-height: 100vh;">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16">
-            @Body
-        </MudContainer>
+    <MudMainContent Style="min-height: 100vh;">
+        <div class="page-transition">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16">
+                @Body
+            </MudContainer>
+        </div>
     </MudMainContent>
 </MudLayout>
 
 <style>
-    .mud-nav-link.active {
-        background-color: rgba(1, 49, 97, 0.05) !important;
-        border-right: 4px solid #f26631;
-        color: #013161 !important;
-        font-weight: 600;
+    .mud-appbar {
+        border-bottom: 1px solid var(--mud-palette-divider) !important;
+        backdrop-filter: blur(12px) !important;
+        background-color: var(--mud-palette-appbar-background) !important;
+    }
+    
+    .mud-drawer {
+        border-right: 1px solid var(--mud-palette-divider) !important;
     }
 
-        .mud-nav-link.active .mud-nav-link-icon {
-            color: #f26631 !important;
-        }
-
-    .text-muted {
-        color: #94a3b8;
+    .profile-pill {
+        border-radius: 24px;
+        background: rgba(var(--mud-palette-action-default-rgb), 0.05) !important;
+        border: 1px solid var(--mud-palette-divider) !important;
+        transition: all 0.3s ease;
+    }
+    .profile-pill:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--mud-elevation-2);
+        background: rgba(var(--mud-palette-action-default-rgb), 0.08) !important;
     }
 
-    .border-light {
-        border-right: 1px solid #e2e8f0 !important;
+    .text-muted-appbar {
+        color: var(--mud-palette-text-secondary) !important;
+        opacity: 0.8;
     }
+
     /* Esto garantiza que el texto desaparezca totalmente en modo mini */
     .mud-drawer--mini:not(.mud-drawer--open) .mud-nav-link-text {
         display: none !important;
@@ -80,42 +100,118 @@
 </style>
 
 @code {
+    [Inject] IJSRuntime JS { get; set; }
+    [Inject] AuthenticationStateProvider AuthStateProvider { get; set; }
+    [Inject] NavigationManager NavigationManager { get; set; }
+
     private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+    private DotNetObjectReference<MainLayout>? _objRef;
+    private System.Threading.Timer? _validationTimer;
+
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+    private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
+
+    protected override void OnInitialized()
+    {
+        // Periodic check every 30 seconds to ensure token validity
+        _validationTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                var state = await AuthStateProvider.GetAuthenticationStateAsync();
+                if (state.User.Identity?.IsAuthenticated != true)
+                {
+                    await LogoutOnInactivity();
+                }
+            });
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("window.inactivityTracker.init", _objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task LogoutOnInactivity()
+    {
+        if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            await customAuth.MarkUserAsLoggedOut();
+            NavigationManager.NavigateTo("Login", true);
+        }
+    }
+
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+        _validationTimer?.Dispose();
+    }
 
     private MudTheme _bussersaTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
         {
-            PaletteLight = new PaletteLight()
+            Primary = "#0f172a",         // Slate 900
+            Secondary = "#f97316",       // Orange 500
+            AppbarBackground = "rgba(255, 255, 255, 0.8)", // Glassmorphic white
+            AppbarText = "#0f172a",      // Slate 900
+            Background = "#f8fafc",      // Slate 50
+            Surface = "#ffffff",         // White cards
+            DrawerBackground = "#ffffff",// White sidebar
+            DrawerText = "#334155",      // Slate 700
+            DrawerIcon = "#475569",      // Slate 600
+            ActionDefault = "#475569",
+            Divider = "#e2e8f0",         // Slate 200
+            TextPrimary = "#0f172a",
+            TextSecondary = "#475569",
+            Success = "#10b981",         // Emerald 500
+            Warning = "#f59e0b",         // Amber 500
+            Error = "#ef4444",           // Red 500
+            Info = "#06b6d4"             // Cyan 500
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#38bdf8",         // Sky 400
+            Secondary = "#f97316",       // Orange 500
+            AppbarBackground = "rgba(15, 23, 42, 0.8)", // Glassmorphic dark slate
+            AppbarText = "#f8fafc",      // Slate 50
+            Background = "#0b0f19",      // Deep Rich Dark
+            Surface = "#111827",         // Gray 900
+            DrawerBackground = "#111827",// Gray 900
+            DrawerText = "#cbd5e1",      // Slate 300
+            DrawerIcon = "#94a3b8",      // Slate 400
+            ActionDefault = "#94a3b8",
+            Divider = "#1f2937",         // Gray 800
+            TextPrimary = "#f8fafc",
+            TextSecondary = "#94a3b8",
+            Success = "#34d399",         // Emerald 400
+            Warning = "#fbbf24",         // Amber 400
+            Error = "#f87171",           // Red 400
+            Info = "#22d3ee"             // Cyan 400
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "16px" // Much rounder, premium look
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
             {
-                Primary = "#013161",
-                Secondary = "#f26631",
-                AppbarBackground = "#013161",
-                AppbarText = "#ffffff",
-                Background = "#F4F7F9",
-                Surface = "#ffffff",
-                DrawerBackground = "#ffffff",
-                DrawerText = "#013161",
-                DrawerIcon = "#013161",
-                ActionDefault = "#013161",
-                Divider = "#e2e8f0",
-                TextPrimary = "#1e293b",
-                TextSecondary = "#64748b"
+                FontFamily = new[] { "Outfit", "Inter", "sans-serif" },
+                FontSize = ".9rem"
             },
-            LayoutProperties = new LayoutProperties()
-            {
-                DefaultBorderRadius = "8px"
-            },
-            Typography = new Typography()
-            {
-                Default = new DefaultTypography()
-                {
-                    FontFamily = new[] { "Inter", "Roboto", "Arial", "sans-serif" },
-                    FontSize = ".875rem"
-                },
-                H4 = new H4Typography() { FontSize = "1.75rem", FontWeight = "800" },
-                H6 = new H6Typography() { FontSize = "1.1rem", FontWeight = "700" },
-                Subtitle1 = new Subtitle1Typography() { FontSize = "1rem", FontWeight = "500" },
-                Caption = new CaptionTypography() { FontSize = "0.75rem", FontWeight = "400" }
-            }
-        };
+            H4 = new H4Typography() { FontSize = "1.85rem", FontWeight = "800", FontFamily = new[] { "Outfit", "Inter" } },
+            H5 = new H5Typography() { FontSize = "1.5rem", FontWeight = "800", FontFamily = new[] { "Outfit", "Inter" } },
+            H6 = new H6Typography() { FontSize = "1.2rem", FontWeight = "700", FontFamily = new[] { "Outfit", "Inter" } },
+            Subtitle1 = new Subtitle1Typography() { FontSize = "1rem", FontWeight = "600", FontFamily = new[] { "Outfit", "Inter" } },
+            Subtitle2 = new Subtitle2Typography() { FontSize = "0.875rem", FontWeight = "600", FontFamily = new[] { "Outfit", "Inter" } },
+            Caption = new CaptionTypography() { FontSize = "0.75rem", FontWeight = "500", FontFamily = new[] { "Outfit", "Inter" } }
+        }
+    };
 }

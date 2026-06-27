@@ -1,4 +1,4 @@
-﻿window.global = {
+window.global = {
     openModal: function (popupId) {
         popupId = "#" + popupId;
         $(popupId).modal("show");
@@ -208,4 +208,43 @@ function downloadFile(contentType, base64Data, fileName) {
         console.error(err);
     }   
 }
+
+window.inactivityTracker = {
+    dotNetReference: null,
+    timer: null,
+    timeoutMs: 3600000, // 1 hour in milliseconds
+    
+    init: function (dotNetRef) {
+        this.dotNetReference = dotNetRef;
+        this.resetTimer();
+        
+        const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart', 'click'];
+        const self = this;
+        events.forEach(function (name) {
+            window.addEventListener(name, function () {
+                self.resetTimer();
+            }, { passive: true });
+        });
+        
+        console.log("Inactivity tracker initialized for 1 hour.");
+    },
+    
+    resetTimer: function () {
+        if (this.timer) {
+            clearTimeout(this.timer);
+        }
+        
+        const self = this;
+        this.timer = setTimeout(function () {
+            self.onInactivityTimeout();
+        }, this.timeoutMs);
+    },
+    
+    onInactivityTimeout: function () {
+        console.log("User inactivity timeout reached (1 hour). Logging out...");
+        if (this.dotNetReference) {
+            this.dotNetReference.invokeMethodAsync('LogoutOnInactivity');
+        }
+    }
+};
 

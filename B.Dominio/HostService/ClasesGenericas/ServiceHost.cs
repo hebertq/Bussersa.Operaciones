@@ -1,4 +1,4 @@
-﻿using Blazored.LocalStorage;
+using Blazored.LocalStorage;
 using Modelo;
 using Modelo.ClasesGenericas;
 using Modelo.Salida;
@@ -61,7 +61,7 @@ namespace HostService.ClasesGenericas
             try
             {
                 var requestContent = _Util.CreateHttpContent(content);
-                var request        = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                var request        = new HttpRequestMessage(HttpMethod.Post, requestUrl);
                 request.Content    = requestContent;
 
                 using (HttpResponseMessage response = await _httpClient.SendAsync(request))
@@ -110,7 +110,13 @@ namespace HostService.ClasesGenericas
                     else
                     {
                         string status = response.StatusCode.ToString();
-                        Result.SetErroAcces("Error al aceder a " + requestUrl.ToString(), metodo, status);
+                        string errorBody = string.Empty;
+                        try
+                        {
+                            errorBody = await response.Content.ReadAsStringAsync();
+                        }
+                        catch { }
+                        Result.SetErroAcces("Error al aceder a " + requestUrl.ToString() + " - Detalle: " + errorBody, metodo, status);
                     }
                 }                               
             }
@@ -122,6 +128,36 @@ namespace HostService.ClasesGenericas
             return Result;
         }
 
+        public async Task<Message<ResponseData>> DeleteAsync(Uri requestUrl)
+        {
+            string metodo = $"HttpClient_{MethodBase.GetCurrentMethod().Name}_{requestUrl}";
+            _httpClient = new HttpClient();
+            await addHeaders();
+            Message<ResponseData> Result = new Message<ResponseData>();
+            try
+            {
+                using (HttpResponseMessage response = await _httpClient.DeleteAsync(requestUrl))
+                {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        response.EnsureSuccessStatusCode();
+                        var data = await response.Content.ReadAsStringAsync();
+                        Result.Data = _Util.ObtenerRegistro<ResponseData>(data);
+                    }
+                    else
+                    {
+                        string status = response.StatusCode.ToString();
+                        Result.SetErroAcces("Error al aceder a " + requestUrl.ToString(), metodo, status);
+                    }
+                }
+            }
+            catch (CoreException ex)
+            {
+                Result.SetErrorExep(ex, metodo);
+            }
+
+            return Result;
+        }
 
         public async Task<Message<bool>> PostAsyncRedmine<TRequest>(Uri requestUrl, TRequest data)
         {
@@ -184,6 +220,9 @@ namespace HostService.ClasesGenericas
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _httpClient.DefaultRequestHeaders.ConnectionClose = false;
+
+            _httpClient.DefaultRequestHeaders.Remove("x-api-key");
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", "BussersaSecureApiKey2026*");
 
             if (_localStorageService != null)
             {

@@ -1,0 +1,190 @@
+@page "/admon/usuarios"
+@using Modelo.Admin
+@using HostService.Interfaces
+@using BsOperaciones.Component
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<DocsPages Title="Administración de Usuarios" IdPage="23" ComponentType="typeof(AdmonUsuarios)">
+    <CodeSnippet ClassName="@typeof(AdmonUsuarios).ToString()" Title="Listado de Usuarios">
+        <PagesData>
+            @if (isloading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mx-auto my-4" />
+            }
+            else
+            {
+                <div class="d-flex justify-end mb-4">
+                    <MudButton OnClick="OpenNewUserDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                        Nuevo Usuario
+                    </MudButton>
+                </div>
+
+                <MudTable Items="Users" Hover="true" Bordered="true" Striped="true" Filter="new Func<User, bool>(FilterFunc)">
+                    <ToolBarContent>
+                        <MudText Typo="Typo.h6">Usuarios Registrados</MudText>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="searchString" Placeholder="Buscar usuario, email, nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" />
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>ID</MudTh>
+                        <MudTh>Usuario</MudTh>
+                        <MudTh>Correo</MudTh>
+                        <MudTh>Nombre Completo</MudTh>
+                        <MudTh>Grupo de Permisos</MudTh>
+                        <MudTh Style="width:120px; text-align:center;">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">@context.id</MudTd>
+                        <MudTd DataLabel="Usuario">@context.username</MudTd>
+                        <MudTd DataLabel="Correo">@context.email</MudTd>
+                        <MudTd DataLabel="Nombre Completo">@context.nombres @context.apellidos</MudTd>
+                        <MudTd DataLabel="Grupo de Permisos">@GetGroupName(context.grupoid)</MudTd>
+                        <MudTd Style="text-align:center;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditUserDialog(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUser(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager InfoText="Mostrando {first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página" />
+                    </PagerContent>
+                </MudTable>
+            }
+        </PagesData>
+    </CodeSnippet>
+</DocsPages>
+
+@code {
+    private List<User> Users = new List<User>();
+    private List<AdmonGroup> Groups = new List<AdmonGroup>();
+    private bool isloading = true;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isloading = true;
+            var usersResult = await OdooService.GetUsers();
+            var groupsResult = await OdooService.GetGroups();
+
+            if (!usersResult.Respuesta.ExisteError)
+            {
+                Users = usersResult.Model.ToList();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar usuarios: " + usersResult.Respuesta.MensajeError, Severity.Error);
+            }
+
+            if (!groupsResult.Respuesta.ExisteError)
+            {
+                Groups = groupsResult.Model.ToList();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar grupos: " + groupsResult.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar datos: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+        }
+    }
+
+    private string GetGroupName(int groupId)
+    {
+        return Groups.FirstOrDefault(g => g.id == groupId)?.nombre ?? $"Grupo #{groupId}";
+    }
+
+    private bool FilterFunc(User element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (element.username.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.email.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.nombres.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.apellidos.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private async Task OpenNewUserDialog()
+    {
+        var parameters = new DialogParameters { ["Title"] = "Nuevo Usuario", ["payload"] = new User(), ["Groups"] = Groups, ["IsEdit"] = false };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdUser>("Nuevo Usuario", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenEditUserDialog(User user)
+    {
+        // Clone the user to prevent modifying list in place
+        var editUser = new User
+        {
+            id = user.id,
+            username = user.username,
+            email = user.email,
+            password = user.password,
+            nombres = user.nombres,
+            apellidos = user.apellidos,
+            grupoid = user.grupoid
+        };
+
+        var parameters = new DialogParameters { ["Title"] = "Editar Usuario", ["payload"] = editUser, ["Groups"] = Groups, ["IsEdit"] = true };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogAddUpdUser>("Editar Usuario", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task DeleteUser(User user)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmar Eliminación",
+            $"¿Desea eliminar de forma permanente al usuario '{user.username}'?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            try
+            {
+                isloading = true;
+                var result = await OdooService.DeleteUser(user.id);
+                if (!result.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Usuario eliminado con éxito.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al eliminar usuario: " + result.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                await LoadData();
+            }
+        }
+    }
+}
