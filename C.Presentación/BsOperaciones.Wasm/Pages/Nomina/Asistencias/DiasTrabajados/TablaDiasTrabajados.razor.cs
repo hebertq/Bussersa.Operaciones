@@ -8,6 +8,7 @@ using MudBlazor;
 using Modelo.Entidades.Entradas.Odoo;
 using Utilidades.Interfaces;
 using Utilidades.ClasesGenericas;
+using Modelo.ClasesGenericas;
 using OdooDiasTrabajados = Modelo.Entidades.Entradas.Odoo.DiasTrabajados;
 
 namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
@@ -84,7 +85,8 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
             await Task.Delay(50);
             try
             {
-                var datosExcel = _PayLoadList.Select(x => new
+                // 1. Crear el Consolidado
+                var consolidadoList = _PayLoadList.Select(x => new
                 {
                     x.area,
                     x.tipoempleado,
@@ -95,9 +97,33 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
                     x.bono
                 }).ToList();
 
-                var exceldata = DataExcel.CreateExcel(datosExcel, "Consolidado");
-                string base64Data = Convert.ToBase64String(exceldata.Data);
-                await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"Consolidado_{OperacionName?.Replace(" ", "_")}.xlsx");
+                // 2. Crear el Detalle aplanando todos los detalles de todos los empleados
+                var detalleList = _PayLoadList
+                    .Where(x => x != null && x.detalleall != null)
+                    .SelectMany(x => x.detalleall.Select(d => new
+                    {
+                        d.fecha,
+                        d.id,
+                        d.nombre,
+                        d.entrada,
+                        d.salida,
+                        d.comida,
+                        d.dias,
+                        d.horasextras,
+                        d.bono
+                    }))
+                    .ToList();
+
+                // 3. Generar hojas de excel individuales
+                var consolidadoExcel = DataExcel.CreateExcel(consolidadoList, "Consolidado");
+                var detalleExcel = DataExcel.CreateExcel(detalleList, "Detalle");
+
+                // 4. Unir ambas hojas en un único archivo base64
+                var listSheets = new List<ExcelArray> { consolidadoExcel, detalleExcel };
+                string base64Data = DataExcel.CreateExcel(listSheets);
+
+                // 5. Descargar el archivo resultante
+                await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"Consolidado_y_Detalle_{OperacionName?.Replace(" ", "_")}.xlsx");
             }
             catch (Exception ex) { Snackbar.Add("Error: " + ex.Message, Severity.Error); }
             finally { isloaddata = false; }
