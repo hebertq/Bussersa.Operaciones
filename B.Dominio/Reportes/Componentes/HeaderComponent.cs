@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -16,6 +17,32 @@ namespace Reportes.Componentes
 
         private static Image LoadLogo()
         {
+            try
+            {
+                var assembly = typeof(HeaderComponent).Assembly;
+                string resourceName = assembly.GetManifestResourceNames()
+                    .FirstOrDefault(x => x.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase));
+
+                if (resourceName != null)
+                {
+                    using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (stream != null)
+                        {
+                            using (MemoryStream ms = new MemoryStream())
+                            {
+                                stream.CopyTo(ms);
+                                return Image.FromBinaryData(ms.ToArray());
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al cargar logo de recurso incrustado en PDF: " + ex.Message);
+            }
+
             string[] paths = new[]
             {
                 "wwwroot/img/brand/logo.png",
@@ -59,8 +86,8 @@ namespace Reportes.Componentes
         {
             container.Row(row =>
             {
-                // Compact logo on the left (width 95)
-                row.ConstantItem(95).Image(LogoImage);
+                // Compact logo on the left (width 85, max height 45, centered vertically)
+                row.ConstantItem(85).MaxHeight(45).AlignMiddle().Image(LogoImage);
 
                 // Centered text content
                 row.RelativeItem().Column(column =>
@@ -92,8 +119,8 @@ namespace Reportes.Componentes
                           });
                 });
 
-                // Balancing space on the right (width 95)
-                row.ConstantItem(95);
+                // Balancing space on the right (width 85)
+                row.ConstantItem(85);
             });
         }
     }

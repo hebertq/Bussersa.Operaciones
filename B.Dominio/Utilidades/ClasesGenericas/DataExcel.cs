@@ -77,8 +77,8 @@ namespace Utilidades.ClasesGenericas
                 
                 if (includeHeader)
                 {
-                    // Load data collection starting at A5 to leave space for logo and title
-                    ws.Cells["A5"].LoadFromCollection(table, true, TableStyles.Light2);               
+                    // Load data collection starting at A4 to leave space for logo and title
+                    ws.Cells["A4"].LoadFromCollection(table, true, TableStyles.Light2);               
 
                     // Add Logo to the Worksheet
                     try
@@ -135,7 +135,7 @@ namespace Utilidades.ClasesGenericas
                         ws.Cells["D3"].Value = "Reporte: " + hoja;
                         ws.Cells["D3"].Style.Font.Size = 10;
                         ws.Cells["D3"].Style.Font.Italic = true;
-                        ws.Cells["D3"].Style.Font.Color.SetColor(System.Drawing.Color.Gray); // Gray color
+                        ws.Cells["D3"].Style.Font.Color.SetColor(System.Drawing.Color.Gray); // Color gris
                     }
                     catch (Exception ex)
                     {
@@ -159,6 +159,102 @@ namespace Utilidades.ClasesGenericas
             }
 
             return libro;
+        }
+
+        public static string CreateExcel(List<(System.Collections.IEnumerable list, string sheetName)> sheets, bool includeHeader = true)
+        {
+            string buffer = "";
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                using ExcelPackage pack = new ExcelPackage();
+
+                foreach (var sheet in sheets)
+                {
+                    ExcelWorksheet ws = pack.Workbook.Worksheets.Add(sheet.sheetName);
+                    
+                    if (includeHeader)
+                    {
+                        // Load data collection starting at A4 to leave space for logo and title
+                        ws.Cells["A4"].LoadFromCollection(sheet.list.Cast<object>(), true, TableStyles.Light2);               
+
+                        // Add Logo to the Worksheet
+                        try
+                        {
+                            byte[] logoBytes = LoadLogoBytes();
+                            if (logoBytes != null)
+                            {
+                                using (MemoryStream imageStream = new MemoryStream(logoBytes))
+                                {
+                                    var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), imageStream);
+                                    picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                    picture.SetSize(105, 70);
+                                }
+                            }
+                            else
+                            {
+                                string logoPath = "logo.png";
+                                if (!File.Exists(logoPath))
+                                {
+                                    logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.png");
+                                }
+                                if (!File.Exists(logoPath))
+                                {
+                                    logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/img/brand/logo.png");
+                                }
+                                if (!File.Exists(logoPath))
+                                {
+                                    logoPath = "wwwroot/img/brand/logo.png";
+                                }
+
+                                if (File.Exists(logoPath))
+                                {
+                                    var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), new FileInfo(logoPath));
+                                    picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                    picture.SetSize(105, 70);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Error al agregar logo a excel: " + ex.Message);
+                        }
+
+                        // Add Title and Subtitle
+                        try
+                        {
+                            ws.Cells["D2:H2"].Merge = true;
+                            ws.Cells["D2"].Value = "BUSSERSA";
+                            ws.Cells["D2"].Style.Font.Size = 14;
+                            ws.Cells["D2"].Style.Font.Bold = true;
+
+                            ws.Cells["D3:H3"].Merge = true;
+                            ws.Cells["D3"].Value = "Reporte: " + sheet.sheetName;
+                            ws.Cells["D3"].Style.Font.Size = 10;
+                            ws.Cells["D3"].Style.Font.Italic = true;
+                            ws.Cells["D3"].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Error al agregar texto a excel: " + ex.Message);
+                        }
+                    }
+                    else
+                    {
+                        ws.Cells["A1"].LoadFromCollection(sheet.list.Cast<object>(), true, TableStyles.Light2);
+                    }
+
+                    ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                }
+
+                buffer = Convert.ToBase64String(pack.GetAsByteArray());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return buffer;
         }
 
         public static string CreateExcel(List<ExcelArray> table)
