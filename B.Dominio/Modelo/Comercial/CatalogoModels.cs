@@ -29,10 +29,18 @@ namespace Modelo.Comercial
         public decimal ProyeccionMensual { get; set; }
     }
 
+    public class CatalogoMaterial
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+        public decimal CostoUnitario { get; set; }
+    }
+
     public class CatalogoResponse
     {
         public System.Collections.Generic.List<CatalogoEpp> Epp { get; set; } = new System.Collections.Generic.List<CatalogoEpp>();
         public System.Collections.Generic.List<CatalogoViatico> Viaticos { get; set; } = new System.Collections.Generic.List<CatalogoViatico>();
         public System.Collections.Generic.List<CatalogoMaquinaria> Maquinaria { get; set; } = new System.Collections.Generic.List<CatalogoMaquinaria>();
+        public System.Collections.Generic.List<CatalogoMaterial> Materiales { get; set; } = new System.Collections.Generic.List<CatalogoMaterial>();
     }
 }

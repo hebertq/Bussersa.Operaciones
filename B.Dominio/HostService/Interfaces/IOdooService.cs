@@ -69,6 +69,8 @@ namespace HostService.Interfaces
         Task<IResponse> DeleteCatalogoViatico(int id);
         Task<IResponse> SaveCatalogoMaquinaria(Modelo.Comercial.CatalogoMaquinaria machinery);
         Task<IResponse> DeleteCatalogoMaquinaria(int id);
+        Task<IResponse> SaveCatalogoMaterial(Modelo.Comercial.CatalogoMaterial material);
+        Task<IResponse> DeleteCatalogoMaterial(int id);
 
         // --- DASHBOARD DE RENTABILIDAD ---
         Task<IListResponse<Modelo.Comercial.DashboardResponse>> GetDashboardData(string mes, string turno);

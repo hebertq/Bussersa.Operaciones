@@ -21,6 +21,8 @@ namespace Modelo.Comercial
         
         public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
         public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();
+        public List<CotizacionMaterialDetalle> MaterialDetalles { get; set; } = new List<CotizacionMaterialDetalle>();
+        public List<CotizacionMaquinariaDetalle> MaquinariaDetalles { get; set; } = new List<CotizacionMaquinariaDetalle>();
     }
 
     public class CotizacionPersonalDetalle
@@ -45,6 +47,7 @@ namespace Modelo.Comercial
         public decimal MaterialesTotales { get; set; }
         public decimal MermaPorcentaje { get; set; }
         public decimal AmortizacionUnitaria { get; set; }
+        public Guid? PersonalCotizacionId { get; set; }
     }
 
     public class CotizacionEppDetalle
@@ -66,6 +69,25 @@ namespace Modelo.Comercial
         public decimal CostoMensual { get; set; }
     }
 
+    public class CotizacionMaterialDetalle
+    {
+        public Guid CotizacionId { get; set; }
+        public int? MaterialId { get; set; }
+        public string Nombre { get; set; }
+        public decimal CostoUnitario { get; set; }
+    }
+
+    public class CotizacionMaquinariaDetalle
+    {
+        public Guid CotizacionId { get; set; }
+        public int? MaquinariaId { get; set; }
+        public string Nombre { get; set; }
+        public decimal Precio { get; set; }
+        public int Cantidad { get; set; }
+        public int MesesProyeccion { get; set; }
+        public decimal ProyeccionMensual { get; set; }
+    }
+
     public class SaveCotizacionRequest
     {
         public string ClienteNombre { get; set; }
@@ -80,5 +102,7 @@ namespace Modelo.Comercial
         
         public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
         public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();
+        public List<CotizacionMaterialDetalle> MaterialDetalles { get; set; } = new List<CotizacionMaterialDetalle>();
+        public List<CotizacionMaquinariaDetalle> MaquinariaDetalles { get; set; } = new List<CotizacionMaquinariaDetalle>();
     }
 }

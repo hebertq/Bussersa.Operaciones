@@ -10,156 +10,486 @@
         Cotizador de Servicios de Producción (Cálculo por Unidad / SKU)
     </MudText>
 
-    <MudGrid>
-        <!-- Formulario de Entrada (Izquierda) -->
-        <MudItem XS="12" MD="7">
-            <MudCard Elevation="4" Class="pa-6" Style="border-radius: 12px; border-top: 4px solid #2E7D32;">
-                <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Success">Datos de Entrada de Producción</MudText>
-                
-                <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" />
-                <MudTextField @bind-Value="skuNombre" Label="Descripción del SKU / Producto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="ej. CSD Pepsi + Roja 3 Litros" />
-                
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Success" Class="mb-6">
+        <!-- Pestaña 1: Cotizador -->
+        <MudTabPanel Text="🧮 Cotizador de Producción" Icon="@Icons.Material.Filled.Calculate">
+            <div class="pa-4">
                 <MudGrid>
-                    <MudItem XS="12" SM="6">
-                        <MudNumericField T="int" @bind-Value="produccionDiaria" Label="Producción Diaria Estimada (Packs)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
+                    <!-- Formulario de Entrada (Izquierda) -->
+                    <MudItem XS="12" MD="7">
+                        <MudCard Elevation="4" Class="pa-6 mb-6" Style="border-radius: 12px; border-top: 4px solid #2E7D32;">
+                            <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Success">Datos de Entrada de Producción</MudText>
+                            
+                            <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" />
+                            <MudTextField @bind-Value="skuNombre" Label="Descripción del SKU / Producto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="ej. CSD Pepsi + Roja 3 Litros" />
+                            
+                            <MudGrid>
+                                <MudItem XS="12" SM="6">
+                                    <MudNumericField T="int" Value="produccionDiaria" ValueChanged="OnProduccionDiariaChanged" Label="Producción Diaria Estimada (Unidades)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
+                                </MudItem>
+                                <MudItem XS="12" SM="6">
+                                    <MudNumericField T="decimal" @bind-Value="mermaPorcentaje" Label="Margen de Merma (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <!-- Referencia de Personal -->
+                            <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Referencia de Costo de Personal</MudText>
+                            <MudGrid>
+                                <MudItem XS="12" SM="7">
+                                    <MudSelect T="Guid?" Value="selectedPersonnelQuoteId" ValueChanged="OnPersonnelQuoteChanged" Label="Cotización de Personal de Referencia" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
+                                        <MudSelectItem T="Guid?" Value="null">-- Ingreso Manual de Mano de Obra --</MudSelectItem>
+                                        @foreach (var q in personnelQuotes)
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)q.Id)">@q.ClienteNombre (C$ @q.CostoTotal.ToString("N2")/mes)</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem XS="12" SM="5">
+                                    @if (selectedPersonnelQuoteId == null)
+                                    {
+                                        <MudNumericField T="decimal" @bind-Value="manoObraUnitaria" Label="Mano de Obra Unitaria (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" />
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="decimal" Value="CalculatedManoObraUnitaria" Label="M.O. Unitaria (Calculada)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" ReadOnly="true" Disabled="true" />
+                                    }
+                                </MudItem>
+                            </MudGrid>
+
+                            @if (selectedPersonnelQuote != null)
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-6" Style="border-radius: 8px;">
+                                    <strong>Personal vinculado:</strong> @selectedPersonnelQuote.ClienteNombre <br />
+                                    Costo mensual total: <strong>C$ @selectedPersonnelQuote.CostoTotal.ToString("N2")</strong> | Costo diario: <strong>C$ @CalculatedCostoDiarioPersona.ToString("N2")</strong>
+                                </MudAlert>
+                            }
+
+                            <!-- Selector de Materiales -->
+                            <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Materiales e Insumos Utilizados por Unidad</MudText>
+                            <div class="d-flex align-center gap-2 mb-3">
+                                <MudSelect T="int?" Value="selectedMaterialToAdd" ValueChanged="AddMaterialRow" Label="Seleccionar y Agregar Material del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1">
+                                    <MudSelectItem T="int?" Value="null">-- Seleccione un material para agregar --</MudSelectItem>
+                                    @foreach (var mat in materialesList.Where(x => !selectedMateriales.Contains(x.Id)))
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)mat.Id)">@mat.Nombre (C$ @mat.CostoUnitario.ToString("N4"))</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </div>
+
+                            @if (selectedMateriales.Any())
+                            {
+                                <MudSimpleTable Style="overflow-x: auto;" Class="mb-6" Elevation="1" Dense="true" Hover="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Concepto</th>
+                                            <th style="width: 150px; text-align: right;">Costo Catálogo</th>
+                                            <th style="width: 180px; text-align: right;">Costo Cotización</th>
+                                            <th style="width: 60px; text-align: center;">Quitar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var id in selectedMateriales)
+                                        {
+                                            var mat = materialesList.FirstOrDefault(x => x.Id == id);
+                                            if (mat != null)
+                                            {
+                                                <tr>
+                                                    <td style="vertical-align: middle;">@mat.Nombre</td>
+                                                    <td style="text-align: right; vertical-align: middle;">C$ @mat.CostoUnitario.ToString("N4")</td>
+                                                    <td style="vertical-align: middle;">
+                                                        <MudNumericField T="decimal" Value="@GetMaterialCost(id)" ValueChanged="@((decimal val) => SetMaterialCost(id, val))" Format="N4" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentText="C$" />
+                                                    </td>
+                                                    <td style="text-align: center; vertical-align: middle;">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveMaterialRow(id))" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-6">No se han seleccionado materiales para esta cotización.</MudAlert>
+                            }
+
+                            <!-- Selector de Maquinaria -->
+                            <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos y Maquinaria a Prorratear</MudText>
+                            <div class="d-flex align-center gap-2 mb-3">
+                                <MudSelect T="int?" Value="selectedMachineryToAdd" ValueChanged="AddMachineryRow" Label="Seleccionar y Agregar Equipo del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1">
+                                    <MudSelectItem T="int?" Value="null">-- Seleccione un equipo para agregar --</MudSelectItem>
+                                    @foreach (var maq in machineryList.Where(x => !selectedMachinery.Contains(x.Id)))
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)maq.Id)">@maq.Nombre (C$ @maq.ProyeccionMensual.ToString("N2")/mes)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </div>
+
+                            @if (selectedMachinery.Any())
+                            {
+                                <MudSimpleTable Style="overflow-x: auto;" Class="mb-4" Elevation="1" Dense="true" Hover="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipo / Maquinaria</th>
+                                            <th style="width: 150px; text-align: right;">Precio</th>
+                                            <th style="width: 100px; text-align: right;">Cant.</th>
+                                            <th style="width: 150px; text-align: right;">Amortiz. Mensual</th>
+                                            <th style="width: 60px; text-align: center;">Quitar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var id in selectedMachinery)
+                                        {
+                                            var maq = machineryList.FirstOrDefault(x => x.Id == id);
+                                            if (maq != null)
+                                            {
+                                                <tr>
+                                                    <td style="vertical-align: middle;">@maq.Nombre</td>
+                                                    <td style="text-align: right; vertical-align: middle;">C$ @maq.Precio.ToString("N2")</td>
+                                                    <td style="text-align: right; vertical-align: middle;">@maq.Cantidad</td>
+                                                    <td style="text-align: right; vertical-align: middle;">C$ @maq.ProyeccionMensual.ToString("N2")</td>
+                                                    <td style="text-align: center; vertical-align: middle;">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveMachineryRow(id))" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">No se han seleccionado equipos a prorratear.</MudAlert>
+                            }
+                        </MudCard>
                     </MudItem>
-                    <MudItem XS="12" SM="6">
-                        <MudNumericField T="decimal" @bind-Value="manoObraUnitaria" Label="Mano de Obra Unitaria (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" />
+
+                    <!-- Resultados e Indicadores (Derecha) -->
+                    <MudItem XS="12" MD="5">
+                        <MudCard Elevation="4" Class="pa-6 text-white mb-6" Style="background: linear-gradient(135deg, #1B5E20, #2E7D32); border-radius: 12px;">
+                            <MudText Typo="Typo.h6" Class="mb-6">Resumen de Costos de Producción</MudText>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Mano de Obra Unitaria:</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedManoObraUnitaria.ToString("N4")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Costo Materiales / Insumos:</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedMateriales.ToString("N4")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Amortización Maquinaria Unit.:</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedAmortizacionUnitaria.ToString("N4")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-4 border-b pb-2 font-bold" style="border-color: rgba(255,255,255,0.3) !important;">
+                                <MudText Typo="Typo.body1">Costo Total Unitario Base:</MudText>
+                                <MudText Typo="Typo.body1">C$ @CalculatedCostoUnitarioBase.ToString("N4")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-6 opacity-75">
+                                <MudText Typo="Typo.body2">Margen por Merma (@mermaPorcentaje%):</MudText>
+                                <MudText Typo="Typo.body2">C$ @CalculatedMermaCosto.ToString("N4")</MudText>
+                            </div>
+
+                            <!-- Tarifa Sugerida por Unidad -->
+                            <div class="text-center mb-6 pa-4" style="background: rgba(255, 255, 255, 0.12); border-radius: 8px; border-left: 5px solid #00E676;">
+                                <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA UNITARIA SUGERIDA</MudText>
+                                <MudText Typo="Typo.h4" Class="font-bold" Style="color: #00E676;">C$ @CalculatedTarifaUnitaria.ToString("N4")</MudText>
+                            </div>
+
+                            <!-- Tarifa Acordada (Entrada de usuario) -->
+                            <div class="mb-6 font-bold" style="background: rgba(255, 255, 255, 0.1); padding: 8px; border-radius: 8px;">
+                                <MudNumericField T="decimal" @bind-Value="tarifaAcordada" Label="Tarifa Acordada por Unidad (C$)" Format="N4" Variant="Variant.Outlined" Class="mud-theme-success" Style="color: white; font-weight: bold;" />
+                            </div>
+
+                            <!-- Proyecciones de Venta -->
+                            <MudPaper Class="pa-4 mb-6 text-dark" Style="background: rgba(255, 255, 255, 0.95); border-radius: 8px; color: #1B5E20;">
+                                <MudGrid>
+                                    <MudItem XS="12" Class="text-center mb-2">
+                                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">VOLUMEN DIARIO ESTIMADO</MudText>
+                                        <MudText Typo="Typo.subtitle1" Class="font-bold">@produccionDiaria.ToString("N0") Unidades</MudText>
+                                    </MudItem>
+                                    <MudItem XS="6" Class="text-center border-r" Style="border-color: rgba(0,0,0,0.1) !important;">
+                                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN DIARIA</MudText>
+                                        <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedFacturacionDiaria.ToString("N2")</MudText>
+                                    </MudItem>
+                                    <MudItem XS="6" Class="text-center">
+                                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN MENSUAL</MudText>
+                                        <MudText Typo="Typo.h6" Class="font-bold" Style="color: #2E7D32;">C$ @CalculatedFacturacionMensual.ToString("N2")</MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudPaper>
+
+                            <!-- Dashboard de Punto de Equilibrio (Breakeven) -->
+                            @if (selectedPersonnelQuote != null)
+                            {
+                                <MudPaper Class="pa-4 mb-6" Style="background: rgba(0, 0, 0, 0.2); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.3);">
+                                    <MudText Typo="Typo.subtitle2" Class="font-bold mb-2 text-center" Style="color: #00E676;">📊 ANÁLISIS DE PUNTO DE EQUILIBRIO</MudText>
+                                    <div class="d-flex justify-space-between mb-2">
+                                        <MudText Typo="Typo.body2" Class="opacity-75">Margen de Contribución Unitario:</MudText>
+                                        <MudText Typo="Typo.body2" Class="font-bold">C$ @CalculatedUtilidadUnitariaAntesDeLabor.ToString("N4")</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-2">
+                                        <MudText Typo="Typo.body2" Class="opacity-75">Costo Diario de la Persona:</MudText>
+                                        <MudText Typo="Typo.body2" Class="font-bold">C$ @CalculatedCostoDiarioPersona.ToString("N2")</MudText>
+                                    </div>
+                                    <MudDivider Class="my-2" Style="background-color: rgba(255,255,255,0.2);" />
+                                    <div class="text-center">
+                                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">PRODUCCIÓN MÍNIMA REQUERIDA AL DÍA</MudText>
+                                        @if (CalculatedUtilidadUnitariaAntesDeLabor <= 0)
+                                        {
+                                            <MudText Typo="Typo.body2" Class="font-bold text-danger">Tarifa muy baja para cubrir costos variables</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.h5" Class="font-bold" Style="color: #00E676;">@CalculatedUnidadesBreakeven.ToString("N0") Unidades/día</MudText>
+                                            <MudText Typo="Typo.caption" Class="opacity-75">
+                                                @(CalculatedUnidadesBreakeven <= (decimal)produccionDiaria ? "✅ Viable: La producción estimada cubre el costo." : "⚠️ Alerta: Requiere producir más de lo estimado para dar ganancia.")
+                                            </MudText>
+                                        }
+                                    </div>
+                                </MudPaper>
+                            }
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                Guardar Cotización de Producción
+                            </MudButton>
+                        </MudCard>
                     </MudItem>
                 </MudGrid>
+            </div>
+        </MudTabPanel>
 
-                <MudNumericField T="decimal" @bind-Value="mermaPorcentaje" Label="Margen de Merma (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-6" Format="N2" />
+        <!-- Pestaña 2: Historial -->
+        <MudTabPanel Text="📋 Historial de Cotizaciones" Icon="@Icons.Material.Filled.History">
+            <div class="pa-6">
+                <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Success">Historial de Cotizaciones de Producción</MudText>
+                
+                <MudTable Items="savedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
+                    <HeaderContent>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Cliente</MudTh>
+                        <MudTh>Producto/SKU</MudTh>
+                        <MudTh>Volumen Diario</MudTh>
+                        <MudTh>M.O. Unitaria</MudTh>
+                        <MudTh>Materiales</MudTh>
+                        <MudTh>Amortización</MudTh>
+                        <MudTh>Tarifa Sugerida</MudTh>
+                        <MudTh>Tarifa Acordada</MudTh>
+                        <MudTh>Fact. Mensual</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh Style="width:100px;">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
+                        <MudTd DataLabel="Producto/SKU">@context.ProduccionDetalle?.SkuNombre</MudTd>
+                        <MudTd DataLabel="Volumen Diario">@(context.ProduccionDetalle?.ProduccionDiaria.ToString("N0") ?? "-") uds</MudTd>
+                        <MudTd DataLabel="M.O. Unitaria">C$ @(context.ProduccionDetalle?.ManoObraUnitaria.ToString("N4") ?? "-")</MudTd>
+                        <MudTd DataLabel="Materiales">C$ @(context.ProduccionDetalle?.MaterialesTotales.ToString("N4") ?? "-")</MudTd>
+                        <MudTd DataLabel="Amortización">C$ @(context.ProduccionDetalle?.AmortizacionUnitaria.ToString("N4") ?? "-")</MudTd>
+                        <MudTd DataLabel="Tarifa Sugerida" Class="font-bold">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
+                        <MudTd DataLabel="Tarifa Acordada" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N4")</MudTd>
+                        <MudTd DataLabel="Fact. Mensual">C$ @((context.TarifaAcordada * (context.ProduccionDetalle?.ProduccionDiaria ?? 0) * 30m).ToString("N2"))</MudTd>
+                        <MudTd DataLabel="Estado">
+                            <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudTooltip Text="Cargar en el cotizador">
+                                <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Success" Size="Size.Small" OnClick="@(() => LoadQuoteToForm(context))" />
+                            </MudTooltip>
+                            <MudTooltip Text="Eliminar cotización">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+                            </MudTooltip>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="pa-4 text-center text-muted">No hay cotizaciones de producción registradas.</div>
+                    </NoRecordsContent>
+                </MudTable>
+            </div>
+        </MudTabPanel>
 
-                <!-- Materiales (Matriz de empaque) -->
-                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Materiales e Insumos Utilizados por Pack</MudText>
-                <MudGrid Spacing="1" Class="mb-6">
-                    @foreach (var mat in materialesMatriz)
-                    {
-                        <MudItem XS="12" SM="6">
-                             <MudCheckBox T="bool" Checked="@IsMaterialSelected(mat.Key)" CheckedChanged="@((bool val) => ToggleMaterial(mat.Key, val))" Color="Color.Success">
-                                 <span style="font-size: 13px;">@mat.Key</span>
-                                 <div style="font-size: 11px;" class="text-muted">C$ @mat.Value.ToString("N2") / Unidad</div>
-                             </MudCheckBox>
-                        </MudItem>
-                    }
-                </MudGrid>
+        <!-- Pestaña 3: Catálogos Globales -->
+        <MudTabPanel Text="⚙️ Gestión de Catálogos" Icon="@Icons.Material.Filled.Settings">
+            <div class="pa-6">
+                <MudText Typo="Typo.h5" Class="mb-6 font-bold" Color="Color.Success">Gestión de Catálogos Globales (Materiales, Maquinaria, EPP y Viáticos)</MudText>
+                
+                <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Secondary">
+                    <MudTabPanel Text="Materiales e Insumos">
+                        <MudGrid>
+                            <MudItem XS="12" MD="8">
+                                <MudTable Items="materialesList" Hover="true" Dense="true" Elevation="1">
+                                    <HeaderContent>
+                                        <MudTh>ID</MudTh>
+                                        <MudTh>Nombre</MudTh>
+                                        <MudTh>Costo Unitario</MudTh>
+                                        <MudTh Style="width:100px;">Acciones</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Id</MudTd>
+                                        <MudTd>@context.Nombre</MudTd>
+                                        <MudTd>C$ @context.CostoUnitario.ToString("N4")</MudTd>
+                                        <MudTd>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditMaterial(context))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteMaterial(context.Id))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                            <MudItem XS="12" MD="4">
+                                <MudCard Outlined="true" Class="pa-4">
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingMaterial.Id > 0 ? "Editar Material" : "Agregar Material")</MudText>
+                                    <MudTextField @bind-Value="editingMaterial.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="decimal" @bind-Value="editingMaterial.CostoUnitario" Label="Costo Unitario" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" />
+                                    <div class="d-flex gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveMaterial">Guardar</MudButton>
+                                        @if (editingMaterial.Id > 0 || !string.IsNullOrEmpty(editingMaterial.Nombre))
+                                        {
+                                            <MudButton Variant="Variant.Outlined" OnClick="CancelEditMaterial">Limpiar</MudButton>
+                                        }
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
 
-                <!-- Amortización de Maquinaria -->
-                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos y Maquinaria a Prorratear</MudText>
-                <MudGrid Spacing="1">
-                    @foreach (var maq in machineryList)
-                    {
-                        <MudItem XS="12" SM="6" MD="4">
-                             <MudCheckBox T="bool" Checked="@IsMaqSelected(maq.Id)" CheckedChanged="@((bool val) => ToggleMaq(maq.Id, val))" Color="Color.Warning">
-                                 <span style="font-size: 13px;">@maq.Nombre</span>
-                                 <div style="font-size: 11px;" class="text-muted">C$ @((maq.ProyeccionMensual).ToString("N2")) / mes</div>
-                             </MudCheckBox>
-                        </MudItem>
-                    }
-                </MudGrid>
-            </MudCard>
-        </MudItem>
+                    <MudTabPanel Text="Maquinaria y Equipos">
+                        <MudGrid>
+                            <MudItem XS="12" MD="8">
+                                <MudTable Items="machineryList" Hover="true" Dense="true" Elevation="1">
+                                    <HeaderContent>
+                                        <MudTh>ID</MudTh>
+                                        <MudTh>Nombre</MudTh>
+                                        <MudTh>Precio</MudTh>
+                                        <MudTh>Cant.</MudTh>
+                                        <MudTh>Meses Proyección</MudTh>
+                                        <MudTh>Proyección Mensual</MudTh>
+                                        <MudTh Style="width:100px;">Acciones</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Id</MudTd>
+                                        <MudTd>@context.Nombre</MudTd>
+                                        <MudTd>C$ @context.Precio.ToString("N2")</MudTd>
+                                        <MudTd>@context.Cantidad</MudTd>
+                                        <MudTd>@context.MesesProyeccion</MudTd>
+                                        <MudTd>C$ @context.ProyeccionMensual.ToString("N2")</MudTd>
+                                        <MudTd>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditMachinery(context))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteMachinery(context.Id))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                            <MudItem XS="12" MD="4">
+                                <MudCard Outlined="true" Class="pa-4">
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingMachinery.Id > 0 ? "Editar Equipo" : "Agregar Equipo")</MudText>
+                                    <MudTextField @bind-Value="editingMachinery.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                                    <div class="d-flex gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveMachinery">Guardar</MudButton>
+                                        @if (editingMachinery.Id > 0 || !string.IsNullOrEmpty(editingMachinery.Nombre))
+                                        {
+                                            <MudButton Variant="Variant.Outlined" OnClick="CancelEditMachinery">Limpiar</MudButton>
+                                        }
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
 
-        <!-- Resultados e Indicadores (Derecha) -->
-        <MudItem XS="12" MD="5">
-            <MudCard Elevation="4" Class="pa-6 text-white" Style="background: linear-gradient(135deg, #1B5E20, #2E7D32); border-radius: 12px; height: 100%;">
-                <MudText Typo="Typo.h6" Class="mb-6">Resumen de Costos de Empaque</MudText>
-
-                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
-                    <MudText Typo="Typo.body1" Class="opacity-75">Mano de Obra Unitaria:</MudText>
-                    <MudText Typo="Typo.body1" Class="font-bold">C$ @manoObraUnitaria.ToString("N4")</MudText>
-                </div>
-
-                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
-                    <MudText Typo="Typo.body1" Class="opacity-75">Costo Materiales / Insumos:</MudText>
-                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedMateriales.ToString("N4")</MudText>
-                </div>
-
-                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
-                    <MudText Typo="Typo.body1" Class="opacity-75">Amortización Maquinaria Unit.:</MudText>
-                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedAmortizacionUnitaria.ToString("N4")</MudText>
-                </div>
-
-                <div class="d-flex justify-space-between mb-4 border-b pb-2 font-bold" style="border-color: rgba(255,255,255,0.3) !important;">
-                    <MudText Typo="Typo.body1">Costo Total Unitario Base:</MudText>
-                    <MudText Typo="Typo.body1">C$ @CalculatedCostoUnitarioBase.ToString("N4")</MudText>
-                </div>
-
-                <div class="d-flex justify-space-between mb-6 opacity-75">
-                    <MudText Typo="Typo.body2">Margen por Merma (@mermaPorcentaje%):</MudText>
-                    <MudText Typo="Typo.body2">C$ @CalculatedMermaCosto.ToString("N4")</MudText>
-                </div>
-
-                <!-- Tarifa Sugerida por Unidad -->
-                <div class="text-center mb-6 pa-4" style="background: rgba(255, 255, 255, 0.12); border-radius: 8px; border-left: 5px solid #00E676;">
-                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA UNITARIA SUGERIDA</MudText>
-                    <MudText Typo="Typo.h4" Class="font-bold" Style="color: #00E676;">C$ @CalculatedTarifaUnitaria.ToString("N4")</MudText>
-                </div>
-
-                <!-- Proyecciones de Venta -->
-                <MudPaper Class="pa-4 mb-6" Style="background: rgba(255, 255, 255, 0.08); border-radius: 8px;">
-                    <MudGrid>
-                        <MudItem XS="12" Class="text-center mb-2">
-                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">VOLUMEN DIARIO DIARIO</MudText>
-                            <MudText Typo="Typo.subtitle1" Class="font-bold">@produccionDiaria.ToString("N0") Packs</MudText>
-                        </MudItem>
-                        <MudItem XS="6" Class="text-center border-r" Style="border-color: rgba(255,255,255,0.15) !important;">
-                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN DIARIA</MudText>
-                            <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedFacturacionDiaria.ToString("N2")</MudText>
-                        </MudItem>
-                        <MudItem XS="6" Class="text-center">
-                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN MENSUAL</MudText>
-                            <MudText Typo="Typo.h6" Class="font-bold" Style="color: #00E676;">C$ @CalculatedFacturacionMensual.ToString("N2")</MudText>
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
-                    Guardar Cotización
-                </MudButton>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
-
-    <!-- Sección de Cotizaciones Guardadas -->
-    <MudDivider Class="my-8" />
-    <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Success">Historial de Cotizaciones de Producción</MudText>
-    
-    <MudTable Items="savedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
-        <HeaderContent>
-            <MudTh>Fecha</MudTh>
-            <MudTh>Cliente</MudTh>
-            <MudTh>Producto/SKU</MudTh>
-            <MudTh>Volumen Diario</MudTh>
-            <MudTh>M.O. Unitaria</MudTh>
-            <MudTh>Materiales</MudTh>
-            <MudTh>Merma %</MudTh>
-            <MudTh>Tarifa Sugerida</MudTh>
-            <MudTh>Fact. Mensual</MudTh>
-            <MudTh>Estado</MudTh>
-            <MudTh Style="width:100px;">Acciones</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
-            <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
-            <MudTd DataLabel="Producto/SKU">@context.ProduccionDetalle?.SkuNombre</MudTd>
-            <MudTd DataLabel="Volumen Diario">@(context.ProduccionDetalle?.ProduccionDiaria.ToString("N0") ?? "-") packs</MudTd>
-            <MudTd DataLabel="M.O. Unitaria">C$ @(context.ProduccionDetalle?.ManoObraUnitaria.ToString("N4") ?? "-")</MudTd>
-            <MudTd DataLabel="Materiales">C$ @(context.ProduccionDetalle?.MaterialesTotales.ToString("N2") ?? "-")</MudTd>
-            <MudTd DataLabel="Merma %">@(context.ProduccionDetalle?.MermaPorcentaje.ToString("N1") ?? "-")%</MudTd>
-            <MudTd DataLabel="Tarifa Sugerida" Class="font-bold text-success">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
-            <MudTd DataLabel="Fact. Mensual">C$ @((context.TarifaSugerida * (context.ProduccionDetalle?.ProduccionDiaria ?? 0) * 30m).ToString("N2"))</MudTd>
-            <MudTd DataLabel="Estado">
-                <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Acciones">
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <div class="pa-4 text-center text-muted">No hay cotizaciones de producción registradas.</div>
-        </NoRecordsContent>
-    </MudTable>
+                    <MudTabPanel Text="Equipos de Protección (EPP)">
+                        <MudGrid>
+                            <MudItem XS="12" MD="8">
+                                <MudTable Items="eppList" Hover="true" Dense="true" Elevation="1">
+                                    <HeaderContent>
+                                        <MudTh>ID</MudTh>
+                                        <MudTh>Nombre</MudTh>
+                                        <MudTh>Cant.</MudTh>
+                                        <MudTh>Meses Prorrateo</MudTh>
+                                        <MudTh>Costo Unitario</MudTh>
+                                        <MudTh>Costo Mensual (Prorrateado)</MudTh>
+                                        <MudTh Style="width:100px;">Acciones</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Id</MudTd>
+                                        <MudTd>@context.Nombre</MudTd>
+                                        <MudTd>@context.Cantidad.ToString("N1")</MudTd>
+                                        <MudTd>@context.MesesProrrateo.ToString("N0")</MudTd>
+                                        <MudTd>C$ @context.CostoUnitario.ToString("N2")</MudTd>
+                                        <MudTd>C$ @context.CostoMensual.ToString("N2")</MudTd>
+                                        <MudTd>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditEpp(context))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteEpp(context.Id))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                            <MudItem XS="12" MD="4">
+                                <MudCard Outlined="true" Class="pa-4">
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingEpp.Id > 0 ? "Editar EPP" : "Agregar EPP")</MudText>
+                                    <MudTextField @bind-Value="editingEpp.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="decimal" @bind-Value="editingEpp.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N1" />
+                                    <MudNumericField T="decimal" @bind-Value="editingEpp.MesesProrrateo" Label="Meses Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N0" />
+                                    <MudNumericField T="decimal" @bind-Value="editingEpp.CostoUnitario" Label="Costo Unitario" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                                    <div class="d-flex gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveEpp">Guardar</MudButton>
+                                        @if (editingEpp.Id > 0 || !string.IsNullOrEmpty(editingEpp.Nombre))
+                                        {
+                                            <MudButton Variant="Variant.Outlined" OnClick="CancelEditEpp">Limpiar</MudButton>
+                                        }
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                    
+                    <MudTabPanel Text="Viáticos y Beneficios">
+                        <MudGrid>
+                            <MudItem XS="12" MD="8">
+                                <MudTable Items="viaticosList" Hover="true" Dense="true" Elevation="1">
+                                    <HeaderContent>
+                                        <MudTh>ID</MudTh>
+                                        <MudTh>Nombre</MudTh>
+                                        <MudTh>Costo Mensual</MudTh>
+                                        <MudTh Style="width:100px;">Acciones</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Id</MudTd>
+                                        <MudTd>@context.Nombre</MudTd>
+                                        <MudTd>C$ @context.CostoMensual.ToString("N2")</MudTd>
+                                        <MudTd>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditViatico(context))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteViatico(context.Id))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+                            <MudItem XS="12" MD="4">
+                                <MudCard Outlined="true" Class="pa-4">
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingViatico.Id > 0 ? "Editar Viático" : "Agregar Viático")</MudText>
+                                    <MudTextField @bind-Value="editingViatico.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="decimal" @bind-Value="editingViatico.CostoMensual" Label="Costo Mensual" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                                    <div class="d-flex gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveViatico">Guardar</MudButton>
+                                        @if (editingViatico.Id > 0 || !string.IsNullOrEmpty(editingViatico.Nombre))
+                                        {
+                                            <MudButton Variant="Variant.Outlined" OnClick="CancelEditViatico">Limpiar</MudButton>
+                                        }
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                </MudTabs>
+            </div>
+        </MudTabPanel>
+    </MudTabs>
 </MudContainer>
 
 @code {
@@ -168,32 +498,42 @@
     private int produccionDiaria = 1000;
     private decimal manoObraUnitaria = 1.5000m;
     private decimal mermaPorcentaje = 2.00m;
+    private decimal tarifaAcordada = 0.0000m;
+
+    private Guid? selectedPersonnelQuoteId;
+    private Cotizacion selectedPersonnelQuote;
 
     private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
     private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
+    private List<CatalogoMaterial> materialesList = new List<CatalogoMaterial>();
+    
     private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+    private List<Cotizacion> personnelQuotes = new List<Cotizacion>();
 
     private HashSet<int> selectedMachinery = new HashSet<int>();
-    private HashSet<string> selectedMateriales = new HashSet<string>();
+    private HashSet<int> selectedMateriales = new HashSet<int>();
+    private Dictionary<int, decimal> customMaterialesCosts = new Dictionary<int, decimal>();
 
-    // Matriz de precios de empaque
-    private Dictionary<string, decimal> materialesMatriz = new Dictionary<string, decimal>
-    {
-        { "Manga termoencogible nuevo", 0.90m },
-        { "Manga termoencogible reutilizado", 0.45m },
-        { "Cinchos plásticos", 0.10m },
-        { "Horno (gas/eléctrico)", 0.15m },
-        { "Stickers código de barras", 0.05m },
-        { "Estibado y flejado", 0.12m },
-        { "Caja / Charolado", 0.50m },
-        { "Tape / Cinta adhesiva", 0.03m }
-    };
+    private int? selectedMaterialToAdd;
+    private int? selectedMachineryToAdd;
+
+    // Modelos para gestión de catálogos
+    private CatalogoMaterial editingMaterial = new CatalogoMaterial();
+    private CatalogoMaquinaria editingMachinery = new CatalogoMaquinaria();
+    private CatalogoEpp editingEpp = new CatalogoEpp();
+    private CatalogoViatico editingViatico = new CatalogoViatico();
 
     // Cálculos dinámicos
-    private decimal CalculatedMateriales => materialesMatriz
-        .Where(x => selectedMateriales.Contains(x.Key))
-        .Sum(x => x.Value);
+    private decimal CalculatedCostoDiarioPersona => selectedPersonnelQuote != null ? selectedPersonnelQuote.CostoTotal / 30m : 0m;
+
+    private decimal CalculatedManoObraUnitaria => selectedPersonnelQuoteId.HasValue 
+        ? ((produccionDiaria > 0) ? (CalculatedCostoDiarioPersona / (decimal)produccionDiaria) : 0m)
+        : manoObraUnitaria;
+
+    private decimal CalculatedMateriales => materialesList
+        .Where(x => selectedMateriales.Contains(x.Id))
+        .Sum(x => customMaterialesCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoUnitario);
 
     private decimal CalculatedAmortizacionMensual => machineryList
         .Where(x => selectedMachinery.Contains(x.Id))
@@ -203,15 +543,22 @@
         ? (CalculatedAmortizacionMensual / 30m) / (decimal)produccionDiaria
         : 0m;
 
-    private decimal CalculatedCostoUnitarioBase => manoObraUnitaria + CalculatedMateriales + CalculatedAmortizacionUnitaria;
+    private decimal CalculatedCostoUnitarioBase => CalculatedManoObraUnitaria + CalculatedMateriales + CalculatedAmortizacionUnitaria;
 
     private decimal CalculatedMermaCosto => CalculatedCostoUnitarioBase * (mermaPorcentaje / 100m);
 
     private decimal CalculatedTarifaUnitaria => CalculatedCostoUnitarioBase + CalculatedMermaCosto;
 
-    private decimal CalculatedFacturacionDiaria => CalculatedTarifaUnitaria * (decimal)produccionDiaria;
+    private decimal CalculatedFacturacionDiaria => tarifaAcordada * (decimal)produccionDiaria;
 
     private decimal CalculatedFacturacionMensual => CalculatedFacturacionDiaria * 30m;
+
+    // Punto de equilibrio
+    private decimal CalculatedUtilidadUnitariaAntesDeLabor => tarifaAcordada - CalculatedMateriales - CalculatedAmortizacionUnitaria - CalculatedMermaCosto;
+
+    private decimal CalculatedUnidadesBreakeven => (CalculatedUtilidadUnitariaAntesDeLabor > 0 && CalculatedCostoDiarioPersona > 0)
+        ? CalculatedCostoDiarioPersona / CalculatedUtilidadUnitariaAntesDeLabor
+        : 0m;
 
     protected override async Task OnInitializedAsync()
     {
@@ -228,18 +575,25 @@
             eppList = cats.Epp ?? new List<CatalogoEpp>();
             viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
             machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
+            materialesList = cats.Materiales ?? new List<CatalogoMaterial>();
 
-            // Seleccionar por defecto maquinaria del excel
-            foreach (var item in machineryList)
+            // Seleccionar por defecto algunos materiales si están disponibles
+            if (!selectedMateriales.Any())
             {
-                selectedMachinery.Add(item.Id);
+                foreach (var mat in materialesList.Where(x => x.Nombre.Contains("Manga") || x.Nombre.Contains("Cinchos") || x.Nombre.Contains("Stickers") || x.Nombre.Contains("Estibado")))
+                {
+                    selectedMateriales.Add(mat.Id);
+                }
             }
-            // Seleccionar materiales comunes del excel
-            selectedMateriales.Add("Manga termoencogible nuevo");
-            selectedMateriales.Add("Cinchos plásticos");
-            selectedMateriales.Add("Horno (gas/eléctrico)");
-            selectedMateriales.Add("Stickers código de barras");
-            selectedMateriales.Add("Estibado y flejado");
+
+            // Seleccionar por defecto maquinaria
+            if (!selectedMachinery.Any())
+            {
+                foreach (var item in machineryList)
+                {
+                    selectedMachinery.Add(item.Id);
+                }
+            }
         }
     }
 
@@ -249,21 +603,142 @@
         if (res.Model != null)
         {
             savedQuotes = res.Model.Where(x => x.TipoCosteo == "Produccion").ToList();
+            personnelQuotes = res.Model.Where(x => x.TipoCosteo == "Personal").ToList();
+        }
+        RecalculateTarifaAcordada();
+    }
+
+    private void RecalculateTarifaAcordada()
+    {
+        if (tarifaAcordada == 0m)
+        {
+            tarifaAcordada = CalculatedTarifaUnitaria;
         }
     }
 
-    private bool IsMaterialSelected(string mat) => selectedMateriales.Contains(mat);
-    private void ToggleMaterial(string mat, bool val)
+    private void OnPersonnelQuoteChanged(Guid? id)
     {
-        if (val) selectedMateriales.Add(mat);
-        else selectedMateriales.Remove(mat);
+        selectedPersonnelQuoteId = id;
+        if (id.HasValue)
+        {
+            selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == id.Value);
+        }
+        else
+        {
+            selectedPersonnelQuote = null;
+        }
+        tarifaAcordada = CalculatedTarifaUnitaria;
     }
 
-    private bool IsMaqSelected(int id) => selectedMachinery.Contains(id);
-    private void ToggleMaq(int id, bool val)
+    private void OnProduccionDiariaChanged(int val)
     {
-        if (val) selectedMachinery.Add(id);
-        else selectedMachinery.Remove(id);
+        produccionDiaria = val;
+        tarifaAcordada = CalculatedTarifaUnitaria;
+    }
+
+    private decimal GetMaterialCost(int id)
+    {
+        if (customMaterialesCosts.TryGetValue(id, out var cost))
+            return cost;
+        var item = materialesList.FirstOrDefault(x => x.Id == id);
+        return item?.CostoUnitario ?? 0m;
+    }
+
+    private void SetMaterialCost(int id, decimal cost)
+    {
+        customMaterialesCosts[id] = cost;
+        tarifaAcordada = CalculatedTarifaUnitaria;
+    }
+
+    private void AddMaterialRow(int? id)
+    {
+        if (id.HasValue)
+        {
+            selectedMateriales.Add(id.Value);
+            if (!customMaterialesCosts.ContainsKey(id.Value))
+            {
+                var item = materialesList.FirstOrDefault(x => x.Id == id.Value);
+                if (item != null)
+                {
+                    customMaterialesCosts[id.Value] = item.CostoUnitario;
+                }
+            }
+            tarifaAcordada = CalculatedTarifaUnitaria;
+        }
+        selectedMaterialToAdd = null;
+    }
+
+    private void RemoveMaterialRow(int id)
+    {
+        selectedMateriales.Remove(id);
+        tarifaAcordada = CalculatedTarifaUnitaria;
+    }
+
+    private void AddMachineryRow(int? id)
+    {
+        if (id.HasValue)
+        {
+            selectedMachinery.Add(id.Value);
+            tarifaAcordada = CalculatedTarifaUnitaria;
+        }
+        selectedMachineryToAdd = null;
+    }
+
+    private void RemoveMachineryRow(int id)
+    {
+        selectedMachinery.Remove(id);
+        tarifaAcordada = CalculatedTarifaUnitaria;
+    }
+
+    private void LoadQuoteToForm(Cotizacion quote)
+    {
+        cliente = quote.ClienteNombre;
+        selectedPersonnelQuoteId = null;
+        selectedPersonnelQuote = null;
+
+        if (quote.ProduccionDetalle != null)
+        {
+            skuNombre = quote.ProduccionDetalle.SkuNombre;
+            produccionDiaria = quote.ProduccionDetalle.ProduccionDiaria;
+            manoObraUnitaria = quote.ProduccionDetalle.ManoObraUnitaria;
+            mermaPorcentaje = quote.ProduccionDetalle.MermaPorcentaje;
+            tarifaAcordada = quote.TarifaAcordada;
+
+            if (quote.ProduccionDetalle.PersonalCotizacionId.HasValue)
+            {
+                selectedPersonnelQuoteId = quote.ProduccionDetalle.PersonalCotizacionId;
+                selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == selectedPersonnelQuoteId.Value);
+            }
+
+            // Cargar materiales seleccionados
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            if (quote.MaterialDetalles != null)
+            {
+                foreach (var mat in quote.MaterialDetalles)
+                {
+                    if (mat.MaterialId.HasValue)
+                    {
+                        selectedMateriales.Add(mat.MaterialId.Value);
+                        customMaterialesCosts[mat.MaterialId.Value] = mat.CostoUnitario;
+                    }
+                }
+            }
+
+            // Cargar maquinaria seleccionada
+            selectedMachinery.Clear();
+            if (quote.MaquinariaDetalles != null)
+            {
+                foreach (var maq in quote.MaquinariaDetalles)
+                {
+                    if (maq.MaquinariaId.HasValue)
+                    {
+                        selectedMachinery.Add(maq.MaquinariaId.Value);
+                    }
+                }
+            }
+        }
+        Snackbar.Add($"Cotización de '{cliente}' cargada con éxito.", Severity.Info);
     }
 
     private async Task SaveQuote()
@@ -283,23 +758,57 @@
         {
             SkuNombre = skuNombre,
             ProduccionDiaria = produccionDiaria,
-            ManoObraUnitaria = manoObraUnitaria,
+            ManoObraUnitaria = CalculatedManoObraUnitaria,
             MaterialesTotales = CalculatedMateriales,
             MermaPorcentaje = mermaPorcentaje,
-            AmortizacionUnitaria = CalculatedAmortizacionUnitaria
+            AmortizacionUnitaria = CalculatedAmortizacionUnitaria,
+            PersonalCotizacionId = selectedPersonnelQuoteId
         };
 
         var quote = new Cotizacion
         {
             ClienteNombre = cliente,
             TipoCosteo = "Produccion",
-            UtilidadPorcentaje = mermaPorcentaje, // merma actúa como el factor de riesgo/utilidad
+            UtilidadPorcentaje = mermaPorcentaje,
             CostoTotal = CalculatedCostoUnitarioBase * (decimal)produccionDiaria * 30m,
             TarifaSugerida = CalculatedTarifaUnitaria,
-            TarifaAcordada = CalculatedTarifaUnitaria,
+            TarifaAcordada = tarifaAcordada,
             ProduccionDetalle = detail,
             Estado = "Borrador"
         };
+
+        // Rellenar materiales seleccionados históricos
+        foreach (var id in selectedMateriales)
+        {
+            var item = materialesList.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+            {
+                quote.MaterialDetalles.Add(new CotizacionMaterialDetalle
+                {
+                    MaterialId = id,
+                    Nombre = item.Nombre,
+                    CostoUnitario = customMaterialesCosts.TryGetValue(id, out var cost) ? cost : item.CostoUnitario
+                });
+            }
+        }
+
+        // Rellenar maquinaria seleccionada histórica
+        foreach (var id in selectedMachinery)
+        {
+            var item = machineryList.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+            {
+                quote.MaquinariaDetalles.Add(new CotizacionMaquinariaDetalle
+                {
+                    MaquinariaId = id,
+                    Nombre = item.Nombre,
+                    Precio = item.Precio,
+                    Cantidad = item.Cantidad,
+                    MesesProyeccion = item.MesesProyeccion,
+                    ProyeccionMensual = item.ProyeccionMensual
+                });
+            }
+        }
 
         var res = await _OdooService.SaveCotizacion(quote);
         if (!res.Respuesta.ExisteError)
@@ -307,11 +816,16 @@
             Snackbar.Add("Cotización de producción guardada exitosamente.", Severity.Success);
             cliente = "";
             skuNombre = "";
+            selectedPersonnelQuoteId = null;
+            selectedPersonnelQuote = null;
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            selectedMachinery.Clear();
             await LoadQuotes();
         }
         else
         {
-            Snackbar.Add("Error al guardar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
         }
     }
 
@@ -337,5 +851,203 @@
             "Rechazado" => Color.Error,
             _ => Color.Default
         };
+    }
+
+    // GESTIÓN DE CATÁLOGOS LOCALES
+    private void EditMaterial(CatalogoMaterial item)
+    {
+        editingMaterial = new CatalogoMaterial { Id = item.Id, Nombre = item.Nombre, CostoUnitario = item.CostoUnitario };
+    }
+
+    private void CancelEditMaterial()
+    {
+        editingMaterial = new CatalogoMaterial();
+    }
+
+    private async Task SaveMaterial()
+    {
+        if (string.IsNullOrWhiteSpace(editingMaterial.Nombre))
+        {
+            Snackbar.Add("El nombre del material es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoMaterial(editingMaterial);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Material guardado exitosamente.", Severity.Success);
+            editingMaterial = new CatalogoMaterial();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteMaterial(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoMaterial(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Material eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    // MAQUINARIA
+    private void EditMachinery(CatalogoMaquinaria item)
+    {
+        editingMachinery = new CatalogoMaquinaria
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Precio = item.Precio,
+            Cantidad = item.Cantidad,
+            MesesProyeccion = item.MesesProyeccion
+        };
+    }
+
+    private void CancelEditMachinery()
+    {
+        editingMachinery = new CatalogoMaquinaria();
+    }
+
+    private async Task SaveMachinery()
+    {
+        if (string.IsNullOrWhiteSpace(editingMachinery.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoMaquinaria(editingMachinery);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Maquinaria guardada exitosamente.", Severity.Success);
+            editingMachinery = new CatalogoMaquinaria();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteMachinery(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoMaquinaria(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Maquinaria eliminada.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    // EPP
+    private void EditEpp(CatalogoEpp item)
+    {
+        editingEpp = new CatalogoEpp
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Cantidad = item.Cantidad,
+            MesesProrrateo = item.MesesProrrateo,
+            CostoUnitario = item.CostoUnitario
+        };
+    }
+
+    private void CancelEditEpp()
+    {
+        editingEpp = new CatalogoEpp();
+    }
+
+    private async Task SaveEpp()
+    {
+        if (string.IsNullOrWhiteSpace(editingEpp.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoEpp(editingEpp);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("EPP guardado exitosamente.", Severity.Success);
+            editingEpp = new CatalogoEpp();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteEpp(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoEpp(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("EPP eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    // VIATICOS
+    private void EditViatico(CatalogoViatico item)
+    {
+        editingViatico = new CatalogoViatico { Id = item.Id, Nombre = item.Nombre, CostoMensual = item.CostoMensual };
+    }
+
+    private void CancelEditViatico()
+    {
+        editingViatico = new CatalogoViatico();
+    }
+
+    private async Task SaveViatico()
+    {
+        if (string.IsNullOrWhiteSpace(editingViatico.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoViatico(editingViatico);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Viático guardado exitosamente.", Severity.Success);
+            editingViatico = new CatalogoViatico();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteViatico(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoViatico(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Viático eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
     }
 }
