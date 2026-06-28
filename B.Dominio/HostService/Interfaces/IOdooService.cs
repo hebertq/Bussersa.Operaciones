@@ -63,6 +63,12 @@ namespace HostService.Interfaces
         Task<IResponse> SaveCotizacion(Modelo.Comercial.Cotizacion cotizacion);
         Task<IListResponse<Modelo.Comercial.Cotizacion>> GetCotizaciones();
         Task<IResponse> DeleteCotizacion(Guid id);
+        Task<IResponse> SaveCatalogoEpp(Modelo.Comercial.CatalogoEpp epp);
+        Task<IResponse> DeleteCatalogoEpp(int id);
+        Task<IResponse> SaveCatalogoViatico(Modelo.Comercial.CatalogoViatico viatico);
+        Task<IResponse> DeleteCatalogoViatico(int id);
+        Task<IResponse> SaveCatalogoMaquinaria(Modelo.Comercial.CatalogoMaquinaria machinery);
+        Task<IResponse> DeleteCatalogoMaquinaria(int id);
 
         // --- DASHBOARD DE RENTABILIDAD ---
         Task<IListResponse<Modelo.Comercial.DashboardResponse>> GetDashboardData(string mes, string turno);

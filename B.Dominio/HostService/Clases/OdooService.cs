@@ -1268,6 +1268,162 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IResponse> SaveCatalogoEpp(Modelo.Comercial.CatalogoEpp epp)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/SaveEpp");
+                var registro = await PostAsync(requestUrl, epp);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteCatalogoEpp(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/DeleteEpp/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveCatalogoViatico(Modelo.Comercial.CatalogoViatico viatico)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/SaveViatico");
+                var registro = await PostAsync(requestUrl, viatico);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteCatalogoViatico(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/DeleteViatico/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveCatalogoMaquinaria(Modelo.Comercial.CatalogoMaquinaria machinery)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/SaveMaquinaria");
+                var registro = await PostAsync(requestUrl, machinery);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteCatalogoMaquinaria(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/DeleteMaquinaria/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IResponse> SaveCotizacion(Modelo.Comercial.Cotizacion cotizacion)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

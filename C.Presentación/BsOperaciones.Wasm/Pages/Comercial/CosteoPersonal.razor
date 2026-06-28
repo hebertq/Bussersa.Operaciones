@@ -37,34 +37,49 @@
                     <MudItem XS="12" SM="12" MD="4">
                         <MudNumericField T="decimal" @bind-Value="seguros" Label="Seguros de Ley (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
                     </MudItem>
-                </MudGrid>
-
-                <MudNumericField T="decimal" @bind-Value="gastosOperativos" Label="Otros Gastos Administrativos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-6" Format="N2" />
+                </MudGrid>                <MudNumericField T="decimal" @bind-Value="gastosOperativos" Label="Otros Gastos Administrativos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Format="N2" />
+                
+                <MudText Typo="Typo.caption" Class="text-muted d-block mb-6">
+                    * El costo de prestaciones sociales está fijado al 74.3% del salario base (cubre feriados, domingos, 22.5% de INSS patronal y 3.0% de subsidio/colchón).
+                </MudText>
 
                 <!-- Viáticos -->
                 <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Viáticos y Beneficios Mensuales</MudText>
                 <div class="d-flex flex-wrap gap-4 mb-6">
                     @foreach (var viatico in viaticosList)
                     {
-                        <MudCheckBox T="bool" Checked="@IsViaticoSelected(viatico.Id)" CheckedChanged="@((bool val) => ToggleViatico(viatico.Id, val))" Color="Color.Primary">
-                            @viatico.Nombre (C$ @viatico.CostoMensual.ToString("N2"))
-                        </MudCheckBox>
+                        <div class="d-flex align-center gap-2 mb-2" style="min-width: 250px;">
+                            <MudCheckBox T="bool" Checked="@IsViaticoSelected(viatico.Id)" CheckedChanged="@((bool val) => ToggleViatico(viatico.Id, val))" Color="Color.Primary" Label="@viatico.Nombre" />
+                            @if (IsViaticoSelected(viatico.Id))
+                            {
+                                <MudNumericField T="decimal" Value="@GetViaticoCost(viatico.Id)" ValueChanged="@((decimal val) => SetViaticoCost(viatico.Id, val))" Format="N2" Label="Monto C$" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 110px;" />
+                            }
+                            else
+                            {
+                                <span class="text-muted" style="font-size: 13px;">(C$ @viatico.CostoMensual.ToString("N2"))</span>
+                            }
+                        </div>
                     }
                 </div>
 
                 <!-- EPPs -->
                 <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos de Protección Personal (EPP)</MudText>
-                <MudGrid Spacing="1">
+                <MudGrid Spacing="1" Class="mb-4">
                     @foreach (var epp in eppList)
                     {
-                        <MudItem XS="6" SM="4">
-                             <MudCheckBox T="bool" Checked="@IsEppSelected(epp.Id)" CheckedChanged="@((bool val) => ToggleEpp(epp.Id, val))" Color="Color.Secondary">
-                                 <span style="font-size: 13px;">@epp.Nombre</span>
-                                 <div style="font-size: 11px;" class="text-muted">C$ @(epp.CostoMensual.ToString("N2"))/mes</div>
-                             </MudCheckBox>
+                        <MudItem XS="12" SM="6" Class="d-flex align-center gap-2 mb-2">
+                             <MudCheckBox T="bool" Checked="@IsEppSelected(epp.Id)" CheckedChanged="@((bool val) => ToggleEpp(epp.Id, val))" Color="Color.Secondary" Label="@epp.Nombre" />
+                             @if (IsEppSelected(epp.Id))
+                             {
+                                 <MudNumericField T="decimal" Value="@GetEppCost(epp.Id)" ValueChanged="@((decimal val) => SetEppCost(epp.Id, val))" Format="N2" Label="Monto C$/mes" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 110px;" />
+                             }
+                             else
+                             {
+                                 <span class="text-muted" style="font-size: 11px;">(C$ @(epp.CostoMensual.ToString("N2"))/mes)</span>
+                             }
                         </MudItem>
                     }
-                </MudGrid>
+                </MudGrid>Grid>
             </MudCard>
         </MudItem>
 
@@ -190,13 +205,155 @@
                 <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
             </MudTd>
             <MudTd DataLabel="Acciones">
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+                <MudTooltip Text="Cargar en el cotizador">
+                    <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Primary" Size="Size.Small" OnClick="@(() => LoadQuoteToForm(context))" />
+                </MudTooltip>
+                <MudTooltip Text="Eliminar cotización">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+                </MudTooltip>
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <div class="pa-4 text-center text-muted">No hay cotizaciones de personal registradas.</div>
         </NoRecordsContent>
     </MudTable>
+
+    <!-- Gestión de Catálogos Globales (EPP, Viáticos y Maquinaria) -->
+    <MudExpansionPanels Class="mt-6 mb-6">
+        <MudExpansionPanel Text="⚙️ Gestión de Catálogos Globales (EPP, Viáticos y Maquinaria)" Style="border-radius: 8px; border-top: 4px solid #0288D1;">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+                <MudTabPanel Text="Equipos de Protección (EPP)">
+                    <MudGrid>
+                        <MudItem XS="12" MD="8">
+                            <MudTable Items="eppList" Hover="true" Dense="true" Elevation="1">
+                                <HeaderContent>
+                                    <MudTh>ID</MudTh>
+                                    <MudTh>Nombre</MudTh>
+                                    <MudTh>Cant.</MudTh>
+                                    <MudTh>Meses Prorrateo</MudTh>
+                                    <MudTh>Costo Unitario</MudTh>
+                                    <MudTh>Costo Mensual</MudTh>
+                                    <MudTh Style="width:100px;">Acciones</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Id</MudTd>
+                                    <MudTd>@context.Nombre</MudTd>
+                                    <MudTd>@context.Cantidad.ToString("N1")</MudTd>
+                                    <MudTd>@context.MesesProrrateo.ToString("N0")</MudTd>
+                                    <MudTd>C$ @context.CostoUnitario.ToString("N2")</MudTd>
+                                    <MudTd>C$ @context.CostoMensual.ToString("N2")</MudTd>
+                                    <MudTd>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditEpp(context))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteEpp(context.Id))" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudItem>
+                        <MudItem XS="12" MD="4">
+                            <MudCard Outlined="true" Class="pa-4">
+                                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingEpp.Id > 0 ? "Editar EPP" : "Agregar EPP")</MudText>
+                                <MudTextField @bind-Value="editingEpp.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                <MudNumericField T="decimal" @bind-Value="editingEpp.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N1" />
+                                <MudNumericField T="decimal" @bind-Value="editingEpp.MesesProrrateo" Label="Meses Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N0" />
+                                <MudNumericField T="decimal" @bind-Value="editingEpp.CostoUnitario" Label="Costo Unitario" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveEpp">Guardar</MudButton>
+                                    @if (editingEpp.Id > 0 || !string.IsNullOrEmpty(editingEpp.Nombre))
+                                    {
+                                        <MudButton Variant="Variant.Outlined" OnClick="CancelEditEpp">Limpiar</MudButton>
+                                    }
+                                </div>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                
+                <MudTabPanel Text="Viáticos y Beneficios">
+                    <MudGrid>
+                        <MudItem XS="12" MD="8">
+                            <MudTable Items="viaticosList" Hover="true" Dense="true" Elevation="1">
+                                <HeaderContent>
+                                    <MudTh>ID</MudTh>
+                                    <MudTh>Nombre</MudTh>
+                                    <MudTh>Costo Mensual</MudTh>
+                                    <MudTh Style="width:100px;">Acciones</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Id</MudTd>
+                                    <MudTd>@context.Nombre</MudTd>
+                                    <MudTd>C$ @context.CostoMensual.ToString("N2")</MudTd>
+                                    <MudTd>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditViatico(context))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteViatico(context.Id))" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudItem>
+                        <MudItem XS="12" MD="4">
+                            <MudCard Outlined="true" Class="pa-4">
+                                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingViatico.Id > 0 ? "Editar Viático" : "Agregar Viático")</MudText>
+                                <MudTextField @bind-Value="editingViatico.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                <MudNumericField T="decimal" @bind-Value="editingViatico.CostoMensual" Label="Costo Mensual" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveViatico">Guardar</MudButton>
+                                    @if (editingViatico.Id > 0 || !string.IsNullOrEmpty(editingViatico.Nombre))
+                                    {
+                                        <MudButton Variant="Variant.Outlined" OnClick="CancelEditViatico">Limpiar</MudButton>
+                                    }
+                                </div>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Maquinaria y Equipos">
+                    <MudGrid>
+                        <MudItem XS="12" MD="8">
+                            <MudTable Items="machineryList" Hover="true" Dense="true" Elevation="1">
+                                <HeaderContent>
+                                    <MudTh>ID</MudTh>
+                                    <MudTh>Nombre</MudTh>
+                                    <MudTh>Precio</MudTh>
+                                    <MudTh>Cant.</MudTh>
+                                    <MudTh>Meses Proyección</MudTh>
+                                    <MudTh>Proyección Mensual</MudTh>
+                                    <MudTh Style="width:100px;">Acciones</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.Id</MudTd>
+                                    <MudTd>@context.Nombre</MudTd>
+                                    <MudTd>C$ @context.Precio.ToString("N2")</MudTd>
+                                    <MudTd>@context.Cantidad</MudTd>
+                                    <MudTd>@context.MesesProyeccion</MudTd>
+                                    <MudTd>C$ @context.ProyeccionMensual.ToString("N2")</MudTd>
+                                    <MudTd>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditMachinery(context))" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteMachinery(context.Id))" />
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudItem>
+                        <MudItem XS="12" MD="4">
+                            <MudCard Outlined="true" Class="pa-4">
+                                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingMachinery.Id > 0 ? "Editar Equipo" : "Agregar Equipo")</MudText>
+                                <MudTextField @bind-Value="editingMachinery.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
+                                <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveMachinery">Guardar</MudButton>
+                                    @if (editingMachinery.Id > 0 || !string.IsNullOrEmpty(editingMachinery.Nombre))
+                                    {
+                                        <MudButton Variant="Variant.Outlined" OnClick="CancelEditMachinery">Limpiar</MudButton>
+                                    }
+                                </div>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
 </MudContainer>
 
 @code {
@@ -216,16 +373,25 @@
     private HashSet<int> selectedEpps = new HashSet<int>();
     private HashSet<int> selectedViaticos = new HashSet<int>();
 
+    // Diccionarios para guardar montos personalizados por cotización
+    private Dictionary<int, decimal> customViaticosCosts = new Dictionary<int, decimal>();
+    private Dictionary<int, decimal> customEppsCosts = new Dictionary<int, decimal>();
+
+    // Campos de edición de catálogo
+    private CatalogoEpp editingEpp = new CatalogoEpp();
+    private CatalogoViatico editingViatico = new CatalogoViatico();
+    private CatalogoMaquinaria editingMachinery = new CatalogoMaquinaria();
+
     // Fórmulas dinámicas
     private decimal CalculatedPrestaciones => salarioBase * 0.743m;
     
     private decimal CalculatedViaticos => viaticosList
         .Where(x => selectedViaticos.Contains(x.Id))
-        .Sum(x => x.CostoMensual);
+        .Sum(x => customViaticosCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoMensual);
 
     private decimal CalculatedEpp => eppList
         .Where(x => selectedEpps.Contains(x.Id))
-        .Sum(x => x.CostoMensual * 1.05m); // 5% de reposición
+        .Sum(x => (customEppsCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoMensual) * 1.05m); // 5% de reposición
 
     private decimal CalculatedCmt => salarioBase 
         + CalculatedPrestaciones 
@@ -266,14 +432,17 @@
             viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
             machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
 
-            // Seleccionar EPPs y viáticos por defecto basados en el excel
-            foreach (var item in viaticosList.Where(x => x.Nombre == "Transporte" || x.Nombre == "Alimentación"))
+            // Seleccionar EPPs y viáticos por defecto basados en el excel si es primera inicialización
+            if (!selectedViaticos.Any() && !selectedEpps.Any() && customViaticosCosts.Count == 0 && customEppsCosts.Count == 0)
             {
-                selectedViaticos.Add(item.Id);
-            }
-            foreach (var item in eppList.Where(x => x.Nombre == "Guantes" || x.Nombre == "Camisas" || x.Nombre == "Botas de seguridad" || x.Nombre == "Gafas" || x.Nombre == "Cinturón" || x.Nombre == "Protectores térmicos" || x.Nombre == "Arneses de seguridad"))
-            {
-                selectedEpps.Add(item.Id);
+                foreach (var item in viaticosList.Where(x => x.Nombre == "Transporte" || x.Nombre == "Alimentación"))
+                {
+                    selectedViaticos.Add(item.Id);
+                }
+                foreach (var item in eppList.Where(x => x.Nombre == "Guantes" || x.Nombre == "Camisas" || x.Nombre == "Botas de seguridad" || x.Nombre == "Gafas" || x.Nombre == "Cinturón" || x.Nombre == "Protectores térmicos" || x.Nombre == "Arneses de seguridad"))
+                {
+                    selectedEpps.Add(item.Id);
+                }
             }
         }
     }
@@ -285,6 +454,32 @@
         {
             savedQuotes = res.Model.Where(x => x.TipoCosteo == "Personal").ToList();
         }
+    }
+
+    private decimal GetViaticoCost(int id)
+    {
+        if (customViaticosCosts.TryGetValue(id, out var cost))
+            return cost;
+        var item = viaticosList.FirstOrDefault(x => x.Id == id);
+        return item?.CostoMensual ?? 0m;
+    }
+
+    private void SetViaticoCost(int id, decimal cost)
+    {
+        customViaticosCosts[id] = cost;
+    }
+
+    private decimal GetEppCost(int id)
+    {
+        if (customEppsCosts.TryGetValue(id, out var cost))
+            return cost;
+        var item = eppList.FirstOrDefault(x => x.Id == id);
+        return item?.CostoMensual ?? 0m;
+    }
+
+    private void SetEppCost(int id, decimal cost)
+    {
+        customEppsCosts[id] = cost;
     }
 
     private bool IsEppSelected(int id) => selectedEpps.Contains(id);
@@ -299,6 +494,50 @@
     {
         if (val) selectedViaticos.Add(id);
         else selectedViaticos.Remove(id);
+    }
+
+    private void LoadQuoteToForm(Cotizacion quote)
+    {
+        cliente = quote.ClienteNombre;
+        utilidadPorcentaje = quote.UtilidadPorcentaje;
+        
+        if (quote.PersonalDetalle != null)
+        {
+            salarioBase = quote.PersonalDetalle.SalarioBase;
+            supervision = quote.PersonalDetalle.Supervision;
+            cargos = quote.PersonalDetalle.Cargos;
+            seguros = quote.PersonalDetalle.Seguros;
+            gastosOperativos = quote.PersonalDetalle.GastosOperativos;
+
+            selectedEpps.Clear();
+            customEppsCosts.Clear();
+            if (quote.EppDetalles != null)
+            {
+                foreach (var epp in quote.EppDetalles)
+                {
+                    if (epp.EppId.HasValue)
+                    {
+                        selectedEpps.Add(epp.EppId.Value);
+                        customEppsCosts[epp.EppId.Value] = epp.CostoMensual;
+                    }
+                }
+            }
+
+            selectedViaticos.Clear();
+            customViaticosCosts.Clear();
+            if (quote.ViaticoDetalles != null)
+            {
+                foreach (var viatico in quote.ViaticoDetalles)
+                {
+                    if (viatico.ViaticoId.HasValue)
+                    {
+                        selectedViaticos.Add(viatico.ViaticoId.Value);
+                        customViaticosCosts[viatico.ViaticoId.Value] = viatico.CostoMensual;
+                    }
+                }
+            }
+        }
+        Snackbar.Add($"Cotización de '{cliente}' cargada para verificación.", Severity.Info);
     }
 
     private async Task SaveQuote()
@@ -333,11 +572,47 @@
             Estado = "Borrador"
         };
 
+        // Rellenar listas de detalle histórico
+        foreach (var id in selectedEpps)
+        {
+            var item = eppList.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+            {
+                var finalCost = customEppsCosts.TryGetValue(id, out var c) ? c : item.CostoMensual;
+                quote.EppDetalles.Add(new CotizacionEppDetalle
+                {
+                    EppId = id,
+                    Nombre = item.Nombre,
+                    Cantidad = item.Cantidad,
+                    MesesProrrateo = item.MesesProrrateo,
+                    CostoUnitario = item.CostoUnitario,
+                    CostoMensual = finalCost
+                });
+            }
+        }
+
+        foreach (var id in selectedViaticos)
+        {
+            var item = viaticosList.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+            {
+                var finalCost = customViaticosCosts.TryGetValue(id, out var c) ? c : item.CostoMensual;
+                quote.ViaticoDetalles.Add(new CotizacionViaticoDetalle
+                {
+                    ViaticoId = id,
+                    Nombre = item.Nombre,
+                    CostoMensual = finalCost
+                });
+            }
+        }
+
         var res = await _OdooService.SaveCotizacion(quote);
         if (!res.Respuesta.ExisteError)
         {
             Snackbar.Add("Cotización guardada exitosamente.", Severity.Success);
             cliente = "";
+            customViaticosCosts.Clear();
+            customEppsCosts.Clear();
             await LoadQuotes();
         }
         else
@@ -368,5 +643,160 @@
             "Rechazado" => Color.Error,
             _ => Color.Default
         };
+    }
+
+    // Métodos de Gestión de Catálogos
+    private void EditEpp(CatalogoEpp item)
+    {
+        editingEpp = new CatalogoEpp
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Cantidad = item.Cantidad,
+            MesesProrrateo = item.MesesProrrateo,
+            CostoUnitario = item.CostoUnitario
+        };
+    }
+
+    private void CancelEditEpp()
+    {
+        editingEpp = new CatalogoEpp();
+    }
+
+    private async Task SaveEpp()
+    {
+        if (string.IsNullOrWhiteSpace(editingEpp.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoEpp(editingEpp);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("EPP guardado exitosamente.", Severity.Success);
+            editingEpp = new CatalogoEpp();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteEpp(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoEpp(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("EPP eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private void EditViatico(CatalogoViatico item)
+    {
+        editingViatico = new CatalogoViatico
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            CostoMensual = item.CostoMensual
+        };
+    }
+
+    private void CancelEditViatico()
+    {
+        editingViatico = new CatalogoViatico();
+    }
+
+    private async Task SaveViatico()
+    {
+        if (string.IsNullOrWhiteSpace(editingViatico.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoViatico(editingViatico);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Viático guardado exitosamente.", Severity.Success);
+            editingViatico = new CatalogoViatico();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteViatico(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoViatico(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Viático eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private void EditMachinery(CatalogoMaquinaria item)
+    {
+        editingMachinery = new CatalogoMaquinaria
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Precio = item.Precio,
+            Cantidad = item.Cantidad,
+            MesesProyeccion = item.MesesProyeccion
+        };
+    }
+
+    private void CancelEditMachinery()
+    {
+        editingMachinery = new CatalogoMaquinaria();
+    }
+
+    private async Task SaveMachinery()
+    {
+        if (string.IsNullOrWhiteSpace(editingMachinery.Nombre))
+        {
+            Snackbar.Add("El nombre es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var res = await _OdooService.SaveCatalogoMaquinaria(editingMachinery);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Equipo guardado exitosamente.", Severity.Success);
+            editingMachinery = new CatalogoMaquinaria();
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteMachinery(int id)
+    {
+        var res = await _OdooService.DeleteCatalogoMaquinaria(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Equipo eliminado.", Severity.Info);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
     }
 }

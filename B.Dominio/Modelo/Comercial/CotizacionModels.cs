@@ -18,6 +18,9 @@ namespace Modelo.Comercial
         
         public CotizacionPersonalDetalle PersonalDetalle { get; set; }
         public CotizacionProduccionDetalle ProduccionDetalle { get; set; }
+        
+        public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
+        public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();
     }
 
     public class CotizacionPersonalDetalle
@@ -44,6 +47,25 @@ namespace Modelo.Comercial
         public decimal AmortizacionUnitaria { get; set; }
     }
 
+    public class CotizacionEppDetalle
+    {
+        public Guid CotizacionId { get; set; }
+        public int? EppId { get; set; }
+        public string Nombre { get; set; }
+        public decimal Cantidad { get; set; }
+        public decimal MesesProrrateo { get; set; }
+        public decimal CostoUnitario { get; set; }
+        public decimal CostoMensual { get; set; }
+    }
+
+    public class CotizacionViaticoDetalle
+    {
+        public Guid CotizacionId { get; set; }
+        public int? ViaticoId { get; set; }
+        public string Nombre { get; set; }
+        public decimal CostoMensual { get; set; }
+    }
+
     public class SaveCotizacionRequest
     {
         public string ClienteNombre { get; set; }
@@ -55,5 +77,8 @@ namespace Modelo.Comercial
         
         public CotizacionPersonalDetalle PersonalDetalle { get; set; }
         public CotizacionProduccionDetalle ProduccionDetalle { get; set; }
+        
+        public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
+        public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();
     }
 }
