@@ -25,10 +25,10 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
         public bool BotonEnabled { set; get; } = true;
         public string nombreOperacion { set; get; } = "";
 
-        public DateTime FchaDesde { set; get; } = DateTime.Now.AddDays(-5);
-        public DateTime FchaHasta { set; get; } = DateTime.Now;
-        protected DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now.AddDays(-5); }
-        protected DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
+        public DateTime FchaDesde { set; get; } = DateTime.Today.AddDays(-5);
+        public DateTime FchaHasta { set; get; } = DateTime.Today;
+        protected DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Today.AddDays(-5); }
+        protected DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Today; }
 
         protected override async Task OnInitializedAsync()
         {
