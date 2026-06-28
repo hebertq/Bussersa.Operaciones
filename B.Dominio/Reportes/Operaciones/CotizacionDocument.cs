@@ -119,7 +119,7 @@ namespace Reportes.Operaciones
                         {
                             var detail = cot.PersonalDetalle ?? new CotizacionPersonalDetalle();
 
-                            column.Item().PaddingTop(10).Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(10).Column(detailCol =>
+                            column.Item().ShowEntire().PaddingTop(10).Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(10).Column(detailCol =>
                             {
                                 detailCol.Item().Row(r =>
                                 {

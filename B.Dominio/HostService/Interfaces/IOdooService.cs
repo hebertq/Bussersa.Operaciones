@@ -77,5 +77,6 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Comercial.DashboardResponse>> GetDashboardData(string mes, string turno);
         Task<IListResponse<string>> GetDashboardMonths();
         Task<IResponse> UploadDashboardExcel(byte[] fileBytes, string fileName, string mes);
+        Task<SingleResponse<List<string>>> ParseProductsExcel(byte[] fileBytes, string fileName);
     }
 }

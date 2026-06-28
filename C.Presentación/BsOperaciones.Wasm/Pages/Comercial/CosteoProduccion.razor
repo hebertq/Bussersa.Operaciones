@@ -14,6 +14,65 @@
         <!-- Pestaña 1: Cotizador -->
         <MudTabPanel Text="🧮 Cotizador de Producción" Icon="@Icons.Material.Filled.Calculate">
             <div class="pa-4">
+                <!-- Sección de Carga de Productos desde Excel y Navegación -->
+                <MudCard Elevation="4" Class="pa-4 mb-6" Style="border-radius: 12px; background-color: rgba(220,237,200,0.2); border-left: 6px solid #2E7D32;">
+                    <MudGrid AlignItems="AlignItems.Center">
+                        <MudItem XS="12" MD="6">
+                            <div class="d-flex align-center gap-3">
+                                <MudIcon Icon="@Icons.Material.Filled.UploadFile" Color="Color.Success" Size="Size.Large" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold">Cargar Lote de Productos desde Excel</MudText>
+                                    <MudText Typo="Typo.caption" Class="text-muted">Importe una lista de productos en la primera columna de un Excel para cotizarlos en serie.</MudText>
+                                </div>
+                            </div>
+                        </MudItem>
+                        <MudItem XS="12" MD="6" Class="d-flex justify-end gap-3 align-center">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="UploadExcelFile" Accept=".xlsx">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AttachFile">
+                                        Seleccionar Excel
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                            @if (importedProducts.Any())
+                            {
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Clear" OnClick="ClearImportedProducts">
+                                    Limpiar
+                                </MudButton>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudCard>
+
+                @if (importedProducts.Any())
+                {
+                    <MudCard Elevation="4" Class="pa-4 mb-6" Style="border-radius: 12px; border-left: 6px solid #FF9800; background-color: rgba(255,243,224,0.3);">
+                        <MudGrid AlignItems="AlignItems.Center">
+                            <MudItem XS="12" SM="6" MD="8">
+                                <div class="d-flex align-center gap-3">
+                                    <MudIcon Icon="@Icons.Material.Filled.NavigateNext" Color="Color.Warning" Size="Size.Large" />
+                                    <div>
+                                        <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Warning">
+                                            Producto @(currentProductIndex + 1) de @importedProducts.Count
+                                        </MudText>
+                                        <MudText Typo="Typo.body1" Class="font-bold">
+                                            SKU Actual: @skuNombre
+                                        </MudText>
+                                    </div>
+                                </div>
+                            </MudItem>
+                            <MudItem XS="12" SM="6" MD="4" Class="d-flex justify-end gap-2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoToPreviousProduct" Disabled="@(currentProductIndex <= 0)">
+                                    Anterior
+                                </MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" EndIcon="@Icons.Material.Filled.ArrowForward" OnClick="GoToNextProduct" Disabled="@(currentProductIndex >= importedProducts.Count - 1)">
+                                    Siguiente
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudCard>
+                }
+
                 <MudGrid>
                     <!-- Formulario de Entrada (Izquierda) -->
                     <MudItem XS="12" MD="7">
@@ -512,6 +571,8 @@
     private Guid? selectedPersonnelQuoteId;
     private Cotizacion selectedPersonnelQuote;
     private string selectedFilterEmpresa = "";
+    private List<string> importedProducts = new List<string>();
+    private int currentProductIndex = -1;
 
     private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
@@ -1071,6 +1132,73 @@
         else
         {
             Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task UploadExcelFile(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        try
+        {
+            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
+            {
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    await stream.CopyToAsync(ms);
+                    var fileBytes = ms.ToArray();
+                    var res = await _OdooService.ParseProductsExcel(fileBytes, file.Name);
+                    if (!res.Respuesta.ExisteError && res.Model != null)
+                    {
+                        importedProducts = res.Model;
+                        if (importedProducts.Any())
+                        {
+                            currentProductIndex = 0;
+                            skuNombre = importedProducts[0];
+                            Snackbar.Add($"Se importaron {importedProducts.Count} productos. Iniciando cotización.", Severity.Success);
+                        }
+                        else
+                        {
+                            Snackbar.Add("El Excel no contiene productos en la primera columna.", Severity.Warning);
+                        }
+                    }
+                    else
+                    {
+                        Snackbar.Add("Error al leer Excel: " + res.Respuesta.MensajeError, Severity.Error);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error de carga: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private void ClearImportedProducts()
+    {
+        importedProducts.Clear();
+        currentProductIndex = -1;
+        skuNombre = "";
+        Snackbar.Add("Lista de productos importados limpiada.", Severity.Info);
+    }
+
+    private void GoToPreviousProduct()
+    {
+        if (currentProductIndex > 0)
+        {
+            currentProductIndex--;
+            skuNombre = importedProducts[currentProductIndex];
+        }
+    }
+
+    private void GoToNextProduct()
+    {
+        if (currentProductIndex < importedProducts.Count - 1)
+        {
+            currentProductIndex++;
+            skuNombre = importedProducts[currentProductIndex];
         }
     }
 }

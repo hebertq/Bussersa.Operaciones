@@ -1671,6 +1671,39 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<SingleResponse<List<string>>> ParseProductsExcel(byte[] fileBytes, string fileName)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            SingleResponse<List<string>> response = new SingleResponse<List<string>>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/ParseProductsExcel");
+                using (var content = new System.Net.Http.MultipartFormDataContent())
+                {
+                    var fileContent = new System.Net.Http.ByteArrayContent(fileBytes);
+                    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    content.Add(fileContent, "file", fileName);
+
+                    var registro = await PostMultipartAsync(requestUrl, content);
+                    if (registro.IsSuccess)
+                    {
+                        var reg = registro.Data;
+                        if (reg.sucess)
+                            response.Model = _Util.ObtenerDato<string>(reg.detail.ToString());
+                        else
+                            response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                    else
+                        response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 

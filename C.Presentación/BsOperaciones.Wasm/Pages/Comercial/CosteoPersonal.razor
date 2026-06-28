@@ -259,12 +259,51 @@
                                 </MudItem>
                             </MudGrid>
 
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
-                                Guardar Cotización
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="AddTurnoToSession" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                ➕ Agregar Turno a la Cotización
                             </MudButton>
                         </MudCard>
                     </MudItem>
                 </MudGrid>
+
+                <!-- Tabla de Turnos Agregados en esta Sesión (Pendientes de Guardar) -->
+                @if (temporaryShifts.Any())
+                {
+                    <MudCard Elevation="4" Class="pa-6 mt-6" Style="border-radius: 12px; border-top: 4px solid #1a237e;">
+                        <div class="d-flex align-center justify-space-between mb-4">
+                            <div>
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-bold">Turnos Agregados (Pendientes de Guardar)</MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">Estos turnos aún no están en la base de datos. Agréguelos todos y presione Guardar Cotización Completa.</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveAllTemporaryShifts" Class="font-bold py-3 px-6" Size="Size.Large">
+                                Guardar Cotización Completa (@temporaryShifts.Count Turnos)
+                            </MudButton>
+                        </div>
+
+                        <MudTable Items="temporaryShifts" Hover="true" Elevation="1" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Turno</MudTh>
+                                <MudTh Style="text-align: center;">Horas</MudTh>
+                                <MudTh Style="text-align: right;">Salario Base</MudTh>
+                                <MudTh Style="text-align: right;">Costo Total</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa Sugerida</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa Extra / Feriado / Domingo</MudTh>
+                                <MudTh Style="text-align: center; width: 80px;">Quitar</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
+                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurno ?? 8) hrs</MudTd>
+                                <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
+                                <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa Extra / Feriado / Domingo" Style="text-align: right;">C$ @(context.PersonalDetalle?.TarifaExtra.ToString("N2") ?? "0.00") / hora</MudTd>
+                                <MudTd Style="text-align: center;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveTemporaryShift(context))" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCard>
+                }
 
                 <!-- Grilla de Turnos de esta Empresa/Cliente (para impresión de Cotización) -->
                 @if (!string.IsNullOrWhiteSpace(cliente))
@@ -526,6 +565,7 @@
     private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
     private List<Cotizacion> savedQuotes = new List<Cotizacion>();
     private HashSet<Cotizacion> selectedQuotesForPrint = new HashSet<Cotizacion>();
+    private List<Cotizacion> temporaryShifts = new List<Cotizacion>();
 
     private IEnumerable<Cotizacion> CurrentClientQuotes => savedQuotes
         .Where(q => q.ClienteNombre != null && q.ClienteNombre.Trim().Equals(cliente.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -736,11 +776,23 @@
         Snackbar.Add($"Cotización de '{cliente}' cargada para verificación.", Severity.Info);
     }
 
-    private async Task SaveQuote()
+    private void AddTurnoToSession()
     {
         if (string.IsNullOrWhiteSpace(cliente))
         {
             Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(turno))
+        {
+            Snackbar.Add("El nombre del turno es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        if (temporaryShifts.Any(s => s.PersonalDetalle?.Turno?.Trim().Equals(turno.Trim(), StringComparison.OrdinalIgnoreCase) == true))
+        {
+            Snackbar.Add($"El turno '{turno}' ya ha sido agregado a esta cotización.", Severity.Warning);
             return;
         }
 
@@ -807,18 +859,53 @@
             }
         }
 
-        var res = await _OdooService.SaveCotizacion(quote);
-        if (!res.Respuesta.ExisteError)
+        temporaryShifts.Add(quote);
+        Snackbar.Add($"Turno '{turno}' agregado localmente a la cotización.", Severity.Info);
+
+        // Resetear campos del turno, pero MANTENER el cliente
+        turno = "";
+        horasTurno = 8;
+        salarioBase = 9000.00m;
+        selectedEpps.Clear();
+        selectedViaticos.Clear();
+        customEppsCosts.Clear();
+        customViaticosCosts.Clear();
+    }
+
+    private void RemoveTemporaryShift(Cotizacion quote)
+    {
+        temporaryShifts.Remove(quote);
+        Snackbar.Add("Turno removido de la sesión.", Severity.Warning);
+    }
+
+    private async Task SaveAllTemporaryShifts()
+    {
+        if (!temporaryShifts.Any()) return;
+
+        bool allSaved = true;
+        string errorMsg = "";
+
+        foreach (var quote in temporaryShifts)
         {
-            Snackbar.Add("Cotización guardada exitosamente.", Severity.Success);
-            cliente = "";
-            customViaticosCosts.Clear();
-            customEppsCosts.Clear();
+            var res = await _OdooService.SaveCotizacion(quote);
+            if (res.Respuesta.ExisteError)
+            {
+                allSaved = false;
+                errorMsg = res.Respuesta.MensajeError;
+                break;
+            }
+        }
+
+        if (allSaved)
+        {
+            Snackbar.Add("Cotización guardada exitosamente con todos sus turnos.", Severity.Success);
+            temporaryShifts.Clear();
+            cliente = ""; // Limpiar cliente ahora que ya se guardó todo
             await LoadQuotes();
         }
         else
         {
-            Snackbar.Add("Error al guardar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+            Snackbar.Add("Error al guardar algunos turnos: " + errorMsg, Severity.Error);
         }
     }
 
