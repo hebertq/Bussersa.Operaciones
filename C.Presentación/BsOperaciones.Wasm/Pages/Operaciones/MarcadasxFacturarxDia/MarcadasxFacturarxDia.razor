@@ -10,10 +10,10 @@
 <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px;">
     <MudGrid Spacing="3" Class="align-end">
         <MudItem xs="12" sm="3">
-            <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
+            <MudDatePicker Label="Desde" Date="_fchaDesdeWrapper" DateChanged="OnDesdeDateChanged" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
+            <MudDatePicker Label="Hasta" Date="_fchaHastaWrapper" DateChanged="OnHastaDateChanged" Variant="Variant.Outlined" Color="Color.Primary" DateFormat="dd/MM/yyyy" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" sm="4">
             <MudSelect T="int" Label="Operación / Cliente" Value="operacion" ValueChanged="OnChangeCliente" Variant="Variant.Outlined" Margin="Margin.Dense">

@@ -115,5 +115,23 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
             }
             finally { isloaddata = false; }
         }
+
+        protected async Task OnDesdeDateChanged(DateTime? value)
+        {
+            _fchaDesdeWrapper = value;
+            if (operacion > 0)
+            {
+                await GetAllMarcadasFacturar();
+            }
+        }
+
+        protected async Task OnHastaDateChanged(DateTime? value)
+        {
+            _fchaHastaWrapper = value;
+            if (operacion > 0)
+            {
+                await GetAllMarcadasFacturar();
+            }
+        }
     }
 }
