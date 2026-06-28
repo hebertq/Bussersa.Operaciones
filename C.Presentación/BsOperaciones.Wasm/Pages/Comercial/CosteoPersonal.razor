@@ -1,0 +1,372 @@
+@page "/comercial/costeo-personal"
+@using Modelo.Comercial
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-6 font-bold" Style="background: linear-gradient(90deg, #1A237E, #0288D1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Cotizador de Servicios de Personal (Cálculo por Horas)
+    </MudText>
+
+    <MudGrid>
+        <!-- Formulario de Entrada (Izquierda) -->
+        <MudItem XS="12" MD="7">
+            <MudCard Elevation="4" Class="pa-6" Style="border-radius: 12px; border-top: 4px solid #1A237E;">
+                <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Datos de Entrada</MudText>
+                
+                <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" />
+                
+                <MudGrid>
+                    <MudItem XS="12" SM="6">
+                        <MudNumericField T="decimal" @bind-Value="salarioBase" Label="Salario Base (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                    </MudItem>
+                    <MudItem XS="12" SM="6">
+                        <MudNumericField T="decimal" @bind-Value="utilidadPorcentaje" Label="Margen de Utilidad (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" Max="99.0m" Min="1.0m" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudGrid>
+                    <MudItem XS="12" SM="6" MD="4">
+                        <MudNumericField T="decimal" @bind-Value="supervision" Label="Supervisión mensual (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                    </MudItem>
+                    <MudItem XS="12" SM="6" MD="4">
+                        <MudNumericField T="decimal" @bind-Value="cargos" Label="Cargos Operativos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                    </MudItem>
+                    <MudItem XS="12" SM="12" MD="4">
+                        <MudNumericField T="decimal" @bind-Value="seguros" Label="Seguros de Ley (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudNumericField T="decimal" @bind-Value="gastosOperativos" Label="Otros Gastos Administrativos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-6" Format="N2" />
+
+                <!-- Viáticos -->
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Viáticos y Beneficios Mensuales</MudText>
+                <div class="d-flex flex-wrap gap-4 mb-6">
+                    @foreach (var viatico in viaticosList)
+                    {
+                        <MudCheckBox T="bool" Checked="@IsViaticoSelected(viatico.Id)" CheckedChanged="@((bool val) => ToggleViatico(viatico.Id, val))" Color="Color.Primary">
+                            @viatico.Nombre (C$ @viatico.CostoMensual.ToString("N2"))
+                        </MudCheckBox>
+                    }
+                </div>
+
+                <!-- EPPs -->
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos de Protección Personal (EPP)</MudText>
+                <MudGrid Spacing="1">
+                    @foreach (var epp in eppList)
+                    {
+                        <MudItem XS="6" SM="4">
+                             <MudCheckBox T="bool" Checked="@IsEppSelected(epp.Id)" CheckedChanged="@((bool val) => ToggleEpp(epp.Id, val))" Color="Color.Secondary">
+                                 <span style="font-size: 13px;">@epp.Nombre</span>
+                                 <div style="font-size: 11px;" class="text-muted">C$ @(epp.CostoMensual.ToString("N2"))/mes</div>
+                             </MudCheckBox>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCard>
+        </MudItem>
+
+        <!-- Resultados e Indicadores (Derecha) -->
+        <MudItem XS="12" MD="5">
+            <MudCard Elevation="4" Class="pa-6 text-white" Style="background: linear-gradient(135deg, #1A237E, #0D47A1); border-radius: 12px; height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-6">Cálculo de Tarifas y Factores</MudText>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Salario Base:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @salarioBase.ToString("N2")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Prestaciones (74.3%):</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedPrestaciones.ToString("N2")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Viáticos Totales:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedViaticos.ToString("N2")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">EPP Prorrateado (+5% rep):</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedEpp.ToString("N2")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Cargos/Supervisión/Seguros:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @((supervision + cargos + seguros + gastosOperativos).ToString("N2"))</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-5 border-b pb-2 font-bold" style="border-color: rgba(255,255,255,0.3) !important;">
+                    <MudText Typo="Typo.body1">Costo Mensual Total (CMT):</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">C$ @CalculatedCmt.ToString("N2")</MudText>
+                </div>
+
+                <!-- Factores -->
+                <MudPaper Class="pa-4 mb-6" Style="background: rgba(255, 255, 255, 0.08); border-radius: 8px;">
+                    <MudGrid>
+                        <MudItem XS="6" Class="text-center border-r" Style="border-color: rgba(255,255,255,0.15) !important;">
+                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">Factor Costo Real (FCR)</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold">@CalculatedFcr.ToString("N2")</MudText>
+                        </MudItem>
+                        <MudItem XS="6" Class="text-center">
+                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">Factor Facturación (FFR)</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold" Style="color: #00E676;">@CalculatedFfr.ToString("N2")</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <!-- Margen -->
+                <div class="d-flex justify-space-between mb-3 opacity-75">
+                    <MudText Typo="Typo.body2">Utilidad de Operación (@utilidadPorcentaje%):</MudText>
+                    <MudText Typo="Typo.body2">C$ @CalculatedUtility.ToString("N2")</MudText>
+                </div>
+
+                <!-- Tarifa Final -->
+                <div class="text-center mb-6 pa-4" style="background: rgba(255, 255, 255, 0.12); border-radius: 8px; border-left: 5px solid #00E676;">
+                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA MENSUAL SUGERIDA</MudText>
+                    <MudText Typo="Typo.h4" Class="font-bold" Style="color: #00E676;">C$ @CalculatedTarifaSugerida.ToString("N2")</MudText>
+                </div>
+
+                <!-- Desglose por Horas -->
+                <MudGrid Class="mb-6">
+                    <MudItem XS="6" Class="text-center">
+                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA DÍA (8h)</MudText>
+                        <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedTarifaDia.ToString("N2")</MudText>
+                    </MudItem>
+                    <MudItem XS="6" Class="text-center">
+                        <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA HORA</MudText>
+                        <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedTarifaHora.ToString("N2")</MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <div class="text-center mb-6">
+                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA HORA EXTRA</MudText>
+                    <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Secondary">C$ @CalculatedTarifaExtra.ToString("N2")</MudText>
+                </div>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                    Guardar Cotización
+                </MudButton>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Sección de Cotizaciones Guardadas -->
+    <MudDivider Class="my-8" />
+    <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Primary">Historial de Cotizaciones Guardadas</MudText>
+    
+    <MudTable Items="savedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
+        <HeaderContent>
+            <MudTh>Fecha</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Salario Base</MudTh>
+            <MudTh>Costo Mensual</MudTh>
+            <MudTh>Utilidad (%)</MudTh>
+            <MudTh>Tarifa Sugerida</MudTh>
+            <MudTh>F. Facturación</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:100px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
+            <MudTd DataLabel="Salario Base">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "-")</MudTd>
+            <MudTd DataLabel="Costo Mensual">C$ @context.CostoTotal.ToString("N2")</MudTd>
+            <MudTd DataLabel="Utilidad (%)">@context.UtilidadPorcentaje.ToString("N1")%</MudTd>
+            <MudTd DataLabel="Tarifa Sugerida">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+            <MudTd DataLabel="F. Facturación">
+                @if (context.PersonalDetalle != null && context.PersonalDetalle.SalarioBase > 0)
+                {
+                    @((context.TarifaSugerida / context.PersonalDetalle.SalarioBase).ToString("N2"))
+                }
+                else
+                {
+                    <span>-</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="pa-4 text-center text-muted">No hay cotizaciones de personal registradas.</div>
+        </NoRecordsContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private string cliente = "";
+    private decimal salarioBase = 9000.00m;
+    private decimal utilidadPorcentaje = 20.00m;
+    private decimal supervision = 1000.00m;
+    private decimal cargos = 500.00m;
+    private decimal seguros = 300.00m;
+    private decimal gastosOperativos = 0.00m;
+
+    private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
+    private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
+    private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
+    private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+
+    private HashSet<int> selectedEpps = new HashSet<int>();
+    private HashSet<int> selectedViaticos = new HashSet<int>();
+
+    // Fórmulas dinámicas
+    private decimal CalculatedPrestaciones => salarioBase * 0.743m;
+    
+    private decimal CalculatedViaticos => viaticosList
+        .Where(x => selectedViaticos.Contains(x.Id))
+        .Sum(x => x.CostoMensual);
+
+    private decimal CalculatedEpp => eppList
+        .Where(x => selectedEpps.Contains(x.Id))
+        .Sum(x => x.CostoMensual * 1.05m); // 5% de reposición
+
+    private decimal CalculatedCmt => salarioBase 
+        + CalculatedPrestaciones 
+        + CalculatedViaticos 
+        + CalculatedEpp 
+        + supervision 
+        + cargos 
+        + seguros 
+        + gastosOperativos;
+
+    private decimal CalculatedUtility => (salarioBase / (1.0m - (utilidadPorcentaje / 100.0m))) - salarioBase;
+
+    private decimal CalculatedTarifaSugerida => CalculatedCmt + CalculatedUtility;
+
+    private decimal CalculatedFcr => salarioBase > 0 ? (CalculatedCmt / salarioBase) : 0m;
+
+    private decimal CalculatedFfr => salarioBase > 0 ? (CalculatedTarifaSugerida / salarioBase) : 0m;
+
+    private decimal CalculatedTarifaDia => CalculatedTarifaSugerida / 30m;
+
+    private decimal CalculatedTarifaHora => CalculatedTarifaDia / 8m;
+
+    private decimal CalculatedTarifaExtra => ((salarioBase / 30m) / 8m) + CalculatedTarifaHora;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCatalogs();
+        await LoadQuotes();
+    }
+
+    private async Task LoadCatalogs()
+    {
+        var res = await _OdooService.GetCatalogosComercial();
+        if (res.Model != null && res.Model.Any())
+        {
+            var cats = res.Model.First();
+            eppList = cats.Epp ?? new List<CatalogoEpp>();
+            viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
+            machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
+
+            // Seleccionar EPPs y viáticos por defecto basados en el excel
+            foreach (var item in viaticosList.Where(x => x.Nombre == "Transporte" || x.Nombre == "Alimentación"))
+            {
+                selectedViaticos.Add(item.Id);
+            }
+            foreach (var item in eppList.Where(x => x.Nombre == "Guantes" || x.Nombre == "Camisas" || x.Nombre == "Botas de seguridad" || x.Nombre == "Gafas" || x.Nombre == "Cinturón" || x.Nombre == "Protectores térmicos" || x.Nombre == "Arneses de seguridad"))
+            {
+                selectedEpps.Add(item.Id);
+            }
+        }
+    }
+
+    private async Task LoadQuotes()
+    {
+        var res = await _OdooService.GetCotizaciones();
+        if (res.Model != null)
+        {
+            savedQuotes = res.Model.Where(x => x.TipoCosteo == "Personal").ToList();
+        }
+    }
+
+    private bool IsEppSelected(int id) => selectedEpps.Contains(id);
+    private void ToggleEpp(int id, bool val)
+    {
+        if (val) selectedEpps.Add(id);
+        else selectedEpps.Remove(id);
+    }
+
+    private bool IsViaticoSelected(int id) => selectedViaticos.Contains(id);
+    private void ToggleViatico(int id, bool val)
+    {
+        if (val) selectedViaticos.Add(id);
+        else selectedViaticos.Remove(id);
+    }
+
+    private async Task SaveQuote()
+    {
+        if (string.IsNullOrWhiteSpace(cliente))
+        {
+            Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var detail = new CotizacionPersonalDetalle
+        {
+            SalarioBase = salarioBase,
+            PrestacionesFactor = 0.743m,
+            ViaticosTotales = CalculatedViaticos,
+            EppTotales = CalculatedEpp,
+            Supervision = supervision,
+            Cargos = cargos,
+            Seguros = seguros,
+            GastosOperativos = gastosOperativos
+        };
+
+        var quote = new Cotizacion
+        {
+            ClienteNombre = cliente,
+            TipoCosteo = "Personal",
+            UtilidadPorcentaje = utilidadPorcentaje,
+            CostoTotal = CalculatedCmt,
+            TarifaSugerida = CalculatedTarifaSugerida,
+            TarifaAcordada = CalculatedTarifaSugerida, // por defecto igual a sugerida
+            PersonalDetalle = detail,
+            Estado = "Borrador"
+        };
+
+        var res = await _OdooService.SaveCotizacion(quote);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Cotización guardada exitosamente.", Severity.Success);
+            cliente = "";
+            await LoadQuotes();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteQuote(Guid id)
+    {
+        var res = await _OdooService.DeleteCotizacion(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Cotización eliminada.", Severity.Info);
+            await LoadQuotes();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Aprobado" => Color.Success,
+            "Rechazado" => Color.Error,
+            _ => Color.Default
+        };
+    }
+}

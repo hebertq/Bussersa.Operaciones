@@ -57,5 +57,16 @@ namespace HostService.Interfaces
         Task<IResponse> AddMenu(AdmonMenu menu);
         Task<IResponse> UpdateMenu(AdmonMenu menu);
         Task<IResponse> DeleteMenu(int id);
+
+        // --- MÓDULO COMERCIAL Y COTIZADOR ---
+        Task<IListResponse<Modelo.Comercial.CatalogoResponse>> GetCatalogosComercial();
+        Task<IResponse> SaveCotizacion(Modelo.Comercial.Cotizacion cotizacion);
+        Task<IListResponse<Modelo.Comercial.Cotizacion>> GetCotizaciones();
+        Task<IResponse> DeleteCotizacion(Guid id);
+
+        // --- DASHBOARD DE RENTABILIDAD ---
+        Task<IListResponse<Modelo.Comercial.DashboardResponse>> GetDashboardData(string mes, string turno);
+        Task<IListResponse<string>> GetDashboardMonths();
+        Task<IResponse> UploadDashboardExcel(byte[] fileBytes, string fileName, string mes);
     }
 }

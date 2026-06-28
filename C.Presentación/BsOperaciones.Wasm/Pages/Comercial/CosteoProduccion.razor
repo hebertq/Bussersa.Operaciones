@@ -1,0 +1,341 @@
+@page "/comercial/costeo-produccion"
+@using Modelo.Comercial
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-6 font-bold" Style="background: linear-gradient(90deg, #2E7D32, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Cotizador de Servicios de Producción (Cálculo por Unidad / SKU)
+    </MudText>
+
+    <MudGrid>
+        <!-- Formulario de Entrada (Izquierda) -->
+        <MudItem XS="12" MD="7">
+            <MudCard Elevation="4" Class="pa-6" Style="border-radius: 12px; border-top: 4px solid #2E7D32;">
+                <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Success">Datos de Entrada de Producción</MudText>
+                
+                <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" />
+                <MudTextField @bind-Value="skuNombre" Label="Descripción del SKU / Producto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="ej. CSD Pepsi + Roja 3 Litros" />
+                
+                <MudGrid>
+                    <MudItem XS="12" SM="6">
+                        <MudNumericField T="int" @bind-Value="produccionDiaria" Label="Producción Diaria Estimada (Packs)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
+                    </MudItem>
+                    <MudItem XS="12" SM="6">
+                        <MudNumericField T="decimal" @bind-Value="manoObraUnitaria" Label="Mano de Obra Unitaria (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudNumericField T="decimal" @bind-Value="mermaPorcentaje" Label="Margen de Merma (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-6" Format="N2" />
+
+                <!-- Materiales (Matriz de empaque) -->
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Materiales e Insumos Utilizados por Pack</MudText>
+                <MudGrid Spacing="1" Class="mb-6">
+                    @foreach (var mat in materialesMatriz)
+                    {
+                        <MudItem XS="12" SM="6">
+                             <MudCheckBox T="bool" Checked="@IsMaterialSelected(mat.Key)" CheckedChanged="@((bool val) => ToggleMaterial(mat.Key, val))" Color="Color.Success">
+                                 <span style="font-size: 13px;">@mat.Key</span>
+                                 <div style="font-size: 11px;" class="text-muted">C$ @mat.Value.ToString("N2") / Unidad</div>
+                             </MudCheckBox>
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                <!-- Amortización de Maquinaria -->
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos y Maquinaria a Prorratear</MudText>
+                <MudGrid Spacing="1">
+                    @foreach (var maq in machineryList)
+                    {
+                        <MudItem XS="12" SM="6" MD="4">
+                             <MudCheckBox T="bool" Checked="@IsMaqSelected(maq.Id)" CheckedChanged="@((bool val) => ToggleMaq(maq.Id, val))" Color="Color.Warning">
+                                 <span style="font-size: 13px;">@maq.Nombre</span>
+                                 <div style="font-size: 11px;" class="text-muted">C$ @((maq.ProyeccionMensual).ToString("N2")) / mes</div>
+                             </MudCheckBox>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCard>
+        </MudItem>
+
+        <!-- Resultados e Indicadores (Derecha) -->
+        <MudItem XS="12" MD="5">
+            <MudCard Elevation="4" Class="pa-6 text-white" Style="background: linear-gradient(135deg, #1B5E20, #2E7D32); border-radius: 12px; height: 100%;">
+                <MudText Typo="Typo.h6" Class="mb-6">Resumen de Costos de Empaque</MudText>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Mano de Obra Unitaria:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @manoObraUnitaria.ToString("N4")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Costo Materiales / Insumos:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedMateriales.ToString("N4")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                    <MudText Typo="Typo.body1" Class="opacity-75">Amortización Maquinaria Unit.:</MudText>
+                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedAmortizacionUnitaria.ToString("N4")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-4 border-b pb-2 font-bold" style="border-color: rgba(255,255,255,0.3) !important;">
+                    <MudText Typo="Typo.body1">Costo Total Unitario Base:</MudText>
+                    <MudText Typo="Typo.body1">C$ @CalculatedCostoUnitarioBase.ToString("N4")</MudText>
+                </div>
+
+                <div class="d-flex justify-space-between mb-6 opacity-75">
+                    <MudText Typo="Typo.body2">Margen por Merma (@mermaPorcentaje%):</MudText>
+                    <MudText Typo="Typo.body2">C$ @CalculatedMermaCosto.ToString("N4")</MudText>
+                </div>
+
+                <!-- Tarifa Sugerida por Unidad -->
+                <div class="text-center mb-6 pa-4" style="background: rgba(255, 255, 255, 0.12); border-radius: 8px; border-left: 5px solid #00E676;">
+                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA UNITARIA SUGERIDA</MudText>
+                    <MudText Typo="Typo.h4" Class="font-bold" Style="color: #00E676;">C$ @CalculatedTarifaUnitaria.ToString("N4")</MudText>
+                </div>
+
+                <!-- Proyecciones de Venta -->
+                <MudPaper Class="pa-4 mb-6" Style="background: rgba(255, 255, 255, 0.08); border-radius: 8px;">
+                    <MudGrid>
+                        <MudItem XS="12" Class="text-center mb-2">
+                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">VOLUMEN DIARIO DIARIO</MudText>
+                            <MudText Typo="Typo.subtitle1" Class="font-bold">@produccionDiaria.ToString("N0") Packs</MudText>
+                        </MudItem>
+                        <MudItem XS="6" Class="text-center border-r" Style="border-color: rgba(255,255,255,0.15) !important;">
+                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN DIARIA</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedFacturacionDiaria.ToString("N2")</MudText>
+                        </MudItem>
+                        <MudItem XS="6" Class="text-center">
+                            <MudText Typo="Typo.caption" Class="opacity-75 d-block">FACTURACIÓN MENSUAL</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold" Style="color: #00E676;">C$ @CalculatedFacturacionMensual.ToString("N2")</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                    Guardar Cotización
+                </MudButton>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Sección de Cotizaciones Guardadas -->
+    <MudDivider Class="my-8" />
+    <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Success">Historial de Cotizaciones de Producción</MudText>
+    
+    <MudTable Items="savedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
+        <HeaderContent>
+            <MudTh>Fecha</MudTh>
+            <MudTh>Cliente</MudTh>
+            <MudTh>Producto/SKU</MudTh>
+            <MudTh>Volumen Diario</MudTh>
+            <MudTh>M.O. Unitaria</MudTh>
+            <MudTh>Materiales</MudTh>
+            <MudTh>Merma %</MudTh>
+            <MudTh>Tarifa Sugerida</MudTh>
+            <MudTh>Fact. Mensual</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh Style="width:100px;">Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
+            <MudTd DataLabel="Producto/SKU">@context.ProduccionDetalle?.SkuNombre</MudTd>
+            <MudTd DataLabel="Volumen Diario">@(context.ProduccionDetalle?.ProduccionDiaria.ToString("N0") ?? "-") packs</MudTd>
+            <MudTd DataLabel="M.O. Unitaria">C$ @(context.ProduccionDetalle?.ManoObraUnitaria.ToString("N4") ?? "-")</MudTd>
+            <MudTd DataLabel="Materiales">C$ @(context.ProduccionDetalle?.MaterialesTotales.ToString("N2") ?? "-")</MudTd>
+            <MudTd DataLabel="Merma %">@(context.ProduccionDetalle?.MermaPorcentaje.ToString("N1") ?? "-")%</MudTd>
+            <MudTd DataLabel="Tarifa Sugerida" Class="font-bold text-success">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
+            <MudTd DataLabel="Fact. Mensual">C$ @((context.TarifaSugerida * (context.ProduccionDetalle?.ProduccionDiaria ?? 0) * 30m).ToString("N2"))</MudTd>
+            <MudTd DataLabel="Estado">
+                <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <div class="pa-4 text-center text-muted">No hay cotizaciones de producción registradas.</div>
+        </NoRecordsContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private string cliente = "";
+    private string skuNombre = "";
+    private int produccionDiaria = 1000;
+    private decimal manoObraUnitaria = 1.5000m;
+    private decimal mermaPorcentaje = 2.00m;
+
+    private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
+    private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
+    private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
+    private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+
+    private HashSet<int> selectedMachinery = new HashSet<int>();
+    private HashSet<string> selectedMateriales = new HashSet<string>();
+
+    // Matriz de precios de empaque
+    private Dictionary<string, decimal> materialesMatriz = new Dictionary<string, decimal>
+    {
+        { "Manga termoencogible nuevo", 0.90m },
+        { "Manga termoencogible reutilizado", 0.45m },
+        { "Cinchos plásticos", 0.10m },
+        { "Horno (gas/eléctrico)", 0.15m },
+        { "Stickers código de barras", 0.05m },
+        { "Estibado y flejado", 0.12m },
+        { "Caja / Charolado", 0.50m },
+        { "Tape / Cinta adhesiva", 0.03m }
+    };
+
+    // Cálculos dinámicos
+    private decimal CalculatedMateriales => materialesMatriz
+        .Where(x => selectedMateriales.Contains(x.Key))
+        .Sum(x => x.Value);
+
+    private decimal CalculatedAmortizacionMensual => machineryList
+        .Where(x => selectedMachinery.Contains(x.Id))
+        .Sum(x => x.ProyeccionMensual);
+
+    private decimal CalculatedAmortizacionUnitaria => (produccionDiaria > 0)
+        ? (CalculatedAmortizacionMensual / 30m) / (decimal)produccionDiaria
+        : 0m;
+
+    private decimal CalculatedCostoUnitarioBase => manoObraUnitaria + CalculatedMateriales + CalculatedAmortizacionUnitaria;
+
+    private decimal CalculatedMermaCosto => CalculatedCostoUnitarioBase * (mermaPorcentaje / 100m);
+
+    private decimal CalculatedTarifaUnitaria => CalculatedCostoUnitarioBase + CalculatedMermaCosto;
+
+    private decimal CalculatedFacturacionDiaria => CalculatedTarifaUnitaria * (decimal)produccionDiaria;
+
+    private decimal CalculatedFacturacionMensual => CalculatedFacturacionDiaria * 30m;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCatalogs();
+        await LoadQuotes();
+    }
+
+    private async Task LoadCatalogs()
+    {
+        var res = await _OdooService.GetCatalogosComercial();
+        if (res.Model != null && res.Model.Any())
+        {
+            var cats = res.Model.First();
+            eppList = cats.Epp ?? new List<CatalogoEpp>();
+            viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
+            machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
+
+            // Seleccionar por defecto maquinaria del excel
+            foreach (var item in machineryList)
+            {
+                selectedMachinery.Add(item.Id);
+            }
+            // Seleccionar materiales comunes del excel
+            selectedMateriales.Add("Manga termoencogible nuevo");
+            selectedMateriales.Add("Cinchos plásticos");
+            selectedMateriales.Add("Horno (gas/eléctrico)");
+            selectedMateriales.Add("Stickers código de barras");
+            selectedMateriales.Add("Estibado y flejado");
+        }
+    }
+
+    private async Task LoadQuotes()
+    {
+        var res = await _OdooService.GetCotizaciones();
+        if (res.Model != null)
+        {
+            savedQuotes = res.Model.Where(x => x.TipoCosteo == "Produccion").ToList();
+        }
+    }
+
+    private bool IsMaterialSelected(string mat) => selectedMateriales.Contains(mat);
+    private void ToggleMaterial(string mat, bool val)
+    {
+        if (val) selectedMateriales.Add(mat);
+        else selectedMateriales.Remove(mat);
+    }
+
+    private bool IsMaqSelected(int id) => selectedMachinery.Contains(id);
+    private void ToggleMaq(int id, bool val)
+    {
+        if (val) selectedMachinery.Add(id);
+        else selectedMachinery.Remove(id);
+    }
+
+    private async Task SaveQuote()
+    {
+        if (string.IsNullOrWhiteSpace(cliente))
+        {
+            Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(skuNombre))
+        {
+            Snackbar.Add("El nombre del SKU es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        var detail = new CotizacionProduccionDetalle
+        {
+            SkuNombre = skuNombre,
+            ProduccionDiaria = produccionDiaria,
+            ManoObraUnitaria = manoObraUnitaria,
+            MaterialesTotales = CalculatedMateriales,
+            MermaPorcentaje = mermaPorcentaje,
+            AmortizacionUnitaria = CalculatedAmortizacionUnitaria
+        };
+
+        var quote = new Cotizacion
+        {
+            ClienteNombre = cliente,
+            TipoCosteo = "Produccion",
+            UtilidadPorcentaje = mermaPorcentaje, // merma actúa como el factor de riesgo/utilidad
+            CostoTotal = CalculatedCostoUnitarioBase * (decimal)produccionDiaria * 30m,
+            TarifaSugerida = CalculatedTarifaUnitaria,
+            TarifaAcordada = CalculatedTarifaUnitaria,
+            ProduccionDetalle = detail,
+            Estado = "Borrador"
+        };
+
+        var res = await _OdooService.SaveCotizacion(quote);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Cotización de producción guardada exitosamente.", Severity.Success);
+            cliente = "";
+            skuNombre = "";
+            await LoadQuotes();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteQuote(Guid id)
+    {
+        var res = await _OdooService.DeleteCotizacion(id);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Cotización eliminada.", Severity.Info);
+            await LoadQuotes();
+        }
+        else
+        {
+            Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Aprobado" => Color.Success,
+            "Rechazado" => Color.Error,
+            _ => Color.Default
+        };
+    }
+}

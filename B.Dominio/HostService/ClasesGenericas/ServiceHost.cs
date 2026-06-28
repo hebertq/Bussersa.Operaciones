@@ -128,6 +128,38 @@ namespace HostService.ClasesGenericas
             return Result;
         }
 
+        public async Task<Message<ResponseData>> PostMultipartAsync(Uri requestUrl, MultipartFormDataContent content)
+        {
+            string metodo = $"HttpClient_{MethodBase.GetCurrentMethod().Name}_{requestUrl}";
+            _httpClient = new HttpClient();
+            await addHeaders();
+            Message<ResponseData> Result = new Message<ResponseData>();
+            try
+            {
+                using (HttpResponseMessage response = await _httpClient.PostAsync(requestUrl, content))
+                {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        response.EnsureSuccessStatusCode();
+                        var data = await response.Content.ReadAsStringAsync();
+                        Result.Data = _Util.ObtenerRegistro<ResponseData>(data);
+                    }
+                    else
+                    {
+                        string status = response.StatusCode.ToString();
+                        string errorBody = string.Empty;
+                        try { errorBody = await response.Content.ReadAsStringAsync(); } catch { }
+                        Result.SetErroAcces("Error al aceder a " + requestUrl.ToString() + " - Detalle: " + errorBody, metodo, status);
+                    }
+                }
+            }
+            catch (CoreException ex)
+            {
+                Result.SetErrorExep(ex, metodo);
+            }
+            return Result;
+        }
+
         public async Task<Message<ResponseData>> DeleteAsync(Uri requestUrl)
         {
             string metodo = $"HttpClient_{MethodBase.GetCurrentMethod().Name}_{requestUrl}";

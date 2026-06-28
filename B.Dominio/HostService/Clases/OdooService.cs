@@ -1239,6 +1239,204 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        // --- MÓDULO COMERCIAL Y COTIZADOR ---
+        public async Task<IListResponse<Modelo.Comercial.CatalogoResponse>> GetCatalogosComercial()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Comercial.CatalogoResponse> response = new ListResponse<Modelo.Comercial.CatalogoResponse>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/GetCatalogos");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.CatalogoResponse>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveCotizacion(Modelo.Comercial.Cotizacion cotizacion)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/SaveCotizacion");
+                var registro = await PostAsync(requestUrl, cotizacion);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Comercial.Cotizacion>> GetCotizaciones()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Comercial.Cotizacion> response = new ListResponse<Modelo.Comercial.Cotizacion>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/GetCotizaciones");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.Cotizacion>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteCotizacion(Guid id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/DeleteCotizacion/{id}");
+                var registro = await DeleteAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        // --- DASHBOARD DE RENTABILIDAD ---
+        public async Task<IListResponse<Modelo.Comercial.DashboardResponse>> GetDashboardData(string mes, string turno)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Comercial.DashboardResponse> response = new ListResponse<Modelo.Comercial.DashboardResponse>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/GetDashboard/{mes}/{turno}");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.DashboardResponse>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<string>> GetDashboardMonths()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<string> response = new ListResponse<string>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/GetDashboardMonths");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<string>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> UploadDashboardExcel(byte[] fileBytes, string fileName, string mes)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/ImportDashboard");
+                using (var content = new System.Net.Http.MultipartFormDataContent())
+                {
+                    var fileContent = new System.Net.Http.ByteArrayContent(fileBytes);
+                    fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    content.Add(fileContent, "file", fileName);
+                    content.Add(new System.Net.Http.StringContent(mes), "mes");
+
+                    var registro = await PostMultipartAsync(requestUrl, content);
+                    if (registro.IsSuccess)
+                    {
+                        var reg = registro.Data;
+                        if (reg.sucess)
+                            response.Respuesta.ExisteError = false;
+                        else
+                            response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                    else
+                        response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 

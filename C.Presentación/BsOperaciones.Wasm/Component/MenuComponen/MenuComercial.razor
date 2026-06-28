@@ -1,0 +1,12 @@
+@using BsOperaciones.Application.Extensions
+
+<AuthorizeView Policy="@Policies.IsMenu" Resource="26">
+    <Authorized>
+        <MudNavGroup Title="Comercial" Icon="@Icons.Material.Filled.BusinessCenter" Expanded="false">
+            <MenuItem MenuId="27" Name="Costeo Personal" Url="/comercial/costeo-personal" IconName="@Icons.Material.Filled.People" />
+            <MenuItem MenuId="28" Name="Costeo Producción" Url="/comercial/costeo-produccion" IconName="@Icons.Material.Filled.Build" />
+            <MenuItem MenuId="29" Name="Indicadores" Url="/comercial/dashboard" IconName="@Icons.Material.Filled.TrendingUp" />
+        </MudNavGroup>
+    </Authorized>
+    <NotAuthorized />
+</AuthorizeView>
