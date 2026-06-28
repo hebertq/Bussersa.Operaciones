@@ -35,16 +35,25 @@
                             <!-- Referencia de Personal -->
                             <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Referencia de Costo de Personal</MudText>
                             <MudGrid>
-                                <MudItem XS="12" SM="7">
-                                    <MudSelect T="Guid?" Value="selectedPersonnelQuoteId" ValueChanged="OnPersonnelQuoteChanged" Label="Cotización de Personal de Referencia" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
-                                        <MudSelectItem T="Guid?" Value="null">-- Ingreso Manual de Mano de Obra --</MudSelectItem>
-                                        @foreach (var q in personnelQuotes)
+                                <MudItem XS="12" SM="4">
+                                    <MudSelect T="string" Value="selectedFilterEmpresa" ValueChanged="OnEmpresaFilterChanged" Label="Filtrar por Empresa" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
+                                        <MudSelectItem T="string" Value="@("")">-- Seleccione Empresa --</MudSelectItem>
+                                        @foreach (var emp in personnelQuotes.Select(x => x.ClienteNombre).Distinct().OrderBy(x => x))
                                         {
-                                            <MudSelectItem T="Guid?" Value="@((Guid?)q.Id)">@q.ClienteNombre (C$ @q.CostoTotal.ToString("N2")/mes)</MudSelectItem>
+                                            <MudSelectItem T="string" Value="@emp">@emp</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudItem>
-                                <MudItem XS="12" SM="5">
+                                <MudItem XS="12" SM="4">
+                                    <MudSelect T="Guid?" Value="selectedPersonnelQuoteId" ValueChanged="OnPersonnelQuoteChanged" Label="Seleccionar Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Disabled="@(string.IsNullOrEmpty(selectedFilterEmpresa))">
+                                        <MudSelectItem T="Guid?" Value="null">-- Ingreso Manual (M.O.) --</MudSelectItem>
+                                        @foreach (var q in personnelQuotes.Where(x => x.ClienteNombre == selectedFilterEmpresa))
+                                        {
+                                            <MudSelectItem T="Guid?" Value="@((Guid?)q.Id)">@(q.PersonalDetalle?.Turno ?? "Sin Turno") (C$ @q.CostoTotal.ToString("N2"))</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
                                     @if (selectedPersonnelQuoteId == null)
                                     {
                                         <MudNumericField T="decimal" @bind-Value="manoObraUnitaria" Label="Mano de Obra Unitaria (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N4" />
@@ -502,6 +511,7 @@
 
     private Guid? selectedPersonnelQuoteId;
     private Cotizacion selectedPersonnelQuote;
+    private string selectedFilterEmpresa = "";
 
     private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
@@ -616,6 +626,15 @@
         }
     }
 
+    private void OnEmpresaFilterChanged(string val)
+    {
+        selectedFilterEmpresa = val;
+        selectedPersonnelQuoteId = null;
+        selectedPersonnelQuote = null;
+        manoObraUnitaria = 0m;
+        tarifaAcordada = CalculatedTarifaUnitaria;
+    }
+
     private void OnPersonnelQuoteChanged(Guid? id)
     {
         selectedPersonnelQuoteId = id;
@@ -708,6 +727,10 @@
             {
                 selectedPersonnelQuoteId = quote.ProduccionDetalle.PersonalCotizacionId;
                 selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == selectedPersonnelQuoteId.Value);
+                if (selectedPersonnelQuote != null)
+                {
+                    selectedFilterEmpresa = selectedPersonnelQuote.ClienteNombre;
+                }
             }
 
             // Cargar materiales seleccionados

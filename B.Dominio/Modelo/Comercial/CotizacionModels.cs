@@ -36,6 +36,11 @@ namespace Modelo.Comercial
         public decimal Cargos { get; set; }
         public decimal Seguros { get; set; }
         public decimal GastosOperativos { get; set; }
+        public string Turno { get; set; } = "";
+        public int HorasTurno { get; set; }
+        public decimal TarifaExtra { get; set; }
+        public decimal TarifaFeriado { get; set; }
+        public decimal TarifaDomingo { get; set; }
     }
 
     public class CotizacionProduccionDetalle

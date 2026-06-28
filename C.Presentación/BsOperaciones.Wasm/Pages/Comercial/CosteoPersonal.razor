@@ -3,6 +3,7 @@
 @using HostService.Interfaces
 @inject IOdooService _OdooService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
@@ -21,6 +22,15 @@
                             <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Datos de Entrada</MudText>
                             
                             <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" />
+                            
+                            <MudGrid>
+                                <MudItem XS="12" SM="6">
+                                    <MudTextField @bind-Value="turno" Label="Nombre del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" HelperText="Ej: Diurno, Nocturno, Mixto" />
+                                </MudItem>
+                                <MudItem XS="12" SM="6">
+                                    <MudNumericField T="int" @bind-Value="horasTurno" Label="Horas del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" Max="24" />
+                                </MudItem>
+                            </MudGrid>
                             
                             <MudGrid>
                                 <MudItem XS="12" SM="6">
@@ -234,10 +244,20 @@
                                 </MudItem>
                             </MudGrid>
 
-                            <div class="text-center mb-6">
-                                <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA HORA EXTRA</MudText>
-                                <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Secondary">C$ @CalculatedTarifaExtra.ToString("N2")</MudText>
-                            </div>
+                            <MudGrid Class="mb-6 text-center">
+                                <MudItem XS="4" Class="border-r" style="border-color: rgba(0,0,0,0.1) !important;">
+                                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">HORA EXTRA</MudText>
+                                    <MudText Typo="Typo.body1" Class="font-bold" Color="Color.Secondary">C$ @CalculatedTarifaExtra.ToString("N2")</MudText>
+                                </MudItem>
+                                <MudItem XS="4" Class="border-r" style="border-color: rgba(0,0,0,0.1) !important;">
+                                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">H. FERIADA</MudText>
+                                    <MudText Typo="Typo.body1" Class="font-bold" Color="Color.Secondary">C$ @CalculatedTarifaFeriado.ToString("N2")</MudText>
+                                </MudItem>
+                                <MudItem XS="4">
+                                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">H. DOMINGO</MudText>
+                                    <MudText Typo="Typo.body1" Class="font-bold" Color="Color.Secondary">C$ @CalculatedTarifaDomingo.ToString("N2")</MudText>
+                                </MudItem>
+                            </MudGrid>
 
                             <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
                                 Guardar Cotización
@@ -245,6 +265,50 @@
                         </MudCard>
                     </MudItem>
                 </MudGrid>
+
+                <!-- Grilla de Turnos de esta Empresa/Cliente (para impresión de Cotización) -->
+                @if (!string.IsNullOrWhiteSpace(cliente))
+                {
+                    <MudCard Elevation="4" Class="pa-6 mt-6" Style="border-radius: 12px; border-top: 4px solid #107c41;">
+                        <div class="d-flex align-center justify-space-between mb-4">
+                            <div>
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-bold">Turnos Cotizados para @cliente</MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">Seleccione los turnos que desea consolidar en la cotización oficial para imprimir</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintConsolidatedCotizacion" Disabled="@(!selectedQuotesForPrint.Any())" Class="font-bold">
+                                Imprimir Cotización (@selectedQuotesForPrint.Count Seleccionados)
+                            </MudButton>
+                        </div>
+
+                        <MudTable Items="CurrentClientQuotes" MultiSelection="true" T="Cotizacion" @bind-SelectedItems="selectedQuotesForPrint" Hover="true" Elevation="1" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Turno</MudTh>
+                                <MudTh Style="text-align: center;">Horas</MudTh>
+                                <MudTh Style="text-align: right;">Salario Base</MudTh>
+                                <MudTh Style="text-align: right;">Costo Total</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa Sugerida</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa Acordada</MudTh>
+                                <MudTh Style="text-align: right;">Hora Extra / Feriado / Domingo</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
+                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurno ?? 8) hrs</MudTd>
+                                <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
+                                <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa Acordada" Style="text-align: right;">
+                                    <div class="d-flex align-center justify-end">
+                                        <MudNumericField T="decimal" Value="context.TarifaAcordada" ValueChanged="@((decimal val) => UpdateTarifaAcordada(context, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 150px; text-align: right;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="H. Extra / Feriado / Domingo" Style="text-align: right;">C$ @(context.PersonalDetalle?.TarifaExtra.ToString("N2") ?? "0.00") / hora</MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <div class="pa-4 text-center text-muted">No se han guardado turnos para el cliente "@cliente". Agregue y guarde turnos arriba.</div>
+                            </NoRecordsContent>
+                        </MudTable>
+                    </MudCard>
+                }
             </div>
         </MudTabPanel>
 
@@ -448,6 +512,8 @@
     private int? selectedEppToAdd;
 
     private string cliente = "";
+    private string turno = "Diurno";
+    private int horasTurno = 8;
     private decimal salarioBase = 9000.00m;
     private decimal utilidadPorcentaje = 20.00m;
     private decimal supervision = 1000.00m;
@@ -459,6 +525,10 @@
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
     private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
     private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+    private HashSet<Cotizacion> selectedQuotesForPrint = new HashSet<Cotizacion>();
+
+    private IEnumerable<Cotizacion> CurrentClientQuotes => savedQuotes
+        .Where(q => q.ClienteNombre != null && q.ClienteNombre.Trim().Equals(cliente.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private HashSet<int> selectedEpps = new HashSet<int>();
     private HashSet<int> selectedViaticos = new HashSet<int>();
@@ -502,9 +572,13 @@
 
     private decimal CalculatedTarifaDia => CalculatedTarifaSugerida / 30m;
 
-    private decimal CalculatedTarifaHora => CalculatedTarifaDia / 8m;
+    private decimal CalculatedTarifaHora => CalculatedTarifaDia / (decimal)horasTurno;
 
-    private decimal CalculatedTarifaExtra => ((salarioBase / 30m) / 8m) + CalculatedTarifaHora;
+    private decimal CalculatedTarifaExtra => ((salarioBase / 30m) / (decimal)horasTurno) + CalculatedTarifaHora;
+
+    private decimal CalculatedTarifaFeriado => CalculatedTarifaExtra;
+
+    private decimal CalculatedTarifaDomingo => CalculatedTarifaExtra;
 
     protected override async Task OnInitializedAsync()
     {
@@ -623,6 +697,8 @@
         
         if (quote.PersonalDetalle != null)
         {
+            turno = quote.PersonalDetalle.Turno;
+            horasTurno = quote.PersonalDetalle.HorasTurno;
             salarioBase = quote.PersonalDetalle.SalarioBase;
             supervision = quote.PersonalDetalle.Supervision;
             cargos = quote.PersonalDetalle.Cargos;
@@ -677,7 +753,12 @@
             Supervision = supervision,
             Cargos = cargos,
             Seguros = seguros,
-            GastosOperativos = gastosOperativos
+            GastosOperativos = gastosOperativos,
+            Turno = turno,
+            HorasTurno = horasTurno,
+            TarifaExtra = CalculatedTarifaExtra,
+            TarifaFeriado = CalculatedTarifaFeriado,
+            TarifaDomingo = CalculatedTarifaDomingo
         };
 
         var quote = new Cotizacion
@@ -738,6 +819,39 @@
         else
         {
             Snackbar.Add("Error al guardar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task UpdateTarifaAcordada(Cotizacion quote, decimal val)
+    {
+        quote.TarifaAcordada = val;
+        var res = await _OdooService.SaveCotizacion(quote);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add($"Tarifa acordada del turno '{quote.PersonalDetalle?.Turno}' actualizada a C$ {val:N2}.", Severity.Success);
+            await LoadQuotes();
+        }
+        else
+        {
+            Snackbar.Add("Error al actualizar tarifa acordada: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task PrintConsolidatedCotizacion()
+    {
+        if (!selectedQuotesForPrint.Any()) return;
+
+        var ids = selectedQuotesForPrint.Select(q => q.Id).ToList();
+        var res = await _OdooService.PrintCotizacionPdf(ids);
+        if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+        {
+            var fileBytes = Convert.FromBase64String(res.Model.File);
+            await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{cliente.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+            Snackbar.Add("Cotización generada y descargada.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
         }
     }
 

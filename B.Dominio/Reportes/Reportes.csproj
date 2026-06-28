@@ -38,4 +38,9 @@
     <EmbeddedResource Include="logo.png" />
   </ItemGroup>
 
+  <Target Name="CopyExternalDll" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetDir)Reportes.dll" DestinationFiles="..\..\..\Bussersa.Api\External\Reportes.dll" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(TargetDir)Reportes.pdb" DestinationFiles="..\..\..\Bussersa.Api\External\Reportes.pdb" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

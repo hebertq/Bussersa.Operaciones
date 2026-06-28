@@ -692,6 +692,32 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<FileNameString>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/GenerateCotizacionPdf");
+                var registro = await PostAsync(requestUrl, ids);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<FileNameString>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
