@@ -356,47 +356,88 @@
             <div class="pa-6">
                 <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Primary">Historial de Cotizaciones Guardadas</MudText>
                 
-                <MudTable Items="savedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
+                <MudTable Items="groupedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
                     <HeaderContent>
-                        <MudTh>Fecha</MudTh>
+                        <MudTh Style="width: 50px;"></MudTh>
+                        <MudTh>Año/Mes</MudTh>
                         <MudTh>Cliente</MudTh>
-                        <MudTh>Salario Base</MudTh>
-                        <MudTh>Costo Mensual</MudTh>
-                        <MudTh>Utilidad (%)</MudTh>
-                        <MudTh>Tarifa Sugerida</MudTh>
-                        <MudTh>F. Facturación</MudTh>
-                        <MudTh>Estado</MudTh>
-                        <MudTh Style="width:100px;">Acciones</MudTh>
+                        <MudTh>Cant. Turnos</MudTh>
+                        <MudTh>Costo Total Mensual (CMT)</MudTh>
+                        <MudTh>Tarifa Sugerida Total</MudTh>
+                        <MudTh Style="width:120px; text-align: center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@(context.ShowDetails ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)"
+                                           OnClick="@(() => context.ShowDetails = !context.ShowDetails)" Size="Size.Small" />
+                        </MudTd>
+                        <MudTd DataLabel="Año/Mes" Class="font-bold">@context.Periodo</MudTd>
                         <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
-                        <MudTd DataLabel="Salario Base">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "-")</MudTd>
-                        <MudTd DataLabel="Costo Mensual">C$ @context.CostoTotal.ToString("N2")</MudTd>
-                        <MudTd DataLabel="Utilidad (%)">@context.UtilidadPorcentaje.ToString("N1")%</MudTd>
-                        <MudTd DataLabel="Tarifa Sugerida">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
-                        <MudTd DataLabel="F. Facturación">
-                            @if (context.PersonalDetalle != null && context.PersonalDetalle.SalarioBase > 0)
-                            {
-                                @((context.TarifaSugerida / context.PersonalDetalle.SalarioBase).ToString("N2"))
-                            }
-                            else
-                            {
-                                <span>-</span>
-                            }
+                        <MudTd DataLabel="Cant. Turnos">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@context.Quotes.Count turnos</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Estado">
-                            <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Acciones">
-                            <MudTooltip Text="Cargar en el cotizador">
-                                <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Primary" Size="Size.Small" OnClick="@(() => LoadQuoteToForm(context))" />
-                            </MudTooltip>
-                            <MudTooltip Text="Eliminar cotización">
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
-                            </MudTooltip>
+                        <MudTd DataLabel="Costo Total Mensual">C$ @context.CostoTotal.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Tarifa Sugerida Total" Class="font-bold text-primary">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                        <MudTd Style="text-align: center;">
+                            <div class="d-flex justify-center gap-1">
+                                <MudTooltip Text="Re-Imprimir Cotización Consolidada">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Primary" Size="Size.Small" OnClick="@(() => PrintGroup(context))" />
+                                </MudTooltip>
+                                <MudTooltip Text="Eliminar Grupo Completo">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteGroup(context))" />
+                                </MudTooltip>
+                            </div>
                         </MudTd>
                     </RowTemplate>
+                    <ChildRowContent>
+                        @if (context.ShowDetails)
+                        {
+                            <MudTr>
+                                <td colspan="7" class="pa-4" style="background-color: rgba(0,0,0,0.02);">
+                                    <MudCard Elevation="2" Outlined="true" Class="pa-4" Style="border-radius: 8px;">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-3 font-bold" Color="Color.Primary">
+                                            Detalle de Turnos: @context.ClienteNombre (@context.Periodo)
+                                        </MudText>
+                                        <MudTable Items="context.Quotes" Context="detailContext" Hover="true" Dense="true" Elevation="0">
+                                            <HeaderContent>
+                                                <MudTh>Turno</MudTh>
+                                                <MudTh>Horas</MudTh>
+                                                <MudTh>Salario Base</MudTh>
+                                                <MudTh>Costo Mensual (CMT)</MudTh>
+                                                <MudTh>Tarifa Sugerida</MudTh>
+                                                <MudTh>Tarifa Acordada</MudTh>
+                                                <MudTh>Estado</MudTh>
+                                                <MudTh style="width: 80px; text-align: center;">Acciones</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd DataLabel="Turno">@detailContext.PersonalDetalle?.Turno</MudTd>
+                                                <MudTd DataLabel="Horas">@detailContext.PersonalDetalle?.HorasTurno hrs</MudTd>
+                                                <MudTd DataLabel="Salario Base">C$ @(detailContext.PersonalDetalle?.SalarioBase.ToString("N2") ?? "-")</MudTd>
+                                                <MudTd DataLabel="Costo Mensual">C$ @detailContext.CostoTotal.ToString("N2")</MudTd>
+                                                <MudTd DataLabel="Tarifa Sugerida">C$ @detailContext.TarifaSugerida.ToString("N2")</MudTd>
+                                                <MudTd DataLabel="Tarifa Acordada">
+                                                    <MudNumericField T="decimal" Value="@detailContext.TarifaAcordada" ValueChanged="@((decimal val) => UpdateTarifaAcordada(detailContext, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 140px; background-color: white;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                                </MudTd>
+                                                <MudTd DataLabel="Estado">
+                                                    <MudChip T="string" Color="GetStatusColor(detailContext.Estado)" Size="Size.Small">@detailContext.Estado</MudChip>
+                                                </MudTd>
+                                                <MudTd Style="text-align: center;">
+                                                    <div class="d-flex justify-center gap-1">
+                                                        <MudTooltip Text="Cargar en el cotizador">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Primary" Size="Size.Small" OnClick="@(() => LoadQuoteToForm(detailContext))" />
+                                                        </MudTooltip>
+                                                        <MudTooltip Text="Eliminar este turno">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(detailContext.Id))" />
+                                                        </MudTooltip>
+                                                    </div>
+                                                </MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    </MudCard>
+                                </td>
+                            </MudTr>
+                        }
+                    </ChildRowContent>
                     <NoRecordsContent>
                         <div class="pa-4 text-center text-muted">No hay cotizaciones de personal registradas.</div>
                     </NoRecordsContent>
@@ -564,6 +605,20 @@
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
     private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
     private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+
+    public class GroupedCotizacion
+    {
+        public string ClienteNombre { get; set; } = "";
+        public string Periodo { get; set; } = "";
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public decimal CostoTotal => Quotes.Sum(q => q.CostoTotal);
+        public decimal TarifaSugerida => Quotes.Sum(q => q.TarifaSugerida);
+        public List<Cotizacion> Quotes { get; set; } = new List<Cotizacion>();
+        public bool ShowDetails { get; set; }
+    }
+
+    private List<GroupedCotizacion> groupedQuotes = new List<GroupedCotizacion>();
     private HashSet<Cotizacion> selectedQuotesForPrint = new HashSet<Cotizacion>();
     private List<Cotizacion> temporaryShifts = new List<Cotizacion>();
 
@@ -657,6 +712,25 @@
         if (res.Model != null)
         {
             savedQuotes = res.Model.Where(x => x.TipoCosteo == "Personal").ToList();
+
+            // Agrupar
+            groupedQuotes = savedQuotes
+                .GroupBy(x => new { 
+                    Cliente = x.ClienteNombre, 
+                    x.FechaCreacion.Year,
+                    x.FechaCreacion.Month
+                })
+                .Select(g => new GroupedCotizacion
+                {
+                    ClienteNombre = g.Key.Cliente,
+                    Periodo = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-NI")),
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    Quotes = g.OrderByDescending(x => x.FechaCreacion).ToList()
+                })
+                .OrderByDescending(g => g.Year)
+                .ThenByDescending(g => g.Month)
+                .ToList();
         }
     }
 
@@ -954,6 +1028,48 @@
         {
             Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
         }
+    }
+
+    private async Task PrintGroup(GroupedCotizacion group)
+    {
+        var ids = group.Quotes.Select(q => q.Id).ToList();
+        var res = await _OdooService.PrintCotizacionPdf(ids);
+        if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+        {
+            var fileBytes = Convert.FromBase64String(res.Model.File);
+            await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{group.ClienteNombre.Replace(" ", "_")}_{group.Periodo.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+            Snackbar.Add("Cotización consolidada generada y descargada.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task DeleteGroup(GroupedCotizacion group)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"¿Está seguro de eliminar toda la cotización de {group.ClienteNombre} para el período {group.Periodo}? Esto borrará sus {group.Quotes.Count} turnos.");
+        if (!confirm) return;
+
+        bool allDeleted = true;
+        foreach (var q in group.Quotes)
+        {
+            var res = await _OdooService.DeleteCotizacion(q.Id);
+            if (res.Respuesta.ExisteError)
+            {
+                allDeleted = false;
+            }
+        }
+
+        if (allDeleted)
+        {
+            Snackbar.Add("Cotización eliminada por completo.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add("Se eliminaron algunos turnos, pero otros fallaron.", Severity.Warning);
+        }
+        await LoadQuotes();
     }
 
     private Color GetStatusColor(string status)
