@@ -26,7 +26,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\B.Dominio\BsOperaciones.Application\BsOperaciones.Application.csproj" />
     <ProjectReference Include="..\..\B.Dominio\Modelo\Modelo.csproj" />
-    <ProjectReference Include="..\..\B.Dominio\Reportes\Reportes.csproj" />
     <ProjectReference Include="..\..\B.Dominio\Utilidades\Utilidades.csproj" />
   </ItemGroup>
 

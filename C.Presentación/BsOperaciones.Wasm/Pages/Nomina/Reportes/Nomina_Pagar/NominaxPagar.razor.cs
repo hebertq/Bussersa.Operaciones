@@ -12,8 +12,6 @@ using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Interfaces;
 using Utilidades.Interfaces;
-using Utilidades.ClasesGenericas;
-using global::Reportes.Operaciones;
 using HostService.Interfaces;
 
 namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Pagar
