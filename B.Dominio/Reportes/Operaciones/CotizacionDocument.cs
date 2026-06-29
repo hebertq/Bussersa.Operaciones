@@ -109,13 +109,14 @@ namespace Reportes.Operaciones
                                 totalMensual += cot.TarifaAcordada + detail.TarifaExtra + detail.TarifaDomingo;
 
                                 int horasMensuales = detail.HorasTurno * 30;
+                                decimal precioHoraNormal = horasMensuales > 0 ? cot.TarifaAcordada / horasMensuales : 0;
 
                                 // Fila 1: Horas Normales (Servicio Mensual Base)
                                 table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({horasMensuales} hrs/mes) - Horas Normales").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("Mes").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("1").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8);
+                                table.Cell().Element(CellStyle).Text(horasMensuales.ToString()).FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
 
                                 // Fila 2: Hora Extra
