@@ -114,9 +114,9 @@ namespace Reportes.Operaciones
                                 // Fila 1: Horas Normales (Servicio Mensual Base)
                                 table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({horasMensuales} hrs/mes) - Horas Normales").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("Mes").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("1").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8);
+                                table.Cell().Element(CellStyle).Text(horasMensuales.ToString()).FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
 
                                 // Fila 2: Hora Extra
