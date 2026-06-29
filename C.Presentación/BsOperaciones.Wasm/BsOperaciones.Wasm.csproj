@@ -7,6 +7,7 @@
     <AssemblyName>BsOperaciones</AssemblyName>
     <RootNamespace>BsOperaciones</RootNamespace>
     <GenerateMvcApplicationPartsAssemblyAttributes>false</GenerateMvcApplicationPartsAssemblyAttributes>
+    <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
   </PropertyGroup>
 
   <ItemGroup>
