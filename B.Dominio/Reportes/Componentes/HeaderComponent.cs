@@ -87,7 +87,7 @@ namespace Reportes.Componentes
             container.Row(row =>
             {
                 // Compact logo on the left (width 85, max height 45, centered vertically)
-                row.ConstantItem(85).MaxHeight(45).AlignMiddle().Image(LogoImage);
+                row.ConstantItem(85).MaxHeight(45).AlignMiddle().Image(LogoImage).FitArea();
 
                 // Centered text content
                 row.RelativeItem().Column(column =>
