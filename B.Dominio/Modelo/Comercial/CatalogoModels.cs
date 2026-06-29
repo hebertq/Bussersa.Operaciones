@@ -36,11 +36,25 @@ namespace Modelo.Comercial
         public decimal CostoUnitario { get; set; }
     }
 
+    public class CargosSocialesConfig
+    {
+        public int Id { get; set; }
+        public decimal InssPatronal { get; set; }
+        public decimal Inatec { get; set; }
+        public decimal VacacionesDias { get; set; }
+        public decimal AguinaldoDias { get; set; }
+        public decimal IndemnizacionDias { get; set; }
+        public decimal DomingosDias { get; set; }
+        public decimal FeriadosDias { get; set; }
+        public decimal ColchonSubsidio { get; set; }
+    }
+
     public class CatalogoResponse
     {
         public System.Collections.Generic.List<CatalogoEpp> Epp { get; set; } = new System.Collections.Generic.List<CatalogoEpp>();
         public System.Collections.Generic.List<CatalogoViatico> Viaticos { get; set; } = new System.Collections.Generic.List<CatalogoViatico>();
         public System.Collections.Generic.List<CatalogoMaquinaria> Maquinaria { get; set; } = new System.Collections.Generic.List<CatalogoMaquinaria>();
         public System.Collections.Generic.List<CatalogoMaterial> Materiales { get; set; } = new System.Collections.Generic.List<CatalogoMaterial>();
+        public CargosSocialesConfig CargosSociales { get; set; }
     }
 }

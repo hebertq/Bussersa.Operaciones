@@ -56,7 +56,7 @@
                             <MudNumericField T="decimal" @bind-Value="gastosOperativos" Label="Otros Gastos Administrativos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Format="N2" />
                             
                             <MudText Typo="Typo.caption" Class="text-muted d-block mb-6">
-                                * El costo de prestaciones sociales está fijado al 74.3% del salario base (cubre feriados, domingos, 22.5% de INSS patronal y 3.0% de subsidio/colchón).
+                                * El costo de prestaciones sociales está fijado al @((CalculatedPrestacionesFactor * 100m).ToString("N1"))% del salario base (cálculo dinámico basado en la configuración de cargos sociales).
                             </MudText>
 
                             <!-- Viáticos -->
@@ -170,7 +170,7 @@
                             </div>
 
                             <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
-                                <MudText Typo="Typo.body1" Class="opacity-75">Prestaciones (74.3%):</MudText>
+                                <MudText Typo="Typo.body1" Class="opacity-75">Prestaciones (@((CalculatedPrestacionesFactor * 100m).ToString("N1"))%):</MudText>
                                 <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedPrestaciones.ToString("N2")</MudText>
                             </div>
 
@@ -580,6 +580,125 @@
                             </MudItem>
                         </MudGrid>
                     </MudTabPanel>
+
+                    <MudTabPanel Text="Cargos Sociales">
+                        <MudGrid>
+                            <MudItem XS="12" MD="8">
+                                <MudCard Elevation="2" Class="pa-6" Style="border-radius: 12px; height: 100%;">
+                                    <MudText Typo="Typo.h6" Class="mb-4 text-primary font-bold">Configuración de Cargos Sociales</MudText>
+                                    
+                                    <MudGrid>
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="cargosConfig.InssPatronal" Label="INSS Patronal (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" />
+                                        </MudItem>
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="cargosConfig.Inatec" Label="INATEC (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" />
+                                        </MudItem>
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="cargosConfig.ColchonSubsidio" Label="Colchón/Subsidio (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" />
+                                        </MudItem>
+
+                                        <MudItem XS="12" SM="6" MD="6">
+                                            <MudNumericField T="decimal" @bind-Value="cargosConfig.DomingosDias" Label="Domingos al Año (días)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" />
+                                        </MudItem>
+                                        <MudItem XS="12" SM="6" MD="6">
+                                            <MudNumericField T="decimal" @bind-Value="cargosConfig.FeriadosDias" Label="Feriados al Año (días)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N2" />
+                                        </MudItem>
+
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="vacasAlMes" Label="Vacaciones al Mes (días)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N4" />
+                                        </MudItem>
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="aguinaldoAlMes" Label="Aguinaldo al Mes (días)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N4" />
+                                        </MudItem>
+                                        <MudItem XS="12" SM="6" MD="4">
+                                            <MudNumericField T="decimal" @bind-Value="indemnizacionAlMes" Label="Indemnización al Mes (días)" Variant="Variant.Outlined" Margin="Margin.Dense" Format="N4" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <div class="mt-6 d-flex justify-end">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveCargosSociales" Class="px-6 py-2">
+                                            Guardar Configuración
+                                        </MudButton>
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+
+                            <MudItem XS="12" MD="4">
+                                <MudCard Elevation="4" Class="pa-6" Style="border-radius: 12px; background: linear-gradient(135deg, #1A237E, #0D47A1); color: white; height: 100%;">
+                                    <MudText Typo="Typo.h6" Class="mb-4 font-bold" Color="Color.Inherit">Fórmula y Detalle del Cálculo</MudText>
+                                    
+                                    <MudText Typo="Typo.body2" Class="mb-4 opacity-90">
+                                        El factor de cargos sociales se calcula dinámicamente utilizando la siguiente fórmula:
+                                    </MudText>
+
+                                    <div class="pa-3 mb-6 font-mono text-center rounded" style="background: rgba(0,0,0,0.25); border-left: 4px solid #00E676; font-size: 0.85rem;">
+                                        Factor = (INSS% + INATEC% + Colchón%) + (Días Totales / 360)
+                                    </div>
+
+                                    <MudText Typo="Typo.subtitle2" Class="font-bold mb-2" Color="Color.Inherit">Desglose Actual:</MudText>
+                                    
+                                    <div class="d-flex justify-space-between mb-2 opacity-95">
+                                        <span>Aporte INSS:</span>
+                                        <span class="font-bold">@cargosConfig.InssPatronal.ToString("N2")%</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-2 opacity-95">
+                                        <span>Aporte INATEC:</span>
+                                        <span class="font-bold">@cargosConfig.Inatec.ToString("N2")%</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-4 opacity-95">
+                                        <span>Colchón/Subsidio:</span>
+                                        <span class="font-bold">@cargosConfig.ColchonSubsidio.ToString("N2")%</span>
+                                    </div>
+
+                                    <div class="border-t pt-3 mb-2" style="border-color: rgba(255,255,255,0.2) !important;">
+                                        <MudText Typo="Typo.subtitle2" Class="font-bold mb-1" Color="Color.Inherit">Días anuales equivalentes:</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-1 opacity-85" style="font-size: 0.85rem;">
+                                        <span>Domingos (anuales):</span>
+                                        <span>@cargosConfig.DomingosDias.ToString("N1")</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-1 opacity-85" style="font-size: 0.85rem;">
+                                        <span>Feriados (anuales):</span>
+                                        <span>@cargosConfig.FeriadosDias.ToString("N1")</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-1 opacity-85" style="font-size: 0.85rem;">
+                                        <span>Vacaciones (@vacasAlMes.ToString("N2")/mes):</span>
+                                        <span>@((vacasAlMes * 12m).ToString("N1"))</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-1 opacity-85" style="font-size: 0.85rem;">
+                                        <span>Aguinaldo (@aguinaldoAlMes.ToString("N2")/mes):</span>
+                                        <span>@((aguinaldoAlMes * 12m).ToString("N1"))</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-3 opacity-85" style="font-size: 0.85rem;">
+                                        <span>Indemnización (@indemnizacionAlMes.ToString("N2")/mes):</span>
+                                        <span>@((indemnizacionAlMes * 12m).ToString("N1"))</span>
+                                    </div>
+
+                                    <div class="d-flex justify-space-between mb-4 opacity-95">
+                                        <span>Suma de días:</span>
+                                        <span class="font-bold">@((cargosConfig.DomingosDias + cargosConfig.FeriadosDias + (vacasAlMes * 12m) + (aguinaldoAlMes * 12m) + (indemnizacionAlMes * 12m)).ToString("N1")) días</span>
+                                    </div>
+
+                                    <div class="d-flex justify-space-between border-t pt-3 mb-2" style="border-color: rgba(255,255,255,0.2) !important;">
+                                        <span>Carga Directa %:</span>
+                                        <span class="font-bold">@((cargosConfig.InssPatronal + cargosConfig.Inatec + cargosConfig.ColchonSubsidio).ToString("N2"))%</span>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-4">
+                                        <span>Carga por Días %:</span>
+                                        <span class="font-bold">@(((cargosConfig.DomingosDias + cargosConfig.FeriadosDias + (vacasAlMes * 12m) + (aguinaldoAlMes * 12m) + (indemnizacionAlMes * 12m)) / 360m * 100m).ToString("N2"))%</span>
+                                    </div>
+
+                                    <div class="d-flex justify-space-between border-t pt-3" style="border-color: rgba(255,255,255,0.2) !important; font-size: 1.1rem;">
+                                        <span class="font-bold">FACTOR TOTAL:</span>
+                                        <span class="font-bold text-success" style="color: #00E676 !important;">
+                                            @((CalculatedPrestacionesFactor * 100m).ToString("N2"))%
+                                        </span>
+                                    </div>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
                 </MudTabs>
             </div>
         </MudTabPanel>
@@ -605,6 +724,27 @@
     private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
     private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
     private List<Cotizacion> savedQuotes = new List<Cotizacion>();
+
+    private CargosSocialesConfig cargosConfig = new CargosSocialesConfig
+    {
+        InssPatronal = 22.5m,
+        Inatec = 2.0m,
+        VacacionesDias = 30.0m,
+        AguinaldoDias = 30.0m,
+        IndemnizacionDias = 41.5m,
+        DomingosDias = 52.0m,
+        FeriadosDias = 15.0m,
+        ColchonSubsidio = 3.0m
+    };
+
+    private decimal vacasAlMes = 2.5m;
+    private decimal aguinaldoAlMes = 2.5m;
+    private decimal indemnizacionAlMes = 3.4583m;
+
+    private decimal CalculatedPrestacionesFactor => cargosConfig != null 
+        ? ((cargosConfig.InssPatronal + cargosConfig.Inatec + cargosConfig.ColchonSubsidio) / 100m) 
+          + ((cargosConfig.DomingosDias + cargosConfig.FeriadosDias + (vacasAlMes * 12m) + (aguinaldoAlMes * 12m) + (indemnizacionAlMes * 12m)) / 360m)
+        : 0.743m;
 
     public class GroupedCotizacion
     {
@@ -638,7 +778,7 @@
     private CatalogoMaquinaria editingMachinery = new CatalogoMaquinaria();
 
     // Fórmulas dinámicas
-    private decimal CalculatedPrestaciones => salarioBase * 0.743m;
+    private decimal CalculatedPrestaciones => salarioBase * CalculatedPrestacionesFactor;
     
     private decimal CalculatedViaticos => viaticosList
         .Where(x => selectedViaticos.Contains(x.Id))
@@ -690,6 +830,14 @@
             eppList = cats.Epp ?? new List<CatalogoEpp>();
             viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
             machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
+
+            if (cats.CargosSociales != null)
+            {
+                cargosConfig = cats.CargosSociales;
+                vacasAlMes = cargosConfig.VacacionesDias / 12m;
+                aguinaldoAlMes = cargosConfig.AguinaldoDias / 12m;
+                indemnizacionAlMes = cargosConfig.IndemnizacionDias / 12m;
+            }
 
             // Seleccionar EPPs y viáticos por defecto basados en el excel si es primera inicialización
             if (!selectedViaticos.Any() && !selectedEpps.Any() && customViaticosCosts.Count == 0 && customEppsCosts.Count == 0)
@@ -873,7 +1021,7 @@
         var detail = new CotizacionPersonalDetalle
         {
             SalarioBase = salarioBase,
-            PrestacionesFactor = 0.743m,
+            PrestacionesFactor = CalculatedPrestacionesFactor,
             ViaticosTotales = CalculatedViaticos,
             EppTotales = CalculatedEpp,
             Supervision = supervision,
@@ -1234,6 +1382,24 @@
         else
         {
             Snackbar.Add("Error al eliminar: " + res.Respuesta.MensajeError, Severity.Error);
+        }
+    }
+
+    private async Task SaveCargosSociales()
+    {
+        cargosConfig.VacacionesDias = vacasAlMes * 12m;
+        cargosConfig.AguinaldoDias = aguinaldoAlMes * 12m;
+        cargosConfig.IndemnizacionDias = indemnizacionAlMes * 12m;
+
+        var res = await _OdooService.SaveCargosSocialesConfig(cargosConfig);
+        if (!res.Respuesta.ExisteError)
+        {
+            Snackbar.Add("Configuración de cargos sociales guardada con éxito.", Severity.Success);
+            await LoadCatalogs();
+        }
+        else
+        {
+            Snackbar.Add("Error al guardar: " + res.Respuesta.MensajeError, Severity.Error);
         }
     }
 }
