@@ -92,8 +92,7 @@
                             <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Referencia de Costo de Personal</MudText>
                             <MudGrid>
                                 <MudItem XS="12" SM="4">
-                                    <MudSelect T="string" Value="selectedFilterEmpresa" ValueChanged="OnEmpresaFilterChanged" Label="Filtrar por Empresa" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
-                                        <MudSelectItem T="string" Value="@("")">-- Seleccione Empresa --</MudSelectItem>
+                                    <MudSelect T="string" Value="selectedFilterEmpresa" ValueChanged="OnEmpresaFilterChanged" Label="Filtrar por Empresa" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Placeholder="Seleccione Empresa" Clearable="true">
                                         @foreach (var emp in personnelQuotes.Select(x => x.ClienteNombre).Distinct().OrderBy(x => x))
                                         {
                                             <MudSelectItem T="string" Value="@emp">@emp</MudSelectItem>
@@ -101,8 +100,7 @@
                                     </MudSelect>
                                 </MudItem>
                                 <MudItem XS="12" SM="4">
-                                    <MudSelect T="Guid?" Value="selectedPersonnelQuoteId" ValueChanged="OnPersonnelQuoteChanged" Label="Seleccionar Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Disabled="@(string.IsNullOrEmpty(selectedFilterEmpresa))">
-                                        <MudSelectItem T="Guid?" Value="null">-- Ingreso Manual (M.O.) --</MudSelectItem>
+                                    <MudSelect T="Guid?" Value="selectedPersonnelQuoteId" ValueChanged="OnPersonnelQuoteChanged" Label="Seleccionar Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Disabled="@(string.IsNullOrEmpty(selectedFilterEmpresa))" Placeholder="Ingreso Manual (M.O.)" Clearable="true">
                                         @foreach (var q in personnelQuotes.Where(x => x.ClienteNombre == selectedFilterEmpresa))
                                         {
                                             <MudSelectItem T="Guid?" Value="@((Guid?)q.Id)">@(q.PersonalDetalle?.Turno ?? "Sin Turno") (C$ @q.CostoTotal.ToString("N2"))</MudSelectItem>
@@ -132,8 +130,7 @@
                             <!-- Selector de Materiales -->
                             <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Materiales e Insumos Utilizados por Unidad</MudText>
                             <div class="d-flex align-center gap-2 mb-3">
-                                <MudSelect T="int?" Value="selectedMaterialToAdd" ValueChanged="AddMaterialRow" Label="Seleccionar y Agregar Material del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1">
-                                    <MudSelectItem T="int?" Value="null">-- Seleccione un material para agregar --</MudSelectItem>
+                                <MudSelect T="int?" Value="selectedMaterialToAdd" ValueChanged="AddMaterialRow" Label="Seleccionar y Agregar Material del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1" Placeholder="Seleccione un material para agregar">
                                     @foreach (var mat in materialesList.Where(x => !selectedMateriales.Contains(x.Id)))
                                     {
                                         <MudSelectItem T="int?" Value="@((int?)mat.Id)">@mat.Nombre (C$ @mat.CostoUnitario.ToString("N4"))</MudSelectItem>
@@ -181,8 +178,7 @@
                             <!-- Selector de Maquinaria -->
                             <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Equipos y Maquinaria a Prorratear</MudText>
                             <div class="d-flex align-center gap-2 mb-3">
-                                <MudSelect T="int?" Value="selectedMachineryToAdd" ValueChanged="AddMachineryRow" Label="Seleccionar y Agregar Equipo del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1">
-                                    <MudSelectItem T="int?" Value="null">-- Seleccione un equipo para agregar --</MudSelectItem>
+                                <MudSelect T="int?" Value="selectedMachineryToAdd" ValueChanged="AddMachineryRow" Label="Seleccionar y Agregar Equipo del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1" Placeholder="Seleccione un equipo para agregar">
                                     @foreach (var maq in machineryList.Where(x => !selectedMachinery.Contains(x.Id)))
                                     {
                                         <MudSelectItem T="int?" Value="@((int?)maq.Id)">@maq.Nombre (C$ @maq.ProyeccionMensual.ToString("N2")/mes)</MudSelectItem>
