@@ -32,4 +32,13 @@ builder.Services.AddAuthorizationPolicy();
 // Register UserInfo
 builder.Services.AddSingleton<IUserInfo, UserInfo>();
 
+// Set default culture for Nicaragua (using '.' as decimal separator)
+var culture = new System.Globalization.CultureInfo("es-NI");
+culture.NumberFormat.NumberDecimalSeparator = ".";
+culture.NumberFormat.NumberGroupSeparator = ",";
+culture.NumberFormat.CurrencyDecimalSeparator = ".";
+culture.NumberFormat.CurrencyGroupSeparator = ",";
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+
 await builder.Build().RunAsync();
