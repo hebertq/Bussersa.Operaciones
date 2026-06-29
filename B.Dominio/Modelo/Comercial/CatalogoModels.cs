@@ -26,6 +26,7 @@ namespace Modelo.Comercial
         public decimal Precio { get; set; }
         public int Cantidad { get; set; }
         public int MesesProyeccion { get; set; }
+        public int Personas { get; set; } = 1;
         public decimal ProyeccionMensual { get; set; }
     }
 

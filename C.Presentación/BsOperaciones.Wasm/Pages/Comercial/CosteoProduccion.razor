@@ -80,13 +80,10 @@
                             <MudTextField @bind-Value="skuNombre" Label="Descripción del SKU / Producto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="ej. CSD Pepsi + Roja 3 Litros" />
                             
                             <MudGrid>
-                                <MudItem XS="12" SM="4">
+                                <MudItem XS="12" SM="6">
                                     <MudNumericField T="int" Value="produccionDiaria" ValueChanged="OnProduccionDiariaChanged" Label="Producción Diaria Estimada (Unidades)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
                                 </MudItem>
-                                <MudItem XS="12" SM="4">
-                                    <MudNumericField T="int" Value="cantidadTrabajadores" ValueChanged="OnCantidadTrabajadoresChanged" Label="Cantidad de Trabajadores" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
-                                </MudItem>
-                                <MudItem XS="12" SM="4">
+                                <MudItem XS="12" SM="6">
                                     <MudNumericField T="decimal" @bind-Value="mermaPorcentaje" Label="Margen de Merma (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
                                 </MudItem>
                             </MudGrid>
@@ -199,8 +196,9 @@
                                     <thead>
                                         <tr>
                                             <th>Equipo / Maquinaria</th>
-                                            <th style="width: 150px; text-align: right;">Precio</th>
-                                            <th style="width: 100px; text-align: right;">Cant.</th>
+                                            <th style="width: 120px; text-align: right;">Precio</th>
+                                            <th style="width: 80px; text-align: right;">Cant.</th>
+                                            <th style="width: 80px; text-align: right;">Personas</th>
                                             <th style="width: 150px; text-align: right;">Amortiz. Mensual</th>
                                             <th style="width: 60px; text-align: center;">Quitar</th>
                                         </tr>
@@ -215,6 +213,7 @@
                                                     <td style="vertical-align: middle;">@maq.Nombre</td>
                                                     <td style="text-align: right; vertical-align: middle;">C$ @maq.Precio.ToString("N2")</td>
                                                     <td style="text-align: right; vertical-align: middle;">@maq.Cantidad</td>
+                                                    <td style="text-align: right; vertical-align: middle;">@maq.Personas</td>
                                                     <td style="text-align: right; vertical-align: middle;">C$ @maq.ProyeccionMensual.ToString("N2")</td>
                                                     <td style="text-align: center; vertical-align: middle;">
                                                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveMachineryRow(id))" />
@@ -435,6 +434,7 @@
                                         <MudTh>Precio</MudTh>
                                         <MudTh>Cant.</MudTh>
                                         <MudTh>Meses Proyección</MudTh>
+                                        <MudTh>Personas</MudTh>
                                         <MudTh>Proyección Mensual</MudTh>
                                         <MudTh Style="width:100px;">Acciones</MudTh>
                                     </HeaderContent>
@@ -444,6 +444,7 @@
                                         <MudTd>C$ @context.Precio.ToString("N2")</MudTd>
                                         <MudTd>@context.Cantidad</MudTd>
                                         <MudTd>@context.MesesProyeccion</MudTd>
+                                        <MudTd>@context.Personas</MudTd>
                                         <MudTd>C$ @context.ProyeccionMensual.ToString("N2")</MudTd>
                                         <MudTd>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditMachinery(context))" />
@@ -458,7 +459,8 @@
                                     <MudTextField @bind-Value="editingMachinery.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
                                     <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
                                     <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                                    <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.Personas" Label="Personas (Nº Trabajadores)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
                                     <div class="d-flex gap-2">
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveMachinery">Guardar</MudButton>
                                         @if (editingMachinery.Id > 0 || !string.IsNullOrEmpty(editingMachinery.Nombre))
