@@ -114,9 +114,9 @@ namespace Reportes.Operaciones
                                 // Fila 1: Horas Normales (Servicio Mensual Base)
                                 table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({horasMensuales} hrs/mes) - Horas Normales").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8);
-                                table.Cell().Element(CellStyle).Text(horasMensuales.ToString()).FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Mes").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("1").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
 
                                 // Fila 2: Hora Extra
@@ -143,9 +143,21 @@ namespace Reportes.Operaciones
                                     .AlignMiddle();
                             }
 
-                            // Fila de Totalizador
-                            table.Cell().ColumnSpan(5).BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(6).AlignRight().Text("TOTAL MENSUAL DE SERVICIOS:").FontSize(9).Bold();
-                            table.Cell().BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(6).AlignRight().Text($"C$ {totalMensual:N2}").FontSize(9).Bold().FontColor(Colors.Blue.Darken3);
+                            decimal subtotal = totalMensual;
+                            decimal iva = subtotal * 0.15m;
+                            decimal totalConIva = subtotal + iva;
+
+                            // Fila de Sub-total
+                            table.Cell().ColumnSpan(5).BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(4).AlignRight().Text("SUB-TOTAL MENSUAL:").FontSize(9).Bold();
+                            table.Cell().BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(4).AlignRight().Text($"C$ {subtotal:N2}").FontSize(9).Bold();
+
+                            // Fila de IVA
+                            table.Cell().ColumnSpan(5).Padding(4).AlignRight().Text("I.V.A. (15%):").FontSize(9).Bold();
+                            table.Cell().Padding(4).AlignRight().Text($"C$ {iva:N2}").FontSize(9).Bold();
+
+                            // Fila de Total con IVA
+                            table.Cell().ColumnSpan(5).Padding(6).AlignRight().Text("TOTAL MENSUAL (CON IVA):").FontSize(10).Bold().FontColor(Colors.Blue.Darken4);
+                            table.Cell().Padding(6).AlignRight().Text($"C$ {totalConIva:N2}").FontSize(10).Bold().FontColor(Colors.Blue.Darken3);
                         });
 
                         // 3. Notas y Condiciones de la Cotización
@@ -153,7 +165,6 @@ namespace Reportes.Operaciones
                         {
                             notes.Item().Text("TÉRMINOS Y CONDICIONES COMERCIALES").FontSize(9).Bold().FontColor(Colors.Blue.Darken4);
                             notes.Item().PaddingTop(4).Text("• Las tarifas de recargos por horas adicionales son de referencia y solo se facturarán según las horas efectivamente laboradas y reportadas por el cliente.").FontSize(8);
-                            notes.Item().PaddingTop(2).Text("• Los precios presentados no incluyen impuestos de ley (IVA), a menos que se especifique lo contrario.").FontSize(8);
                             notes.Item().PaddingTop(2).Text("• Validez de esta propuesta comercial: 15 días a partir de la fecha de generación.").FontSize(8);
                             notes.Item().PaddingTop(2).Text("• Forma de pago: Crédito a 15 días posteriores a la fecha de facturación.").FontSize(8);
                         });
@@ -162,12 +173,6 @@ namespace Reportes.Operaciones
                     page.Footer().AlignCenter().Column(f =>
                     {
                         f.Item().AlignCenter().Text("BUSSERSA - Business Solution Services • info@bussersa.com • www.bussersa.com").FontSize(8).FontColor(Colors.Grey.Darken1);
-                        f.Item().AlignCenter().Text(x =>
-                        {
-                            x.CurrentPageNumber().FontSize(8).FontColor(Colors.Grey.Darken1);
-                            x.Span(" / ").FontSize(8).FontColor(Colors.Grey.Darken1);
-                            x.TotalPages().FontSize(8).FontColor(Colors.Grey.Darken1);
-                        });
                     });
                 });
             });
