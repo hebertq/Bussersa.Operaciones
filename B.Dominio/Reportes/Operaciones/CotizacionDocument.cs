@@ -106,18 +106,18 @@ namespace Reportes.Operaciones
                             foreach (var cot in cotizaciones)
                             {
                                 var detail = cot.PersonalDetalle ?? new CotizacionPersonalDetalle();
-                                totalMensual += cot.TarifaAcordada + detail.TarifaExtra + detail.TarifaDomingo;
-
                                 int horasMensuales = detail.HorasTurno * 30;
                                 decimal precioHoraNormal = horasMensuales > 0 ? cot.TarifaAcordada / horasMensuales : 0;
+
+                                totalMensual += precioHoraNormal + detail.TarifaExtra + detail.TarifaDomingo;
 
                                 // Fila 1: Horas Normales (Servicio Mensual Base)
                                 table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} - Horas Normales").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("Unidad").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8);
                                 table.Cell().Element(CellStyle).Text("1").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8).Bold();
 
                                 // Fila 2: Hora Extra
                                 table.Cell().Element(CellStyle).Text("REC-EXTRA").FontSize(8).FontColor(Colors.Grey.Darken1);
@@ -148,7 +148,7 @@ namespace Reportes.Operaciones
                             decimal totalConIva = subtotal + iva;
 
                             // Fila de Sub-total
-                            table.Cell().ColumnSpan(5).BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(4).AlignRight().Text("SUB-TOTAL MENSUAL:").FontSize(9).Bold();
+                            table.Cell().ColumnSpan(5).BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(4).AlignRight().Text("SUB-TOTAL:").FontSize(9).Bold();
                             table.Cell().BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(4).AlignRight().Text($"C$ {subtotal:N2}").FontSize(9).Bold();
 
                             // Fila de IVA
@@ -156,7 +156,7 @@ namespace Reportes.Operaciones
                             table.Cell().Padding(4).AlignRight().Text($"C$ {iva:N2}").FontSize(9).Bold();
 
                             // Fila de Total con IVA
-                            table.Cell().ColumnSpan(5).Padding(6).AlignRight().Text("TOTAL MENSUAL (CON IVA):").FontSize(10).Bold().FontColor(Colors.Blue.Darken4);
+                            table.Cell().ColumnSpan(5).Padding(6).AlignRight().Text("TOTAL:").FontSize(10).Bold().FontColor(Colors.Blue.Darken4);
                             table.Cell().Padding(6).AlignRight().Text($"C$ {totalConIva:N2}").FontSize(10).Bold().FontColor(Colors.Blue.Darken3);
                         });
 
