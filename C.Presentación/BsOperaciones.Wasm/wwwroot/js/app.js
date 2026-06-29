@@ -197,15 +197,27 @@ function DataTablesRemove(table) {
     });
 }
 
-function downloadFile(contentType, base64Data, fileName) {
-    try {
-        const byteCharacters = atob(base64Data);
+function getBlobFromData(data, contentType) {
+    if (typeof data === 'string') {
+        const byteCharacters = atob(data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: contentType });
+        return new Blob([byteArray], { type: contentType });
+    }
+    
+    if (data instanceof Uint8Array || (data && data.buffer)) {
+        return new Blob([data], { type: contentType });
+    }
+    
+    return new Blob([data], { type: contentType });
+}
+
+function downloadFile(contentType, data, fileName) {
+    try {
+        const blob = getBlobFromData(data, contentType);
         const blobUrl = URL.createObjectURL(blob);
         
         const downloadLink = document.createElement("a");
@@ -220,15 +232,9 @@ function downloadFile(contentType, base64Data, fileName) {
     }
 }
 
-function saveAsFile(fileName, base64Data, contentType) {
+function saveAsFile(fileName, data, contentType) {
     try {
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: contentType });
+        const blob = getBlobFromData(data, contentType);
         const blobUrl = URL.createObjectURL(blob);
         
         const downloadLink = document.createElement("a");
