@@ -144,8 +144,9 @@
                                     <thead>
                                         <tr>
                                             <th>Concepto</th>
-                                            <th style="width: 150px; text-align: right;">Costo Catálogo</th>
-                                            <th style="width: 180px; text-align: right;">Costo Cotización</th>
+                                            <th style="width: 130px; text-align: right;">Costo Catálogo</th>
+                                            <th style="width: 120px; text-align: right;">Cantidad</th>
+                                            <th style="width: 150px; text-align: right;">Costo Cotización</th>
                                             <th style="width: 60px; text-align: center;">Quitar</th>
                                         </tr>
                                     </thead>
@@ -158,6 +159,9 @@
                                                 <tr>
                                                     <td style="vertical-align: middle;">@mat.Nombre</td>
                                                     <td style="text-align: right; vertical-align: middle;">C$ @mat.CostoUnitario.ToString("N4")</td>
+                                                    <td style="vertical-align: middle;">
+                                                        <MudNumericField T="decimal" Value="@(customMaterialesQuantities.TryGetValue(id, out var q) ? q : 1m)" ValueChanged="@((decimal val) => SetMaterialQuantity(id, val))" Format="N4" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.0001m" />
+                                                    </td>
                                                     <td style="vertical-align: middle;">
                                                         <MudNumericField T="decimal" Value="@GetMaterialCost(id)" ValueChanged="@((decimal val) => SetMaterialCost(id, val))" Format="N4" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentText="C$" />
                                                     </td>

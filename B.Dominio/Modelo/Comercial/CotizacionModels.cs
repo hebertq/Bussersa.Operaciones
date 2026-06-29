@@ -81,6 +81,7 @@ namespace Modelo.Comercial
         public Guid CotizacionId { get; set; }
         public int? MaterialId { get; set; }
         public string Nombre { get; set; }
+        public decimal Cantidad { get; set; } = 1.0m;
         public decimal CostoUnitario { get; set; }
     }
 

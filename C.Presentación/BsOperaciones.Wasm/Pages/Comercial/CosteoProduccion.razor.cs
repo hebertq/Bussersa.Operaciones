@@ -41,6 +41,7 @@ namespace BsOperaciones.Pages.Comercial
         private HashSet<int> selectedMachinery = new HashSet<int>();
         private HashSet<int> selectedMateriales = new HashSet<int>();
         private Dictionary<int, decimal> customMaterialesCosts = new Dictionary<int, decimal>();
+        private Dictionary<int, decimal> customMaterialesQuantities = new Dictionary<int, decimal>();
 
         private int? selectedMaterialToAdd;
         private int? selectedMachineryToAdd;
@@ -60,7 +61,12 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedMateriales => materialesList
             .Where(x => selectedMateriales.Contains(x.Id))
-            .Sum(x => customMaterialesCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoUnitario);
+            .Sum(x => 
+            {
+                decimal price = customMaterialesCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoUnitario;
+                decimal qty = customMaterialesQuantities.TryGetValue(x.Id, out var q) ? q : 1m;
+                return price * qty;
+            });
 
         private decimal CalculatedAmortizacionMensual => machineryList
             .Where(x => selectedMachinery.Contains(x.Id))
@@ -186,11 +192,21 @@ namespace BsOperaciones.Pages.Comercial
             tarifaAcordada = CalculatedTarifaUnitaria;
         }
 
+        private void SetMaterialQuantity(int id, decimal qty)
+        {
+            customMaterialesQuantities[id] = qty;
+            tarifaAcordada = CalculatedTarifaUnitaria;
+        }
+
         private void AddMaterialRow(int? id)
         {
             if (id.HasValue)
             {
                 selectedMateriales.Add(id.Value);
+                if (!customMaterialesQuantities.ContainsKey(id.Value))
+                {
+                    customMaterialesQuantities[id.Value] = 1m;
+                }
                 if (!customMaterialesCosts.ContainsKey(id.Value))
                 {
                     var item = materialesList.FirstOrDefault(x => x.Id == id.Value);
@@ -253,6 +269,7 @@ namespace BsOperaciones.Pages.Comercial
                 // Cargar materiales seleccionados
                 selectedMateriales.Clear();
                 customMaterialesCosts.Clear();
+                customMaterialesQuantities.Clear();
                 if (quote.MaterialDetalles != null)
                 {
                     foreach (var mat in quote.MaterialDetalles)
@@ -261,6 +278,7 @@ namespace BsOperaciones.Pages.Comercial
                         {
                             selectedMateriales.Add(mat.MaterialId.Value);
                             customMaterialesCosts[mat.MaterialId.Value] = mat.CostoUnitario;
+                            customMaterialesQuantities[mat.MaterialId.Value] = mat.Cantidad;
                         }
                     }
                 }
@@ -327,6 +345,7 @@ namespace BsOperaciones.Pages.Comercial
                     {
                         MaterialId = id,
                         Nombre = item.Nombre,
+                        Cantidad = customMaterialesQuantities.TryGetValue(id, out var q) ? q : 1m,
                         CostoUnitario = customMaterialesCosts.TryGetValue(id, out var cost) ? cost : item.CostoUnitario
                     });
                 }
