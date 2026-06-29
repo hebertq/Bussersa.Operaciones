@@ -36,157 +36,130 @@ namespace Reportes.Operaciones
 
         private static Document GenerateReport(string clienteNombre, List<Cotizacion> cotizaciones)
         {
-            var _Header = new HeaderComponent("COTIZACIÓN DE SERVICIOS", clienteNombre, "Fecha de Generación: ", DateTime.Now.ToString("dd/MM/yyyy"));
-
-            IContainer DefaultCellStyle(IContainer container)
-            {
-                return container
-                    .BorderBottom(1)
-                    .BorderColor(Colors.Grey.Lighten2)
-                    .Padding(6)
-                    .AlignCenter()
-                    .AlignMiddle();
-            }
-
-            IContainer DefaultHeaderStyle(IContainer container, string backgroundColor)
-            {
-                return container
-                    .Border(1)
-                    .BorderColor(Colors.Grey.Darken1)
-                    .Background(backgroundColor)
-                    .Padding(6)
-                    .AlignCenter()
-                    .AlignMiddle();
-            }
+            var _Header = new HeaderComponent("PROPUESTA COMERCIAL", clienteNombre, "Fecha de Generación: ", DateTime.Now.ToString("dd/MM/yyyy"));
 
             return Document.Create(document =>
             {
                 document.Page(page =>
                 {
-                    page.Margin(30);
+                    page.Margin(35);
                     page.Size(PageSizes.A4);
                     page.Header().Component(_Header);
 
                     page.Content().Column(column =>
                     {
-                        column.Item().PaddingTop(15).Text("Resumen de Propuesta por Turno").FontSize(14).Bold().FontColor(Colors.Blue.Darken3);
-                        column.Item().PaddingTop(5).Text("A continuación se detallan los costos asociados a cada turno cotizado para cubrir el servicio requerido:").FontSize(10);
+                        // 1. Datos de Cotización y Cliente (en dos columnas)
+                        column.Item().PaddingTop(15).Row(row =>
+                        {
+                            row.RelativeItem(2).Column(c =>
+                            {
+                                c.Item().Text("CLIENTE / PROPUESTO A:").FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                                c.Item().Text(clienteNombre).FontSize(11).Bold().FontColor(Colors.Blue.Darken4);
+                                c.Item().Text("Servicio de Outsourcing de Personal").FontSize(9).Italic();
+                            });
+                            row.RelativeItem(1).AlignRight().Column(c =>
+                            {
+                                c.Item().Text("DOCUMENTO:").FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                                c.Item().Text("COTIZACIÓN DE SERVICIOS").FontSize(10).Bold().FontColor(Colors.Blue.Darken3);
+                                c.Item().Text($"Fecha: {DateTime.Now:dd/MM/yyyy}").FontSize(9);
+                                c.Item().Text("Moneda: Córdoba (C$)").FontSize(9);
+                            });
+                        });
 
-                        // Tabla resumen de turnos
-                        column.Item().PaddingTop(10).Table(table =>
+                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+
+                        // 2. Tabla Principal de Items
+                        column.Item().PaddingTop(15).Table(table =>
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(3); // Turno
-                                columns.RelativeColumn(1.5f); // Horas Turno
-                                columns.RelativeColumn(2); // Salario Base
-                                columns.RelativeColumn(2); // Viáticos
-                                columns.RelativeColumn(2); // EPP
-                                columns.RelativeColumn(2.5f); // Tarifa Acordada / Mes
+                                columns.ConstantColumn(80); // Artículo
+                                columns.RelativeColumn(5);  // Descripción
+                                columns.ConstantColumn(60); // U. Medida
+                                columns.ConstantColumn(60); // Cantidad
+                                columns.RelativeColumn(2.5f); // Precio Unitario
+                                columns.RelativeColumn(2.5f); // Importe
                             });
 
                             table.Header(header =>
                             {
-                                header.Cell().Element(CellStyle).Text("Turno").FontSize(9).Bold();
-                                header.Cell().Element(CellStyle).Text("Horas").FontSize(9).Bold();
-                                header.Cell().Element(CellStyle).Text("Salario Base").FontSize(9).Bold();
-                                header.Cell().Element(CellStyle).Text("Viáticos/Mes").FontSize(9).Bold();
-                                header.Cell().Element(CellStyle).Text("EPP/Mes").FontSize(9).Bold();
-                                header.Cell().Element(CellStyle).Text("Tarifa Mes").FontSize(9).Bold();
+                                header.Cell().Element(HeaderStyle).Text("Artículo").FontSize(9).Bold().FontColor(Colors.White);
+                                header.Cell().Element(HeaderStyle).AlignLeft().Text("Descripción").FontSize(9).Bold().FontColor(Colors.White);
+                                header.Cell().Element(HeaderStyle).Text("U. Medida").FontSize(9).Bold().FontColor(Colors.White);
+                                header.Cell().Element(HeaderStyle).Text("Cantidad").FontSize(9).Bold().FontColor(Colors.White);
+                                header.Cell().Element(HeaderStyle).AlignRight().Text("Precio Unit.").FontSize(9).Bold().FontColor(Colors.White);
+                                header.Cell().Element(HeaderStyle).AlignRight().Text("Importe").FontSize(9).Bold().FontColor(Colors.White);
 
-                                IContainer CellStyle(IContainer conta0) => DefaultHeaderStyle(conta0, Colors.Blue.Lighten5);
+                                IContainer HeaderStyle(IContainer container) => container
+                                    .Border(1)
+                                    .BorderColor(Colors.Blue.Darken4)
+                                    .Background(Colors.Blue.Darken3)
+                                    .Padding(5)
+                                    .AlignCenter()
+                                    .AlignMiddle();
                             });
+
+                            decimal totalMensual = 0;
 
                             foreach (var cot in cotizaciones)
                             {
                                 var detail = cot.PersonalDetalle ?? new CotizacionPersonalDetalle();
+                                totalMensual += cot.TarifaAcordada;
 
-                                table.Cell().Element(CellStyle).AlignLeft().Text(detail.Turno).FontSize(9);
-                                table.Cell().Element(CellStyle).Text($"{detail.HorasTurno} hrs").FontSize(9);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.SalarioBase:N2}").FontSize(9);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.ViaticosTotales:N2}").FontSize(9);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.EppTotales:N2}").FontSize(9);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(9).Bold();
+                                // Fila 1: Horas Normales (Servicio Mensual Base)
+                                table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({detail.HorasTurno} hrs) - Horas Normales").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Mes").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("1").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
 
-                                IContainer CellStyle(IContainer conta1) => DefaultCellStyle(conta1);
+                                // Fila 2: Hora Extra
+                                table.Cell().Element(CellStyle).Text("REC-EXTRA").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora Extra Común (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("-").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaExtra:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text("Tarifa Ref.").FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+
+                                // Fila 3: Hora Feriado
+                                table.Cell().Element(CellStyle).Text("REC-FERIA").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora de Día Feriado / Asueto (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("-").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaFeriado:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text("Tarifa Ref.").FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+
+                                // Fila 4: Hora Domingo
+                                table.Cell().Element(CellStyle).Text("REC-DOMIN").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora de Domingo (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).Text("-").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaDomingo:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignRight().Text("Tarifa Ref.").FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+
+                                IContainer CellStyle(IContainer container) => container
+                                    .BorderBottom(1)
+                                    .BorderColor(Colors.Grey.Lighten3)
+                                    .Padding(5)
+                                    .AlignCenter()
+                                    .AlignMiddle();
                             }
+
+                            // Fila de Totalizador
+                            table.Cell().ColumnSpan(5).BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(6).AlignRight().Text("TOTAL MENSUAL DE SERVICIOS:").FontSize(9).Bold();
+                            table.Cell().BorderTop(1).BorderColor(Colors.Grey.Darken2).Padding(6).AlignRight().Text($"C$ {totalMensual:N2}").FontSize(9).Bold().FontColor(Colors.Blue.Darken3);
                         });
 
-                        // Detalle por cada turno con desglose y tarifas extras
-                        column.Item().PaddingTop(25).Text("Detalles de Tarifas y Cargos Adicionales").FontSize(13).Bold().FontColor(Colors.Blue.Darken3);
-
-                        foreach (var cot in cotizaciones)
+                        // 3. Notas y Condiciones de la Cotización
+                        column.Item().PaddingTop(25).Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(10).Column(notes =>
                         {
-                            var detail = cot.PersonalDetalle ?? new CotizacionPersonalDetalle();
-
-                            column.Item().ShowEntire().PaddingTop(10).Border(1).BorderColor(Colors.Grey.Lighten2).Background(Colors.Grey.Lighten5).Padding(10).Column(detailCol =>
-                            {
-                                detailCol.Item().Row(r =>
-                                {
-                                    r.RelativeItem().Text($"Turno: {detail.Turno} ({detail.HorasTurno} Horas)").FontSize(11).Bold().FontColor(Colors.Blue.Darken4);
-                                    r.RelativeItem().AlignRight().Text($"Costo Total Mensual: C$ {cot.CostoTotal:N2}").FontSize(10).Bold();
-                                });
-
-                                detailCol.Item().PaddingTop(8).Table(tDetail =>
-                                {
-                                    tDetail.ColumnsDefinition(cols =>
-                                    {
-                                        cols.RelativeColumn(4);
-                                        cols.RelativeColumn(2);
-                                        cols.RelativeColumn(4);
-                                        cols.RelativeColumn(2);
-                                    });
-
-                                    // Fila 1
-                                    tDetail.Cell().Padding(2).Text("Prestaciones Sociales:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"C$ {(detail.SalarioBase * detail.PrestacionesFactor):N2}").FontSize(9);
-                                    tDetail.Cell().Padding(2).Text("Supervisión y Estructura:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"C$ {detail.Supervision:N2}").FontSize(9);
-
-                                    // Fila 2
-                                    tDetail.Cell().Padding(2).Text("Cargos Administrativos:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"C$ {detail.Cargos:N2}").FontSize(9);
-                                    tDetail.Cell().Padding(2).Text("Seguro Colectivo:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"C$ {detail.Seguros:N2}").FontSize(9);
-
-                                    // Fila 3
-                                    tDetail.Cell().Padding(2).Text("Gastos Operativos:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"C$ {detail.GastosOperativos:N2}").FontSize(9);
-                                    tDetail.Cell().Padding(2).Text("Margen Utilidad:").FontSize(9);
-                                    tDetail.Cell().Padding(2).AlignRight().Text($"{cot.UtilidadPorcentaje:F1}%").FontSize(9);
-                                });
-
-                                // Tarifa sugerida vs acordada
-                                detailCol.Item().PaddingTop(10).Row(r =>
-                                {
-                                    r.RelativeItem().Text($"Tarifa Mensual Sugerida: C$ {cot.TarifaSugerida:N2}").FontSize(9).Italic();
-                                    r.RelativeItem().AlignRight().Text($"Tarifa Mensual Acordada: C$ {cot.TarifaAcordada:N2}").FontSize(10).Bold().FontColor(Colors.Blue.Darken2);
-                                });
-
-                                // Items de horas adicionales solicitados por el usuario
-                                detailCol.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
-                                detailCol.Item().PaddingTop(8).Text("Tarifas de Horas Adicionales y Recargos (por hora):").FontSize(9).Bold();
-
-                                detailCol.Item().PaddingTop(4).Row(r =>
-                                {
-                                    r.RelativeItem().Text(t =>
-                                    {
-                                        t.Span("• Hora Extra Común: ").FontSize(9);
-                                        t.Span($"C$ {detail.TarifaExtra:N2}").Bold().FontSize(9);
-                                    });
-                                    r.RelativeItem().Text(t =>
-                                    {
-                                        t.Span("• Hora de Día Feriado: ").FontSize(9);
-                                        t.Span($"C$ {detail.TarifaFeriado:N2}").Bold().FontSize(9);
-                                    });
-                                    r.RelativeItem().Text(t =>
-                                    {
-                                        t.Span("• Hora de Domingo: ").FontSize(9);
-                                        t.Span($"C$ {detail.TarifaDomingo:N2}").Bold().FontSize(9);
-                                    });
-                                });
-                            });
-                        }
+                            notes.Item().Text("TÉRMINOS Y CONDICIONES COMERCIALES").FontSize(9).Bold().FontColor(Colors.Blue.Darken4);
+                            notes.Item().PaddingTop(4).Text("• Las tarifas de recargos por horas adicionales son de referencia y solo se facturarán según las horas efectivamente laboradas y reportadas por el cliente.").FontSize(8);
+                            notes.Item().PaddingTop(2).Text("• Los precios presentados no incluyen impuestos de ley (IVA), a menos que se especifique lo contrario.").FontSize(8);
+                            notes.Item().PaddingTop(2).Text("• Validez de esta propuesta comercial: 30 días a partir de la fecha de generación.").FontSize(8);
+                            notes.Item().PaddingTop(2).Text("• Forma de pago: Crédito a 15 días posteriores a la fecha de facturación.").FontSize(8);
+                        });
                     });
 
                     page.Footer().AlignCenter().Text(x =>
