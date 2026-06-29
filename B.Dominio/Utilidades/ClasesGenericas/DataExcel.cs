@@ -353,20 +353,13 @@ namespace Utilidades.ClasesGenericas
                     currentRow++;
                 }
 
-                // Style the header row
-                var headerRange = ws.Cells[startRow, 1, startRow, headers.Count];
-                headerRange.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                headerRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.ColorTranslator.FromHtml("#003815"));
-                headerRange.Style.Font.Color.SetColor(System.Drawing.Color.White);
-
-                // Add simple borders to data
+                // Add table style
                 if (currentRow > startRow + 1)
                 {
                     var dataRange = ws.Cells[startRow, 1, currentRow - 1, headers.Count];
-                    dataRange.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    dataRange.Style.Border.Bottom.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    dataRange.Style.Border.Left.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
-                    dataRange.Style.Border.Right.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+                    var tbl = ws.Tables.Add(dataRange, "Table_" + Guid.NewGuid().ToString().Substring(0, 8));
+                    tbl.TableStyle = OfficeOpenXml.Table.TableStyles.Light2;
+                    tbl.ShowHeader = true;
                 }
 
                 if (sheetReq.IncludeHeader)
@@ -380,6 +373,30 @@ namespace Utilidades.ClasesGenericas
                             using (MemoryStream imageStream = new MemoryStream(logoBytes))
                             {
                                 var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), imageStream);
+                                picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
+                                picture.SetSize(105, 70);
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to disk file if assembly resource is not found
+                            string logoPath = "logo.png";
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.png");
+                            }
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/img/brand/logo.png");
+                            }
+                            if (!File.Exists(logoPath))
+                            {
+                                logoPath = "wwwroot/img/brand/logo.png";
+                            }
+
+                            if (File.Exists(logoPath))
+                            {
+                                var picture = ws.Drawings.AddPicture("Logo_" + Guid.NewGuid().ToString().Substring(0, 8), new FileInfo(logoPath));
                                 picture.SetPosition(0, 5, 0, 5); // Row 1, Column A
                                 picture.SetSize(105, 70);
                             }
