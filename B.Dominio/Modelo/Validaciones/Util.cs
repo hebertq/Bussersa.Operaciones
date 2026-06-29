@@ -698,11 +698,21 @@ namespace Modelo.Validaciones
             var list = new List<Dictionary<string, object>>();
             if (items == null) return list;
 
-            var properties = typeof(T).GetProperties();
+            System.Reflection.PropertyInfo[] properties = null;
+            Type currentType = null;
+
             foreach (var item in items)
             {
                 if (item == null) continue;
                 var dict = new Dictionary<string, object>();
+
+                var itemType = item.GetType();
+                if (itemType != currentType)
+                {
+                    currentType = itemType;
+                    properties = currentType.GetProperties();
+                }
+
                 foreach (var prop in properties)
                 {
                     if (prop.CanRead)
