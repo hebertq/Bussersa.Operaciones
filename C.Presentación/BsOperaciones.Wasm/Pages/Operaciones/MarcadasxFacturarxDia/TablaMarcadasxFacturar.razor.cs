@@ -194,8 +194,8 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
                 {
                     Hojas = new List<ExcelRequest>
                     {
-                        new ExcelRequest { Hoja = "Revision_Bussersa", Datos = Modelo.Validaciones.Util.ToDictionaryList(datosExcel), IncludeHeader = false },
-                        new ExcelRequest { Hoja = $"Agregar marcadas de {OperacionName}", Datos = Modelo.Validaciones.Util.ToDictionaryList(queryMarcas), IncludeHeader = false }
+                        new ExcelRequest { Hoja = "Revision_Bussersa", Datos = Modelo.Validaciones.Util.ToDictionaryList(datosExcel), IncludeHeader = true },
+                        new ExcelRequest { Hoja = $"Agregar marcadas de {OperacionName}", Datos = Modelo.Validaciones.Util.ToDictionaryList(queryMarcas), IncludeHeader = true }
                     }
                 };
 

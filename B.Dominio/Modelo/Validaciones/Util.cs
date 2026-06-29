@@ -695,8 +695,24 @@ namespace Modelo.Validaciones
 
         public static List<Dictionary<string, object>> ToDictionaryList<T>(IEnumerable<T> items)
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(items);
-            return System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, object>>>(json);
+            var list = new List<Dictionary<string, object>>();
+            if (items == null) return list;
+
+            var properties = typeof(T).GetProperties();
+            foreach (var item in items)
+            {
+                if (item == null) continue;
+                var dict = new Dictionary<string, object>();
+                foreach (var prop in properties)
+                {
+                    if (prop.CanRead)
+                    {
+                        dict[prop.Name] = prop.GetValue(item);
+                    }
+                }
+                list.Add(dict);
+            }
+            return list;
         }
     }
 
