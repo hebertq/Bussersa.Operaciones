@@ -20,6 +20,7 @@ namespace BsOperaciones.Pages.Comercial
         private string cliente = "";
         private string skuNombre = "";
         private int produccionDiaria = 1000;
+        private int cantidadTrabajadores = 1;
         private decimal manoObraUnitaria = 1.5000m;
         private decimal mermaPorcentaje = 2.00m;
         private decimal tarifaAcordada = 0.0000m;
@@ -66,8 +67,8 @@ namespace BsOperaciones.Pages.Comercial
             .Where(x => selectedMachinery.Contains(x.Id))
             .Sum(x => x.ProyeccionMensual);
 
-        private decimal CalculatedAmortizacionUnitaria => (produccionDiaria > 0)
-            ? (CalculatedAmortizacionMensual / 30m) / (decimal)produccionDiaria
+        private decimal CalculatedAmortizacionUnitaria => (produccionDiaria > 0 && cantidadTrabajadores > 0)
+            ? ((CalculatedAmortizacionMensual / 30m) / (decimal)cantidadTrabajadores) / (decimal)produccionDiaria
             : 0m;
 
         private decimal CalculatedCostoUnitarioBase => CalculatedManoObraUnitaria + CalculatedMateriales + CalculatedAmortizacionUnitaria;
@@ -172,6 +173,12 @@ namespace BsOperaciones.Pages.Comercial
             tarifaAcordada = CalculatedTarifaUnitaria;
         }
 
+        private void OnCantidadTrabajadoresChanged(int val)
+        {
+            cantidadTrabajadores = val;
+            tarifaAcordada = CalculatedTarifaUnitaria;
+        }
+
         private decimal GetMaterialCost(int id)
         {
             if (customMaterialesCosts.TryGetValue(id, out var cost))
@@ -236,6 +243,7 @@ namespace BsOperaciones.Pages.Comercial
             {
                 skuNombre = quote.ProduccionDetalle.SkuNombre;
                 produccionDiaria = quote.ProduccionDetalle.ProduccionDiaria;
+                cantidadTrabajadores = quote.ProduccionDetalle.CantidadTrabajadores;
                 manoObraUnitaria = quote.ProduccionDetalle.ManoObraUnitaria;
                 mermaPorcentaje = quote.ProduccionDetalle.MermaPorcentaje;
                 tarifaAcordada = quote.TarifaAcordada;
@@ -298,6 +306,7 @@ namespace BsOperaciones.Pages.Comercial
             {
                 SkuNombre = skuNombre,
                 ProduccionDiaria = produccionDiaria,
+                CantidadTrabajadores = cantidadTrabajadores,
                 ManoObraUnitaria = CalculatedManoObraUnitaria,
                 MaterialesTotales = CalculatedMateriales,
                 MermaPorcentaje = mermaPorcentaje,

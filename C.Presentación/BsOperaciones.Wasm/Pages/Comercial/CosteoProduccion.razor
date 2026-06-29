@@ -80,10 +80,13 @@
                             <MudTextField @bind-Value="skuNombre" Label="Descripción del SKU / Producto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="ej. CSD Pepsi + Roja 3 Litros" />
                             
                             <MudGrid>
-                                <MudItem XS="12" SM="6">
+                                <MudItem XS="12" SM="4">
                                     <MudNumericField T="int" Value="produccionDiaria" ValueChanged="OnProduccionDiariaChanged" Label="Producción Diaria Estimada (Unidades)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
                                 </MudItem>
-                                <MudItem XS="12" SM="6">
+                                <MudItem XS="12" SM="4">
+                                    <MudNumericField T="int" Value="cantidadTrabajadores" ValueChanged="OnCantidadTrabajadoresChanged" Label="Cantidad de Trabajadores" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
                                     <MudNumericField T="decimal" @bind-Value="mermaPorcentaje" Label="Margen de Merma (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
                                 </MudItem>
                             </MudGrid>

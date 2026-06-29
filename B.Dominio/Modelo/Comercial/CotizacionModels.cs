@@ -54,6 +54,7 @@ namespace Modelo.Comercial
         public decimal MermaPorcentaje { get; set; }
         public decimal AmortizacionUnitaria { get; set; }
         public Guid? PersonalCotizacionId { get; set; }
+        public int CantidadTrabajadores { get; set; } = 1;
     }
 
     public class CotizacionEppDetalle
