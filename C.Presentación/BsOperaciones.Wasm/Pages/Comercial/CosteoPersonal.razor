@@ -359,6 +359,7 @@
                 <MudTable Items="groupedQuotes" Hover="true" Elevation="2" Class="mb-6" Style="border-radius: 8px;">
                     <HeaderContent>
                         <MudTh Style="width: 50px;"></MudTh>
+                        <MudTh>Cotización No.</MudTh>
                         <MudTh>Año/Mes</MudTh>
                         <MudTh>Cliente</MudTh>
                         <MudTh>Cant. Turnos</MudTh>
@@ -371,6 +372,7 @@
                             <MudIconButton Icon="@(context.ShowDetails ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)"
                                            OnClick="@(() => context.ShowDetails = !context.ShowDetails)" Size="Size.Small" />
                         </MudTd>
+                        <MudTd DataLabel="Cotización No." Class="font-bold" Style="color: var(--mud-palette-primary);">@(context.Quotes.FirstOrDefault()?.NumeroCotizacion ?? "N/A")</MudTd>
                         <MudTd DataLabel="Año/Mes" Class="font-bold">@context.Periodo</MudTd>
                         <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
                         <MudTd DataLabel="Cant. Turnos">
@@ -393,7 +395,7 @@
                         @if (context.ShowDetails)
                         {
                             <MudTr>
-                                <td colspan="7" class="pa-4" style="background-color: rgba(0,0,0,0.02);">
+                                <td colspan="8" class="pa-4" style="background-color: rgba(0,0,0,0.02);">
                                     <MudCard Elevation="2" Outlined="true" Class="pa-4" Style="border-radius: 8px;">
                                         <MudText Typo="Typo.subtitle2" Class="mb-3 font-bold" Color="Color.Primary">
                                             Detalle de Turnos: @context.ClienteNombre (@context.Periodo)
@@ -1035,8 +1037,14 @@
             TarifaDomingo = CalculatedTarifaDomingo
         };
 
+        var quoteId = Guid.NewGuid();
+        var numCot = temporaryShifts.Any() 
+            ? (temporaryShifts.First().NumeroCotizacion ?? $"COT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}")
+            : $"COT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}";
+
         var quote = new Cotizacion
         {
+            Id = quoteId,
             ClienteNombre = cliente,
             TipoCosteo = "Personal",
             UtilidadPorcentaje = utilidadPorcentaje,
@@ -1044,7 +1052,8 @@
             TarifaSugerida = CalculatedTarifaSugerida,
             TarifaAcordada = CalculatedTarifaSugerida, // por defecto igual a sugerida
             PersonalDetalle = detail,
-            Estado = "Borrador"
+            Estado = "Borrador",
+            NumeroCotizacion = numCot
         };
 
         // Rellenar listas de detalle histórico

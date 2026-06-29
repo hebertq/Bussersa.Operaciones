@@ -37,6 +37,7 @@ namespace Reportes.Operaciones
         private static Document GenerateReport(string clienteNombre, List<Cotizacion> cotizaciones)
         {
             var _Header = new HeaderComponent("PROPUESTA COMERCIAL", clienteNombre, "Fecha de Generación: ", DateTime.Now.ToString("dd/MM/yyyy"));
+            var numeroCotizacion = cotizaciones.FirstOrDefault()?.NumeroCotizacion ?? "N/A";
 
             return Document.Create(document =>
             {
@@ -61,6 +62,7 @@ namespace Reportes.Operaciones
                             {
                                 c.Item().Text("DOCUMENTO:").FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
                                 c.Item().Text("COTIZACIÓN DE SERVICIOS").FontSize(10).Bold().FontColor(Colors.Blue.Darken3);
+                                c.Item().Text($"No: {numeroCotizacion}").FontSize(9).Bold().FontColor(Colors.Blue.Darken4);
                                 c.Item().Text($"Fecha: {DateTime.Now:dd/MM/yyyy}").FontSize(9);
                                 c.Item().Text("Moneda: Córdoba (C$)").FontSize(9);
                             });
@@ -106,12 +108,15 @@ namespace Reportes.Operaciones
                                 var detail = cot.PersonalDetalle ?? new CotizacionPersonalDetalle();
                                 totalMensual += cot.TarifaAcordada;
 
+                                int horasMensuales = detail.HorasTurno * 30;
+                                decimal precioHoraNormal = horasMensuales > 0 ? cot.TarifaAcordada / horasMensuales : 0;
+
                                 // Fila 1: Horas Normales (Servicio Mensual Base)
                                 table.Cell().Element(CellStyle).Text("SERV-NORM").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({detail.HorasTurno} hrs) - Horas Normales").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("Mes").FontSize(8);
-                                table.Cell().Element(CellStyle).Text("1").FontSize(8);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Servicio de Personal - Turno {detail.Turno} ({horasMensuales} hrs/mes) - Horas Normales").FontSize(8);
+                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8);
+                                table.Cell().Element(CellStyle).Text(horasMensuales.ToString()).FontSize(8);
+                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {precioHoraNormal:N2}").FontSize(8);
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {cot.TarifaAcordada:N2}").FontSize(8).Bold();
 
                                 // Fila 2: Hora Extra
@@ -122,17 +127,9 @@ namespace Reportes.Operaciones
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaExtra:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
                                 table.Cell().Element(CellStyle).AlignRight().Text("Tarifa Ref.").FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
 
-                                // Fila 3: Hora Feriado
-                                table.Cell().Element(CellStyle).Text("REC-FERIA").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora de Día Feriado / Asueto (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).Text("Hora").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).Text("-").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaFeriado:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).AlignRight().Text("Tarifa Ref.").FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
-
-                                // Fila 4: Hora Domingo
-                                table.Cell().Element(CellStyle).Text("REC-DOMIN").FontSize(8).FontColor(Colors.Grey.Darken1);
-                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora de Domingo (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                // Fila 3: Feriados y Domingos (Unificados en una sola fila)
+                                table.Cell().Element(CellStyle).Text("REC-FD").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                table.Cell().Element(CellStyle).AlignLeft().Text($"Recargo por Hora de Domingo y Día Feriado (Turno {detail.Turno})").FontSize(8).FontColor(Colors.Grey.Darken1);
                                 table.Cell().Element(CellStyle).Text("Hora").FontSize(8).FontColor(Colors.Grey.Darken1);
                                 table.Cell().Element(CellStyle).Text("-").FontSize(8).FontColor(Colors.Grey.Darken1);
                                 table.Cell().Element(CellStyle).AlignRight().Text($"C$ {detail.TarifaDomingo:N2}").FontSize(8).FontColor(Colors.Grey.Darken1);
@@ -157,16 +154,20 @@ namespace Reportes.Operaciones
                             notes.Item().Text("TÉRMINOS Y CONDICIONES COMERCIALES").FontSize(9).Bold().FontColor(Colors.Blue.Darken4);
                             notes.Item().PaddingTop(4).Text("• Las tarifas de recargos por horas adicionales son de referencia y solo se facturarán según las horas efectivamente laboradas y reportadas por el cliente.").FontSize(8);
                             notes.Item().PaddingTop(2).Text("• Los precios presentados no incluyen impuestos de ley (IVA), a menos que se especifique lo contrario.").FontSize(8);
-                            notes.Item().PaddingTop(2).Text("• Validez de esta propuesta comercial: 30 días a partir de la fecha de generación.").FontSize(8);
+                            notes.Item().PaddingTop(2).Text("• Validez de esta propuesta comercial: 15 días a partir de la fecha de generación.").FontSize(8);
                             notes.Item().PaddingTop(2).Text("• Forma de pago: Crédito a 15 días posteriores a la fecha de facturación.").FontSize(8);
                         });
                     });
 
-                    page.Footer().AlignCenter().Text(x =>
+                    page.Footer().AlignCenter().Column(f =>
                     {
-                        x.CurrentPageNumber();
-                        x.Span(" / ");
-                        x.TotalPages();
+                        f.Item().AlignCenter().Text("BUSSERSA - Business Solution Services • info@bussersa.com • www.bussersa.com").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        f.Item().AlignCenter().Text(x =>
+                        {
+                            x.CurrentPageNumber().FontSize(8).FontColor(Colors.Grey.Darken1);
+                            x.Span(" / ").FontSize(8).FontColor(Colors.Grey.Darken1);
+                            x.TotalPages().FontSize(8).FontColor(Colors.Grey.Darken1);
+                        });
                     });
                 });
             });

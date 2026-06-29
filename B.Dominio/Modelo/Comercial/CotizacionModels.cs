@@ -15,6 +15,7 @@ namespace Modelo.Comercial
         public decimal TarifaSugerida { get; set; }
         public decimal TarifaAcordada { get; set; }
         public string Estado { get; set; }
+        public string? NumeroCotizacion { get; set; }
         
         public CotizacionPersonalDetalle PersonalDetalle { get; set; }
         public CotizacionProduccionDetalle ProduccionDetalle { get; set; }
