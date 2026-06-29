@@ -198,27 +198,49 @@ function DataTablesRemove(table) {
 }
 
 function downloadFile(contentType, base64Data, fileName) {
-    const linkSource = `data:${contentType};base64,${base64Data}`;
-    const downloadLink = document.createElement("a");
     try {
-        downloadLink.href     = linkSource;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const downloadLink = document.createElement("a");
+        downloadLink.href = blobUrl;
         downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
         downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobUrl);
     } catch (err) {
-        console.error(err);
-    }   
+        console.error("Error en downloadFile:", err);
+    }
 }
 
 function saveAsFile(fileName, base64Data, contentType) {
-    const linkSource = `data:${contentType};base64,${base64Data}`;
-    const downloadLink = document.createElement("a");
     try {
-        downloadLink.href     = linkSource;
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        const downloadLink = document.createElement("a");
+        downloadLink.href = blobUrl;
         downloadLink.download = fileName;
+        document.body.appendChild(downloadLink);
         downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobUrl);
     } catch (err) {
-        console.error(err);
-    }   
+        console.error("Error en saveAsFile:", err);
+    }
 }
 
 window.inactivityTracker = {
