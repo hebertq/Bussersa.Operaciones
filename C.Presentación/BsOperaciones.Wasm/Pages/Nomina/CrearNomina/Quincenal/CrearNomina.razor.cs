@@ -74,6 +74,35 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
                         sheet = hssfwb.GetSheetAt(0);
                     }
 
+                    // Normalizar cabeceras en memoria para tolerar guiones bajos y espacios de forma indistinta en cualquier columna
+                    var expectedHeaders = new[] {
+                        "id", "nombre", "tipoempleado", "area", "dias habiles", "diastrabajados",
+                        "vacdes", "vacpag", "subsidios", "justificados", "injustificados",
+                        "cuarentena", "suspension", "septimo", "diasferiados", "totaldias",
+                        "hexpagar", "bono", "aguinaldo", "otros ingresos", "otras deducciones"
+                    };
+                    var headerRow = sheet.GetRow(0);
+                    if (headerRow != null)
+                    {
+                        for (int col = 0; col < headerRow.LastCellNum; col++)
+                        {
+                            var cell = headerRow.GetCell(col);
+                            if (cell != null)
+                            {
+                                string val = cell.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(val))
+                                {
+                                    string normalized = val.Replace(" ", "").Replace("_", "").ToLower();
+                                    string matchingHeader = expectedHeaders.FirstOrDefault(h => h.Replace(" ", "").Replace("_", "").ToLower() == normalized);
+                                    if (matchingHeader != null)
+                                    {
+                                        cell.SetCellValue(matchingHeader);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Mapeo original de planilla
                     PayLoadList = sheet.MapTo<diasxpagarperiodo>(true, rowMapper =>
                     {
