@@ -304,7 +304,8 @@ namespace Utilidades.ClasesGenericas
                 // Write headers
                 for (int col = 0; col < headers.Count; col++)
                 {
-                    ws.Cells[startRow, col + 1].Value = headers[col];
+                    string headerName = headers[col]?.Replace("_", " ");
+                    ws.Cells[startRow, col + 1].Value = headerName;
                     ws.Cells[startRow, col + 1].Style.Font.Bold = true;
                 }
 
