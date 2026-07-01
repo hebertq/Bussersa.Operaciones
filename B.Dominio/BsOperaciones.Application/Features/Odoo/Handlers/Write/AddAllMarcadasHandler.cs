@@ -19,7 +19,7 @@ namespace BsOperaciones.Application.Features.Odoo.Handlers.Write
         {
             // La lógica de creación de incidencias de Redmine se ejecuta en el backend 
             // para evitar problemas de CORS del navegador (Failed to fetch).
-            return await _Odo.AddAllMarcadas(request.model, request.operacion);
+            return await _Odo.AddAllMarcadas(request.model, request.operacion, request.opname, request.fecha);
         }
     }
 }

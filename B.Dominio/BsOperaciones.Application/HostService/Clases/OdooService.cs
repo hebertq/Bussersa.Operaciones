@@ -334,13 +334,13 @@ namespace HostService.Clases
 
             return response;
         }
-        public async Task<IResponse> AddAllMarcadas(List<HoraEntrada> model, int operacion)
+        public async Task<IResponse> AddAllMarcadas(List<HoraEntrada> model, int operacion, string opname, string fecha)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IResponse response = new ErrorResponse();
             try
             {
-                var requestUrl = CreateRequestUri($"OCommand/AddAllMarcadas/{operacion}");
+                var requestUrl = CreateRequestUri($"OCommand/AddAllMarcadas/{operacion}?opname={Uri.EscapeDataString(opname)}&fecha={Uri.EscapeDataString(fecha)}");
                 var registro = await PostAsync(requestUrl, model);
                 if (registro.IsSuccess)
                 {

@@ -143,7 +143,7 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.SubirMarcaciones
             isloaddata = true;
             try
             {
-                var res = await _mediator.Send(new AddAllMarcadasCommand(PayLoadList, empresa.Value, NombreOperacion()));
+                 var res = await _mediator.Send(new AddAllMarcadasCommand(PayLoadList, empresa.Value, NombreOperacion(), FchaCarga.ToString("yyyy-MM-dd")));
                 if (!res.Respuesta.ExisteError) 
                 { 
                     Snackbar.Add("Marcaciones sincronizadas con Odoo correctamente.", Severity.Success); 

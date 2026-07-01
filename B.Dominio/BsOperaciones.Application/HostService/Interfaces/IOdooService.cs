@@ -16,7 +16,7 @@ namespace HostService.Interfaces
         Task<IListResponse<Combos>> GetAllCombosHost(string combo);
         Task<IListResponse<DiaFeriado>> GetAllDiasFeriados();
         Task<IResponse> Crudferiado(DiaFeriado model, int op);
-        Task<IResponse> AddAllMarcadas(List<HoraEntrada> model, int operacion);
+        Task<IResponse> AddAllMarcadas(List<HoraEntrada> model, int operacion, string opname, string fecha);
         Task<ISingleResponse<DiasTrabajados>> AddMarcadasId(DiasTrabajados param, int operacion);
         Task<ISingleResponse<DiasTrabajados>> GetMarcadaId(int idmarcada);
         Task<IResponse> CerrarNominaActivas(int model);
