@@ -2,7 +2,17 @@
 @using Modelo.Comercial
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6" Style="position: relative;">
+    @if (isPrinting)
+    {
+        <MudOverlay Visible="true" LightBackground="true" Absolute="false" ZIndex="9999">
+            <div class="d-flex flex-column align-center justify-center">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Class="mt-4 font-bold" Color="Color.Primary">Generando PDF de Cotización... Por favor, espere.</MudText>
+            </div>
+        </MudOverlay>
+    }
+
     <MudText Typo="Typo.h4" Class="mb-6 font-bold" Style="background: linear-gradient(90deg, #1A237E, #0288D1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
         Cotizador de Servicios de Personal (Cálculo por Horas)
     </MudText>

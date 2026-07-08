@@ -23,6 +23,7 @@ namespace BsOperaciones.Pages.Comercial
         private int? selectedEppToAdd;
 
         private string cliente = "";
+        private bool isPrinting = false;
         private Cotizacion? editingQuote;
         private string turno = "Diurno";
         private int horasTurno = 8;
@@ -584,17 +585,27 @@ namespace BsOperaciones.Pages.Comercial
         {
             if (!selectedQuotesForPrint.Any()) return;
 
-            var ids = selectedQuotesForPrint.Select(q => q.Id).ToList();
-            var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
-            if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+            isPrinting = true;
+            StateHasChanged();
+            try
             {
-                var fileBytes = Convert.FromBase64String(res.Model.File);
-                await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{cliente.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
-                Snackbar.Add("Cotización generada y descargada.", Severity.Success);
+                var ids = selectedQuotesForPrint.Select(q => q.Id).ToList();
+                var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{cliente.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Cotización generada y descargada.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                }
             }
-            else
+            finally
             {
-                Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                isPrinting = false;
+                StateHasChanged();
             }
         }
 
@@ -615,16 +626,26 @@ namespace BsOperaciones.Pages.Comercial
         private async Task PrintGroup(GroupedCotizacion group)
         {
             var ids = group.Quotes.Select(q => q.Id).ToList();
-            var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
-            if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+            isPrinting = true;
+            StateHasChanged();
+            try
             {
-                var fileBytes = Convert.FromBase64String(res.Model.File);
-                await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{group.ClienteNombre.Replace(" ", "_")}_{group.Periodo.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
-                Snackbar.Add("Cotización consolidada generada y descargada.", Severity.Success);
+                var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{group.ClienteNombre.Replace(" ", "_")}_{group.Periodo.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Cotización consolidada generada y descargada.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                }
             }
-            else
+            finally
             {
-                Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                isPrinting = false;
+                StateHasChanged();
             }
         }
 
