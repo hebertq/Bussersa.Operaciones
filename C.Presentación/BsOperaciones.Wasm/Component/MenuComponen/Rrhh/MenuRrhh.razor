@@ -1,9 +1,10 @@
-﻿
+
 <AuthorizeView Policy="@Policies.IsMenu" Resource="2">
     <Authorized>
         <MudNavGroup Title="RRHH" Icon="@Icons.Material.Filled.GroupWork" Expanded="false">
             <MenuAsistencia />
             <MenuNomina />
+            <MudNavLink Icon="@Icons.Material.Filled.Assignment" Href="/rrhh/descriptores">Descriptores de Puesto</MudNavLink>
         </MudNavGroup>
     </Authorized>
     <NotAuthorized />
