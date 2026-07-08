@@ -11,4 +11,5 @@ namespace BsOperaciones.Application.Features.Comercial.Queries
     public record GetCatalogosComercialQuery : IRequest<IListResponse<CatalogoResponse>>;
     public record GetCotizacionesQuery : IRequest<IListResponse<Cotizacion>>;
     public record PrintCotizacionPdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
+    public record PrintCotizacionDesglosePdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
 }

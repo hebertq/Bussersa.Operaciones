@@ -40,4 +40,14 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
             return await _Odoo.PrintCotizacionPdf(request.Ids);
         }
     }
+
+    public class PrintCotizacionDesglosePdfHandler : IRequestHandler<PrintCotizacionDesglosePdfQuery, ISingleResponse<FileNameString>>
+    {
+        private readonly IOdooService _Odoo;
+        public PrintCotizacionDesglosePdfHandler(IOdooService odoo) { _Odoo = odoo; }
+        public async Task<ISingleResponse<FileNameString>> Handle(PrintCotizacionDesglosePdfQuery request, CancellationToken cancellationToken)
+        {
+            return await _Odoo.PrintCotizacionDesglosePdf(request.Ids);
+        }
+    }
 }

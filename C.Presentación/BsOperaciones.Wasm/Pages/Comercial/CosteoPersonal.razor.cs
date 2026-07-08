@@ -609,6 +609,34 @@ namespace BsOperaciones.Pages.Comercial
             }
         }
 
+        private async Task PrintConsolidatedCotizacionDesglose()
+        {
+            if (!selectedQuotesForPrint.Any()) return;
+
+            isPrinting = true;
+            StateHasChanged();
+            try
+            {
+                var ids = selectedQuotesForPrint.Select(q => q.Id).ToList();
+                var res = await Mediator.Send(new PrintCotizacionDesglosePdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_Desglose_{cliente.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Desglose de cotización generado y descargado.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF de desglose: " + res.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            finally
+            {
+                isPrinting = false;
+                StateHasChanged();
+            }
+        }
+
         private async Task DeleteQuote(Guid id)
         {
             var res = await Mediator.Send(new DeleteCotizacionCommand(id));
@@ -640,6 +668,32 @@ namespace BsOperaciones.Pages.Comercial
                 else
                 {
                     Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            finally
+            {
+                isPrinting = false;
+                StateHasChanged();
+            }
+        }
+
+        private async Task PrintGroupDesglose(GroupedCotizacion group)
+        {
+            var ids = group.Quotes.Select(q => q.Id).ToList();
+            isPrinting = true;
+            StateHasChanged();
+            try
+            {
+                var res = await Mediator.Send(new PrintCotizacionDesglosePdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_Desglose_{group.ClienteNombre.Replace(" ", "_")}_{group.Periodo.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Desglose consolidado generado y descargado.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF de desglose: " + res.Respuesta.MensajeError, Severity.Error);
                 }
             }
             finally

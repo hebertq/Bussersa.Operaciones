@@ -37,6 +37,7 @@ namespace HostService.Interfaces
         Task<IResponse> CreateSettlementPayroll(DateTime Inicio, DateTime Fin, string Nombre, List<SeveranceDetail> Param);
         Task<ISingleResponse<FileNameString>> PrintPayrollPdf(string nombre, repnominapago modelo);
         Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids);
+        Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids);
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
         Task<IListResponse<User>> GetUsers();
         Task<IResponse> AddUser(User user);
