@@ -1,10 +1,16 @@
 <AuthorizeView Policy="@Policies.IsMenu" Resource="2">
     <Authorized>
-        <MudNavGroup Title="Descriptor" Icon="@Icons.Material.Filled.GroupWork" Expanded="false">
+        <MudNavGroup Title="RRHH" Icon="@Icons.Material.Filled.GroupWork" Expanded="false">
             <MenuAsistencia />
             <MenuNomina />
-            <MenuItem MenuId="31" Name="Descriptores de Puesto" Url="/rrhh/descriptores" IconName="@Icons.Material.Filled.Assignment" />
-            <MenuItem MenuId="32" Name="Matriz de Descriptores" Url="/rrhh/matriz-descriptores" IconName="@Icons.Material.Filled.TableChart" />
+            <AuthorizeView Policy="@Policies.IsMenu" Resource="3" Context="subContext">
+                <Authorized>
+                    <MudNavGroup Title="Descriptor" Icon="@Icons.Material.Filled.Description" Expanded="false">
+                        <MenuItem MenuId="31" Name="Descriptores de Puesto" Url="/rrhh/descriptores" IconName="@Icons.Material.Filled.Assignment" />
+                        <MenuItem MenuId="32" Name="Matriz de Descriptores" Url="/rrhh/matriz-descriptores" IconName="@Icons.Material.Filled.TableChart" />
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
         </MudNavGroup>
     </Authorized>
     <NotAuthorized />
