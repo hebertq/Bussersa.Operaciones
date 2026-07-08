@@ -255,9 +255,23 @@
                                 </MudItem>
                             </MudGrid>
 
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="AddTurnoToSession" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
-                                ➕ Agregar Turno a la Cotización
-                            </MudButton>
+                            @if (editingQuote != null)
+                            {
+                                <div class="d-flex gap-2 w-100">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" OnClick="UpdateExistingQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                        💾 Guardar Cambios en Turno
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="CancelEditing" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                        Cancelar
+                                    </MudButton>
+                                </div>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="AddTurnoToSession" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                    ➕ Agregar Turno a la Cotización
+                                </MudButton>
+                            }
                         </MudCard>
                     </MudItem>
                 </MudGrid>

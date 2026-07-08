@@ -23,6 +23,7 @@ namespace BsOperaciones.Pages.Comercial
         private int? selectedEppToAdd;
 
         private string cliente = "";
+        private Cotizacion? editingQuote;
         private string turno = "Diurno";
         private int horasTurno = 8;
         private decimal salarioBase = 9000.00m;
@@ -266,6 +267,7 @@ namespace BsOperaciones.Pages.Comercial
 
         private void LoadQuoteToForm(Cotizacion quote)
         {
+            editingQuote = quote; // Guardar referencia para edición
             cliente = quote.ClienteNombre;
             utilidadPorcentaje = quote.UtilidadPorcentaje;
             
@@ -307,7 +309,120 @@ namespace BsOperaciones.Pages.Comercial
                     }
                 }
             }
-            Snackbar.Add($"Cotización de '{cliente}' cargada para verificación.", Severity.Info);
+            Snackbar.Add($"Modo edición activado para el turno '{turno}' de '{cliente}'. Modifique los valores y presione Guardar Cambios.", Severity.Info);
+        }
+
+        private async Task UpdateExistingQuote()
+        {
+            if (editingQuote == null) return;
+
+            if (string.IsNullOrWhiteSpace(cliente))
+            {
+                Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(turno))
+            {
+                Snackbar.Add("El nombre del turno es obligatorio.", Severity.Warning);
+                return;
+            }
+
+            // Actualizar propiedades de la cotización existente
+            editingQuote.ClienteNombre = cliente;
+            editingQuote.UtilidadPorcentaje = utilidadPorcentaje;
+            editingQuote.CostoTotal = CalculatedCmt;
+            editingQuote.TarifaSugerida = CalculatedTarifaSugerida;
+            editingQuote.TarifaAcordada = CalculatedTarifaSugerida;
+
+            if (editingQuote.PersonalDetalle != null)
+            {
+                editingQuote.PersonalDetalle.SalarioBase = salarioBase;
+                editingQuote.PersonalDetalle.PrestacionesFactor = CalculatedPrestacionesFactor;
+                editingQuote.PersonalDetalle.ViaticosTotales = CalculatedViaticos;
+                editingQuote.PersonalDetalle.EppTotales = CalculatedEpp;
+                editingQuote.PersonalDetalle.Supervision = supervision;
+                editingQuote.PersonalDetalle.Cargos = cargos;
+                editingQuote.PersonalDetalle.Seguros = seguros;
+                editingQuote.PersonalDetalle.GastosOperativos = gastosOperativos;
+                editingQuote.PersonalDetalle.Turno = turno;
+                editingQuote.PersonalDetalle.HorasTurno = horasTurno;
+                editingQuote.PersonalDetalle.TarifaExtra = CalculatedTarifaExtra;
+                editingQuote.PersonalDetalle.TarifaFeriado = CalculatedTarifaFeriado;
+                editingQuote.PersonalDetalle.TarifaDomingo = CalculatedTarifaDomingo;
+            }
+
+            // Rellenar listas de EPP
+            editingQuote.EppDetalles.Clear();
+            foreach (var id in selectedEpps)
+            {
+                var item = eppList.FirstOrDefault(x => x.Id == id);
+                if (item != null)
+                {
+                    var finalCost = customEppsCosts.TryGetValue(id, out var c) ? c : item.CostoMensual;
+                    editingQuote.EppDetalles.Add(new CotizacionEppDetalle
+                    {
+                        EppId = id,
+                        Nombre = item.Nombre,
+                        Cantidad = item.Cantidad,
+                        MesesProrrateo = item.MesesProrrateo,
+                        CostoUnitario = item.CostoUnitario,
+                        CostoMensual = finalCost
+                    });
+                }
+            }
+
+            // Rellenar lista de Viáticos
+            editingQuote.ViaticoDetalles.Clear();
+            foreach (var id in selectedViaticos)
+            {
+                var item = viaticosList.FirstOrDefault(x => x.Id == id);
+                if (item != null)
+                {
+                    var finalCost = customViaticosCosts.TryGetValue(id, out var c) ? c : item.CostoMensual;
+                    editingQuote.ViaticoDetalles.Add(new CotizacionViaticoDetalle
+                    {
+                        ViaticoId = id,
+                        Nombre = item.Nombre,
+                        CostoMensual = finalCost
+                    });
+                }
+            }
+
+            var res = await Mediator.Send(new SaveCotizacionCommand(editingQuote));
+            if (!res.Respuesta.ExisteError)
+            {
+                Snackbar.Add($"Turno '{turno}' de '{cliente}' actualizado con éxito.", Severity.Success);
+                editingQuote = null;
+                
+                // Resetear campos
+                turno = "";
+                horasTurno = 8;
+                salarioBase = 9000.00m;
+                selectedEpps.Clear();
+                selectedViaticos.Clear();
+                customEppsCosts.Clear();
+                customViaticosCosts.Clear();
+                
+                await LoadQuotes();
+            }
+            else
+            {
+                Snackbar.Add("Error al actualizar la cotización: " + res.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+
+        private void CancelEditing()
+        {
+            editingQuote = null;
+            turno = "";
+            horasTurno = 8;
+            salarioBase = 9000.00m;
+            selectedEpps.Clear();
+            selectedViaticos.Clear();
+            customEppsCosts.Clear();
+            customViaticosCosts.Clear();
+            Snackbar.Add("Edición cancelada.", Severity.Info);
         }
 
         private void AddTurnoToSession()
