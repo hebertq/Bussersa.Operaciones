@@ -1,0 +1,277 @@
+@namespace BsOperaciones.Pages.Rrhh
+
+<div class="matrix-container">
+    <!-- Header Section -->
+    <div class="matrix-header">
+        <div class="header-left">
+            <MudIcon Icon="@Icons.Material.Filled.GridOn" Size="Size.Large" Class="header-icon" />
+            <div>
+                <h1 class="matrix-title">Matriz de Descriptores de Puesto</h1>
+                <p class="matrix-subtitle">Compare y contraste los perfiles, requisitos y responsabilidades de los puestos clave de la planta.</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="PrintMatrixPdf"
+                       Class="btn-print-matrix">
+                Imprimir Matriz (PDF)
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Selectors Section -->
+    <div class="selectors-section">
+        <h3 class="section-title">Puestos a Comparar:</h3>
+        <div class="job-selector-grid">
+            @foreach (var job in JobDescriptionsList)
+            {
+                bool isSelected = SelectedJobTitles.Contains(job.Title);
+                <div class="job-selector-card @(isSelected ? "selected" : "")" @onclick="() => ToggleJobSelection(job.Title)">
+                    <div class="card-checkbox">
+                        <MudCheckBox T="bool" Value="isSelected" Color="Color.Primary" Dense="true" ReadOnly="true" />
+                    </div>
+                    <div class="card-icon-container">
+                        <MudIcon Icon="@job.TabIcon" Size="Size.Medium" Class="card-icon" />
+                    </div>
+                    <div class="card-content">
+                        <span class="card-title">@job.Title</span>
+                        <span class="card-dept">@job.Department</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Matrix Table Section -->
+    <div class="matrix-table-container">
+        <table class="matrix-table">
+            <thead>
+                <tr>
+                    <th class="row-header-col">Características</th>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <th class="job-header-col">
+                            <div class="job-header-wrapper">
+                                <MudIcon Icon="@job.TabIcon" Size="Size.Small" Class="job-title-icon" />
+                                <span class="job-header-title">@job.Title</span>
+                            </div>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Ficha General -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Generalidades del Puesto</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Departamento</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Department</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Reporta A</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.ReportsTo</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Supervisa A</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Supervises</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Jornada / Turno</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Shift</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Tipo de Contratación</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.EmploymentType</td>
+                    }
+                </tr>
+
+                <!-- Objetivo -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Misión y Objetivo</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Objetivo Principal</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td class="objective-cell"><em>"@job.Objective"</em></td>
+                    }
+                </tr>
+
+                <!-- Funciones -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Responsabilidades y Funciones</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Funciones Esenciales</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>
+                            <ul class="matrix-list">
+                                @foreach (var f in job.EssentialFunctions)
+                                {
+                                    <li>@f</li>
+                                }
+                            </ul>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Funciones Ocasionales</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>
+                            <ul class="matrix-list occasional-list">
+                                @foreach (var f in job.OccasionalFunctions)
+                                {
+                                    <li>@f</li>
+                                }
+                            </ul>
+                        </td>
+                    }
+                </tr>
+
+                <!-- Requisitos -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Requisitos del Perfil</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Educación</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Education</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Experiencia</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Experience</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Conocimiento Técnico</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.TechnicalKnowledge</td>
+                    }
+                </tr>
+
+                <!-- Competencias y Condiciones -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Competencias y EPP</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Competencias Clave</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>
+                            <div class="competencies-chips">
+                                @foreach (var comp in job.Competencies)
+                                {
+                                    <span class="matrix-chip">@comp</span>
+                                }
+                            </div>
+                        </td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">EPP Requerido</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td class="epp-cell">@job.EppRequirements</td>
+                    }
+                </tr>
+                <tr>
+                    <td class="row-header">Riesgos / Condiciones</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>@job.Risks</td>
+                    }
+                </tr>
+
+                <!-- KPIs -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Indicadores de Desempeño (KPIs)</td>
+                </tr>
+                <tr>
+                    <td class="row-header">KPIs Clave</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>
+                            <ul class="matrix-list kpis-list">
+                                @foreach (var kpi in job.Kpis)
+                                {
+                                    <li>@kpi</li>
+                                }
+                            </ul>
+                        </td>
+                    }
+                </tr>
+
+                <!-- Actions -->
+                <tr class="section-divider-row">
+                    <td colspan="@(SelectedJobTitles.Count + 1)">Exportar Reporte Individual</td>
+                </tr>
+                <tr>
+                    <td class="row-header">Descargas</td>
+                    @foreach (var title in SelectedJobTitles)
+                    {
+                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        <td>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="() => PrintJobPdf(job.Title)"
+                                       Class="btn-download-job">
+                                Descargar Ficha (PDF)
+                            </MudButton>
+                        </td>
+                    }
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Print overlay spinner -->
+<MudOverlay Visible="isPrinting" DarkBackground="true" Absolute="true" ZIndex="9999" Class="align-center justify-center">
+    <div class="text-center">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        <MudText Typo="Typo.h6" Class="mt-4 text-white font-weight-bold">Generando documento PDF de alta calidad...</MudText>
+        <MudText Typo="Typo.body2" Class="text-white-50">Por favor, espere un momento.</MudText>
+    </div>
+</MudOverlay>

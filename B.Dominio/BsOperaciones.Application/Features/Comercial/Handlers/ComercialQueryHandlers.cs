@@ -50,4 +50,24 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
             return await _Odoo.PrintCotizacionDesglosePdf(request.Ids);
         }
     }
+
+    public class PrintDescriptorPdfHandler : IRequestHandler<PrintDescriptorPdfQuery, ISingleResponse<FileNameString>>
+    {
+        private readonly IOdooService _Odoo;
+        public PrintDescriptorPdfHandler(IOdooService odoo) { _Odoo = odoo; }
+        public async Task<ISingleResponse<FileNameString>> Handle(PrintDescriptorPdfQuery request, CancellationToken cancellationToken)
+        {
+            return await _Odoo.PrintDescriptorPdf(request.JobTitle);
+        }
+    }
+
+    public class PrintMatrizDescriptoresPdfHandler : IRequestHandler<PrintMatrizDescriptoresPdfQuery, ISingleResponse<FileNameString>>
+    {
+        private readonly IOdooService _Odoo;
+        public PrintMatrizDescriptoresPdfHandler(IOdooService odoo) { _Odoo = odoo; }
+        public async Task<ISingleResponse<FileNameString>> Handle(PrintMatrizDescriptoresPdfQuery request, CancellationToken cancellationToken)
+        {
+            return await _Odoo.PrintMatrizDescriptoresPdf();
+        }
+    }
 }

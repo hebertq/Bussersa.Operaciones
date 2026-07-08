@@ -744,6 +744,58 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(string jobTitle)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<FileNameString>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Comercial/GenerateDescriptorPdf?jobTitle={System.Uri.EscapeDataString(jobTitle)}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<FileNameString>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<FileNameString>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<FileNameString>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
