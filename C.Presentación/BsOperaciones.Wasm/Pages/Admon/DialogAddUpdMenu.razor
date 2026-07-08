@@ -29,9 +29,11 @@
                 <MudItem xs="12" sm="6">
                     <MudSelect @bind-Value="payload.parentid" Label="Menú Padre" Variant="Variant.Outlined">
                         <MudSelectItem Value="0">Ninguno (Menú Raíz)</MudSelectItem>
-                        @foreach (var parent in Menus.Where(m => m.parentid == 0 && m.id != payload.id))
+                        @foreach (var parent in Menus.Where(m => m.id != payload.id))
                         {
-                            <MudSelectItem Value="@parent.id">@parent.nombre</MudSelectItem>
+                            var depth = GetMenuDepth(parent);
+                            var prefix = depth > 0 ? new string('—', depth) + " " : "";
+                            <MudSelectItem Value="@parent.id">@prefix@parent.nombre</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -95,5 +97,21 @@
             isloading = false;
             Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
         }
+    }
+
+    private int GetMenuDepth(AdmonMenu menu)
+    {
+        int depth = 0;
+        var current = menu;
+        var visited = new HashSet<int>();
+        while (current.parentid > 0)
+        {
+            if (!visited.Add(current.id)) break;
+            var parent = Menus.FirstOrDefault(m => m.id == current.parentid);
+            if (parent == null) break;
+            depth++;
+            current = parent;
+        }
+        return depth;
     }
 }

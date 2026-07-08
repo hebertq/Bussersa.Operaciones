@@ -34,9 +34,9 @@
                     <RowTemplate>
                         <MudTd DataLabel="ID">@context.id</MudTd>
                         <MudTd DataLabel="Nombre del Menú">
-                            @if (context.parentid > 0)
+                            @if (GetMenuDepth(context) > 0)
                             {
-                                <span class="text-muted">— </span>
+                                <span class="text-muted">@GetPrefix(context)</span>
                             }
                             @context.nombre
                         </MudTd>
@@ -82,11 +82,24 @@
             var result = await OdooService.GetMenus();
             if (!result.Respuesta.ExisteError)
             {
-                // Order by parent hierarchy
-                Menus = result.Model
-                    .OrderBy(m => m.parentid == 0 ? m.id : m.parentid)
-                    .ThenBy(m => m.id)
+                var rawMenus = result.Model.ToList();
+                var rootMenus = rawMenus
+                    .Where(m => m.parentid == 0 || m.parentid == m.id || !rawMenus.Any(p => p.id == m.parentid))
+                    .OrderBy(m => m.id)
                     .ToList();
+                
+                var orderedList = new List<AdmonMenu>();
+                var visited = new HashSet<int>();
+                
+                foreach (var root in rootMenus)
+                {
+                    if (visited.Add(root.id))
+                    {
+                        orderedList.Add(root);
+                        FlattenMenuTree(rawMenus, root.id, orderedList, visited);
+                    }
+                }
+                Menus = orderedList;
             }
             else
             {
@@ -103,6 +116,41 @@
         }
     }
 
+    private void FlattenMenuTree(List<AdmonMenu> source, int parentId, List<AdmonMenu> target, HashSet<int> visited)
+    {
+        var children = source.Where(m => m.parentid == parentId && m.id != parentId).OrderBy(m => m.id).ToList();
+        foreach (var child in children)
+        {
+            if (visited.Add(child.id))
+            {
+                target.Add(child);
+                FlattenMenuTree(source, child.id, target, visited);
+            }
+        }
+    }
+
+    private int GetMenuDepth(AdmonMenu menu)
+    {
+        int depth = 0;
+        var current = menu;
+        var visited = new HashSet<int>();
+        while (current.parentid > 0)
+        {
+            if (!visited.Add(current.id)) break;
+            var parent = Menus.FirstOrDefault(m => m.id == current.parentid);
+            if (parent == null) break;
+            depth++;
+            current = parent;
+        }
+        return depth;
+    }
+
+    private string GetPrefix(AdmonMenu menu)
+    {
+        int depth = GetMenuDepth(menu);
+        return new string('—', depth) + " ";
+    }
+
     private string GetParentName(int parentId)
     {
         if (parentId == 0) return "Menú Raíz";
@@ -111,7 +159,6 @@
 
     private string GetIcon(string iconName)
     {
-        // Simple mapping helper for MudBlazor Icons if needed
         return typeof(Icons.Material.Filled).GetField(iconName)?.GetValue(null)?.ToString() ?? Icons.Material.Filled.Menu;
     }
 
