@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Modelo.Exceptions
@@ -8,13 +8,13 @@ namespace Modelo.Exceptions
     {
         private readonly List<ErrorInfo> _errors;
 
-        public RulesException(string propertyName, string errorMessage, string prefix = "")
+        public RulesException(string propertyName, string errorMessage, string prefix = "") : base(errorMessage)
         {
             _errors = Errors;
             _errors.Add(new ErrorInfo($"{prefix}{propertyName}", errorMessage));
         }
 
-        public RulesException(string propertyName, string errorMessage, object onObject, string prefix = "")
+        public RulesException(string propertyName, string errorMessage, object onObject, string prefix = "") : base(errorMessage)
         {
             _errors = Errors;
             _errors.Add(new ErrorInfo($"{prefix}{propertyName}", errorMessage, onObject));
