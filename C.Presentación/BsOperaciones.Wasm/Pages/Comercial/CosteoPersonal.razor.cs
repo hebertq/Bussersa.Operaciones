@@ -34,6 +34,7 @@ namespace BsOperaciones.Pages.Comercial
         private decimal seguros = 300.00m;
         private decimal gastosOperativos = 0.00m;
         private int diasFeriados = 15;
+        private bool recargoDoble = false;
 
         private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
         private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
@@ -124,7 +125,9 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedTarifaDia => CalculatedTarifaHora * (decimal)horasTurno;
 
-        private decimal CalculatedTarifaExtra => ((salarioBase / 30m) / (decimal)horasTurno) + CalculatedTarifaHora;
+        private decimal CalculatedTarifaExtra => recargoDoble 
+            ? (CalculatedTarifaHora * 2m)
+            : (((salarioBase / 30m) / (decimal)horasTurno) + CalculatedTarifaHora + 15m);
 
         private decimal CalculatedTarifaFeriado => CalculatedTarifaExtra;
 
@@ -283,6 +286,7 @@ namespace BsOperaciones.Pages.Comercial
                 seguros = quote.PersonalDetalle.Seguros;
                 gastosOperativos = quote.PersonalDetalle.GastosOperativos;
                 diasFeriados = quote.PersonalDetalle.DiasFeriados;
+                recargoDoble = quote.PersonalDetalle.RecargoDoble;
 
                 selectedEpps.Clear();
                 customEppsCosts.Clear();
@@ -354,6 +358,7 @@ namespace BsOperaciones.Pages.Comercial
                 editingQuote.PersonalDetalle.TarifaFeriado = CalculatedTarifaFeriado;
                 editingQuote.PersonalDetalle.TarifaDomingo = CalculatedTarifaDomingo;
                 editingQuote.PersonalDetalle.DiasFeriados = diasFeriados;
+                editingQuote.PersonalDetalle.RecargoDoble = recargoDoble;
             }
 
             // Rellenar listas de EPP
@@ -403,6 +408,7 @@ namespace BsOperaciones.Pages.Comercial
                 turno = "";
                 horasTurno = 8;
                 salarioBase = 9000.00m;
+                recargoDoble = false;
                 selectedEpps.Clear();
                 selectedViaticos.Clear();
                 customEppsCosts.Clear();
@@ -464,7 +470,8 @@ namespace BsOperaciones.Pages.Comercial
                 TarifaExtra = CalculatedTarifaExtra,
                 TarifaFeriado = CalculatedTarifaFeriado,
                 TarifaDomingo = CalculatedTarifaDomingo,
-                DiasFeriados = diasFeriados
+                DiasFeriados = diasFeriados,
+                RecargoDoble = recargoDoble
             };
 
             var quoteId = Guid.NewGuid();
@@ -527,6 +534,7 @@ namespace BsOperaciones.Pages.Comercial
             turno = "";
             horasTurno = 8;
             salarioBase = 9000.00m;
+            recargoDoble = false;
             selectedEpps.Clear();
             selectedViaticos.Clear();
             customEppsCosts.Clear();

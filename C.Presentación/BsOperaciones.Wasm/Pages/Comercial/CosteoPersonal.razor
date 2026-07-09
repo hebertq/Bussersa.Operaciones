@@ -50,6 +50,10 @@
                                 </MudItem>
                             </MudGrid>
 
+                            <div class="d-flex align-center mb-4 mt-n2 ml-1">
+                                <MudCheckBox T="bool" @bind-Value="recargoDoble" Label="Calcular recargos de horas extras, domingos y feriados al doble de la tarifa normal" Color="Color.Primary" Dense="true" />
+                            </div>
+
                             <MudGrid>
                                 <MudItem XS="12" SM="6" MD="4">
                                     <MudNumericField T="decimal" @bind-Value="supervision" Label="Supervisión mensual (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
