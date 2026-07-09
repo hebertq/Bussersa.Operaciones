@@ -82,5 +82,10 @@ namespace HostService.Interfaces
         Task<IListResponse<string>> GetDashboardMonths();
         Task<IResponse> UploadDashboardExcel(byte[] fileBytes, string fileName, string mes);
         Task<SingleResponse<List<string>>> ParseProductsExcel(byte[] fileBytes, string fileName);
+
+        // --- DESCRIPTORES DE PUESTO ---
+        Task<IListResponse<Modelo.Comercial.JobDescription>> GetJobDescriptions();
+        Task<IResponse> SaveJobDescription(Modelo.Comercial.JobDescription job);
+        Task<IResponse> DeleteJobDescription(int id);
     }
 }

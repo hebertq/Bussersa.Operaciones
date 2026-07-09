@@ -39,11 +39,14 @@
                             </MudGrid>
                             
                             <MudGrid>
-                                <MudItem XS="12" SM="6">
+                                <MudItem XS="12" SM="4">
                                     <MudNumericField T="decimal" @bind-Value="salarioBase" Label="Salario Base (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" />
                                 </MudItem>
-                                <MudItem XS="12" SM="6">
+                                <MudItem XS="12" SM="4">
                                     <MudNumericField T="decimal" @bind-Value="utilidadPorcentaje" Label="Margen de Utilidad (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" Max="99.0m" Min="1.0m" />
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
+                                    <MudNumericField T="int" @bind-Value="diasFeriados" Label="Días Feriados (Anual)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="0" Max="365" />
                                 </MudItem>
                             </MudGrid>
 

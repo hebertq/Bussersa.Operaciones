@@ -1808,6 +1808,84 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<Modelo.Comercial.JobDescription>> GetJobDescriptions()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Comercial.JobDescription>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Admin/GetJobDescriptions");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.JobDescription>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveJobDescription(Modelo.Comercial.JobDescription job)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Admin/SaveJobDescription");
+                var registro = await PostAsync(requestUrl, job);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteJobDescription(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Admin/DeleteJobDescription/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 

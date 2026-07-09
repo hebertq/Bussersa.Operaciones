@@ -4,6 +4,12 @@
     <!-- Columna Izquierda: Buscador y Lista de Puestos -->
     <MudItem xs="12" md="4" lg="3">
         <MudCard Outlined="true" Class="pa-4 sidebar-card">
+            @if (UserInfo.Permisos.Create)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Class="mb-3" OnClick="AddJob">
+                    Nuevo Puesto
+                </MudButton>
+            }
             <MudTextField @bind-Value="SearchQuery" 
                           Placeholder="Buscar puesto, funciones..." 
                           Adornment="Adornment.Start" 
@@ -20,10 +26,10 @@
                 {
                     <div class="job-item-card @(SelectedJob == job ? "selected" : "")" @onclick="() => SelectJob(job)">
                         <div class="d-flex align-center">
-                            <MudIcon Icon="@job.TabIcon" Color="@(SelectedJob == job ? Color.Secondary : Color.Primary)" Class="mr-3" />
+                            <MudIcon Icon="@(string.IsNullOrEmpty(job.tab_icon) ? Icons.Material.Filled.Assignment : Icons.Material.Filled.Assignment)" Color="@(SelectedJob == job ? Color.Secondary : Color.Primary)" Class="mr-3" />
                             <div>
-                                <MudText Typo="Typo.body2" Class="job-item-title">@job.Title</MudText>
-                                <MudText Typo="Typo.caption" Class="job-item-subtitle">@job.Department</MudText>
+                                <MudText Typo="Typo.body2" Class="job-item-title">@job.title</MudText>
+                                <MudText Typo="Typo.caption" Class="job-item-subtitle">@job.department</MudText>
                             </div>
                         </div>
                     </div>
@@ -48,14 +54,23 @@
                 <MudCard Class="pa-6 mb-4 detail-header-card border-left-secondary">
                     <div class="d-flex align-start justify-space-between flex-wrap">
                         <div>
-                            <MudText Typo="Typo.h5" Class="detail-title">@SelectedJob.Title</MudText>
+                            <MudText Typo="Typo.h5" Class="detail-title">@SelectedJob.title</MudText>
                             <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="d-flex align-center mt-1">
                                 <MudIcon Icon="@Icons.Material.Outlined.Work" Size="Size.Small" Class="mr-1" />
-                                @SelectedJob.Department
+                                @SelectedJob.department
                             </MudText>
                         </div>
-                        <div class="d-flex align-center mt-2 mt-sm-0">
-                            <MudChip T="string" Color="Color.Secondary" Variant="MudBlazor.Variant.Text" Size="Size.Small">@SelectedJob.EmploymentType</MudChip>
+                        <div class="d-flex align-center gap-2 mt-2 mt-sm-0">
+                            <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Info" Title="Descargar PDF" OnClick="PrintDescriptorPdf" />
+                            @if (UserInfo.Permisos.Update)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Title="Editar" OnClick="EditJob" />
+                            }
+                            @if (UserInfo.Permisos.Delete)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Title="Eliminar" OnClick="DeleteJob" />
+                            }
+                            <MudChip T="string" Color="Color.Secondary" Variant="MudBlazor.Variant.Text" Size="Size.Small">@SelectedJob.employment_type</MudChip>
                         </div>
                     </div>
 
@@ -67,7 +82,7 @@
                                 <MudIcon Icon="@Icons.Material.Outlined.Person" Class="meta-icon" />
                                 <div>
                                     <MudText Typo="Typo.caption" Class="meta-label">REPORTA A</MudText>
-                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.ReportsTo</MudText>
+                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.reports_to</MudText>
                                 </div>
                             </div>
                         </MudItem>
@@ -76,7 +91,7 @@
                                 <MudIcon Icon="@Icons.Material.Outlined.Group" Class="meta-icon" />
                                 <div>
                                     <MudText Typo="Typo.caption" Class="meta-label">SUPERVISA A</MudText>
-                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.Supervises</MudText>
+                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.supervises</MudText>
                                 </div>
                             </div>
                         </MudItem>
@@ -85,7 +100,7 @@
                                 <MudIcon Icon="@Icons.Material.Outlined.AccessTime" Class="meta-icon" />
                                 <div>
                                     <MudText Typo="Typo.caption" Class="meta-label">TURNO / JORNADA</MudText>
-                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.Shift</MudText>
+                                    <MudText Typo="Typo.body2" Class="meta-value">@SelectedJob.shift</MudText>
                                 </div>
                             </div>
                         </MudItem>
@@ -98,7 +113,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Size="Size.Large" Class="quote-icon mr-2" />
                         <div>
                             <MudText Typo="Typo.subtitle2" Class="objective-title">OBJETIVO DEL PUESTO</MudText>
-                            <MudText Typo="Typo.body2" Class="objective-text mt-1">@SelectedJob.Objective</MudText>
+                            <MudText Typo="Typo.body2" Class="objective-text mt-1">@SelectedJob.objective</MudText>
                         </div>
                     </div>
                 </MudCard>
@@ -112,12 +127,15 @@
                                 Funciones Esenciales
                             </MudText>
                             <div class="mt-3">
-                                @foreach (var func in SelectedJob.EssentialFunctions)
+                                @if (SelectedJob.essential_functions != null)
                                 {
-                                    <div class="function-item">
-                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Class="mr-2 mt-1" />
-                                        <MudText Typo="Typo.body2">@func</MudText>
-                                    </div>
+                                    @foreach (var func in SelectedJob.essential_functions)
+                                    {
+                                        <div class="function-item">
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Class="mr-2 mt-1" />
+                                            <MudText Typo="Typo.body2">@func</MudText>
+                                        </div>
+                                    }
                                 }
                             </div>
                         </MudCard>
@@ -130,12 +148,15 @@
                                 Funciones de Apoyo / Ocasionales
                             </MudText>
                             <div class="mt-3">
-                                @foreach (var func in SelectedJob.OccasionalFunctions)
+                                @if (SelectedJob.occasional_functions != null)
                                 {
-                                    <div class="function-item">
-                                        <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Size="Size.Small" Class="mr-2 mt-1" />
-                                        <MudText Typo="Typo.body2">@func</MudText>
-                                    </div>
+                                    @foreach (var func in SelectedJob.occasional_functions)
+                                    {
+                                        <div class="function-item">
+                                            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" Size="Size.Small" Class="mr-2 mt-1" />
+                                            <MudText Typo="Typo.body2">@func</MudText>
+                                        </div>
+                                    }
                                 }
                             </div>
                         </MudCard>
@@ -152,25 +173,25 @@
                         <MudItem xs="12" sm="6">
                             <div class="requirement-item">
                                 <MudText Typo="Typo.caption" Class="requirement-label">EDUCACIÓN / FORMACIÓN</MudText>
-                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.Education</MudText>
+                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.education</MudText>
                             </div>
                         </MudItem>
                         <MudItem xs="12" sm="6">
                             <div class="requirement-item">
                                 <MudText Typo="Typo.caption" Class="requirement-label">EXPERIENCIA REQUERIDA</MudText>
-                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.Experience</MudText>
+                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.experience</MudText>
                             </div>
                         </MudItem>
                         <MudItem xs="12" sm="6">
                             <div class="requirement-item">
                                 <MudText Typo="Typo.caption" Class="requirement-label">CONOCIMIENTOS TÉCNICOS</MudText>
-                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.TechnicalKnowledge</MudText>
+                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.technical_knowledge</MudText>
                             </div>
                         </MudItem>
                         <MudItem xs="12" sm="6">
                             <div class="requirement-item">
                                 <MudText Typo="Typo.caption" Class="requirement-label">IDIOMAS / HERRAMIENTAS</MudText>
-                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.ToolsLanguages</MudText>
+                                <MudText Typo="Typo.body2" Class="requirement-value">@SelectedJob.tools_languages</MudText>
                             </div>
                         </MudItem>
                     </MudGrid>
@@ -185,9 +206,12 @@
                                 Competencias Clave
                             </MudText>
                             <div class="d-flex flex-wrap gap-2 mt-2">
-                                @foreach (var comp in SelectedJob.Competencies)
+                                @if (SelectedJob.competencies != null)
                                 {
-                                    <MudChip T="string" Color="Color.Primary" Variant="MudBlazor.Variant.Text" Icon="@Icons.Material.Filled.Star" Size="Size.Small">@comp</MudChip>
+                                    @foreach (var comp in SelectedJob.competencies)
+                                    {
+                                        <MudChip T="string" Color="Color.Primary" Variant="MudBlazor.Variant.Text" Icon="@Icons.Material.Filled.Star" Size="Size.Small">@comp</MudChip>
+                                    }
                                 }
                             </div>
                         </MudCard>
@@ -204,21 +228,21 @@
                                     <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-2 mt-1 text-warning" />
                                     <div>
                                         <MudText Typo="Typo.caption" Class="condition-label">HORARIO / TURNO</MudText>
-                                        <MudText Typo="Typo.body2">@SelectedJob.Horary</MudText>
+                                        <MudText Typo="Typo.body2">@SelectedJob.horary</MudText>
                                     </div>
                                 </div>
                                 <div class="condition-item mt-2">
                                     <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Class="mr-2 mt-1 text-warning" />
                                     <div>
                                         <MudText Typo="Typo.caption" Class="condition-label">EPP / REQUISITOS FÍSICOS</MudText>
-                                        <MudText Typo="Typo.body2">@SelectedJob.EppRequirements</MudText>
+                                        <MudText Typo="Typo.body2">@SelectedJob.epp_requirements</MudText>
                                     </div>
                                 </div>
                                 <div class="condition-item mt-2">
                                     <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-2 mt-1 text-warning" />
                                     <div>
                                         <MudText Typo="Typo.caption" Class="condition-label">RIESGOS DEL PUESTO</MudText>
-                                        <MudText Typo="Typo.body2">@SelectedJob.Risks</MudText>
+                                        <MudText Typo="Typo.body2">@SelectedJob.risks</MudText>
                                     </div>
                                 </div>
                             </div>
@@ -227,26 +251,29 @@
                 </MudGrid>
 
                 <!-- Indicadores de Desempeño (KPI) -->
-                <MudCard Class="pa-5 section-card border-left-success">
-                    <MudText Typo="Typo.subtitle1" Class="section-title d-flex align-center mb-3">
-                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Class="mr-2" />
-                        Indicadores de Desempeño (KPIs)
-                    </MudText>
-                    <MudGrid>
-                        @for (int i = 0; i < SelectedJob.Kpis.Count; i++)
-                        {
-                            var kpi = SelectedJob.Kpis[i];
-                            <MudItem xs="12" sm="6">
-                                <div class="kpi-card pa-4">
-                                    <div class="d-flex align-center">
-                                        <div class="kpi-num mr-3">@(i + 1)</div>
-                                        <MudText Typo="Typo.body2" Style="font-weight: 500;">@kpi</MudText>
+                @if (SelectedJob.kpis != null && SelectedJob.kpis.Any())
+                {
+                    <MudCard Class="pa-5 section-card border-left-success">
+                        <MudText Typo="Typo.subtitle1" Class="section-title d-flex align-center mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Class="mr-2" />
+                            Indicadores de Desempeño (KPIs)
+                        </MudText>
+                        <MudGrid>
+                            @for (int i = 0; i < SelectedJob.kpis.Count; i++)
+                            {
+                                var kpi = SelectedJob.kpis[i];
+                                <MudItem xs="12" sm="6">
+                                    <div class="kpi-card pa-4">
+                                        <div class="d-flex align-center">
+                                            <div class="kpi-num mr-3">@(i + 1)</div>
+                                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@kpi</MudText>
+                                        </div>
                                     </div>
-                                </div>
-                            </MudItem>
-                        }
-                    </MudGrid>
-                </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    </MudCard>
+                }
             </div>
         }
         else

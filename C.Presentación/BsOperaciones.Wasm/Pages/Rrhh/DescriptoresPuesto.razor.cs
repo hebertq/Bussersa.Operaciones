@@ -1,20 +1,33 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
+using Modelo.Comercial;
+using HostService.Interfaces;
+using MediatR;
+using Microsoft.JSInterop;
+using Modelo.Interfaces;
 
 namespace BsOperaciones.Pages.Rrhh
 {
     public partial class DescriptoresPuesto : ComponentBase
     {
+        [Inject] public IOdooService OdooService { get; set; }
+        [Inject] public IDialogService DialogService { get; set; }
+        [Inject] public ISnackbar Snackbar { get; set; }
+        [Inject] public IMediator Mediator { get; set; }
+        [Inject] public IJSRuntime JSRuntime { get; set; }
+        [Inject] public IUserInfo UserInfo { get; set; }
+
         public List<JobDescription> JobDescriptionsList { get; set; } = new();
         public string SearchQuery { get; set; } = "";
         public JobDescription SelectedJob { get; set; }
+        public bool isloading { get; set; }
 
-        protected override void OnInitialized()
+        protected override async Task OnInitializedAsync()
         {
-            LoadJobDescriptions();
-            SelectedJob = JobDescriptionsList.FirstOrDefault();
+            await LoadJobDescriptions();
         }
 
         private void SelectJob(JobDescription job)
@@ -22,136 +35,27 @@ namespace BsOperaciones.Pages.Rrhh
             SelectedJob = job;
         }
 
-        private void LoadJobDescriptions()
+        private async Task LoadJobDescriptions(int? selectId = null)
         {
-            JobDescriptionsList = new List<JobDescription>
+            isloading = true;
+            var response = await OdooService.GetJobDescriptions();
+            isloading = false;
+            if (!response.Respuesta.ExisteError && response.Model != null)
             {
-                new JobDescription
+                JobDescriptionsList = response.Model.ToList();
+                if (selectId.HasValue)
                 {
-                    Title = "Operario(a) de Empaque",
-                    TabIcon = Icons.Material.Filled.Inventory2,
-                    Department = "Operaciones",
-                    ReportsTo = "Supervisor(a) de Turno",
-                    Supervises = "No aplica",
-                    Shift = "Día o Noche (según turno asignado)",
-                    EmploymentType = "Planilla directa (BUSSERSA)",
-                    Objective = "Empacar el producto terminado cumpliendo los estándares de calidad, peso y presentación establecidos, reportando oportunamente cualquier falla al/a la Supervisor(a) de Turno.",
-                    EssentialFunctions = new List<string>
-                    {
-                        "Empacar el producto terminado según estándar y ritmo de línea.",
-                        "Verificar peso, sellado y presentación del empaque antes de paletizar.",
-                        "Reportar fallas de máquina o de materia prima al/a la Supervisor(a) de Turno."
-                    },
-                    OccasionalFunctions = new List<string>
-                    {
-                        "Apoyar labores de limpieza y orden de su estación de trabajo (5S).",
-                        "Apoyar al área de etiquetado en picos de producción."
-                    },
-                    Education = "Educación primaria / secundaria (según requisito interno).",
-                    Experience = "No indispensable; deseable experiencia previa en líneas de producción/empaque.",
-                    TechnicalKnowledge = "Manejo básico de estándares de empaque; deseable experiencia en manufactura de alimentos/bebidas.",
-                    ToolsLanguages = "Español (nativo).",
-                    Competencies = new List<string>
-                    {
-                        "Atención al detalle",
-                        "Ritmo de trabajo constante",
-                        "Trabajo en equipo",
-                        "Disciplina y puntualidad",
-                        "Disposición para trabajar de pie y turnos rotativos"
-                    },
-                    Horary = "Turno completo (día u noche) según rol de turnos de la planta.",
-                    EppRequirements = "Cofia, tapones auditivos, calzado de seguridad, uniforme según normativa de la planta.",
-                    Risks = "Movimientos repetitivos; exposición a ruido de maquinaria; manejo de cargas ligeras.",
-                    Kpis = new List<string>
-                    {
-                        "Cumplimiento de la meta de unidades empacadas por turno.",
-                        "Porcentaje de producto rechazado por defecto de empaque ≤ meta."
-                    }
-                },
-                new JobDescription
-                {
-                    Title = "Operario(a) de Etiquetado",
-                    TabIcon = Icons.Material.Filled.Label,
-                    Department = "Operaciones",
-                    ReportsTo = "Supervisor(a) de Turno",
-                    Supervises = "No aplica",
-                    Shift = "Día o Noche (según turno asignado)",
-                    EmploymentType = "Planilla directa (BUSSERSA)",
-                    Objective = "Etiquetar el producto conforme al tipo de etiqueta y turno asignado, verificando legibilidad y trazabilidad (lote y fecha de vencimiento) en cada unidad.",
-                    EssentialFunctions = new List<string>
-                    {
-                        "Etiquetar el producto según el tipo de etiqueta y turno asignado.",
-                        "Verificar legibilidad, lote y fecha de vencimiento en cada etiqueta.",
-                        "Registrar el consumo de etiquetas y reportar faltantes."
-                    },
-                    OccasionalFunctions = new List<string>
-                    {
-                        "Apoyar labores de limpieza y orden de su estación de trabajo (5S).",
-                        "Apoyar al área de empaque en picos de producción."
-                    },
-                    Education = "Educación primaria / secundaria (según requisito interno).",
-                    Experience = "No indispensable; deseable experiencia previa en líneas de producción/etiquetado.",
-                    TechnicalKnowledge = "Manejo básico de estándares de etiquetado y trazabilidad de lote.",
-                    ToolsLanguages = "Español (nativo).",
-                    Competencies = new List<string>
-                    {
-                        "Atención al detalle",
-                        "Precisión visual",
-                        "Trabajo en equipo",
-                        "Disciplina y puntualidad",
-                        "Disposición para trabajar de pie y turnos rotativos"
-                    },
-                    Horary = "Turno completo (día u noche) según rol de turnos de la planta.",
-                    EppRequirements = "Cofia, tapones auditivos, calzado de seguridad, uniforme según normativa de la planta.",
-                    Risks = "Movimientos repetitivos; exposición a ruido de maquinaria.",
-                    Kpis = new List<string>
-                    {
-                        "Cumplimiento de la meta de unidades etiquetadas por turno.",
-                        "Porcentaje de producto rechazado por error de etiquetado ≤ meta."
-                    }
-                },
-                new JobDescription
-                {
-                    Title = "Auxiliar de Bodega y Logística",
-                    TabIcon = Icons.Material.Filled.Store,
-                    Department = "Operaciones",
-                    ReportsTo = "Supervisor(a) de Turno",
-                    Supervises = "No aplica",
-                    Shift = "Día o Noche (según turno asignado)",
-                    EmploymentType = "Planilla directa (BUSSERSA)",
-                    Objective = "Recibir, controlar y despachar materia prima, insumos y producto terminado, garantizando el abastecimiento continuo de la línea y la trazabilidad del inventario de bodega.",
-                    EssentialFunctions = new List<string>
-                    {
-                        "Recibir, verificar y almacenar materia prima e insumos de empaque/etiquetado.",
-                        "Controlar el inventario de insumos (etiquetas, cajas, film) y alertar reórdenes.",
-                        "Despachar producto terminado según orden de carga y coordinar con transporte."
-                    },
-                    OccasionalFunctions = new List<string>
-                    {
-                        "Apoyar conteos físicos periódicos de inventario junto al/a la Supervisor(a) de Turno.",
-                        "Apoyar labores de orden y limpieza de bodega (5S)."
-                    },
-                    Education = "Educación primaria / secundaria (según requisito interno).",
-                    Experience = "6 meses a 1 año en bodega, almacén o logística.",
-                    TechnicalKnowledge = "Manejo básico de inventarios, uso de montacargas/transpaleta (si aplica), control de trazabilidad de lote.",
-                    ToolsLanguages = "Español (nativo).",
-                    Competencies = new List<string>
-                    {
-                        "Orden y control de inventario",
-                        "Responsabilidad en manejo de insumos",
-                        "Trabajo en equipo con producción",
-                        "Disposición para trabajar en turnos rotativos"
-                    },
-                    Horary = "Turno completo (día u noche) según rol de turnos de la planta.",
-                    EppRequirements = "Calzado de seguridad, guantes, chaleco reflectivo según normativa de bodega.",
-                    Risks = "Manejo de cargas; riesgo de golpes o caídas propios de bodega.",
-                    Kpis = new List<string>
-                    {
-                        "0% de desabastecimiento de insumos críticos en línea.",
-                        "Exactitud de inventario de bodega ≥ meta establecida."
-                    }
+                    SelectedJob = JobDescriptionsList.FirstOrDefault(x => x.id == selectId.Value);
                 }
-            };
+                if (SelectedJob == null)
+                {
+                    SelectedJob = JobDescriptionsList.FirstOrDefault();
+                }
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar descriptores: " + response.Respuesta.MensajeError, Severity.Error);
+            }
         }
 
         public List<JobDescription> FilteredJobs()
@@ -161,34 +65,128 @@ namespace BsOperaciones.Pages.Rrhh
 
             var q = SearchQuery.ToLower();
             return JobDescriptionsList.Where(j =>
-                j.Title.ToLower().Contains(q) ||
-                j.Objective.ToLower().Contains(q) ||
-                j.EssentialFunctions.Any(f => f.ToLower().Contains(q)) ||
-                j.Competencies.Any(c => c.ToLower().Contains(q))
+                (j.title?.ToLower().Contains(q) ?? false) ||
+                (j.objective?.ToLower().Contains(q) ?? false) ||
+                (j.essential_functions?.Any(f => f.ToLower().Contains(q)) ?? false) ||
+                (j.competencies?.Any(c => c.ToLower().Contains(q)) ?? false)
             ).ToList();
         }
-    }
 
-    public class JobDescription
-    {
-        public string Title { get; set; } = "";
-        public string TabIcon { get; set; } = "";
-        public string Department { get; set; } = "";
-        public string ReportsTo { get; set; } = "";
-        public string Supervises { get; set; } = "";
-        public string Shift { get; set; } = "";
-        public string EmploymentType { get; set; } = "";
-        public string Objective { get; set; } = "";
-        public List<string> EssentialFunctions { get; set; } = new();
-        public List<string> OccasionalFunctions { get; set; } = new();
-        public string Education { get; set; } = "";
-        public string Experience { get; set; } = "";
-        public string TechnicalKnowledge { get; set; } = "";
-        public string ToolsLanguages { get; set; } = "";
-        public List<string> Competencies { get; set; } = new();
-        public string Horary { get; set; } = "";
-        public string EppRequirements { get; set; } = "";
-        public string Risks { get; set; } = "";
-        public List<string> Kpis { get; set; } = new();
+        private async Task AddJob()
+        {
+            var parameters = new DialogParameters
+            {
+                ["Title"] = "Agregar Descriptor de Puesto",
+                ["payload"] = new JobDescription(),
+                ["IsEdit"] = false
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = DialogService.Show<DialogAddUpdJobDescription>("Agregar Descriptor de Puesto", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                await LoadJobDescriptions();
+            }
+        }
+
+        private async Task EditJob()
+        {
+            if (SelectedJob == null) return;
+
+            var clone = new JobDescription
+            {
+                id = SelectedJob.id,
+                title = SelectedJob.title,
+                tab_icon = SelectedJob.tab_icon,
+                department = SelectedJob.department,
+                reports_to = SelectedJob.reports_to,
+                supervises = SelectedJob.supervises,
+                shift = SelectedJob.shift,
+                employment_type = SelectedJob.employment_type,
+                objective = SelectedJob.objective,
+                education = SelectedJob.education,
+                experience = SelectedJob.experience,
+                technical_knowledge = SelectedJob.technical_knowledge,
+                tools_languages = SelectedJob.tools_languages,
+                horary = SelectedJob.horary,
+                epp_requirements = SelectedJob.epp_requirements,
+                risks = SelectedJob.risks,
+                essential_functions = SelectedJob.essential_functions != null ? SelectedJob.essential_functions.ToList() : new(),
+                occasional_functions = SelectedJob.occasional_functions != null ? SelectedJob.occasional_functions.ToList() : new(),
+                competencies = SelectedJob.competencies != null ? SelectedJob.competencies.ToList() : new(),
+                kpis = SelectedJob.kpis != null ? SelectedJob.kpis.ToList() : new()
+            };
+
+            var parameters = new DialogParameters
+            {
+                ["Title"] = "Editar Descriptor de Puesto",
+                ["payload"] = clone,
+                ["IsEdit"] = true
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = DialogService.Show<DialogAddUpdJobDescription>("Editar Descriptor de Puesto", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                await LoadJobDescriptions(clone.id);
+            }
+        }
+
+        private async Task DeleteJob()
+        {
+            if (SelectedJob == null) return;
+
+            var confirm = await DialogService.ShowMessageBox(
+                "Eliminar Descriptor",
+                $"¿Está seguro de eliminar el descriptor de '{SelectedJob.title}'?",
+                yesText: "Eliminar", cancelText: "Cancelar");
+
+            if (confirm == true)
+            {
+                isloading = true;
+                var response = await OdooService.DeleteJobDescription(SelectedJob.id);
+                isloading = false;
+                if (!response.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Descriptor eliminado con éxito.", Severity.Success);
+                    SelectedJob = null;
+                    await LoadJobDescriptions();
+                }
+                else
+                {
+                    Snackbar.Add("Error al eliminar: " + response.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+        }
+
+        private async Task PrintDescriptorPdf()
+        {
+            if (SelectedJob == null) return;
+
+            try
+            {
+                isloading = true;
+                var res = await Mediator.Send(new BsOperaciones.Application.Features.Comercial.Queries.PrintDescriptorPdfQuery(SelectedJob.title));
+                isloading = false;
+                if (!res.Respuesta.ExisteError && res.Model != null)
+                {
+                    var fileBytes = System.Convert.FromBase64String(res.Model.File);
+                    await JSRuntime.InvokeVoidAsync("saveAsFile", $"Descriptor_{SelectedJob.title.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                isloading = false;
+                Snackbar.Add("Error inesperado al imprimir: " + ex.Message, Severity.Error);
+            }
+        }
     }
 }

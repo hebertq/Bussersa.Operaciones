@@ -12,10 +12,10 @@
         </div>
         <div class="header-right">
             <MudButton Variant="Variant.Filled" 
-                       Color="Color.Primary" 
-                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
-                       OnClick="PrintMatrixPdf"
-                       Class="btn-print-matrix">
+                        Color="Color.Primary" 
+                        StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                        OnClick="PrintMatrixPdf"
+                        Class="btn-print-matrix">
                 Imprimir Matriz (PDF)
             </MudButton>
         </div>
@@ -27,17 +27,17 @@
         <div class="job-selector-grid">
             @foreach (var job in JobDescriptionsList)
             {
-                bool isSelected = SelectedJobTitles.Contains(job.Title);
-                <div class="job-selector-card @(isSelected ? "selected" : "")" @onclick="() => ToggleJobSelection(job.Title)">
+                bool isSelected = SelectedJobTitles.Contains(job.title);
+                <div class="job-selector-card @(isSelected ? "selected" : "")" @onclick="() => ToggleJobSelection(job.title)">
                     <div class="card-checkbox">
                         <MudCheckBox T="bool" Value="isSelected" Color="Color.Primary" Dense="true" ReadOnly="true" />
                     </div>
                     <div class="card-icon-container">
-                        <MudIcon Icon="@job.TabIcon" Size="Size.Medium" Class="card-icon" />
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Medium" Class="card-icon" />
                     </div>
                     <div class="card-content">
-                        <span class="card-title">@job.Title</span>
-                        <span class="card-dept">@job.Department</span>
+                        <span class="card-title">@job.title</span>
+                        <span class="card-dept">@job.department</span>
                     </div>
                 </div>
             }
@@ -52,13 +52,16 @@
                     <th class="row-header-col">Características</th>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <th class="job-header-col">
-                            <div class="job-header-wrapper">
-                                <MudIcon Icon="@job.TabIcon" Size="Size.Small" Class="job-title-icon" />
-                                <span class="job-header-title">@job.Title</span>
-                            </div>
-                        </th>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        if (job != null)
+                        {
+                            <th class="job-header-col">
+                                <div class="job-header-wrapper">
+                                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Class="job-title-icon" />
+                                    <span class="job-header-title">@job.title</span>
+                                </div>
+                            </th>
+                        }
                     }
                 </tr>
             </thead>
@@ -71,40 +74,40 @@
                     <td class="row-header">Departamento</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Department</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.department)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Reporta A</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.ReportsTo</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.reports_to)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Supervisa A</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Supervises</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.supervises)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Jornada / Turno</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Shift</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.shift)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Tipo de Contratación</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.EmploymentType</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.employment_type)</td>
                     }
                 </tr>
 
@@ -116,8 +119,8 @@
                     <td class="row-header">Objetivo Principal</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td class="objective-cell"><em>"@job.Objective"</em></td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td class="objective-cell"><em>"@(job?.objective)"</em></td>
                     }
                 </tr>
 
@@ -129,12 +132,15 @@
                     <td class="row-header">Funciones Esenciales</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
                         <td>
                             <ul class="matrix-list">
-                                @foreach (var f in job.EssentialFunctions)
+                                @if (job?.essential_functions != null)
                                 {
-                                    <li>@f</li>
+                                    @foreach (var f in job.essential_functions)
+                                    {
+                                        <li>@f</li>
+                                    }
                                 }
                             </ul>
                         </td>
@@ -144,12 +150,15 @@
                     <td class="row-header">Funciones Ocasionales</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
                         <td>
                             <ul class="matrix-list occasional-list">
-                                @foreach (var f in job.OccasionalFunctions)
+                                @if (job?.occasional_functions != null)
                                 {
-                                    <li>@f</li>
+                                    @foreach (var f in job.occasional_functions)
+                                    {
+                                        <li>@f</li>
+                                    }
                                 }
                             </ul>
                         </td>
@@ -164,24 +173,24 @@
                     <td class="row-header">Educación</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Education</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.education)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Experiencia</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Experience</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.experience)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Conocimiento Técnico</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.TechnicalKnowledge</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.technical_knowledge)</td>
                     }
                 </tr>
 
@@ -193,12 +202,15 @@
                     <td class="row-header">Competencias Clave</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
                         <td>
                             <div class="competencies-chips">
-                                @foreach (var comp in job.Competencies)
+                                @if (job?.competencies != null)
                                 {
-                                    <span class="matrix-chip">@comp</span>
+                                    @foreach (var comp in job.competencies)
+                                    {
+                                        <span class="matrix-chip">@comp</span>
+                                    }
                                 }
                             </div>
                         </td>
@@ -208,16 +220,16 @@
                     <td class="row-header">EPP Requerido</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td class="epp-cell">@job.EppRequirements</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td class="epp-cell">@(job?.epp_requirements)</td>
                     }
                 </tr>
                 <tr>
                     <td class="row-header">Riesgos / Condiciones</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
-                        <td>@job.Risks</td>
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                        <td>@(job?.risks)</td>
                     }
                 </tr>
 
@@ -229,12 +241,15 @@
                     <td class="row-header">KPIs Clave</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
                         <td>
                             <ul class="matrix-list kpis-list">
-                                @foreach (var kpi in job.Kpis)
+                                @if (job?.kpis != null)
                                 {
-                                    <li>@kpi</li>
+                                    @foreach (var kpi in job.kpis)
+                                    {
+                                        <li>@kpi</li>
+                                    }
                                 }
                             </ul>
                         </td>
@@ -249,16 +264,19 @@
                     <td class="row-header">Descargas</td>
                     @foreach (var title in SelectedJobTitles)
                     {
-                        var job = JobDescriptionsList.First(j => j.Title == title);
+                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
                         <td>
-                            <MudButton Variant="Variant.Outlined" 
-                                       Color="Color.Primary" 
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Download"
-                                       OnClick="() => PrintJobPdf(job.Title)"
-                                       Class="btn-download-job">
-                                Descargar Ficha (PDF)
-                            </MudButton>
+                            @if (job != null)
+                            {
+                                <MudButton Variant="Variant.Outlined" 
+                                           Color="Color.Primary" 
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Download"
+                                           OnClick="() => PrintJobPdf(job.title)"
+                                           Class="btn-download-job">
+                                    Descargar Ficha (PDF)
+                                </MudButton>
+                            }
                         </td>
                     }
                 </tr>

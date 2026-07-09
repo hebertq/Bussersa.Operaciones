@@ -33,6 +33,7 @@ namespace BsOperaciones.Pages.Comercial
         private decimal cargos = 500.00m;
         private decimal seguros = 300.00m;
         private decimal gastosOperativos = 0.00m;
+        private int diasFeriados = 15;
 
         private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
         private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
@@ -57,7 +58,7 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedPrestacionesFactor => cargosConfig != null 
             ? ((cargosConfig.InssPatronal + cargosConfig.Inatec + cargosConfig.ColchonSubsidio) / 100m) 
-              + ((cargosConfig.DomingosDias + cargosConfig.FeriadosDias + (vacasAlMes * 12m) + (aguinaldoAlMes * 12m) + (indemnizacionAlMes * 12m)) / 360m)
+              + ((cargosConfig.DomingosDias + diasFeriados + (vacasAlMes * 12m) + (aguinaldoAlMes * 12m) + (indemnizacionAlMes * 12m)) / 360m)
             : 0.743m;
 
         public class GroupedCotizacion
@@ -281,6 +282,7 @@ namespace BsOperaciones.Pages.Comercial
                 cargos = quote.PersonalDetalle.Cargos;
                 seguros = quote.PersonalDetalle.Seguros;
                 gastosOperativos = quote.PersonalDetalle.GastosOperativos;
+                diasFeriados = quote.PersonalDetalle.DiasFeriados;
 
                 selectedEpps.Clear();
                 customEppsCosts.Clear();
@@ -351,6 +353,7 @@ namespace BsOperaciones.Pages.Comercial
                 editingQuote.PersonalDetalle.TarifaExtra = CalculatedTarifaExtra;
                 editingQuote.PersonalDetalle.TarifaFeriado = CalculatedTarifaFeriado;
                 editingQuote.PersonalDetalle.TarifaDomingo = CalculatedTarifaDomingo;
+                editingQuote.PersonalDetalle.DiasFeriados = diasFeriados;
             }
 
             // Rellenar listas de EPP
@@ -460,7 +463,8 @@ namespace BsOperaciones.Pages.Comercial
                 HorasTurno = horasTurno,
                 TarifaExtra = CalculatedTarifaExtra,
                 TarifaFeriado = CalculatedTarifaFeriado,
-                TarifaDomingo = CalculatedTarifaDomingo
+                TarifaDomingo = CalculatedTarifaDomingo,
+                DiasFeriados = diasFeriados
             };
 
             var quoteId = Guid.NewGuid();

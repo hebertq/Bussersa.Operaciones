@@ -1,0 +1,303 @@
+@using Modelo.Comercial
+@using HostService.Interfaces
+@inject ISnackbar Snackbar
+@inject IOdooService OdooService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="MudBlazor.Typo.h6">
+            <MudIcon Icon="@GetIcon(payload.tab_icon)" Class="mr-3 mb-n1" />
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (isloading)
+        {
+            <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
+        }
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" Style="max-height: 550px; min-height: 450px;">
+            <MudTabPanel Text="Información General">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.title" Label="Título del Puesto" Variant="Variant.Outlined" Required="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.department" Label="Departamento" Variant="Variant.Outlined" Required="true" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSelect @bind-Value="payload.tab_icon" Label="Icono de la Pestaña" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="@("Assignment")">Asignación (Defecto)</MudSelectItem>
+                            <MudSelectItem Value="@("Inventory2")">Inventario</MudSelectItem>
+                            <MudSelectItem Value="@("Label")">Etiquetado</MudSelectItem>
+                            <MudSelectItem Value="@("Store")">Bodega</MudSelectItem>
+                            <MudSelectItem Value="@("Engineering")">Ingeniería</MudSelectItem>
+                            <MudSelectItem Value="@("LocalShipping")">Logística / Envío</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.employment_type" Label="Tipo de Contratación" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.shift" Label="Turno" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.reports_to" Label="Reporta a" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.supervises" Label="Supervisa a" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="payload.objective" Label="Objetivo del Puesto" Variant="Variant.Outlined" Lines="3" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Perfil y Requisitos">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.education" Label="Educación" Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.experience" Label="Experiencia" Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="payload.technical_knowledge" Label="Conocimientos Técnicos" Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.tools_languages" Label="Herramientas / Idiomas" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.horary" Label="Horarios" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.epp_requirements" Label="Requisitos de EPP" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="payload.risks" Label="Riesgos Ocupacionales" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Funciones">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Funciones Esenciales</MudText>
+                        <div class="d-flex align-center gap-2 mb-2">
+                            <MudTextField @bind-Value="newEssential" Label="Nueva función esencial" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AddEssential" Size="Size.Small" />
+                        </div>
+                        @if (payload.essential_functions != null && payload.essential_functions.Any())
+                        {
+                            <MudPaper Elevation="0" Outlined="true" Class="pa-2" Style="max-height: 150px; overflow-y: auto">
+                                @foreach (var func in payload.essential_functions.ToList())
+                                {
+                                    <div class="d-flex align-center justify-space-between py-1 border-bottom">
+                                        <MudText Typo="Typo.body2">@func</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveEssential(func)" />
+                                    </div>
+                                }
+                            </MudPaper>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Funciones Ocasionales</MudText>
+                        <div class="d-flex align-center gap-2 mb-2">
+                            <MudTextField @bind-Value="newOccasional" Label="Nueva función ocasional" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AddOccasional" Size="Size.Small" />
+                        </div>
+                        @if (payload.occasional_functions != null && payload.occasional_functions.Any())
+                        {
+                            <MudPaper Elevation="0" Outlined="true" Class="pa-2" Style="max-height: 150px; overflow-y: auto">
+                                @foreach (var func in payload.occasional_functions.ToList())
+                                {
+                                    <div class="d-flex align-center justify-space-between py-1 border-bottom">
+                                        <MudText Typo="Typo.body2">@func</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveOccasional(func)" />
+                                    </div>
+                                }
+                            </MudPaper>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Competencias y KPIs">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Competencias Requeridas</MudText>
+                        <div class="d-flex align-center gap-2 mb-2">
+                            <MudTextField @bind-Value="newCompetency" Label="Nueva competencia" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AddCompetency" Size="Size.Small" />
+                        </div>
+                        @if (payload.competencies != null && payload.competencies.Any())
+                        {
+                            <MudPaper Elevation="0" Outlined="true" Class="pa-2" Style="max-height: 150px; overflow-y: auto">
+                                @foreach (var comp in payload.competencies.ToList())
+                                {
+                                    <div class="d-flex align-center justify-space-between py-1 border-bottom">
+                                        <MudText Typo="Typo.body2">@comp</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveCompetency(comp)" />
+                                    </div>
+                                }
+                            </MudPaper>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">KPIs del Puesto</MudText>
+                        <div class="d-flex align-center gap-2 mb-2">
+                            <MudTextField @bind-Value="newKpi" Label="Nuevo KPI" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled" OnClick="AddKpi" Size="Size.Small" />
+                        </div>
+                        @if (payload.kpis != null && payload.kpis.Any())
+                        {
+                            <MudPaper Elevation="0" Outlined="true" Class="pa-2" Style="max-height: 150px; overflow-y: auto">
+                                @foreach (var kpi in payload.kpis.ToList())
+                                {
+                                    <div class="d-flex align-center justify-space-between py-1 border-bottom">
+                                        <MudText Typo="Typo.body2">@kpi</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveKpi(kpi)" />
+                                    </div>
+                                }
+                            </MudPaper>
+                        }
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public string Title { get; set; } = "Registro de Descriptor de Puesto";
+    [Parameter] public JobDescription payload { get; set; } = new JobDescription();
+    [Parameter] public bool IsEdit { get; set; }
+
+    private bool isloading;
+
+    private string GetIcon(string iconName)
+    {
+        return iconName switch
+        {
+            "Inventory2" => Icons.Material.Filled.Inventory2,
+            "Label" => Icons.Material.Filled.Label,
+            "Store" => Icons.Material.Filled.Store,
+            "Engineering" => Icons.Material.Filled.Engineering,
+            "LocalShipping" => Icons.Material.Filled.LocalShipping,
+            _ => Icons.Material.Filled.Assignment
+        };
+    }
+
+    private string newEssential = "";
+    private string newOccasional = "";
+    private string newCompetency = "";
+    private string newKpi = "";
+
+    protected override void OnInitialized()
+    {
+        if (payload.essential_functions == null) payload.essential_functions = new();
+        if (payload.occasional_functions == null) payload.occasional_functions = new();
+        if (payload.competencies == null) payload.competencies = new();
+        if (payload.kpis == null) payload.kpis = new();
+    }
+
+    private void AddEssential()
+    {
+        if (!string.IsNullOrWhiteSpace(newEssential))
+        {
+            payload.essential_functions.Add(newEssential.Trim());
+            newEssential = "";
+        }
+    }
+
+    private void RemoveEssential(string text)
+    {
+        payload.essential_functions.Remove(text);
+    }
+
+    private void AddOccasional()
+    {
+        if (!string.IsNullOrWhiteSpace(newOccasional))
+        {
+            payload.occasional_functions.Add(newOccasional.Trim());
+            newOccasional = "";
+        }
+    }
+
+    private void RemoveOccasional(string text)
+    {
+        payload.occasional_functions.Remove(text);
+    }
+
+    private void AddCompetency()
+    {
+        if (!string.IsNullOrWhiteSpace(newCompetency))
+        {
+            payload.competencies.Add(newCompetency.Trim());
+            newCompetency = "";
+        }
+    }
+
+    private void RemoveCompetency(string text)
+    {
+        payload.competencies.Remove(text);
+    }
+
+    private void AddKpi()
+    {
+        if (!string.IsNullOrWhiteSpace(newKpi))
+        {
+            payload.kpis.Add(newKpi.Trim());
+            newKpi = "";
+        }
+    }
+
+    private void RemoveKpi(string text)
+    {
+        payload.kpis.Remove(text);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(payload.title))
+        {
+            Snackbar.Add("El título del puesto es obligatorio.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(payload.department))
+        {
+            Snackbar.Add("El departamento es obligatorio.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            isloading = true;
+            var response = await OdooService.SaveJobDescription(payload);
+            isloading = false;
+
+            if (response.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al guardar descriptor: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Descriptor de puesto guardado con éxito.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+        }
+        catch (Exception ex)
+        {
+            isloading = false;
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+    }
+}
