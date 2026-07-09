@@ -79,13 +79,13 @@ namespace BsOperaciones.Pages.Rrhh
             }
         }
 
-        public async Task PrintJobPdf(string jobTitle)
+        public async Task PrintJobPdf(int id, string jobTitle)
         {
             isPrinting = true;
             StateHasChanged();
             try
             {
-                var res = await Mediator.Send(new PrintDescriptorPdfQuery(jobTitle));
+                var res = await Mediator.Send(new PrintDescriptorPdfQuery(id));
                 if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
                 {
                     var fileBytes = Convert.FromBase64String(res.Model.File);

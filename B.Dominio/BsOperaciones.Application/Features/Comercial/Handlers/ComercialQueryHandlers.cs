@@ -57,7 +57,7 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
         public PrintDescriptorPdfHandler(IOdooService odoo) { _Odoo = odoo; }
         public async Task<ISingleResponse<FileNameString>> Handle(PrintDescriptorPdfQuery request, CancellationToken cancellationToken)
         {
-            return await _Odoo.PrintDescriptorPdf(request.JobTitle);
+            return await _Odoo.PrintDescriptorPdf(request.Id);
         }
     }
 

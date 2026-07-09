@@ -744,13 +744,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(string jobTitle)
+        public async Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(int id)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new SingleResponse<FileNameString>();
             try
             {
-                var requestUrl = CreateRequestUri($"Comercial/GenerateDescriptorPdf?jobTitle={System.Uri.EscapeDataString(jobTitle)}");
+                var requestUrl = CreateRequestUri($"Comercial/GenerateDescriptorPdf?id={id}");
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {

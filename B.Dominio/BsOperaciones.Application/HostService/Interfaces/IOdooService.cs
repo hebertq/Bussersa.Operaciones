@@ -38,7 +38,7 @@ namespace HostService.Interfaces
         Task<ISingleResponse<FileNameString>> PrintPayrollPdf(string nombre, repnominapago modelo);
         Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids);
         Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids);
-        Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(string jobTitle);
+        Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(int id);
         Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf();
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
         Task<IListResponse<User>> GetUsers();

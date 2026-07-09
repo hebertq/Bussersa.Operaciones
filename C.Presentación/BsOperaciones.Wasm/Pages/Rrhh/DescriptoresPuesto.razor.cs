@@ -170,7 +170,7 @@ namespace BsOperaciones.Pages.Rrhh
             try
             {
                 isloading = true;
-                var res = await Mediator.Send(new BsOperaciones.Application.Features.Comercial.Queries.PrintDescriptorPdfQuery(SelectedJob.title));
+                var res = await Mediator.Send(new BsOperaciones.Application.Features.Comercial.Queries.PrintDescriptorPdfQuery(SelectedJob.id));
                 isloading = false;
                 if (!res.Respuesta.ExisteError && res.Model != null)
                 {
