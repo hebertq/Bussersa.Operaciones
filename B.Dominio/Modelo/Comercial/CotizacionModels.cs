@@ -44,6 +44,7 @@ namespace Modelo.Comercial
         public decimal TarifaDomingo { get; set; }
         public int DiasFeriados { get; set; } = 15;
         public bool RecargoDoble { get; set; }
+        public decimal MontoAdicionalHoraExtra { get; set; } = 15.0m;
     }
 
     public class CotizacionProduccionDetalle

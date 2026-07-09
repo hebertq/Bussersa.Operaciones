@@ -35,6 +35,7 @@ namespace BsOperaciones.Pages.Comercial
         private decimal gastosOperativos = 0.00m;
         private int diasFeriados = 15;
         private bool recargoDoble = false;
+        private decimal montoAdicionalHoraExtra = 15.00m;
 
         private List<CatalogoEpp> eppList = new List<CatalogoEpp>();
         private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
@@ -127,7 +128,7 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedTarifaExtra => recargoDoble 
             ? (CalculatedTarifaHora * 2m)
-            : (((salarioBase / 30m) / (decimal)horasTurno) + CalculatedTarifaHora + 15m);
+            : (((salarioBase / 30m) / (decimal)horasTurno) + CalculatedTarifaHora + montoAdicionalHoraExtra);
 
         private decimal CalculatedTarifaFeriado => CalculatedTarifaExtra;
 
@@ -287,6 +288,7 @@ namespace BsOperaciones.Pages.Comercial
                 gastosOperativos = quote.PersonalDetalle.GastosOperativos;
                 diasFeriados = quote.PersonalDetalle.DiasFeriados;
                 recargoDoble = quote.PersonalDetalle.RecargoDoble;
+                montoAdicionalHoraExtra = quote.PersonalDetalle.MontoAdicionalHoraExtra;
 
                 selectedEpps.Clear();
                 customEppsCosts.Clear();
@@ -359,6 +361,7 @@ namespace BsOperaciones.Pages.Comercial
                 editingQuote.PersonalDetalle.TarifaDomingo = CalculatedTarifaDomingo;
                 editingQuote.PersonalDetalle.DiasFeriados = diasFeriados;
                 editingQuote.PersonalDetalle.RecargoDoble = recargoDoble;
+                editingQuote.PersonalDetalle.MontoAdicionalHoraExtra = montoAdicionalHoraExtra;
             }
 
             // Rellenar listas de EPP
@@ -471,7 +474,8 @@ namespace BsOperaciones.Pages.Comercial
                 TarifaFeriado = CalculatedTarifaFeriado,
                 TarifaDomingo = CalculatedTarifaDomingo,
                 DiasFeriados = diasFeriados,
-                RecargoDoble = recargoDoble
+                RecargoDoble = recargoDoble,
+                MontoAdicionalHoraExtra = montoAdicionalHoraExtra
             };
 
             var quoteId = Guid.NewGuid();
