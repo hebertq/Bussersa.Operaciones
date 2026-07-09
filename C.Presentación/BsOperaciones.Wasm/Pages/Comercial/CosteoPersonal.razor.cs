@@ -121,7 +121,7 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedFfr => salarioBase > 0 ? (CalculatedTarifaSugerida / salarioBase) : 0m;
 
-        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / 208m;
+        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (26m * (decimal)(horasTurno > 0 ? horasTurno : 8));
 
         private decimal CalculatedTarifaDia => CalculatedTarifaHora * (decimal)horasTurno;
 
