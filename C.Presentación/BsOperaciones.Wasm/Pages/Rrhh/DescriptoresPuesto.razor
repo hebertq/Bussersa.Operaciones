@@ -20,6 +20,9 @@
                           Immediate="true" />
             
             <MudText Typo="Typo.subtitle2" Class="text-muted mb-2">PUESTOS DISPONIBLES (@FilteredJobs().Count)</MudText>
+            <div class="mb-2" style="font-size: 10px; color: gray; max-height: 50px; overflow: auto;">
+                Raw: @(JobDescriptionsList != null ? string.Join(" | ", JobDescriptionsList.Select(x => $"{x.id}:{x.title}")) : "null")
+            </div>
             
             <div class="job-list-container">
                 @foreach (var job in FilteredJobs())
@@ -28,7 +31,7 @@
                         <div class="d-flex align-center">
                             <MudIcon Icon="@(string.IsNullOrEmpty(job.tab_icon) ? Icons.Material.Filled.Assignment : Icons.Material.Filled.Assignment)" Color="@(SelectedJob == job ? Color.Secondary : Color.Primary)" Class="mr-3" />
                             <div>
-                                <MudText Typo="Typo.body2" Class="job-item-title">@job.title</MudText>
+                                <MudText Typo="Typo.body2" Class="job-item-title">@job.title (ID: @job.id)</MudText>
                                 <MudText Typo="Typo.caption" Class="job-item-subtitle">@job.department</MudText>
                             </div>
                         </div>
