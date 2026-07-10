@@ -340,7 +340,7 @@ namespace HostService.Clases
             IResponse response = new ErrorResponse();
             try
             {
-                var requestUrl = CreateRequestUri($"OCommand/AddAllMarcadas/{operacion}?opname={Uri.EscapeDataString(opname)}&fecha={Uri.EscapeDataString(fecha)}");
+                var requestUrl = CreateRequestUri($"OCommand/AddAllMarcadas/{operacion}", $"opname={Uri.EscapeDataString(opname)}&fecha={Uri.EscapeDataString(fecha)}");
                 var registro = await PostAsync(requestUrl, model);
                 if (registro.IsSuccess)
                 {
@@ -750,7 +750,7 @@ namespace HostService.Clases
             var response = new SingleResponse<FileNameString>();
             try
             {
-                var requestUrl = CreateRequestUri($"Comercial/GenerateDescriptorPdf?id={id}");
+                var requestUrl = CreateRequestUri("Comercial/GenerateDescriptorPdf", $"id={id}");
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {
