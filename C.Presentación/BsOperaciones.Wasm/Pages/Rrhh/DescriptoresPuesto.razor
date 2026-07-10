@@ -4,12 +4,9 @@
     <!-- Columna Izquierda: Buscador y Lista de Puestos -->
     <MudItem xs="12" md="4" lg="3">
         <MudCard Outlined="true" Class="pa-4 sidebar-card">
-            @if (UserInfo.Permisos.Create)
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Class="mb-3" OnClick="AddJob">
-                    Nuevo Puesto
-                </MudButton>
-            }
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Class="mb-3" OnClick="AddJob">
+                Nuevo Puesto
+            </MudButton>
             <MudTextField @bind-Value="SearchQuery" 
                           Placeholder="Buscar puesto, funciones..." 
                           Adornment="Adornment.Start" 
@@ -62,14 +59,8 @@
                         </div>
                         <div class="d-flex align-center gap-2 mt-2 mt-sm-0">
                             <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Info" Title="Descargar PDF" OnClick="PrintDescriptorPdf" />
-                            @if (UserInfo.Permisos.Update)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Title="Editar" OnClick="EditJob" />
-                            }
-                            @if (UserInfo.Permisos.Delete)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Title="Eliminar" OnClick="DeleteJob" />
-                            }
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Title="Editar" OnClick="EditJob" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Title="Eliminar" OnClick="DeleteJob" />
                             <MudChip T="string" Color="Color.Secondary" Variant="MudBlazor.Variant.Text" Size="Size.Small">@SelectedJob.employment_type</MudChip>
                         </div>
                     </div>
