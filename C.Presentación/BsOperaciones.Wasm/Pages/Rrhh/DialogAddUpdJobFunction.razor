@@ -1,0 +1,113 @@
+@using Modelo.Comercial
+@using System.Threading
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" Validated="OnValidated">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudAutocomplete T="string" 
+                                     @bind-Value="payload.area" 
+                                     Label="Área / Bloque (Seleccione o escriba uno nuevo)" 
+                                     Required="true" 
+                                     RequiredError="El área o bloque es obligatorio." 
+                                     Variant="Variant.Outlined" 
+                                     Margin="Margin.Dense"
+                                     SearchFunc="@SearchAreas"
+                                     CoerceValue="true"
+                                     CoerceText="true"
+                                     ResetValueOnEmptyText="false" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="payload.actividad" Label="Función / Actividad" Required="true" RequiredError="La descripción de la actividad es obligatoria." Variant="Variant.Outlined" Lines="4" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="int" @bind-Value="payload.orden" Label="Orden de visualización" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!isValid)">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public JobFunction JobFunc { get; set; } = new();
+
+    [Parameter]
+    public List<string> ExistingAreas { get; set; } = new();
+
+    private JobFunction payload = new();
+    private MudForm form = null!;
+    private bool isValid;
+
+    protected override void OnInitialized()
+    {
+        payload = new JobFunction
+        {
+            id = JobFunc.id,
+            area = string.IsNullOrEmpty(JobFunc.area) ? "Nómina y planilla" : JobFunc.area,
+            actividad = JobFunc.actividad,
+            orden = JobFunc.orden
+        };
+    }
+
+    private void OnValidated(bool valid)
+    {
+        isValid = valid;
+        StateHasChanged();
+    }
+
+    private Task<IEnumerable<string>> SearchAreas(string value, CancellationToken token)
+    {
+        // Default list of standard areas to suggest if list is empty
+        var defaultList = new List<string>
+        {
+            "Nómina y planilla",
+            "Gestión de personal",
+            "Compras y logística administrativa",
+            "Atención y soporte interno",
+            "Reportería y control",
+            "Empaque",
+            "Etiquetado",
+            "Coordinación de turno",
+            "Supervisión de turno",
+            "Bodega y logística"
+        };
+
+        var sourceList = ExistingAreas.Any() ? ExistingAreas : defaultList;
+
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult<IEnumerable<string>>(sourceList.Distinct());
+
+        return Task.FromResult<IEnumerable<string>>(
+            sourceList
+                .Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase))
+                .Distinct()
+        );
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(payload.area))
+        {
+            Snackbar.Add("El área o bloque es obligatorio.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(payload.actividad))
+        {
+            Snackbar.Add("La actividad es obligatoria.", Severity.Warning);
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(payload));
+    }
+}

@@ -1,7 +1,7 @@
 .matrix-container {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
     padding: 16px;
     background: var(--mud-palette-background-grey);
     min-height: 100%;
@@ -13,9 +13,9 @@
     justify-content: space-between;
     align-items: center;
     background: var(--mud-palette-surface);
-    padding: 24px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     border-left: 6px solid var(--mud-palette-primary);
 }
 
@@ -27,24 +27,24 @@
 
 .header-icon {
     color: var(--mud-palette-primary);
-    font-size: 2.5rem;
+    font-size: 2.2rem;
 }
 
 .matrix-title {
     font-family: 'Outfit', sans-serif;
     font-weight: 800;
-    font-size: 1.75rem;
+    font-size: 1.6rem;
     color: var(--mud-palette-text-primary);
     margin: 0 0 4px 0;
 }
 
 .matrix-subtitle {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: var(--mud-palette-text-secondary);
     margin: 0;
 }
 
-.btn-print-matrix {
+.btn-print-matrix, .btn-manage-funcs, .btn-save-matrix {
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
     text-transform: none;
@@ -52,18 +52,61 @@
     padding: 8px 16px;
 }
 
+/* Legend Section */
+.legend-section {
+    background: var(--mud-palette-surface);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    border: 1px solid var(--mud-palette-divider);
+}
+
+/* RACI Badges */
+.raci-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.raci-r {
+    background-color: #10b981 !important; /* Green */
+}
+
+.raci-a {
+    background-color: #3b82f6 !important; /* Blue */
+}
+
+.raci-c {
+    background-color: #f59e0b !important; /* Orange */
+}
+
+.raci-i {
+    background-color: #8b5cf6 !important; /* Purple */
+}
+
+.raci-empty {
+    background-color: #94a3b8 !important; /* Gray */
+}
+
 /* Selectors Styles */
 .selectors-section {
     background: var(--mud-palette-surface);
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    border: 1px solid var(--mud-palette-divider);
 }
 
 .section-title {
     font-family: 'Outfit', sans-serif;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--mud-palette-text-primary);
     margin-top: 0;
     margin-bottom: 12px;
@@ -71,47 +114,45 @@
 
 .job-selector-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
 }
 
 .job-selector-card {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
     border: 2px solid var(--mud-palette-divider);
     background: var(--mud-palette-background);
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .job-selector-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     border-color: var(--mud-palette-primary-light);
-    box-shadow: var(--mud-elevation-2);
 }
 
 .job-selector-card.selected {
     border-color: var(--mud-palette-primary);
-    background: rgba(var(--mud-palette-primary-rgb), 0.04);
+    background: rgba(var(--mud-palette-primary-rgb), 0.03);
 }
 
 .card-checkbox {
-    margin-right: 8px;
+    margin-right: 6px;
 }
 
 .card-icon-container {
-    background: rgba(var(--mud-palette-primary-rgb), 0.1);
+    background: rgba(var(--mud-palette-primary-rgb), 0.08);
     color: var(--mud-palette-primary);
-    border-radius: 8px;
-    width: 38px;
-    height: 38px;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 12px;
+    margin-right: 10px;
 }
 
 .card-content {
@@ -122,19 +163,19 @@
 .card-title {
     font-weight: 700;
     color: var(--mud-palette-text-primary);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .card-dept {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--mud-palette-text-secondary);
 }
 
-/* Matrix Table Styles */
+/* RACI Table Styles */
 .matrix-table-container {
     background: var(--mud-palette-surface);
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     overflow-x: auto;
     border: 1px solid var(--mud-palette-divider);
 }
@@ -142,137 +183,119 @@
 .matrix-table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    table-layout: auto;
 }
 
 .matrix-table th, .matrix-table td {
-    padding: 16px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--mud-palette-divider);
-    vertical-align: top;
-    min-width: 250px;
-}
-
-.matrix-table th.row-header-col, .matrix-table td.row-header {
-    min-width: 180px;
-    max-width: 200px;
-    width: 180px;
+    vertical-align: middle;
 }
 
 .matrix-table th {
-    background: rgba(var(--mud-palette-primary-rgb), 0.02);
+    background: #f8fafc;
     font-weight: 800;
-    color: var(--mud-palette-text-primary);
+    color: #1e293b;
+    border-bottom: 2px solid var(--mud-palette-divider);
+    font-family: 'Outfit', sans-serif;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
 }
 
-.row-header-col {
-    font-family: 'Outfit', sans-serif;
-    color: var(--mud-palette-primary);
-    border-right: 1px solid var(--mud-palette-divider);
+.area-col {
+    width: 180px;
+}
+
+.activity-col {
+    min-width: 320px;
 }
 
 .job-header-col {
-    border-right: 1px solid var(--mud-palette-divider);
+    min-width: 160px;
+    border-left: 1px solid var(--mud-palette-divider);
 }
 
-.job-header-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.job-title-icon {
-    color: var(--mud-palette-primary);
-}
-
-.job-header-title {
-    font-family: 'Outfit', sans-serif;
-    font-weight: 800;
-    font-size: 1rem;
-}
-
-.section-divider-row td {
-    background: var(--mud-palette-background-grey);
-    font-family: 'Outfit', sans-serif;
-    font-weight: 800;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-    color: var(--mud-palette-text-secondary);
-    padding: 8px 20px;
-    border-top: 1px solid var(--mud-palette-divider);
-    border-bottom: 1px solid var(--mud-palette-divider);
-}
-
-.row-header {
+.area-cell {
+    background: #f8fafc;
     font-weight: 700;
-    color: var(--mud-palette-text-secondary);
+    color: var(--mud-palette-primary-darken);
     border-right: 1px solid var(--mud-palette-divider);
-    background: rgba(0,0,0,0.01);
+    font-size: 0.85rem;
 }
 
-/* Cell specific layouts */
-.objective-cell {
-    font-size: 0.9rem;
-    line-height: 1.5;
+.activity-cell {
+    text-align: left;
     color: var(--mud-palette-text-primary);
+    line-height: 1.5;
 }
 
-.matrix-list {
-    margin: 0;
-    padding-left: 16px;
+.raci-cell {
+    border-left: 1px solid var(--mud-palette-divider);
 }
 
-.matrix-list li {
-    margin-bottom: 6px;
-    line-height: 1.4;
-}
-
-.occasional-list li {
-    color: var(--mud-palette-text-secondary);
-}
-
-.kpis-list li {
-    color: var(--mud-palette-success-darken);
-    font-weight: 500;
-}
-
-.epp-cell {
-    font-weight: 500;
-}
-
-.competencies-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.matrix-chip {
-    background: rgba(var(--mud-palette-secondary-rgb), 0.08);
-    color: var(--mud-palette-secondary-darken);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border: 1px solid rgba(var(--mud-palette-secondary-rgb), 0.2);
-}
-
-.btn-download-job {
-    text-transform: none;
-    font-weight: 700;
+/* RACI Select */
+.raci-select {
+    font-weight: 900;
     font-family: 'Outfit', sans-serif;
+    text-align: center;
     border-radius: 6px;
+    border: 1px solid #d1d5db;
+    padding: 4px 6px;
+    font-size: 0.9rem;
+    width: 52px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    background-color: #f9fafb;
+    color: #374151;
+    text-align-last: center;
+}
+
+.raci-select:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.raci-select-r {
+    background-color: #ecfdf5 !important;
+    color: #047857 !important;
+    border-color: #34d399 !important;
+}
+
+.raci-select-a {
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border-color: #60a5fa !important;
+}
+
+.raci-select-c {
+    background-color: #fffbeb !important;
+    color: #b45309 !important;
+    border-color: #fbbf24 !important;
+}
+
+.raci-select-i {
+    background-color: #f5f3ff !important;
+    color: #6d28d9 !important;
+    border-color: #a78bfa !important;
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 960px) {
     .matrix-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 16px;
     }
     
-    .btn-print-matrix {
+    .header-right {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .btn-print-matrix, .btn-manage-funcs, .btn-save-matrix {
         width: 100%;
     }
 }

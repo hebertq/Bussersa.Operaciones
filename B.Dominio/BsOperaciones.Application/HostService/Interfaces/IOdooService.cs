@@ -87,5 +87,12 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Comercial.JobDescription>> GetJobDescriptions();
         Task<IResponse> SaveJobDescription(Modelo.Comercial.JobDescription job);
         Task<IResponse> DeleteJobDescription(int id);
+
+        // --- MATRIZ RACI ---
+        Task<IListResponse<Modelo.Comercial.JobFunction>> GetJobFunctions();
+        Task<IResponse> SaveJobFunction(Modelo.Comercial.JobFunction function);
+        Task<IResponse> DeleteJobFunction(int id);
+        Task<IListResponse<Modelo.Comercial.RaciAssignment>> GetRaciAssignments();
+        Task<IResponse> SaveRaciAssignments(List<Modelo.Comercial.RaciAssignment> assignments);
     }
 }

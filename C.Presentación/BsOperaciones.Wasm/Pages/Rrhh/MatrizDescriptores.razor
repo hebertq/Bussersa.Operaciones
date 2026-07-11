@@ -1,4 +1,7 @@
+@page "/rrhh/matriz-descriptores"
 @namespace BsOperaciones.Pages.Rrhh
+@using Modelo.Comercial
+@inherits ComponentBase
 
 <div class="matrix-container">
     <!-- Header Section -->
@@ -6,24 +9,68 @@
         <div class="header-left">
             <MudIcon Icon="@Icons.Material.Filled.GridOn" Size="Size.Large" Class="header-icon" />
             <div>
-                <h1 class="matrix-title">Matriz de Descriptores de Puesto</h1>
-                <p class="matrix-subtitle">Compare y contraste los perfiles, requisitos y responsabilidades de los puestos clave de la planta.</p>
+                <h1 class="matrix-title">Matriz de Funciones y Responsabilidades (RACI)</h1>
+                <p class="matrix-subtitle">Asigne y verifique los niveles de responsabilidad (R, A, C, I) para cada puesto de trabajo.</p>
             </div>
         </div>
-        <div class="header-right">
+        <div class="header-right d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Info" 
+                       StartIcon="@Icons.Material.Filled.List"
+                       OnClick="OpenManageFunctionsDialog"
+                       Class="btn-manage-funcs">
+                Gestionar Actividades
+            </MudButton>
+            @if (hasChanges)
+            {
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Success" 
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveRaciMatrix"
+                           Class="btn-save-matrix">
+                    Guardar Cambios
+                </MudButton>
+            }
             <MudButton Variant="Variant.Filled" 
-                        Color="Color.Primary" 
-                        StartIcon="@Icons.Material.Filled.PictureAsPdf"
-                        OnClick="PrintMatrixPdf"
-                        Class="btn-print-matrix">
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="PrintMatrixPdf"
+                       Class="btn-print-matrix">
                 Imprimir Matriz (PDF)
             </MudButton>
         </div>
     </div>
 
+    <!-- Legend Section -->
+    <div class="legend-section pa-4 mb-3">
+        <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold" Color="Color.Primary">Leyenda de Responsabilidades (RACI):</MudText>
+        <div class="d-flex flex-wrap gap-4 align-center">
+            <div class="d-flex align-center gap-2">
+                <span class="raci-badge raci-r">R</span>
+                <MudText Typo="Typo.body2"><strong>Responsable:</strong> Quien ejecuta la tarea.</MudText>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <span class="raci-badge raci-a">A</span>
+                <MudText Typo="Typo.body2"><strong>Aprobador:</strong> Quien rinde cuentas y aprueba el trabajo.</MudText>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <span class="raci-badge raci-c">C</span>
+                <MudText Typo="Typo.body2"><strong>Consultado:</strong> Quien aporta información o retroalimentación.</MudText>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <span class="raci-badge raci-i">I</span>
+                <MudText Typo="Typo.body2"><strong>Informado:</strong> Quien debe ser notificado del avance o resultado.</MudText>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <span class="raci-badge raci-empty">-</span>
+                <MudText Typo="Typo.body2">No aplica</MudText>
+            </div>
+        </div>
+    </div>
+
     <!-- Selectors Section -->
     <div class="selectors-section">
-        <h3 class="section-title">Puestos a Comparar:</h3>
+        <h3 class="section-title">Filtrar Puestos en Columnas:</h3>
         <div class="job-selector-grid">
             @foreach (var job in JobDescriptionsList)
             {
@@ -45,251 +92,133 @@
     </div>
 
     <!-- Matrix Table Section -->
-    <div class="matrix-table-container">
-        <table class="matrix-table">
-            <thead>
-                <tr>
-                    <th class="row-header-col">Características</th>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        if (job != null)
+    <div class="matrix-table-container mt-4">
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else
+        {
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th class="area-col">Área / Bloque</th>
+                        <th class="activity-col">Función / Actividad</th>
+                        @foreach (var title in SelectedJobTitles)
                         {
-                            <th class="job-header-col">
-                                <div class="job-header-wrapper">
-                                    <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Class="job-title-icon" />
-                                    <span class="job-header-title">@job.title</span>
-                                </div>
-                            </th>
+                            var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                            if (job != null)
+                            {
+                                <th class="job-header-col text-center">
+                                    <div class="job-header-wrapper justify-center">
+                                        <span class="job-header-title">@job.title</span>
+                                    </div>
+                                </th>
+                            }
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!JobFunctionsList.Any())
+                    {
+                        <tr>
+                            <td colspan="@(SelectedJobTitles.Count + 2)" class="text-center pa-8 text-muted">
+                                No se encontraron actividades en el catálogo. Registre una nueva haciendo clic en "Gestionar Actividades".
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        var groupedFunctions = JobFunctionsList.GroupBy(f => f.area).OrderBy(g => g.Key);
+                        @foreach (var group in groupedFunctions)
+                        {
+                            var areaFuncs = group.OrderBy(f => f.orden).ThenBy(f => f.id).ToList();
+                            @for (int i = 0; i < areaFuncs.Count; i++)
+                            {
+                                var func = areaFuncs[i];
+                                <tr>
+                                    @if (i == 0)
+                                    {
+                                        <td class="area-cell" rowspan="@areaFuncs.Count">
+                                            <strong>@group.Key</strong>
+                                        </td>
+                                    }
+                                    <td class="activity-cell">@func.actividad</td>
+                                    @foreach (var title in SelectedJobTitles)
+                                    {
+                                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
+                                        if (job != null)
+                                        {
+                                            var currentVal = GetRaciValue(func.id, job.id);
+                                            <td class="raci-cell text-center">
+                                                <select class="raci-select @GetRaciClass(currentVal)" 
+                                                        value="@currentVal" 
+                                                        @onchange="(e) => SetRaciValue(func.id, job.id, e.Value?.ToString() ?? string.Empty)">
+                                                    <option value="">-</option>
+                                                    <option value="R">R</option>
+                                                    <option value="A">A</option>
+                                                    <option value="C">C</option>
+                                                    <option value="I">I</option>
+                                                </select>
+                                            </td>
+                                        }
+                                    }
+                                </tr>
+                            }
                         }
                     }
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Ficha General -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Generalidades del Puesto</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Departamento</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.department)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Reporta A</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.reports_to)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Supervisa A</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.supervises)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Jornada / Turno</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.shift)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Tipo de Contratación</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.employment_type)</td>
-                    }
-                </tr>
-
-                <!-- Objetivo -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Misión y Objetivo</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Objetivo Principal</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td class="objective-cell"><em>"@(job?.objective)"</em></td>
-                    }
-                </tr>
-
-                <!-- Funciones -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Responsabilidades y Funciones</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Funciones Esenciales</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>
-                            <ul class="matrix-list">
-                                @if (job?.essential_functions != null)
-                                {
-                                    @foreach (var f in job.essential_functions)
-                                    {
-                                        <li>@f</li>
-                                    }
-                                }
-                            </ul>
-                        </td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Funciones Ocasionales</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>
-                            <ul class="matrix-list occasional-list">
-                                @if (job?.occasional_functions != null)
-                                {
-                                    @foreach (var f in job.occasional_functions)
-                                    {
-                                        <li>@f</li>
-                                    }
-                                }
-                            </ul>
-                        </td>
-                    }
-                </tr>
-
-                <!-- Requisitos -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Requisitos del Perfil</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Educación</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.education)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Experiencia</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.experience)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Conocimiento Técnico</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.technical_knowledge)</td>
-                    }
-                </tr>
-
-                <!-- Competencias y Condiciones -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Competencias y EPP</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Competencias Clave</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>
-                            <div class="competencies-chips">
-                                @if (job?.competencies != null)
-                                {
-                                    @foreach (var comp in job.competencies)
-                                    {
-                                        <span class="matrix-chip">@comp</span>
-                                    }
-                                }
-                            </div>
-                        </td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">EPP Requerido</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td class="epp-cell">@(job?.epp_requirements)</td>
-                    }
-                </tr>
-                <tr>
-                    <td class="row-header">Riesgos / Condiciones</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>@(job?.risks)</td>
-                    }
-                </tr>
-
-                <!-- KPIs -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Indicadores de Desempeño (KPIs)</td>
-                </tr>
-                <tr>
-                    <td class="row-header">KPIs Clave</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>
-                            <ul class="matrix-list kpis-list">
-                                @if (job?.kpis != null)
-                                {
-                                    @foreach (var kpi in job.kpis)
-                                    {
-                                        <li>@kpi</li>
-                                    }
-                                }
-                            </ul>
-                        </td>
-                    }
-                </tr>
-
-                <!-- Actions -->
-                <tr class="section-divider-row">
-                    <td colspan="@(SelectedJobTitles.Count + 1)">Exportar Reporte Individual</td>
-                </tr>
-                <tr>
-                    <td class="row-header">Descargas</td>
-                    @foreach (var title in SelectedJobTitles)
-                    {
-                        var job = JobDescriptionsList.FirstOrDefault(j => j.title == title);
-                        <td>
-                            @if (job != null)
-                            {
-                                <MudButton Variant="Variant.Outlined" 
-                                           Color="Color.Primary" 
-                                           Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Download"
-                                           OnClick="() => PrintJobPdf(job.id, job.title)"
-                                           Class="btn-download-job">
-                                    Descargar Ficha (PDF)
-                                </MudButton>
-                            }
-                        </td>
-                    }
-                </tr>
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        }
     </div>
 </div>
 
 <!-- Print overlay spinner -->
-<MudOverlay Visible="isPrinting" DarkBackground="true" Absolute="true" ZIndex="9999" Class="align-center justify-center">
+<MudOverlay Visible="isPrinting || isSaving" DarkBackground="true" Absolute="true" ZIndex="9999" Class="align-center justify-center">
     <div class="text-center">
         <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        <MudText Typo="Typo.h6" Class="mt-4 text-white font-weight-bold">Generando documento PDF de alta calidad...</MudText>
+        <MudText Typo="Typo.h6" Class="mt-4 text-white font-weight-bold">
+            @(isSaving ? "Guardando asignaciones RACI..." : "Generando documento PDF de alta calidad...")
+        </MudText>
         <MudText Typo="Typo.body2" Class="text-white-50">Por favor, espere un momento.</MudText>
     </div>
 </MudOverlay>
+
+<!-- Dialog window to manage job functions -->
+<MudDialog @bind-Visible="isManageFunctionsOpen" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+            Gestionar Actividades / Funciones (Filas)
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex justify-end mb-3">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => OpenAddFunctionDialog()">
+                Nueva Actividad
+            </MudButton>
+        </div>
+        <MudTable Items="JobFunctionsList" Hover="true" Bordered="true" Striped="true" Height="400px" Dense="true">
+            <HeaderContent>
+                <MudTh>Área / Bloque</MudTh>
+                <MudTh>Función / Actividad</MudTh>
+                <MudTh Style="width:80px; text-align:center;">Orden</MudTh>
+                <MudTh Style="width:120px; text-align:center;">Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Área">@context.area</MudTd>
+                <MudTd DataLabel="Actividad">@context.actividad</MudTd>
+                <MudTd DataLabel="Orden" Style="text-align:center;">@context.orden</MudTd>
+                <MudTd Style="text-align:center;">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="() => OpenEditFunctionDialog(context)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteFunction(context.id)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseManageFunctionsDialog" Color="Color.Default" Variant="Variant.Text">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
