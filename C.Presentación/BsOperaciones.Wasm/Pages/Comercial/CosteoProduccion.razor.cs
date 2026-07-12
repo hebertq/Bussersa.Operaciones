@@ -16,6 +16,12 @@ namespace BsOperaciones.Pages.Comercial
     {
         [Inject] private ISnackbar Snackbar { get; set; } = default!;
         [Inject] private ISender Mediator { get; set; } = default!;
+        [Inject] private IJSRuntime JS { get; set; } = default!;
+
+        private Guid? editingQuoteId;
+        private string? editingNumeroCotizacion;
+        private bool isPrinting = false;
+        private HashSet<Cotizacion> expandedQuotes = new HashSet<Cotizacion>();
 
         private string cliente = "";
         private string skuNombre = "";
@@ -404,6 +410,8 @@ namespace BsOperaciones.Pages.Comercial
 
         private void LoadQuoteToForm(Cotizacion quote)
         {
+            editingQuoteId = quote.Id;
+            editingNumeroCotizacion = quote.NumeroCotizacion;
             cliente = quote.ClienteNombre;
             selectedPersonnelQuoteId = null;
             selectedPersonnelQuote = null;
@@ -482,6 +490,8 @@ namespace BsOperaciones.Pages.Comercial
 
             var quote = new Cotizacion
             {
+                Id = editingQuoteId ?? Guid.NewGuid(),
+                NumeroCotizacion = editingNumeroCotizacion ?? $"COT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}",
                 ClienteNombre = cliente,
                 TipoCosteo = "Produccion",
                 UtilidadPorcentaje = currentItems.Average(x => x.MermaPorcentaje),
@@ -498,6 +508,8 @@ namespace BsOperaciones.Pages.Comercial
             if (!res.Respuesta.ExisteError)
             {
                 Snackbar.Add("Cotización de producción guardada exitosamente.", Severity.Success);
+                editingQuoteId = null;
+                editingNumeroCotizacion = null;
                 cliente = "";
                 skuNombre = "";
                 currentItems.Clear();
@@ -805,6 +817,87 @@ namespace BsOperaciones.Pages.Comercial
             {
                 currentProductIndex++;
                 skuNombre = importedProducts[currentProductIndex];
+            }
+        }
+
+        private void ToggleRow(Cotizacion quote)
+        {
+            if (expandedQuotes.Contains(quote))
+                expandedQuotes.Remove(quote);
+            else
+                expandedQuotes.Add(quote);
+        }
+
+        private async Task UpdateTarifaAcordada(Cotizacion quote, CotizacionProduccionDetalle det, decimal val)
+        {
+            det.TarifaAcordada = val;
+            
+            // Recalcular costos y tarifas totales de la cotización maestra
+            quote.TarifaAcordada = quote.ProduccionDetalles.Average(x => x.TarifaAcordada);
+            quote.TarifaSugerida = quote.ProduccionDetalles.Average(x => x.TarifaSugerida);
+            quote.CostoTotal = quote.ProduccionDetalles.Sum(x => (x.ManoObraUnitaria + x.MaterialesTotales + x.AmortizacionUnitaria) * x.ProduccionDiaria * 30m);
+
+            var res = await Mediator.Send(new SaveCotizacionCommand(quote));
+            if (!res.Respuesta.ExisteError)
+            {
+                Snackbar.Add($"Tarifa acordada del producto '{det.SkuNombre}' actualizada a C$ {val:N2}.", Severity.Success);
+                await LoadQuotes();
+            }
+            else
+            {
+                Snackbar.Add("Error al actualizar tarifa acordada: " + res.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+
+        private async Task PrintConsolidatedCotizacion(Cotizacion quote)
+        {
+            isPrinting = true;
+            StateHasChanged();
+            try
+            {
+                var ids = new List<Guid> { quote.Id };
+                var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_{quote.ClienteNombre.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Cotización de producción generada y descargada.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF: " + res.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            finally
+            {
+                isPrinting = false;
+                StateHasChanged();
+            }
+        }
+
+        private async Task PrintConsolidatedCotizacionDesglose(Cotizacion quote)
+        {
+            isPrinting = true;
+            StateHasChanged();
+            try
+            {
+                var ids = new List<Guid> { quote.Id };
+                var res = await Mediator.Send(new PrintCotizacionDesglosePdfQuery(ids));
+                if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
+                {
+                    var fileBytes = Convert.FromBase64String(res.Model.File);
+                    await JS.InvokeVoidAsync("saveAsFile", $"Cotizacion_Desglose_{quote.ClienteNombre.Replace(" ", "_")}.pdf", fileBytes, "application/pdf");
+                    Snackbar.Add("Desglose de cotización generado y descargado.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar PDF de desglose: " + res.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            finally
+            {
+                isPrinting = false;
+                StateHasChanged();
             }
         }
     }
