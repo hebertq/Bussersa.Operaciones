@@ -19,6 +19,7 @@ namespace Modelo.Comercial
         
         public CotizacionPersonalDetalle PersonalDetalle { get; set; }
         public CotizacionProduccionDetalle ProduccionDetalle { get; set; }
+        public List<CotizacionProduccionDetalle> ProduccionDetalles { get; set; } = new List<CotizacionProduccionDetalle>();
         
         public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
         public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();
@@ -58,6 +59,8 @@ namespace Modelo.Comercial
         public decimal AmortizacionUnitaria { get; set; }
         public Guid? PersonalCotizacionId { get; set; }
         public int CantidadTrabajadores { get; set; } = 1;
+        public decimal TarifaSugerida { get; set; }
+        public decimal TarifaAcordada { get; set; }
     }
 
     public class CotizacionEppDetalle
@@ -86,6 +89,7 @@ namespace Modelo.Comercial
         public string Nombre { get; set; }
         public decimal Cantidad { get; set; } = 1.0m;
         public decimal CostoUnitario { get; set; }
+        public string? SkuNombre { get; set; }
     }
 
     public class CotizacionMaquinariaDetalle
@@ -98,6 +102,7 @@ namespace Modelo.Comercial
         public int MesesProyeccion { get; set; }
         public int Personas { get; set; } = 1;
         public decimal ProyeccionMensual { get; set; }
+        public string? SkuNombre { get; set; }
     }
 
     public class SaveCotizacionRequest
@@ -111,6 +116,7 @@ namespace Modelo.Comercial
         
         public CotizacionPersonalDetalle PersonalDetalle { get; set; }
         public CotizacionProduccionDetalle ProduccionDetalle { get; set; }
+        public List<CotizacionProduccionDetalle> ProduccionDetalles { get; set; } = new List<CotizacionProduccionDetalle>();
         
         public List<CotizacionEppDetalle> EppDetalles { get; set; } = new List<CotizacionEppDetalle>();
         public List<CotizacionViaticoDetalle> ViaticoDetalles { get; set; } = new List<CotizacionViaticoDetalle>();

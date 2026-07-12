@@ -321,12 +321,82 @@
                                 </MudPaper>
                             }
 
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
-                                Guardar Cotización de Producción
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Add" FullWidth="true" OnClick="AddProductToQuote" Size="Size.Large" Class="font-bold py-3 mb-3" Style="border-radius: 8px;">
+                                Agregar Producto a Cotización
                             </MudButton>
                         </MudCard>
                     </MudItem>
                 </MudGrid>
+
+                @if (currentItems.Any())
+                {
+                    <div class="mt-8">
+                        <MudText Typo="Typo.h5" Class="mb-4 font-bold" Style="color: #1976D2;">📦 Productos en la Cotización Actual</MudText>
+                        <MudGrid>
+                            <!-- Tabla de productos agregados -->
+                            <MudItem XS="12" MD="8">
+                                <MudTable Items="currentItems" Hover="true" Elevation="4" Dense="true" Style="border-radius: 12px; border-top: 4px solid #1976D2;">
+                                    <HeaderContent>
+                                        <MudTh>Producto/SKU</MudTh>
+                                        <MudTh Style="text-align: right;">Volumen</MudTh>
+                                        <MudTh Style="text-align: right;">M.O. Unit.</MudTh>
+                                        <MudTh Style="text-align: right;">Mat. Unit.</MudTh>
+                                        <MudTh Style="text-align: right;">Amortiz. Unit.</MudTh>
+                                        <MudTh Style="text-align: right;">Tarifa Sugerida</MudTh>
+                                        <MudTh Style="text-align: right;">Tarifa Acordada</MudTh>
+                                        <MudTh Style="text-align: right;">Fact. Mensual</MudTh>
+                                        <MudTh Style="width: 100px; text-align: center;">Acciones</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Producto/SKU">@context.SkuNombre</MudTd>
+                                        <MudTd DataLabel="Volumen" Style="text-align: right;">@context.ProduccionDiaria.ToString("N0") uds</MudTd>
+                                        <MudTd DataLabel="M.O. Unit." Style="text-align: right;">C$ @context.ManoObraUnitaria.ToString("N4")</MudTd>
+                                        <MudTd DataLabel="Mat. Unit." Style="text-align: right;">C$ @context.MaterialesTotales.ToString("N4")</MudTd>
+                                        <MudTd DataLabel="Amortiz. Unit." Style="text-align: right;">C$ @context.AmortizacionUnitaria.ToString("N4")</MudTd>
+                                        <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;" Class="font-bold">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
+                                        <MudTd DataLabel="Tarifa Acordada" Style="text-align: right;" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N4")</MudTd>
+                                        <MudTd DataLabel="Fact. Mensual" Style="text-align: right;">C$ @((context.TarifaAcordada * context.ProduccionDiaria * 30m).ToString("N2"))</MudTd>
+                                        <MudTd DataLabel="Acciones" Style="text-align: center;">
+                                            <MudTooltip Text="Editar producto">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="@(() => EditProductInQuote(context))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="Remover producto">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveProductFromQuote(context))" />
+                                            </MudTooltip>
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </MudItem>
+
+                            <!-- Resumen Consolidado -->
+                            <MudItem XS="12" MD="4">
+                                <MudCard Elevation="4" Class="pa-6 text-white" Style="background: linear-gradient(135deg, #0D47A1, #1976D2); border-radius: 12px; border-top: 4px solid #1976D2;">
+                                    <MudText Typo="Typo.h6" Class="mb-4">Resumen Consolidado</MudText>
+                                    <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                        <MudText Typo="Typo.body1" Class="opacity-75">Cliente/Proyecto:</MudText>
+                                        <MudText Typo="Typo.body1" Class="font-bold">@cliente</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                        <MudText Typo="Typo.body1" Class="opacity-75">Total de Productos:</MudText>
+                                        <MudText Typo="Typo.body1" Class="font-bold">@currentItems.Count</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                        <MudText Typo="Typo.body1" Class="opacity-75">Costo Mensual:</MudText>
+                                        <MudText Typo="Typo.body1" Class="font-bold">C$ @ConsolidatedCostoMensual.ToString("N2")</MudText>
+                                    </div>
+                                    <div class="d-flex justify-space-between mb-4 border-b pb-2 font-bold" style="border-color: rgba(255,255,255,0.3) !important;">
+                                        <MudText Typo="Typo.body1">Facturación Mensual Total:</MudText>
+                                        <MudText Typo="Typo.body1">C$ @ConsolidatedFacturacionMensual.ToString("N2")</MudText>
+                                    </div>
+                                    
+                                    <MudButton Variant="Variant.Filled" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3 mt-4" Style="border-radius: 8px; background-color: #00E676; color: #003300;">
+                                        Guardar Cotización Consolidada
+                                    </MudButton>
+                                </MudCard>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                }
             </div>
         </MudTabPanel>
 
@@ -339,32 +409,28 @@
                     <HeaderContent>
                         <MudTh>Fecha</MudTh>
                         <MudTh>Cliente</MudTh>
-                        <MudTh>Producto/SKU</MudTh>
-                        <MudTh>Volumen Diario</MudTh>
-                        <MudTh>M.O. Unitaria</MudTh>
-                        <MudTh>Materiales</MudTh>
-                        <MudTh>Amortización</MudTh>
-                        <MudTh>Tarifa Sugerida</MudTh>
-                        <MudTh>Tarifa Acordada</MudTh>
-                        <MudTh>Fact. Mensual</MudTh>
-                        <MudTh>Estado</MudTh>
-                        <MudTh Style="width:100px;">Acciones</MudTh>
+                        <MudTh Style="text-align: right;">Total SKUs</MudTh>
+                        <MudTh Style="text-align: right;">Tarifa Prom. Sugerida</MudTh>
+                        <MudTh Style="text-align: right;">Tarifa Prom. Acordada</MudTh>
+                        <MudTh Style="text-align: right;">Facturación Mensual</MudTh>
+                        <MudTh Style="text-align: center;">Estado</MudTh>
+                        <MudTh Style="width:100px; text-align: center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
                         <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
-                        <MudTd DataLabel="Producto/SKU">@context.ProduccionDetalle?.SkuNombre</MudTd>
-                        <MudTd DataLabel="Volumen Diario">@(context.ProduccionDetalle?.ProduccionDiaria.ToString("N0") ?? "-") uds</MudTd>
-                        <MudTd DataLabel="M.O. Unitaria">C$ @(context.ProduccionDetalle?.ManoObraUnitaria.ToString("N4") ?? "-")</MudTd>
-                        <MudTd DataLabel="Materiales">C$ @(context.ProduccionDetalle?.MaterialesTotales.ToString("N4") ?? "-")</MudTd>
-                        <MudTd DataLabel="Amortización">C$ @(context.ProduccionDetalle?.AmortizacionUnitaria.ToString("N4") ?? "-")</MudTd>
-                        <MudTd DataLabel="Tarifa Sugerida" Class="font-bold">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
-                        <MudTd DataLabel="Tarifa Acordada" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N4")</MudTd>
-                        <MudTd DataLabel="Fact. Mensual">C$ @((context.TarifaAcordada * (context.ProduccionDetalle?.ProduccionDiaria ?? 0) * 30m).ToString("N2"))</MudTd>
-                        <MudTd DataLabel="Estado">
+                        <MudTd DataLabel="Total SKUs" Style="text-align: right;">@(context.ProduccionDetalles?.Count ?? (context.ProduccionDetalle != null ? 1 : 0))</MudTd>
+                        <MudTd DataLabel="Tarifa Prom. Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N4")</MudTd>
+                        <MudTd DataLabel="Tarifa Prom. Acordada" Style="text-align: right;" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N4")</MudTd>
+                        <MudTd DataLabel="Facturación Mensual" Style="text-align: right;">
+                            C$ @((context.ProduccionDetalles != null && context.ProduccionDetalles.Any()) 
+                                ? context.ProduccionDetalles.Sum(x => x.TarifaAcordada * x.ProduccionDiaria * 30m).ToString("N2") 
+                                : ((context.TarifaAcordada * (context.ProduccionDetalle?.ProduccionDiaria ?? 0) * 30m).ToString("N2")))
+                        </MudTd>
+                        <MudTd DataLabel="Estado" Style="text-align: center;">
                             <MudChip T="string" Color="GetStatusColor(context.Estado)" Size="Size.Small">@context.Estado</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Acciones">
+                        <MudTd DataLabel="Acciones" Style="text-align: center;">
                             <MudTooltip Text="Cargar en el cotizador">
                                 <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Success" Size="Size.Small" OnClick="@(() => LoadQuoteToForm(context))" />
                             </MudTooltip>
@@ -373,6 +439,55 @@
                             </MudTooltip>
                         </MudTd>
                     </RowTemplate>
+                    <ChildRowContent>
+                        <MudTr>
+                            <td colspan="8" class="pa-4" style="background-color: #f8fafc;">
+                                <MudCard Outlined="true" Class="pa-4" Style="border-left: 5px solid #2E7D32;">
+                                    <MudText Typo="Typo.subtitle2" Class="font-bold mb-3" Color="Color.Success">Detalle de Productos / SKUs Cotizados</MudText>
+                                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                        <thead>
+                                            <tr>
+                                                <th>Producto / SKU</th>
+                                                <th style="text-align: right;">Volumen Diario</th>
+                                                <th style="text-align: right;">Mano Obra Unit.</th>
+                                                <th style="text-align: right;">Materiales Unit.</th>
+                                                <th style="text-align: right;">Amortiz. Unit.</th>
+                                                <th style="text-align: right;">Tarifa Sugerida</th>
+                                                <th style="text-align: right;">Tarifa Acordada</th>
+                                                <th style="text-align: right;">Facturación Mensual</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @{
+                                                var details = new List<CotizacionProduccionDetalle>();
+                                                if (context.ProduccionDetalles != null && context.ProduccionDetalles.Any())
+                                                {
+                                                    details.AddRange(context.ProduccionDetalles);
+                                                }
+                                                else if (context.ProduccionDetalle != null)
+                                                {
+                                                    details.Add(context.ProduccionDetalle);
+                                                }
+                                            }
+                                            @foreach (var det in details)
+                                            {
+                                                <tr>
+                                                    <td>@det.SkuNombre</td>
+                                                    <td style="text-align: right;">@det.ProduccionDiaria.ToString("N0") uds</td>
+                                                    <td style="text-align: right;">C$ @det.ManoObraUnitaria.ToString("N4")</td>
+                                                    <td style="text-align: right;">C$ @det.MaterialesTotales.ToString("N4")</td>
+                                                    <td style="text-align: right;">C$ @det.AmortizacionUnitaria.ToString("N4")</td>
+                                                    <td style="text-align: right;" Class="font-bold">C$ @det.TarifaSugerida.ToString("N4")</td>
+                                                    <td style="text-align: right;" Class="font-bold text-success">C$ @det.TarifaAcordada.ToString("N4")</td>
+                                                    <td style="text-align: right;">C$ @((det.TarifaAcordada * det.ProduccionDiaria * 30m).ToString("N2"))</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </MudSimpleTable>
+                                </MudCard>
+                            </td>
+                        </MudTr>
+                    </ChildRowContent>
                     <NoRecordsContent>
                         <div class="pa-4 text-center text-muted">No hay cotizaciones de producción registradas.</div>
                     </NoRecordsContent>

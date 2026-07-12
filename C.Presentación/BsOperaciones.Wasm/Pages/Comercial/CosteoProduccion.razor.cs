@@ -38,6 +38,10 @@ namespace BsOperaciones.Pages.Comercial
         private List<Cotizacion> savedQuotes = new List<Cotizacion>();
         private List<Cotizacion> personnelQuotes = new List<Cotizacion>();
 
+        private List<CotizacionProduccionDetalle> currentItems = new List<CotizacionProduccionDetalle>();
+        private List<CotizacionMaterialDetalle> tempMaterialDetalles = new List<CotizacionMaterialDetalle>();
+        private List<CotizacionMaquinariaDetalle> tempMaquinariaDetalles = new List<CotizacionMaquinariaDetalle>();
+
         private HashSet<int> selectedMachinery = new HashSet<int>();
         private HashSet<int> selectedMateriales = new HashSet<int>();
         private Dictionary<int, decimal> customMaterialesCosts = new Dictionary<int, decimal>();
@@ -45,6 +49,12 @@ namespace BsOperaciones.Pages.Comercial
 
         private int? selectedMaterialToAdd;
         private int? selectedMachineryToAdd;
+
+        // Cálculos dinámicos consolidados
+        private decimal ConsolidatedCostoMensual => currentItems.Sum(x => (x.ManoObraUnitaria + x.MaterialesTotales + x.AmortizacionUnitaria) * x.ProduccionDiaria * 30m);
+        private decimal ConsolidatedFacturacionMensual => currentItems.Sum(x => x.TarifaAcordada * x.ProduccionDiaria * 30m);
+        private decimal ConsolidatedTarifaSugeridaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaSugerida) : 0m;
+        private decimal ConsolidatedTarifaAcordadaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaAcordada) : 0m;
 
         // Modelos para gestión de catálogos
         private CatalogoMaterial editingMaterial = new CatalogoMaterial();
@@ -242,60 +252,217 @@ namespace BsOperaciones.Pages.Comercial
             tarifaAcordada = CalculatedTarifaUnitaria;
         }
 
+        private void AddProductToQuote()
+        {
+            if (string.IsNullOrWhiteSpace(skuNombre))
+            {
+                Snackbar.Add("Debe ingresar la descripción del SKU.", Severity.Warning);
+                return;
+            }
+
+            if (currentItems.Any(x => x.SkuNombre.Equals(skuNombre, StringComparison.OrdinalIgnoreCase)))
+            {
+                Snackbar.Add("Este producto/SKU ya ha sido agregado a la cotización.", Severity.Warning);
+                return;
+            }
+
+            if (tarifaAcordada <= 0m)
+            {
+                Snackbar.Add("La tarifa acordada debe ser mayor a cero.", Severity.Warning);
+                return;
+            }
+
+            var item = new CotizacionProduccionDetalle
+            {
+                SkuNombre = skuNombre,
+                ProduccionDiaria = produccionDiaria,
+                ManoObraUnitaria = CalculatedManoObraUnitaria,
+                MaterialesTotales = CalculatedMateriales,
+                MermaPorcentaje = mermaPorcentaje,
+                AmortizacionUnitaria = CalculatedAmortizacionUnitaria,
+                PersonalCotizacionId = selectedPersonnelQuoteId,
+                TarifaSugerida = CalculatedTarifaUnitaria,
+                TarifaAcordada = tarifaAcordada
+            };
+
+            currentItems.Add(item);
+
+            // Guardar materiales de este SKU
+            foreach (var matId in selectedMateriales)
+            {
+                var matInfo = materialesList.FirstOrDefault(x => x.Id == matId);
+                if (matInfo != null)
+                {
+                    tempMaterialDetalles.Add(new CotizacionMaterialDetalle
+                    {
+                        MaterialId = matId,
+                        Nombre = matInfo.Nombre,
+                        Cantidad = customMaterialesQuantities.TryGetValue(matId, out var q) ? q : 1m,
+                        CostoUnitario = customMaterialesCosts.TryGetValue(matId, out var cost) ? cost : matInfo.CostoUnitario,
+                        SkuNombre = skuNombre
+                    });
+                }
+            }
+
+            // Guardar maquinaria de este SKU
+            foreach (var maqId in selectedMachinery)
+            {
+                var maqInfo = machineryList.FirstOrDefault(x => x.Id == maqId);
+                if (maqInfo != null)
+                {
+                    tempMaquinariaDetalles.Add(new CotizacionMaquinariaDetalle
+                    {
+                        MaquinariaId = maqId,
+                        Nombre = maqInfo.Nombre,
+                        Precio = maqInfo.Precio,
+                        Cantidad = maqInfo.Cantidad,
+                        MesesProyeccion = maqInfo.MesesProyeccion,
+                        Personas = maqInfo.Personas,
+                        ProyeccionMensual = maqInfo.ProyeccionMensual,
+                        SkuNombre = skuNombre
+                    });
+                }
+            }
+
+            Snackbar.Add($"Producto '{skuNombre}' agregado exitosamente.", Severity.Success);
+
+            // Resetear inputs de SKU
+            skuNombre = "";
+            produccionDiaria = 1000;
+            selectedPersonnelQuoteId = null;
+            selectedPersonnelQuote = null;
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            customMaterialesQuantities.Clear();
+            selectedMachinery.Clear();
+            tarifaAcordada = 0m;
+        }
+
+        private void RemoveProductFromQuote(CotizacionProduccionDetalle item)
+        {
+            currentItems.Remove(item);
+            tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            Snackbar.Add($"Producto '{item.SkuNombre}' removido de la cotización.", Severity.Info);
+        }
+
+        private void EditProductInQuote(CotizacionProduccionDetalle item)
+        {
+            skuNombre = item.SkuNombre;
+            produccionDiaria = item.ProduccionDiaria;
+            mermaPorcentaje = item.MermaPorcentaje;
+            tarifaAcordada = item.TarifaAcordada;
+
+            selectedPersonnelQuoteId = item.PersonalCotizacionId;
+            if (selectedPersonnelQuoteId.HasValue)
+            {
+                selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == selectedPersonnelQuoteId.Value);
+                if (selectedPersonnelQuote != null)
+                {
+                    selectedFilterEmpresa = selectedPersonnelQuote.ClienteNombre;
+                }
+            }
+            else
+            {
+                selectedPersonnelQuote = null;
+                manoObraUnitaria = item.ManoObraUnitaria;
+            }
+
+            // Cargar materiales de este SKU
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            customMaterialesQuantities.Clear();
+            var mats = tempMaterialDetalles.Where(x => x.SkuNombre == item.SkuNombre).ToList();
+            foreach (var mat in mats)
+            {
+                if (mat.MaterialId.HasValue)
+                {
+                    selectedMateriales.Add(mat.MaterialId.Value);
+                    customMaterialesCosts[mat.MaterialId.Value] = mat.CostoUnitario;
+                    customMaterialesQuantities[mat.MaterialId.Value] = mat.Cantidad;
+                }
+            }
+
+            // Cargar maquinaria de este SKU
+            selectedMachinery.Clear();
+            var maqs = tempMaquinariaDetalles.Where(x => x.SkuNombre == item.SkuNombre).ToList();
+            foreach (var maq in maqs)
+            {
+                if (maq.MaquinariaId.HasValue)
+                {
+                    selectedMachinery.Add(maq.MaquinariaId.Value);
+                }
+            }
+
+            // Quitar de la lista temporal para re-agregar al enviar el formulario
+            currentItems.Remove(item);
+            tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+
+            Snackbar.Add($"Producto '{item.SkuNombre}' cargado para edición.", Severity.Info);
+        }
+
         private void LoadQuoteToForm(Cotizacion quote)
         {
             cliente = quote.ClienteNombre;
             selectedPersonnelQuoteId = null;
             selectedPersonnelQuote = null;
+            currentItems.Clear();
+            tempMaterialDetalles.Clear();
+            tempMaquinariaDetalles.Clear();
 
-            if (quote.ProduccionDetalle != null)
+            if (quote.ProduccionDetalles != null && quote.ProduccionDetalles.Any())
             {
-                skuNombre = quote.ProduccionDetalle.SkuNombre;
-                produccionDiaria = quote.ProduccionDetalle.ProduccionDiaria;
-                manoObraUnitaria = quote.ProduccionDetalle.ManoObraUnitaria;
-                mermaPorcentaje = quote.ProduccionDetalle.MermaPorcentaje;
-                tarifaAcordada = quote.TarifaAcordada;
+                currentItems = quote.ProduccionDetalles.ToList();
+            }
+            else if (quote.ProduccionDetalle != null)
+            {
+                currentItems.Add(quote.ProduccionDetalle);
+            }
 
-                if (quote.ProduccionDetalle.PersonalCotizacionId.HasValue)
+            if (quote.MaterialDetalles != null)
+            {
+                tempMaterialDetalles = quote.MaterialDetalles.ToList();
+                if (currentItems.Any())
                 {
-                    selectedPersonnelQuoteId = quote.ProduccionDetalle.PersonalCotizacionId;
-                    selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == selectedPersonnelQuoteId.Value);
-                    if (selectedPersonnelQuote != null)
+                    var firstSku = currentItems.First().SkuNombre;
+                    foreach (var mat in tempMaterialDetalles)
                     {
-                        selectedFilterEmpresa = selectedPersonnelQuote.ClienteNombre;
-                    }
-                }
-
-                // Cargar materiales seleccionados
-                selectedMateriales.Clear();
-                customMaterialesCosts.Clear();
-                customMaterialesQuantities.Clear();
-                if (quote.MaterialDetalles != null)
-                {
-                    foreach (var mat in quote.MaterialDetalles)
-                    {
-                        if (mat.MaterialId.HasValue)
+                        if (string.IsNullOrEmpty(mat.SkuNombre))
                         {
-                            selectedMateriales.Add(mat.MaterialId.Value);
-                            customMaterialesCosts[mat.MaterialId.Value] = mat.CostoUnitario;
-                            customMaterialesQuantities[mat.MaterialId.Value] = mat.Cantidad;
-                        }
-                    }
-                }
-
-                // Cargar maquinaria seleccionada
-                selectedMachinery.Clear();
-                if (quote.MaquinariaDetalles != null)
-                {
-                    foreach (var maq in quote.MaquinariaDetalles)
-                    {
-                        if (maq.MaquinariaId.HasValue)
-                        {
-                            selectedMachinery.Add(maq.MaquinariaId.Value);
+                            mat.SkuNombre = firstSku;
                         }
                     }
                 }
             }
+
+            if (quote.MaquinariaDetalles != null)
+            {
+                tempMaquinariaDetalles = quote.MaquinariaDetalles.ToList();
+                if (currentItems.Any())
+                {
+                    var firstSku = currentItems.First().SkuNombre;
+                    foreach (var maq in tempMaquinariaDetalles)
+                    {
+                        if (string.IsNullOrEmpty(maq.SkuNombre))
+                        {
+                            maq.SkuNombre = firstSku;
+                        }
+                    }
+                }
+            }
+
+            // Limpiar inputs del formulario
+            skuNombre = "";
+            produccionDiaria = 1000;
+            selectedPersonnelQuoteId = null;
+            selectedPersonnelQuote = null;
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            customMaterialesQuantities.Clear();
+            selectedMachinery.Clear();
+            tarifaAcordada = 0m;
+
             Snackbar.Add($"Cotización de '{cliente}' cargada con éxito.", Severity.Info);
         }
 
@@ -306,69 +473,26 @@ namespace BsOperaciones.Pages.Comercial
                 Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
                 return;
             }
-            if (string.IsNullOrWhiteSpace(skuNombre))
+
+            if (!currentItems.Any())
             {
-                Snackbar.Add("El nombre del SKU es obligatorio.", Severity.Warning);
+                Snackbar.Add("Debe agregar al menos un producto a la cotización.", Severity.Warning);
                 return;
             }
-
-            var detail = new CotizacionProduccionDetalle
-            {
-                SkuNombre = skuNombre,
-                ProduccionDiaria = produccionDiaria,
-                ManoObraUnitaria = CalculatedManoObraUnitaria,
-                MaterialesTotales = CalculatedMateriales,
-                MermaPorcentaje = mermaPorcentaje,
-                AmortizacionUnitaria = CalculatedAmortizacionUnitaria,
-                PersonalCotizacionId = selectedPersonnelQuoteId
-            };
 
             var quote = new Cotizacion
             {
                 ClienteNombre = cliente,
                 TipoCosteo = "Produccion",
-                UtilidadPorcentaje = mermaPorcentaje,
-                CostoTotal = CalculatedCostoUnitarioBase * (decimal)produccionDiaria * 30m,
-                TarifaSugerida = CalculatedTarifaUnitaria,
-                TarifaAcordada = tarifaAcordada,
-                ProduccionDetalle = detail,
+                UtilidadPorcentaje = currentItems.Average(x => x.MermaPorcentaje),
+                CostoTotal = ConsolidatedCostoMensual,
+                TarifaSugerida = ConsolidatedTarifaSugeridaPromedio,
+                TarifaAcordada = ConsolidatedTarifaAcordadaPromedio,
+                ProduccionDetalles = currentItems,
+                MaterialDetalles = tempMaterialDetalles,
+                MaquinariaDetalles = tempMaquinariaDetalles,
                 Estado = "Borrador"
             };
-
-            // Rellenar materiales seleccionados históricos
-            foreach (var id in selectedMateriales)
-            {
-                var item = materialesList.FirstOrDefault(x => x.Id == id);
-                if (item != null)
-                {
-                    quote.MaterialDetalles.Add(new CotizacionMaterialDetalle
-                    {
-                        MaterialId = id,
-                        Nombre = item.Nombre,
-                        Cantidad = customMaterialesQuantities.TryGetValue(id, out var q) ? q : 1m,
-                        CostoUnitario = customMaterialesCosts.TryGetValue(id, out var cost) ? cost : item.CostoUnitario
-                    });
-                }
-            }
-
-            // Rellenar maquinaria seleccionada histórica
-            foreach (var id in selectedMachinery)
-            {
-                var item = machineryList.FirstOrDefault(x => x.Id == id);
-                if (item != null)
-                {
-                    quote.MaquinariaDetalles.Add(new CotizacionMaquinariaDetalle
-                    {
-                        MaquinariaId = id,
-                        Nombre = item.Nombre,
-                        Precio = item.Precio,
-                        Cantidad = item.Cantidad,
-                        MesesProyeccion = item.MesesProyeccion,
-                        Personas = item.Personas,
-                        ProyeccionMensual = item.ProyeccionMensual
-                    });
-                }
-            }
 
             var res = await Mediator.Send(new SaveCotizacionCommand(quote));
             if (!res.Respuesta.ExisteError)
@@ -376,11 +500,16 @@ namespace BsOperaciones.Pages.Comercial
                 Snackbar.Add("Cotización de producción guardada exitosamente.", Severity.Success);
                 cliente = "";
                 skuNombre = "";
+                currentItems.Clear();
+                tempMaterialDetalles.Clear();
+                tempMaquinariaDetalles.Clear();
                 selectedPersonnelQuoteId = null;
                 selectedPersonnelQuote = null;
                 selectedMateriales.Clear();
                 customMaterialesCosts.Clear();
+                customMaterialesQuantities.Clear();
                 selectedMachinery.Clear();
+                tarifaAcordada = 0m;
                 await LoadQuotes();
             }
             else
