@@ -9,7 +9,15 @@
             <MudIcon Icon="@Icons.Material.Filled.GridOn" Size="Size.Large" Class="header-icon" />
             <div>
                 <h1 class="matrix-title">Matriz de Funciones y Responsabilidades (RACI)</h1>
-                <p class="matrix-subtitle">Asigne y verifique los niveles de responsabilidad (R, A, C, I) para cada puesto de trabajo.</p>
+                <div class="d-flex align-center gap-2 mt-1">
+                    <MudSelect T="int" Value="@SelectedMatrixId" ValueChanged="OnSelectedMatrixChanged" Label="Seleccionar Matriz" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width: 250px; background-color: white;">
+                        @foreach (var matrix in JobMatricesList)
+                        {
+                            <MudSelectItem Value="@matrix.id">@matrix.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" OnClick="OpenManageMatricesDialog" Title="Gestionar Matrices" />
+                </div>
             </div>
         </div>
         <div class="header-right d-flex gap-2">
@@ -71,7 +79,7 @@
     <div class="selectors-section">
         <h3 class="section-title">Filtrar Puestos en Columnas:</h3>
         <div class="job-selector-grid">
-            @foreach (var job in JobDescriptionsList)
+            @foreach (var job in DisplayedJobDescriptions)
             {
                 bool isSelected = SelectedJobTitles.Contains(job.title);
                 <div class="job-selector-card @(isSelected ? "selected" : "")" @onclick="() => ToggleJobSelection(job.title)">
@@ -120,7 +128,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!JobFunctionsList.Any())
+                    @if (!DisplayedJobFunctions.Any())
                     {
                         <tr>
                             <td colspan="@(SelectedJobTitles.Count + 2)" class="text-center pa-8 text-muted">
@@ -130,7 +138,7 @@
                     }
                     else
                     {
-                        var groupedFunctions = JobFunctionsList.GroupBy(f => f.area).OrderBy(g => g.Key);
+                        var groupedFunctions = DisplayedJobFunctions.GroupBy(f => f.area).OrderBy(g => g.Key);
                         @foreach (var group in groupedFunctions)
                         {
                             var areaFuncs = group.OrderBy(f => f.orden).ThenBy(f => f.id).ToList();
@@ -199,7 +207,7 @@
                 Nueva Actividad
             </MudButton>
         </div>
-        <MudTable Items="JobFunctionsList" Hover="true" Bordered="true" Striped="true" Height="400px" Dense="true">
+        <MudTable Items="DisplayedJobFunctions" Hover="true" Bordered="true" Striped="true" Height="400px" Dense="true">
             <HeaderContent>
                 <MudTh>Área / Bloque</MudTh>
                 <MudTh>Función / Actividad</MudTh>

@@ -39,7 +39,7 @@ namespace HostService.Interfaces
         Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids);
         Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids);
         Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(int id);
-        Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf();
+        Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(int? matrizId = null);
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
         Task<IListResponse<User>> GetUsers();
         Task<IResponse> AddUser(User user);
@@ -89,6 +89,9 @@ namespace HostService.Interfaces
         Task<IResponse> DeleteJobDescription(int id);
 
         // --- MATRIZ RACI ---
+        Task<IListResponse<Modelo.Comercial.JobMatrix>> GetJobMatrices();
+        Task<IResponse> SaveJobMatrix(Modelo.Comercial.JobMatrix matrix);
+        Task<IResponse> DeleteJobMatrix(int id);
         Task<IListResponse<Modelo.Comercial.JobFunction>> GetJobFunctions();
         Task<IResponse> SaveJobFunction(Modelo.Comercial.JobFunction function);
         Task<IResponse> DeleteJobFunction(int id);

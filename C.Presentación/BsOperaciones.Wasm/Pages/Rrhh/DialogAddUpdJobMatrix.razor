@@ -1,0 +1,102 @@
+@using Modelo.Comercial
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" Validated="OnValidated">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="payload.nombre" Label="Nombre de la Matriz" Required="true" RequiredError="El nombre de la matriz es obligatorio." Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Seleccione los puestos de trabajo asociados:</MudText>
+                    <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px;">
+                        @if (AllJobs == null || !AllJobs.Any())
+                        {
+                            <MudText Color="Color.Error">No hay puestos cargados en el sistema.</MudText>
+                        }
+                        else
+                        {
+                            @foreach (var job in AllJobs)
+                            {
+                                var isChecked = selectedJobIds.Contains(job.id);
+                                <MudCheckBox T="bool" 
+                                             Value="@isChecked" 
+                                             ValueChanged="@((val) => ToggleJobSelection(job.id, val))" 
+                                             Label="@($"{job.title} ({job.department})")" 
+                                             Color="Color.Primary" 
+                                             Dense="true" 
+                                             Class="my-1" />
+                            }
+                        }
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!isValid)">Guardar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public JobMatrix Matrix { get; set; } = new();
+
+    [Parameter]
+    public List<JobDescription> AllJobs { get; set; } = new();
+
+    private JobMatrix payload = new();
+    private List<int> selectedJobIds = new();
+    private MudForm form = null!;
+    private bool isValid;
+
+    protected override void OnInitialized()
+    {
+        payload = new JobMatrix
+        {
+            id = Matrix.id,
+            nombre = Matrix.nombre,
+            puestoIds = Matrix.puestoIds != null ? new List<int>(Matrix.puestoIds) : new List<int>()
+        };
+        selectedJobIds = new List<int>(payload.puestoIds);
+    }
+
+    private void OnValidated(bool valid)
+    {
+        isValid = valid;
+        StateHasChanged();
+    }
+
+    private void ToggleJobSelection(int jobId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (!selectedJobIds.Contains(jobId))
+            {
+                selectedJobIds.Add(jobId);
+            }
+        }
+        else
+        {
+            selectedJobIds.Remove(jobId);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(payload.nombre))
+        {
+            Snackbar.Add("El nombre de la matriz es obligatorio.", Severity.Warning);
+            return;
+        }
+        payload.puestoIds = selectedJobIds;
+        MudDialog.Close(DialogResult.Ok(payload));
+    }
+}

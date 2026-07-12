@@ -24,8 +24,18 @@ namespace BsOperaciones.Pages.Rrhh
         public List<string> SelectedJobTitles { get; set; } = new();
         public List<JobFunction> JobFunctionsList { get; set; } = new();
         public List<RaciAssignment> RaciAssignmentsList { get; set; } = new();
+        public List<JobMatrix> JobMatricesList { get; set; } = new();
+        public int SelectedMatrixId { get; set; }
         
         private Dictionary<(int funcionId, int puestoId), string> RaciState { get; set; } = new();
+
+        public List<JobDescription> DisplayedJobDescriptions => SelectedMatrixId > 0 && JobMatricesList.Any(m => m.id == SelectedMatrixId) 
+            ? JobDescriptionsList.Where(j => JobMatricesList.First(m => m.id == SelectedMatrixId).puestoIds.Contains(j.id)).ToList() 
+            : JobDescriptionsList;
+
+        public List<JobFunction> DisplayedJobFunctions => SelectedMatrixId > 0 
+            ? JobFunctionsList.Where(f => f.matriz_id == SelectedMatrixId).ToList() 
+            : JobFunctionsList;
 
         public bool isLoading = false;
         public bool isPrinting = false;
@@ -39,16 +49,69 @@ namespace BsOperaciones.Pages.Rrhh
             try
             {
                 await LoadJobDescriptions();
-                // Select all by default
-                SelectedJobTitles = JobDescriptionsList.Select(j => j.title).ToList();
-
+                await LoadJobMatrices();
+                if (JobMatricesList.Any())
+                {
+                    SelectedMatrixId = JobMatricesList.First().id;
+                }
                 await LoadJobFunctions();
                 await LoadRaciAssignments();
+                ApplyMatrixFiltering();
             }
             finally
             {
                 isLoading = false;
             }
+        }
+
+        private async Task LoadJobMatrices()
+        {
+            var response = await OdooService.GetJobMatrices();
+            if (!response.Respuesta.ExisteError && response.Model != null)
+            {
+                JobMatricesList = response.Model.ToList();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar matrices: " + response.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+
+        private void OnSelectedMatrixChanged(int matrixId)
+        {
+            SelectedMatrixId = matrixId;
+            ApplyMatrixFiltering();
+            hasChanges = false;
+        }
+
+        private async Task OpenManageMatricesDialog()
+        {
+            var parameters = new DialogParameters { ["AllJobs"] = JobDescriptionsList };
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = DialogService.Show<DialogManageMatrices>("Gestionar Matrices", parameters, options);
+            await dialog.Result;
+            await LoadJobMatrices();
+            if (SelectedMatrixId == 0 || !JobMatricesList.Any(m => m.id == SelectedMatrixId))
+            {
+                SelectedMatrixId = JobMatricesList.FirstOrDefault()?.id ?? 0;
+            }
+            ApplyMatrixFiltering();
+        }
+
+        private void ApplyMatrixFiltering()
+        {
+            var matrix = JobMatricesList.FirstOrDefault(m => m.id == SelectedMatrixId);
+            if (matrix != null)
+            {
+                var targetPuestoIds = matrix.puestoIds ?? new List<int>();
+                var targetTitles = JobDescriptionsList.Where(j => targetPuestoIds.Contains(j.id)).Select(j => j.title).ToList();
+                SelectedJobTitles = targetTitles;
+            }
+            else
+            {
+                SelectedJobTitles = JobDescriptionsList.Select(j => j.title).ToList();
+            }
+            StateHasChanged();
         }
 
         private async Task LoadJobDescriptions()
@@ -185,7 +248,7 @@ namespace BsOperaciones.Pages.Rrhh
             StateHasChanged();
             try
             {
-                var res = await Mediator.Send(new PrintMatrizDescriptoresPdfQuery());
+                var res = await Mediator.Send(new PrintMatrizDescriptoresPdfQuery(SelectedMatrixId));
                 if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
                 {
                     var fileBytes = Convert.FromBase64String(res.Model.File);
@@ -222,10 +285,10 @@ namespace BsOperaciones.Pages.Rrhh
 
         private async Task OpenAddFunctionDialog()
         {
-            var existingAreas = JobFunctionsList.Select(f => f.area).Distinct().ToList();
+            var existingAreas = DisplayedJobFunctions.Select(f => f.area).Distinct().ToList();
             var parameters = new DialogParameters 
             { 
-                ["JobFunc"] = new JobFunction(),
+                ["JobFunc"] = new JobFunction { matriz_id = SelectedMatrixId },
                 ["ExistingAreas"] = existingAreas
             };
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -249,7 +312,7 @@ namespace BsOperaciones.Pages.Rrhh
 
         private async Task OpenEditFunctionDialog(JobFunction func)
         {
-            var existingAreas = JobFunctionsList.Select(f => f.area).Distinct().ToList();
+            var existingAreas = DisplayedJobFunctions.Select(f => f.area).Distinct().ToList();
             var parameters = new DialogParameters 
             { 
                 ["JobFunc"] = func,

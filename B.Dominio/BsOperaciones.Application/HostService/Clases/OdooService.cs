@@ -770,13 +770,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf()
+        public async Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(int? matrizId = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new SingleResponse<FileNameString>();
             try
             {
-                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf");
+                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf" + (matrizId.HasValue ? $"?matrizId={matrizId}" : ""));
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {
@@ -2004,6 +2004,84 @@ namespace HostService.Clases
                     var reg = registro.Data;
                     if (reg.sucess)
                         response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Comercial.JobMatrix>> GetJobMatrices()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Comercial.JobMatrix>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Admin/GetJobMatrices");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.JobMatrix>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveJobMatrix(Modelo.Comercial.JobMatrix matrix)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Admin/SaveJobMatrix");
+                var registro = await PostAsync(requestUrl, matrix);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteJobMatrix(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Admin/DeleteJobMatrix/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.ExisteError = false;
                     else
                         response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
                 }

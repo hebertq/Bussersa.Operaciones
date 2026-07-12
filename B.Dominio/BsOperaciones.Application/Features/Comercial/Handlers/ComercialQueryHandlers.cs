@@ -67,7 +67,7 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
         public PrintMatrizDescriptoresPdfHandler(IOdooService odoo) { _Odoo = odoo; }
         public async Task<ISingleResponse<FileNameString>> Handle(PrintMatrizDescriptoresPdfQuery request, CancellationToken cancellationToken)
         {
-            return await _Odoo.PrintMatrizDescriptoresPdf();
+            return await _Odoo.PrintMatrizDescriptoresPdf(request.MatrizId);
         }
     }
 }
