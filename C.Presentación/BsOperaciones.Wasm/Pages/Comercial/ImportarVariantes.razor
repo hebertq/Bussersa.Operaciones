@@ -1,0 +1,72 @@
+@page "/comercial/importar-variantes"
+@using Modelo.Entidades.Entradas.Odoo
+
+@* Loader Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando variantes en Odoo...</MudText>
+    </div>
+</MudOverlay>
+
+<MudPaper Elevation="0" Class="pa-6 mb-4 glass-card card-lift" Style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(240, 248, 255, 0.8) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 16px;">
+    <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800; letter-spacing: 0.5px;">
+        <MudIcon Icon="@Icons.Material.Outlined.CloudUpload" Class="mr-2" Style="font-size: 2rem; vertical-align: middle;" />
+        Importación de Variantes a Odoo
+    </MudText>
+
+    <MudText Typo="MudBlazor.Typo.body1" Class="mb-4" Style="color: #555;">
+        Sube un archivo de Excel para importar o actualizar variantes de producto en Odoo. 
+        El sistema detectará automáticamente los atributos, creará los valores si no existen, configurará los precios únicos en Tarifas y enlazará las variantes a la plantilla.
+    </MudText>
+
+    <MudGrid Spacing="3" Class="align-center">
+        <MudItem xs="12" sm="6">
+            <MudFileUpload T="IBrowserFile" OnFilesChanged="LoadFiles" Accept=".csv, .xls, .xlsx" Style="width: 100%">
+                <ActivatorContent>
+                    <MudButton Variant="MudBlazor.Variant.Filled"
+                               Color="MudBlazor.Color.Primary"
+                               StartIcon="@Icons.Material.Outlined.CloudUpload"
+                               Style="height: 56px; border-radius: 12px; font-weight: bold; background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);"
+                               FullWidth="true">
+                        SUBIR EXCEL DE VARIANTES
+                    </MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" Class="d-flex justify-end">
+            @if (PayLoadList.Count > 0)
+            {
+                <MudButton Variant="MudBlazor.Variant.Filled"
+                           Color="MudBlazor.Color.Success"
+                           StartIcon="@Icons.Material.Outlined.Save"
+                           OnClick="ImportarVariantesOdoo"
+                           Style="height: 56px; border-radius: 12px; font-weight: bold;"
+                           Class="px-8">
+                    GUARDAR EN ODOO (@PayLoadList.Count)
+                </MudButton>
+            }
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (PayLoadList.Count > 0)
+{
+    <MudDataGrid T="ImportarVarianteItem" Items="@PayLoadList" Dense="true" ReadOnly="true"
+                 Bordered="false" Striped="true" Elevation="1" RowsPerPage="15" Class="mt-4" Style="border-radius: 12px; overflow: hidden;">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: bold; color: #1e3c72;">Vista Previa de Variantes a Importar</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar..." Adornment="MudBlazor.Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.name" Title="Plantilla Producto" />
+            <PropertyColumn Property="x => x.default_code" Title="Código Interno (ID)" />
+            <PropertyColumn Property="x => x.lst_price" Title="Precio Unitario" Format="C2" />
+            <PropertyColumn Property="x => x.product_template_variant_value_ids" Title="Atributos y Valores" />
+        </Columns>
+        <PagerContent><MudDataGridPager T="ImportarVarianteItem" /></PagerContent>
+    </MudDataGrid>
+}

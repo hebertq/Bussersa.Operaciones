@@ -97,5 +97,6 @@ namespace HostService.Interfaces
         Task<IResponse> DeleteJobFunction(int id);
         Task<IListResponse<Modelo.Comercial.RaciAssignment>> GetRaciAssignments();
         Task<IResponse> SaveRaciAssignments(List<Modelo.Comercial.RaciAssignment> assignments);
+        Task<IResponse> ImportarVariantes(List<ImportarVarianteItem> model);
     }
 }
