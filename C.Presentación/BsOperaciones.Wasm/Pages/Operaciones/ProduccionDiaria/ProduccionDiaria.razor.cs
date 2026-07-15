@@ -231,9 +231,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         else if (cellValue.Contains("asignado") || cellValue.Contains("operador")) colIndices["asignado_a"] = i;
                     }
 
-                    if (!colIndices.ContainsKey("hoja_servicio") || !colIndices.ContainsKey("servicio_codigo"))
+                    if (!colIndices.ContainsKey("servicio_codigo"))
                     {
-                        _snackbar.Add("El archivo no tiene las columnas obligatorias: 'Hoja de Servicio' y 'Código Servicio (SKU)'.", Severity.Error);
+                        _snackbar.Add("El archivo no tiene la columna obligatoria: 'Código Servicio (SKU)'.", Severity.Error);
                         estaImportando = false;
                         return;
                     }
@@ -243,10 +243,10 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         IRow row = sheet.GetRow(r);
                         if (row == null) continue;
 
-                        var hs = GetStringVal(row, colIndices, "hoja_servicio");
+                        var hs = GetStringVal(row, colIndices, "hoja_servicio") ?? string.Empty;
                         var sc = GetStringVal(row, colIndices, "servicio_codigo");
                         
-                        if (string.IsNullOrEmpty(hs) || string.IsNullOrEmpty(sc)) continue;
+                        if (string.IsNullOrEmpty(sc)) continue;
 
                         var dto = new ProduccionDiariaDto
                         {
