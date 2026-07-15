@@ -25,7 +25,6 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         // Formato prellenado state
         protected GenerarFormatoRequest formatoRequest = new();
-        protected int operacionDescargaId;
         protected bool estaDescargando;
 
         // Carga de Excel state
@@ -124,13 +123,13 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected async Task DescargarPlantillaExcel()
         {
-            if (operacionDescargaId == 0)
+            if (operacionCargaId == 0)
             {
                 _snackbar.Add("Por favor seleccione la operación/cliente antes de descargar.", Severity.Warning);
                 return;
             }
 
-            var selectedOp = operacionesList.FirstOrDefault(x => x.id == operacionDescargaId);
+            var selectedOp = operacionesList.FirstOrDefault(x => x.id == operacionCargaId);
             if (selectedOp == null)
             {
                 _snackbar.Add("Operación/cliente no válida.", Severity.Warning);
@@ -141,7 +140,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             StateHasChanged();
             try
             {
-                formatoRequest.templateId = operacionDescargaId;
+                formatoRequest.templateId = operacionCargaId;
                 var query = new GenerarFormatoExcelQuery(formatoRequest);
                 var response = await _mediator.Send(query);
 
@@ -269,7 +268,16 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected async Task ImportarArchivoProduccion()
         {
-            if (archivoExcel == null) return;
+            if (operacionCargaId == 0)
+            {
+                _snackbar.Add("Por favor seleccione la operación/cliente antes de importar.", Severity.Warning);
+                return;
+            }
+            if (archivoExcel == null)
+            {
+                _snackbar.Add("Por favor seleccione un archivo Excel para importar.", Severity.Warning);
+                return;
+            }
             estaImportando = true;
             StateHasChanged();
 

@@ -59,7 +59,7 @@
                 <MudCardContent Class="pa-0 pt-2">
                     <MudGrid Spacing="2">
                         <MudItem xs="12">
-                            <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionDescargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
                                 <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
                                 @if (operacionesList != null)
                                 {
@@ -74,7 +74,7 @@
                 </MudCardContent>
                 <MudCardActions Class="pa-0 pt-4 justify-end">
                     <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="DescargarPlantillaExcel"
-                               Disabled="@(operacionDescargaId == 0 || estaDescargando)">
+                               Disabled="@(operacionCargaId == 0 || estaDescargando)">
                         @(estaDescargando ? "Generando..." : "Descargar Formato")
                     </MudButton>
                 </MudCardActions>
@@ -94,16 +94,6 @@
                     </CardHeaderContent>
                 </MudCardHeader>
                 <MudCardContent Class="pa-0 pt-2 d-flex flex-column gap-3 justify-center flex-grow-1">
-                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
-                        @if (operacionesList != null)
-                        {
-                            @foreach (var item in operacionesList)
-                            {
-                                <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
-                            }
-                        }
-                    </MudSelect>
 
                     <div class="d-flex flex-column align-center w-100 pa-4" style="border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
                         <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
