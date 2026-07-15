@@ -363,6 +363,15 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             if (!indices.ContainsKey(key)) return null;
             var cell = row.GetCell(indices[key]);
             if (cell == null) return null;
+
+            if (cell.CellType == CellType.Formula)
+            {
+                if (cell.CachedFormulaResultType == CellType.String) return cell.StringCellValue?.Trim();
+                if (cell.CachedFormulaResultType == CellType.Numeric) return cell.NumericCellValue.ToString()?.Trim();
+                if (cell.CachedFormulaResultType == CellType.Boolean) return cell.BooleanCellValue.ToString()?.Trim();
+                return string.Empty;
+            }
+
             return cell.ToString()?.Trim();
         }
 
@@ -376,8 +385,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 return cell.DateCellValue;
             }
+            if (cell.CellType == CellType.Formula && cell.CachedFormulaResultType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
+            {
+                return cell.DateCellValue;
+            }
 
-            if (DateTime.TryParse(cell.ToString(), out DateTime date))
+            string? strVal = null;
+            if (cell.CellType == CellType.Formula && cell.CachedFormulaResultType == CellType.String)
+                strVal = cell.StringCellValue;
+            else
+                strVal = cell.ToString();
+
+            if (DateTime.TryParse(strVal, out DateTime date))
             {
                 return date;
             }
@@ -394,6 +413,13 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             if (cell.CellType == CellType.Numeric)
             {
                 return (decimal)cell.NumericCellValue;
+            }
+            if (cell.CellType == CellType.Formula)
+            {
+                if (cell.CachedFormulaResultType == CellType.Numeric)
+                    return (decimal)cell.NumericCellValue;
+                if (cell.CachedFormulaResultType == CellType.String && decimal.TryParse(cell.StringCellValue, out decimal v))
+                    return v;
             }
 
             if (decimal.TryParse(cell.ToString(), out decimal val))
