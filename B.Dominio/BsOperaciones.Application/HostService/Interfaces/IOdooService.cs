@@ -108,5 +108,6 @@ namespace HostService.Interfaces
         Task<IResponse> ActualizarOrdenItemProforma(int itemId, int orden);
         Task<ISingleResponse<FileResponseDto>> GenerarFormatoExcel(GenerarFormatoRequest request);
         Task<IResponse> DeleteProduccionDiaria(int id);
+        Task<IResponse> DeleteBulkProduccionDiaria(List<int> ids);
     }
 }

@@ -25,7 +25,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         // Formato prellenado state
         protected GenerarFormatoRequest formatoRequest = new();
-        protected Combos? plantillaSeleccionada;
+        protected int operacionDescargaId;
         protected bool estaDescargando;
 
         // Carga de Excel state
@@ -124,9 +124,16 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected async Task DescargarPlantillaExcel()
         {
-            if (plantillaSeleccionada == null)
+            if (operacionDescargaId == 0)
             {
-                _snackbar.Add("Por favor seleccione la plantilla antes de descargar.", Severity.Warning);
+                _snackbar.Add("Por favor seleccione la operación/cliente antes de descargar.", Severity.Warning);
+                return;
+            }
+
+            var selectedOp = operacionesList.FirstOrDefault(x => x.id == operacionDescargaId);
+            if (selectedOp == null)
+            {
+                _snackbar.Add("Operación/cliente no válida.", Severity.Warning);
                 return;
             }
 
@@ -134,7 +141,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             StateHasChanged();
             try
             {
-                formatoRequest.templateId = plantillaSeleccionada.id;
+                formatoRequest.templateId = operacionDescargaId;
                 var query = new GenerarFormatoExcelQuery(formatoRequest);
                 var response = await _mediator.Send(query);
 
@@ -144,7 +151,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 }
                 else
                 {
-                    string cleanName = plantillaSeleccionada.nombre.Replace(" ", "_").Replace("/", "_").Replace("-", "_").Replace(":", "_");
+                    string cleanName = selectedOp.nombre.Replace(" ", "_").Replace("/", "_").Replace("-", "_").Replace(":", "_");
                     string fileName = $"{cleanName}.xlsx";
                     await _jsRuntime.InvokeVoidAsync(
                         "downloadFile", 
@@ -235,32 +242,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 StateHasChanged();
                 try
                 {
-                    int deletedCount = 0;
-                    int errorCount = 0;
-                    foreach (var item in deletable)
+                    var ids = deletable.Select(x => x.id).ToList();
+                    var response = await _mediator.Send(new BsOperaciones.Application.Features.Odoo.Command.DeleteBulkProduccionDiariaCommand { Ids = ids });
+                    if (response.Respuesta.ExisteError)
                     {
-                        var response = await _mediator.Send(new BsOperaciones.Application.Features.Odoo.Command.DeleteProduccionDiariaCommand { Id = item.id });
-                        if (response.Respuesta.ExisteError)
-                        {
-                            errorCount++;
-                        }
-                        else
-                        {
-                            deletedCount++;
-                        }
+                        _snackbar.Add($"Error al eliminar: {response.Respuesta.MensajeError}", Severity.Error);
                     }
-
-                    if (deletedCount > 0)
+                    else
                     {
-                        _snackbar.Add($"{deletedCount} registros eliminados exitosamente.", Severity.Success);
+                        _snackbar.Add($"{deletable.Count} registros eliminados exitosamente.", Severity.Success);
+                        selectedItems.Clear();
+                        await CargarProduccion();
                     }
-                    if (errorCount > 0)
-                    {
-                        _snackbar.Add($"Error al eliminar {errorCount} registros.", Severity.Error);
-                    }
-
-                    selectedItems.Clear();
-                    await CargarProduccion();
                 }
                 catch (Exception ex)
                 {

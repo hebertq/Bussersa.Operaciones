@@ -59,16 +59,22 @@
                 <MudCardContent Class="pa-0 pt-2">
                     <MudGrid Spacing="2">
                         <MudItem xs="12">
-                            <MudAutocomplete T="Combos" Label="Buscar Plantilla de Servicio (Odoo)" SearchFunc="@BuscarPlantillas"
-                                             @bind-Value="plantillaSeleccionada"
-                                             ToStringFunc="@(c => c == null ? null : c.nombre)"
-                                             Variant="Variant.Outlined" Margin="Margin.Dense" ResetValueOnEmptyText="true" CoerceText="true" />
+                            <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionDescargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                                @if (operacionesList != null)
+                                {
+                                    @foreach (var item in operacionesList)
+                                    {
+                                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
                         </MudItem>
                     </MudGrid>
                 </MudCardContent>
                 <MudCardActions Class="pa-0 pt-4 justify-end">
                     <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="DescargarPlantillaExcel"
-                               Disabled="@(plantillaSeleccionada == null || estaDescargando)">
+                               Disabled="@(operacionDescargaId == 0 || estaDescargando)">
                         @(estaDescargando ? "Generando..." : "Descargar Formato")
                     </MudButton>
                 </MudCardActions>
