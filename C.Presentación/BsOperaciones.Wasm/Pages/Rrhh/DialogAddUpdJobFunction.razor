@@ -83,7 +83,12 @@
             "Bodega y logística"
         };
 
-        var sourceList = ExistingAreas.Any() ? ExistingAreas : defaultList;
+        var sourceList = new List<string>();
+        if (ExistingAreas != null)
+        {
+            sourceList.AddRange(ExistingAreas);
+        }
+        sourceList.AddRange(defaultList);
 
         if (string.IsNullOrEmpty(value))
             return Task.FromResult<IEnumerable<string>>(sourceList.Distinct());
