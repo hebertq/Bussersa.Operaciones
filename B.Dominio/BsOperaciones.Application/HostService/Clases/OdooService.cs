@@ -770,14 +770,14 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(int? matrizId = null)
+        public async Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(object matrixData)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new SingleResponse<FileNameString>();
             try
             {
-                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf", matrizId.HasValue ? $"matrizId={matrizId}" : "");
-                var registro = await GetAsync(requestUrl);
+                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf");
+                var registro = await PostAsync(requestUrl, matrixData);
                 if (registro.IsSuccess)
                 {
                     var reg = registro.Data;

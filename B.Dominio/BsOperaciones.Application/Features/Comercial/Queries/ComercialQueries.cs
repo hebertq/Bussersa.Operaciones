@@ -13,5 +13,5 @@ namespace BsOperaciones.Application.Features.Comercial.Queries
     public record PrintCotizacionPdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
     public record PrintCotizacionDesglosePdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
     public record PrintDescriptorPdfQuery(int Id) : IRequest<ISingleResponse<FileNameString>>;
-    public record PrintMatrizDescriptoresPdfQuery(int? MatrizId = null) : IRequest<ISingleResponse<FileNameString>>;
+    public record PrintMatrizDescriptoresPdfQuery(object MatrixData) : IRequest<ISingleResponse<FileNameString>>;
 }

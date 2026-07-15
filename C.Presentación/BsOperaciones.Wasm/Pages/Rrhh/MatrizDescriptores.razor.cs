@@ -248,7 +248,39 @@ namespace BsOperaciones.Pages.Rrhh
             StateHasChanged();
             try
             {
-                var res = await Mediator.Send(new PrintMatrizDescriptoresPdfQuery(SelectedMatrixId));
+                var matrixName = JobMatricesList.FirstOrDefault(m => m.id == SelectedMatrixId)?.nombre ?? "";
+                
+                var selectedJobs = JobDescriptionsList
+                    .Where(j => SelectedJobTitles.Contains(j.title))
+                    .Select(j => new { id = j.id, title = j.title, department = j.department })
+                    .ToList();
+
+                var displayedFunctions = DisplayedJobFunctions
+                    .Select(f => new { id = f.id, area = f.area, actividad = f.actividad, orden = f.orden })
+                    .ToList();
+
+                var assignments = new List<object>();
+                foreach (var func in DisplayedJobFunctions)
+                {
+                    foreach (var job in JobDescriptionsList.Where(j => SelectedJobTitles.Contains(j.title)))
+                    {
+                        var val = GetRaciValue(func.id, job.id);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            assignments.Add(new { funcion_id = func.id, puesto_id = job.id, rol_raci = val });
+                        }
+                    }
+                }
+
+                var payload = new
+                {
+                    MatrixName = matrixName,
+                    Jobs = selectedJobs,
+                    Functions = displayedFunctions,
+                    Assignments = assignments
+                };
+
+                var res = await Mediator.Send(new PrintMatrizDescriptoresPdfQuery(payload));
                 if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
                 {
                     var fileBytes = Convert.FromBase64String(res.Model.File);
