@@ -22,6 +22,8 @@ namespace BsOperaciones.Application.Features.Odoo.Handlers.Read
                 "Empleados"   => await _Odoo.GetAllCombosHost("Empleados"),
                 "Municipios"  => await _Odoo.GetAllCombosHost("Municipios"),
                 "Operaciones" => await _Odoo.GetAllCombosHost("Operaciones"),
+                "Plantillas"  => await _Odoo.GetAllCombosHost("Plantillas"),
+                "Templates"   => await _Odoo.GetAllCombosHost("Templates"),
                 _ => throw new NotImplementedException("No existe el catalogo")
             };
 
