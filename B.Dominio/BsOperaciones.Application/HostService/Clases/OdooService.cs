@@ -776,7 +776,7 @@ namespace HostService.Clases
             var response = new SingleResponse<FileNameString>();
             try
             {
-                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf" + (matrizId.HasValue ? $"?matrizId={matrizId}" : ""));
+                var requestUrl = CreateRequestUri("Comercial/GenerateMatrizDescriptoresPdf", matrizId.HasValue ? $"matrizId={matrizId}" : "");
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {
