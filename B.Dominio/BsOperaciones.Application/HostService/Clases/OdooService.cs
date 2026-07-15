@@ -824,6 +824,82 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetProgramacionTurnos", $"fechaInicio={fechaInicio:yyyy-MM-dd}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>(reg.detail.ToString());
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveProgramacionTurnos(List<Modelo.Entidades.Operaciones.ProgramacionTurnoDto> turnos)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveProgramacionTurnos");
+                var registro = await PostAsync(requestUrl, turnos);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (!reg.sucess)
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/AutoRotarTurnos", $"fechaInicioActual={fechaInicioActual:yyyy-MM-dd}&fechaInicioSiguiente={fechaInicioSiguiente:yyyy-MM-dd}");
+                var registro = await PostAsync(requestUrl, new object());
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (!reg.sucess)
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<User>> GetUsers()
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

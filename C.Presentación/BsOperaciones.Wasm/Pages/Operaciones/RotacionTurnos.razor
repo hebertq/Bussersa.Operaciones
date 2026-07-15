@@ -1,0 +1,170 @@
+@page "/operaciones/rotacion-turnos"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <!-- Header/Title -->
+    <MudText Typo="Typo.h4" Class="mb-2 font-weight-bold" Style="color: #1e293b; font-family: 'Outfit', sans-serif;">
+        Programación y Rotación de Turnos
+    </MudText>
+    <MudText Typo="Typo.body2" Class="mb-6" Style="color: #64748b;">
+        Administre la distribución semanal de turnos y supervisores (Diurno / Nocturno) para el personal operativo.
+    </MudText>
+
+    <!-- Control Panel -->
+    <MudCard Elevation="2" Class="mb-6" Style="border-radius: 12px; border: 1px solid #e2e8f0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px);">
+        <MudCardContent Class="py-4">
+            <MudGrid AlignItems="AlignItems.Center">
+                <MudItem xs="12" md="4">
+                    <MudDatePicker Label="Seleccione Lunes de la Semana" 
+                                   @bind-Date="SelectedMonday" 
+                                   DateFormat="dd/MM/yyyy"
+                                   PickerVariant="PickerVariant.Dialog"
+                                   Color="Color.Primary"
+                                   Class="mud-width-full" />
+                </MudItem>
+                <MudItem xs="12" md="8" Class="d-flex justify-md-end gap-3 flex-wrap">
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Secondary" 
+                               StartIcon="@Icons.Material.Filled.SwapHoriz"
+                               OnClick="SwapSupervisors"
+                               Style="border-radius: 8px; text-transform: none; font-weight: 600;"
+                               Disabled="IsLoading">
+                        Intercambiar Supervisores
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" 
+                               Color="Color.Primary" 
+                               StartIcon="@Icons.Material.Filled.Autorenew"
+                               OnClick="AutoRotateNextWeek"
+                               Style="border-radius: 8px; text-transform: none; font-weight: 600;"
+                               Disabled="IsLoading">
+                        Auto-rotar Siguiente Semana
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Success" 
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveChanges"
+                               Style="border-radius: 8px; text-transform: none; font-weight: 600; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);"
+                               Disabled="IsLoading">
+                        Guardar Programación
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+
+    @if (IsLoading)
+    {
+        <div class="d-flex justify-center align-center my-12">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudGrid>
+            <!-- Day Shift (Diurno) -->
+            <MudItem xs="12" lg="6">
+                <MudCard Elevation="3" Class="h-100" Style="border-radius: 16px; border: 1px solid #fed7aa; background: #fffcf8; overflow: hidden;">
+                    <!-- Shift Header -->
+                    <div style="background: linear-gradient(135deg, #ffedd5 0%, #fef3c7 100%); padding: 16px; border-bottom: 1px solid #fed7aa;" class="d-flex align-center justify-between">
+                        <div class="d-flex align-center gap-3">
+                            <MudIcon Icon="@Icons.Material.Filled.WbSunny" Style="color: #d97706; font-size: 2.2rem;" />
+                            <div>
+                                <MudText Typo="Typo.h6" Style="color: #78350f; font-weight: 700; font-family: 'Outfit', sans-serif;">TURNO DIURNO</MudText>
+                                <MudText Typo="Typo.caption" Style="color: #b45309;">Horario de Día</MudText>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <MudCardContent>
+                        <!-- Supervisor Card -->
+                        <MudCard Outlined="true" Class="mb-4" Style="background: #ffffff; border-radius: 12px; border: 1px dashed #f59e0b;">
+                            <MudCardContent Class="py-3 px-4 d-flex align-center justify-between">
+                                <div>
+                                    <MudText Typo="Typo.caption" Style="color: #92400e; font-weight: 600; text-transform: uppercase;">Supervisor a Cargo</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight: 700; color: #1e293b;">
+                                        @(DaySupervisor?.NombreCompleto ?? "No Asignado")
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="font-weight: 600;">Día</MudChip>
+                            </MudCardContent>
+                        </MudCard>
+
+                        <!-- Operators List -->
+                        <MudText Typo="Typo.subtitle2" Class="mb-2" Style="color: #78350f; font-weight: 600;">Personal Operativo asignado (@DayOperators.Count)</MudText>
+                        <MudTable Items="DayOperators" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Outlined="true" Class="mud-elevation-0" Style="border-radius: 12px;">
+                            <HeaderContent>
+                                <MudTh>Operario</MudTh>
+                                <MudTh>Puesto</MudTh>
+                                <MudTh Style="width: 100px; text-align: center;">Acción</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Operario" Style="font-weight: 600; color: #334155;">@context.NombreCompleto</MudTd>
+                                <MudTd DataLabel="Puesto">@context.Puesto</MudTd>
+                                <MudTd Style="text-align: center;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary" 
+                                                   OnClick="@(() => ToggleShift(context))"
+                                                   Title="Mover a Nocturno" />
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- Night Shift (Nocturno) -->
+            <MudItem xs="12" lg="6">
+                <MudCard Elevation="3" Class="h-100" Style="border-radius: 16px; border: 1px solid #c7d2fe; background: #fafaff; overflow: hidden;">
+                    <!-- Shift Header -->
+                    <div style="background: linear-gradient(135deg, #e0e7ff 0%, #e8f0fe 100%); padding: 16px; border-bottom: 1px solid #c7d2fe;" class="d-flex align-center justify-between">
+                        <div class="d-flex align-center gap-3">
+                            <MudIcon Icon="@Icons.Material.Filled.NightsStay" Style="color: #4f46e5; font-size: 2.2rem;" />
+                            <div>
+                                <MudText Typo="Typo.h6" Style="color: #1e1b4b; font-weight: 700; font-family: 'Outfit', sans-serif;">TURNO NOCTURNO</MudText>
+                                <MudText Typo="Typo.caption" Style="color: #3730a3;">Horario de Noche</MudText>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <MudCardContent>
+                        <!-- Supervisor Card -->
+                        <MudCard Outlined="true" Class="mb-4" Style="background: #ffffff; border-radius: 12px; border: 1px dashed #6366f1;">
+                            <MudCardContent Class="py-3 px-4 d-flex align-center justify-between">
+                                <div>
+                                    <MudText Typo="Typo.caption" Style="color: #3730a3; font-weight: 600; text-transform: uppercase;">Supervisor a Cargo</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight: 700; color: #1e293b;">
+                                        @(NightSupervisor?.NombreCompleto ?? "No Asignado")
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 600;">Noche</MudChip>
+                            </MudCardContent>
+                        </MudCard>
+
+                        <!-- Operators List -->
+                        <MudText Typo="Typo.subtitle2" Class="mb-2" Style="color: #3730a3; font-weight: 600;">Personal Operativo asignado (@NightOperators.Count)</MudText>
+                        <MudTable Items="NightOperators" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Outlined="true" Class="mud-elevation-0" Style="border-radius: 12px;">
+                            <HeaderContent>
+                                <MudThStyle Style="width: 100px; text-align: center;">Acción</MudThStyle>
+                                <MudTh>Operario</MudTh>
+                                <MudTh>Puesto</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd Style="text-align: center;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary" 
+                                                   OnClick="@(() => ToggleShift(context))"
+                                                   Title="Mover a Diurno" />
+                                </MudTd>
+                                <MudTd DataLabel="Operario" Style="font-weight: 600; color: #334155;">@context.NombreCompleto</MudTd>
+                                <MudTd DataLabel="Puesto">@context.Puesto</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
