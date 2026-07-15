@@ -213,6 +213,67 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
         }
 
+        protected async Task EliminarSeleccionados()
+        {
+            if (selectedItems == null || !selectedItems.Any()) return;
+
+            var deletable = selectedItems.Where(x => string.IsNullOrEmpty(x.no_proforma) && string.IsNullOrEmpty(x.no_factura) && !x.facturada).ToList();
+            if (!deletable.Any())
+            {
+                _snackbar.Add("No se pueden eliminar los registros seleccionados porque todos tienen proforma o factura asignada.", Severity.Warning);
+                return;
+            }
+
+            bool? result = await _dialogService.ShowMessageBox(
+                "Confirmar Eliminación Masiva",
+                $"¿Está seguro de eliminar los {deletable.Count} registros seleccionados?",
+                yesText: "Eliminar Todo", cancelText: "Cancelar");
+
+            if (result == true)
+            {
+                estaCargando = true;
+                StateHasChanged();
+                try
+                {
+                    int deletedCount = 0;
+                    int errorCount = 0;
+                    foreach (var item in deletable)
+                    {
+                        var response = await _mediator.Send(new BsOperaciones.Application.Features.Odoo.Command.DeleteProduccionDiariaCommand { Id = item.id });
+                        if (response.Respuesta.ExisteError)
+                        {
+                            errorCount++;
+                        }
+                        else
+                        {
+                            deletedCount++;
+                        }
+                    }
+
+                    if (deletedCount > 0)
+                    {
+                        _snackbar.Add($"{deletedCount} registros eliminados exitosamente.", Severity.Success);
+                    }
+                    if (errorCount > 0)
+                    {
+                        _snackbar.Add($"Error al eliminar {errorCount} registros.", Severity.Error);
+                    }
+
+                    selectedItems.Clear();
+                    await CargarProduccion();
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Excepción al eliminar: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
+        }
+
         protected async Task ImportarArchivoProduccion()
         {
             if (archivoExcel == null) return;

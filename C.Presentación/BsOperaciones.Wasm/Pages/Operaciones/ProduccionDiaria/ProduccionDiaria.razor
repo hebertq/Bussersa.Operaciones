@@ -178,6 +178,10 @@
                            Disabled="@(string.IsNullOrEmpty(noProformaConsolidada) || estaConsolidando)">
                     @(estaConsolidando ? "Guardando..." : "Asociar Proforma")
                 </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="EliminarSeleccionados"
+                           Disabled="@estaConsolidando">
+                    Eliminar Seleccionados
+                </MudButton>
             </div>
         </MudPaper>
     }
