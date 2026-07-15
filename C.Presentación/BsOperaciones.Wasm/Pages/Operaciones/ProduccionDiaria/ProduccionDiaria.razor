@@ -187,7 +187,6 @@
               Hover="true" Striped="true" Bordered="true" Dense="true" Class="panel-card" Loading="@estaCargando" LoadingProgressColor="Color.Info">
         <HeaderContent>
             <MudTh>Fecha</MudTh>
-            <MudTh>Hoja Servicio</MudTh>
             <MudTh>Cliente / Área</MudTh>
             <MudTh>SKU / Servicio</MudTh>
             <MudTh>Peso / Cantidad</MudTh>
@@ -195,10 +194,10 @@
             <MudTh>Proforma</MudTh>
             <MudTh>Factura</MudTh>
             <MudTh Style="width: 100px;">Orden Prof.</MudTh>
+            <MudTh>Acciones</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Fecha">@context.fecha_inicio?.ToString("yyyy-MM-dd")</MudTd>
-            <MudTd DataLabel="Hoja Servicio">@context.hoja_servicio</MudTd>
             <MudTd DataLabel="Cliente / Área">
                 <div class="font-bold">@context.cliente</div>
                 <div class="text-secondary" style="font-size: 0.8rem;">@context.area_cliente</div>
@@ -246,6 +245,12 @@
                 else
                 {
                     <MudText Align="Align.Center">-</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Acciones">
+                @if (string.IsNullOrEmpty(context.no_proforma) && string.IsNullOrEmpty(context.no_factura) && !context.facturada)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarRegistro(context))" />
                 }
             </MudTd>
         </RowTemplate>

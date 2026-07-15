@@ -21,6 +21,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         [Inject] private IMediator _mediator { get; set; } = null!;
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
         [Inject] private IJSRuntime _jsRuntime { get; set; } = null!;
+        [Inject] private IDialogService _dialogService { get; set; } = null!;
 
         // Formato prellenado state
         protected GenerarFormatoRequest formatoRequest = new();
@@ -168,6 +169,48 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected void OnExcelFileSelected(InputFileChangeEventArgs e)
         {
             archivoExcel = e.File;
+        }
+
+        protected async Task EliminarRegistro(ProduccionDiariaDto item)
+        {
+            if (!string.IsNullOrEmpty(item.no_proforma) || !string.IsNullOrEmpty(item.no_factura) || item.facturada)
+            {
+                _snackbar.Add("No se puede eliminar un registro que ya tiene proforma o factura asignada.", Severity.Warning);
+                return;
+            }
+
+            bool? result = await _dialogService.ShowMessageBox(
+                "Confirmar Eliminación",
+                $"¿Está seguro de eliminar el registro de {item.servicio_descripcion} del cliente {item.cliente}?",
+                yesText: "Eliminar", cancelText: "Cancelar");
+
+            if (result == true)
+            {
+                estaCargando = true;
+                StateHasChanged();
+                try
+                {
+                    var response = await _mediator.Send(new BsOperaciones.Application.Features.Odoo.Command.DeleteProduccionDiariaCommand { Id = item.id });
+                    if (response.Respuesta.ExisteError)
+                    {
+                        _snackbar.Add($"Error al eliminar: {response.Respuesta.MensajeError}", Severity.Error);
+                    }
+                    else
+                    {
+                        _snackbar.Add("Registro eliminado exitosamente.", Severity.Success);
+                        await CargarProduccion();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Excepción al eliminar: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
         }
 
         protected async Task ImportarArchivoProduccion()
