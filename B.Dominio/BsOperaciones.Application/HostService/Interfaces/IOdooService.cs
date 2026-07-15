@@ -100,5 +100,12 @@ namespace HostService.Interfaces
         Task<IResponse> ImportarVariantes(List<ImportarVarianteItem> model);
         Task<IListResponse<OdooVariantDto>> GetProductVariants(int templateId);
         Task<IResponse> ActualizarPreciosVariantes(List<OdooVariantDto> model);
+
+        // --- PRODUCCIÓN DIARIA ---
+        Task<IResponse> ImportarProduccionDiaria(List<ProduccionDiariaDto> items);
+        Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, string? cliente, string? estadoFactura);
+        Task<IResponse> ConsolidarProforma(ConsolidarProformaRequest request);
+        Task<IResponse> ActualizarOrdenItemProforma(int itemId, int orden);
+        Task<ISingleResponse<FileResponseDto>> GenerarFormatoExcel(GenerarFormatoRequest request);
     }
 }

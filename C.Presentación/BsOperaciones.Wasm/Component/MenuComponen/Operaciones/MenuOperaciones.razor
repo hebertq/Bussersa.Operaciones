@@ -1,9 +1,10 @@
-﻿
+
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
         <MudNavGroup Title="Operaciones" Icon="@Icons.Material.Filled.Wash" Expanded="false">
             <MenuItem MenuId="16" Name="Cerar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
             <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
+            <MenuItem MenuId="36" Name="Producción Diaria" Url="/operaciones/produccion-diaria" IconName="@Icons.Material.Filled.Assignment" />
         </MudNavGroup>
     </Authorized>
     <NotAuthorized />

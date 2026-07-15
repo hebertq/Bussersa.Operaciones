@@ -2174,6 +2174,149 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IResponse> ImportarProduccionDiaria(List<ProduccionDiariaDto> items)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/ImportarProduccion");
+                var registro = await PostAsync(requestUrl, items);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+        public async Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, string? cliente, string? estadoFactura)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<ProduccionDiariaDto> response = new ListResponse<ProduccionDiariaDto>();
+            try
+            {
+                var queryParams = new List<string>();
+                if (inicio.HasValue) queryParams.Add($"inicio={inicio.Value:yyyy-MM-dd}");
+                if (fin.HasValue) queryParams.Add($"fin={fin.Value:yyyy-MM-dd}");
+                if (!string.IsNullOrEmpty(cliente)) queryParams.Add($"cliente={Uri.EscapeDataString(cliente)}");
+                if (!string.IsNullOrEmpty(estadoFactura)) queryParams.Add($"estadoFactura={estadoFactura}");
+
+                string queryStr = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
+                var requestUrl = CreateRequestUri($"Operaciones/GetProduccion{queryStr}");
+                
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<ProduccionDiariaDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> ConsolidarProforma(ConsolidarProformaRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/ConsolidarProforma");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> ActualizarOrdenItemProforma(int itemId, int orden)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/ActualizarOrden?itemId={itemId}&orden={orden}");
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<FileResponseDto>> GenerarFormatoExcel(GenerarFormatoRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<FileResponseDto> response = new SingleResponse<FileResponseDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GenerarFormatoExcel");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerRegistro<FileResponseDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 
