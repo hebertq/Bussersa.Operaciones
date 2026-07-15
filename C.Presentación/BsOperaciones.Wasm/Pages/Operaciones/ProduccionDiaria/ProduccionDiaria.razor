@@ -60,7 +60,7 @@
                     <MudGrid Spacing="2">
                         <MudItem xs="12">
                             <MudAutocomplete T="Combos" Label="Buscar Plantilla de Servicio (Odoo)" SearchFunc="@BuscarPlantillas"
-                                             Value="plantillaSeleccionada" ValueChanged="OnPlantillaChanged"
+                                             @bind-Value="plantillaSeleccionada"
                                              ToStringFunc="@(c => c == null ? null : c.nombre)"
                                              Variant="Variant.Outlined" Margin="Margin.Dense" ResetValueOnEmptyText="true" CoerceText="true" />
                         </MudItem>

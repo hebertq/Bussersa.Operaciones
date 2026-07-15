@@ -121,19 +121,6 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
         }
 
-        protected void OnPlantillaChanged(Combos? combo)
-        {
-            plantillaSeleccionada = combo;
-            if (combo != null)
-            {
-                formatoRequest.templateId = combo.id;
-            }
-            else
-            {
-                formatoRequest.templateId = 0;
-            }
-        }
-
         protected async Task DescargarPlantillaExcel()
         {
             if (plantillaSeleccionada == null)
@@ -146,6 +133,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             StateHasChanged();
             try
             {
+                formatoRequest.templateId = plantillaSeleccionada.id;
                 var query = new GenerarFormatoExcelQuery(formatoRequest);
                 var response = await _mediator.Send(query);
 
@@ -155,7 +143,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 }
                 else
                 {
-                    string fileName = $"Formato_{formatoRequest.cliente.Replace(" ", "_")}_{formatoRequest.area.Replace(" ", "_")}.xlsx";
+                    string cleanName = plantillaSeleccionada.nombre.Replace(" ", "_").Replace("/", "_").Replace("-", "_").Replace(":", "_");
+                    string fileName = $"{cleanName}.xlsx";
                     await _jsRuntime.InvokeVoidAsync(
                         "downloadFile", 
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
