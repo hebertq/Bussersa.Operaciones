@@ -8,14 +8,14 @@
         Programación y Rotación de Turnos
     </MudText>
     <MudText Typo="Typo.body2" Class="mb-6" Style="color: #64748b;">
-        Administre la distribución semanal de turnos y supervisores (Diurno / Nocturno) para el personal operativo.
+        Administre la distribución semanal de turnos y supervisores para el personal operativo, con soporte de hasta 3 turnos rotativos.
     </MudText>
 
     <!-- Control Panel -->
     <MudCard Elevation="2" Class="mb-6" Style="border-radius: 12px; border: 1px solid #e2e8f0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px);">
         <MudCardContent Class="py-4">
             <MudGrid AlignItems="AlignItems.Center">
-                <MudItem xs="12" md="4">
+                <MudItem xs="12" md="3">
                     <MudSelect T="int?" Label="Seleccione Operación" 
                                Value="SelectedOperacionId"
                                ValueChanged="OnOperacionChanged"
@@ -33,13 +33,26 @@
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="3">
-                    <MudDatePicker Label="Seleccione Lunes de la Semana" 
+                <MudItem xs="12" md="2">
+                    <MudDatePicker Label="Seleccione Semana" 
                                    @bind-Date="SelectedMonday" 
                                    DateFormat="dd/MM/yyyy"
                                    PickerVariant="PickerVariant.Dialog"
                                    Color="Color.Primary"
                                    Class="mud-width-full" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudSelect T="int" Label="Cantidad de Turnos" 
+                               @bind-Value="SelectedCantidadTurnos"
+                               Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               Class="mud-width-full"
+                               Disabled="@(SelectedOperacionId == null)"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem T="int" Value="1">1 Turno</MudSelectItem>
+                        <MudSelectItem T="int" Value="2">2 Turnos</MudSelectItem>
+                        <MudSelectItem T="int" Value="3">3 Turnos</MudSelectItem>
+                    </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="5" Class="d-flex justify-md-end gap-2 flex-wrap">
                     <MudButton Variant="Variant.Outlined" 
@@ -47,8 +60,8 @@
                                StartIcon="@Icons.Material.Filled.SwapHoriz"
                                OnClick="SwapSupervisors"
                                Style="border-radius: 8px; text-transform: none; font-weight: 600;"
-                               Disabled="@(IsLoading || SelectedOperacionId == null)">
-                        Intercambiar
+                               Disabled="@(IsLoading || SelectedOperacionId == null || SelectedCantidadTurnos < 2)">
+                        Rotar Supervisores
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Primary" 
@@ -86,106 +99,177 @@
     else
     {
         <MudGrid>
-            <!-- Day Shift (Diurno) -->
-            <MudItem xs="12" lg="6">
-                <MudCard Elevation="3" Class="h-100" Style="border-radius: 16px; border: 1px solid #fed7aa; background: #fffcf8; overflow: hidden;">
-                    <!-- Shift Header -->
-                    <div style="background: linear-gradient(135deg, #ffedd5 0%, #fef3c7 100%); padding: 16px; border-bottom: 1px solid #fed7aa;" class="d-flex align-center justify-between">
+            @for (int i = 0; i < SelectedCantidadTurnos; i++)
+            {
+                var index = i;
+                var names = GetShiftNames();
+                var currentShiftName = index < names.Count ? names[index] : "TURNO";
+                
+                <MudItem xs="12" md="@GetColumnWidth()">
+                    <MudCard Elevation="3" Class="h-100" Style="@GetShiftCardStyle(index)">
+                        <!-- Shift Header -->
+                        <div style="@GetShiftHeaderStyle(index)" class="d-flex align-center justify-between">
+                            <div class="d-flex align-center gap-3">
+                                <MudIcon Icon="@GetShiftIcon(index)" Style="@GetShiftIconStyle(index)" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 700; font-family: 'Outfit', sans-serif;">@GetShiftTitle(index)</MudText>
+                                    <MudText Typo="Typo.caption" Style="opacity: 0.85;">@GetShiftSubtitle(index)</MudText>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <MudCardContent>
+                            <!-- Supervisor Dropdown -->
+                            <MudCard Outlined="true" Class="mb-4" Style="@GetSupervisorCardBorderStyle(index)">
+                                <MudCardContent Class="py-2 px-3">
+                                    <MudSelect T="int?" Label="Supervisor de Turno" 
+                                               Value="@GetShiftSupervisorId(index)"
+                                               ValueChanged="@(id => SetShiftSupervisorId(index, id))"
+                                               Variant="Variant.Text"
+                                               Color="Color.Primary"
+                                               Dense="true"
+                                               Margin="Margin.Dense">
+                                        <MudSelectItem T="int?" Value="((int?)null)">-- No Asignado --</MudSelectItem>
+                                        @foreach (var sup in AllSupervisors)
+                                        {
+                                            <MudSelectItem T="int?" Value="((int?)sup.Id)">@sup.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudCardContent>
+                            </MudCard>
+
+                            <!-- Operators List -->
+                            <MudText Typo="Typo.subtitle2" Class="mb-2" Style="font-weight: 600; color: #334155;">
+                                Personal asignado (@GetShiftOperators(index).Count)
+                            </MudText>
+                            
+                            <div style="max-height: 400px; overflow-y: auto;" class="d-flex flex-column gap-2">
+                                @if (!GetShiftOperators(index).Any())
+                                {
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Class="py-6" Style="color: #94a3b8; font-style: italic;">
+                                        Sin personal asignado
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    @foreach (var op in GetShiftOperators(index))
+                                    {
+                                        <MudCard Outlined="true" Style="border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;" Class="px-3 py-2">
+                                            <div class="d-flex align-center justify-between">
+                                                <div style="flex: 1; min-width: 0;">
+                                                    <MudText Typo="Typo.body2" Style="font-weight: 600; color: #1e293b;" class="text-truncate">
+                                                        @op.NombreCompleto
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption" Style="color: #64748b;">
+                                                        @op.Puesto
+                                                    </MudText>
+                                                </div>
+                                                <div class="d-flex align-center gap-1">
+                                                    <!-- Move Dropdown Menu -->
+                                                    <MudMenu Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Primary" Dense="true">
+                                                        <MudMenuItem OnClick="@(() => MoveOperator(op, ""))">Desasignar</MudMenuItem>
+                                                        @if (index != 0)
+                                                        {
+                                                            <MudMenuItem OnClick="@(() => MoveOperator(op, names[0]))">Mover a @names[0]</MudMenuItem>
+                                                        }
+                                                        @if (SelectedCantidadTurnos > 1 && index != 1)
+                                                        {
+                                                            <MudMenuItem OnClick="@(() => MoveOperator(op, names[1]))">Mover a @names[1]</MudMenuItem>
+                                                        }
+                                                        @if (SelectedCantidadTurnos > 2 && index != 2)
+                                                        {
+                                                            <MudMenuItem OnClick="@(() => MoveOperator(op, names[2]))">Mover a @names[2]</MudMenuItem>
+                                                        }
+                                                    </MudMenu>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" 
+                                                                   Size="Size.Small" 
+                                                                   Color="Color.Error" 
+                                                                   OnClick="@(() => MoveOperator(op, ""))" 
+                                                                   Title="Desasignar del turno" />
+                                                </div>
+                                            </div>
+                                        </MudCard>
+                                    }
+                                }
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+
+            <!-- Unassigned Pool (Personal Disponible) -->
+            <MudItem xs="12" md="@GetColumnWidth()">
+                <MudCard Elevation="3" Class="h-100" Style="border-radius: 16px; border: 1px solid #cbd5e1; background: #f8fafc; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 12px; border-bottom: 1px solid #cbd5e1;" class="d-flex align-center justify-between">
                         <div class="d-flex align-center gap-3">
-                            <MudIcon Icon="@Icons.Material.Filled.WbSunny" Style="color: #d97706; font-size: 2.2rem;" />
+                            <MudIcon Icon="@Icons.Material.Filled.People" Style="color: #64748b; font-size: 2rem;" />
                             <div>
-                                <MudText Typo="Typo.h6" Style="color: #78350f; font-weight: 700; font-family: 'Outfit', sans-serif;">TURNO DIURNO</MudText>
-                                <MudText Typo="Typo.caption" Style="color: #b45309;">Horario de Día</MudText>
+                                <MudText Typo="Typo.subtitle1" Style="font-weight: 700; color: #334155; font-family: 'Outfit', sans-serif;">PERSONAL DISPONIBLE</MudText>
+                                <MudText Typo="Typo.caption" Style="color: #64748b;">Operarios sin Asignar (@UnassignedOperators.Count)</MudText>
                             </div>
                         </div>
                     </div>
                     
                     <MudCardContent>
-                        <!-- Supervisor Card -->
-                        <MudCard Outlined="true" Class="mb-4" Style="background: #ffffff; border-radius: 12px; border: 1px dashed #f59e0b;">
-                            <MudCardContent Class="py-3 px-4 d-flex align-center justify-between">
-                                <div>
-                                    <MudText Typo="Typo.caption" Style="color: #92400e; font-weight: 600; text-transform: uppercase;">Supervisor a Cargo</MudText>
-                                    <MudText Typo="Typo.body1" Style="font-weight: 700; color: #1e293b;">
-                                        @(DaySupervisor?.NombreCompleto ?? "No Asignado")
-                                    </MudText>
-                                </div>
-                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="font-weight: 600;">Día</MudChip>
-                            </MudCardContent>
-                        </MudCard>
-
-                        <!-- Operators List -->
-                        <MudText Typo="Typo.subtitle2" Class="mb-2" Style="color: #78350f; font-weight: 600;">Personal Operativo asignado (@DayOperators.Count)</MudText>
-                        <MudTable Items="DayOperators" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Outlined="true" Class="mud-elevation-0" Style="border-radius: 12px;">
-                            <HeaderContent>
-                                <MudTh>Operario</MudTh>
-                                <MudTh>Puesto</MudTh>
-                                <MudTh Style="width: 100px; text-align: center;">Acción</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Operario" Style="font-weight: 600; color: #334155;">@context.NombreCompleto</MudTd>
-                                <MudTd DataLabel="Puesto">@context.Puesto</MudTd>
-                                <MudTd Style="text-align: center;">
-                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" 
-                                                   Size="Size.Small" 
-                                                   Color="Color.Primary" 
-                                                   OnClick="@(() => ToggleShift(context))"
-                                                   Title="Mover a Nocturno" />
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-
-            <!-- Night Shift (Nocturno) -->
-            <MudItem xs="12" lg="6">
-                <MudCard Elevation="3" Class="h-100" Style="border-radius: 16px; border: 1px solid #c7d2fe; background: #fafaff; overflow: hidden;">
-                    <!-- Shift Header -->
-                    <div style="background: linear-gradient(135deg, #e0e7ff 0%, #e8f0fe 100%); padding: 16px; border-bottom: 1px solid #c7d2fe;" class="d-flex align-center justify-between">
-                        <div class="d-flex align-center gap-3">
-                            <MudIcon Icon="@Icons.Material.Filled.NightsStay" Style="color: #4f46e5; font-size: 2.2rem;" />
-                            <div>
-                                <MudText Typo="Typo.h6" Style="color: #1e1b4b; font-weight: 700; font-family: 'Outfit', sans-serif;">TURNO NOCTURNO</MudText>
-                                <MudText Typo="Typo.caption" Style="color: #3730a3;">Horario de Noche</MudText>
-                            </div>
+                        <div style="max-height: 500px; overflow-y: auto;" class="d-flex flex-column gap-2">
+                            @if (!UnassignedOperators.Any())
+                            {
+                                <MudText Typo="Typo.body2" Align="Align.Center" Class="py-12" Style="color: #94a3b8; font-style: italic;">
+                                    Todos los operarios asignados
+                                </MudText>
+                            }
+                            else
+                            {
+                                var names = GetShiftNames();
+                                @foreach (var op in UnassignedOperators)
+                                {
+                                    <MudCard Outlined="true" Style="border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;" Class="px-3 py-2">
+                                        <div class="d-flex align-center justify-between">
+                                            <div style="flex: 1; min-width: 0;">
+                                                <MudText Typo="Typo.body2" Style="font-weight: 600; color: #1e293b;" class="text-truncate">
+                                                    @op.NombreCompleto
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Style="color: #64748b;">
+                                                    @op.Puesto
+                                                </MudText>
+                                            </div>
+                                            <div>
+                                                @if (SelectedCantidadTurnos == 1)
+                                                {
+                                                    <MudButton Variant="Variant.Outlined" 
+                                                               Color="Color.Primary" 
+                                                               Size="Size.Small" 
+                                                               OnClick="@(() => MoveOperator(op, names[0]))"
+                                                               Style="text-transform: none; border-radius: 6px; font-weight: 600;">
+                                                        Asignar
+                                                    </MudButton>
+                                                }
+                                                else
+                                                {
+                                                    <MudMenu Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" Dense="true">
+                                                        <MudMenuItem OnClick="@(() => MoveOperator(op, names[0]))">
+                                                            Asignar a @names[0]
+                                                        </MudMenuItem>
+                                                        @if (SelectedCantidadTurnos > 1)
+                                                        {
+                                                            <MudMenuItem OnClick="@(() => MoveOperator(op, names[1]))">
+                                                                Asignar a @names[1]
+                                                            </MudMenuItem>
+                                                        }
+                                                        @if (SelectedCantidadTurnos > 2)
+                                                        {
+                                                            <MudMenuItem OnClick="@(() => MoveOperator(op, names[2]))">
+                                                                Asignar a @names[2]
+                                                            </MudMenuItem>
+                                                        }
+                                                    </MudMenu>
+                                                }
+                                            </div>
+                                        </div>
+                                    </MudCard>
+                                }
+                            }
                         </div>
-                    </div>
-                    
-                    <MudCardContent>
-                        <!-- Supervisor Card -->
-                        <MudCard Outlined="true" Class="mb-4" Style="background: #ffffff; border-radius: 12px; border: 1px dashed #6366f1;">
-                            <MudCardContent Class="py-3 px-4 d-flex align-center justify-between">
-                                <div>
-                                    <MudText Typo="Typo.caption" Style="color: #3730a3; font-weight: 600; text-transform: uppercase;">Supervisor a Cargo</MudText>
-                                    <MudText Typo="Typo.body1" Style="font-weight: 700; color: #1e293b;">
-                                        @(NightSupervisor?.NombreCompleto ?? "No Asignado")
-                                    </MudText>
-                                </div>
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="font-weight: 600;">Noche</MudChip>
-                            </MudCardContent>
-                        </MudCard>
-
-                        <!-- Operators List -->
-                        <MudText Typo="Typo.subtitle2" Class="mb-2" Style="color: #3730a3; font-weight: 600;">Personal Operativo asignado (@NightOperators.Count)</MudText>
-                        <MudTable Items="NightOperators" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Outlined="true" Class="mud-elevation-0" Style="border-radius: 12px;">
-                            <HeaderContent>
-                                <MudThStyle Style="width: 100px; text-align: center;">Acción</MudThStyle>
-                                <MudTh>Operario</MudTh>
-                                <MudTh>Puesto</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd Style="text-align: center;">
-                                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
-                                                   Size="Size.Small" 
-                                                   Color="Color.Primary" 
-                                                   OnClick="@(() => ToggleShift(context))"
-                                                   Title="Mover a Diurno" />
-                                </MudTd>
-                                <MudTd DataLabel="Operario" Style="font-weight: 600; color: #334155;">@context.NombreCompleto</MudTd>
-                                <MudTd DataLabel="Puesto">@context.Puesto</MudTd>
-                            </RowTemplate>
-                        </MudTable>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
