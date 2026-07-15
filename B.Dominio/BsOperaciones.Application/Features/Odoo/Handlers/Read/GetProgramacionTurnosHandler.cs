@@ -18,7 +18,7 @@ namespace BsOperaciones.Application.Features.Odoo.Handlers.Read
 
         public async Task<IListResponse<ProgramacionTurnoDto>> Handle(GetProgramacionTurnosQuery request, CancellationToken cancellationToken)
         {
-            return await _odooService.GetProgramacionTurnos(request.fechaInicio);
+            return await _odooService.GetProgramacionTurnos(request.fechaInicio, request.operacionId);
         }
     }
 }

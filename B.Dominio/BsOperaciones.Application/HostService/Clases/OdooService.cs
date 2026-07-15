@@ -824,13 +824,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio)
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio, int operacionId)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new ListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>();
             try
             {
-                var requestUrl = CreateRequestUri("Operaciones/GetProgramacionTurnos", $"fechaInicio={fechaInicio:yyyy-MM-dd}");
+                var requestUrl = CreateRequestUri("Operaciones/GetProgramacionTurnos", $"fechaInicio={fechaInicio:yyyy-MM-dd}&operacionId={operacionId}");
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {
@@ -876,13 +876,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente)
+        public async Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente, int operacionId)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new ErrorResponse();
             try
             {
-                var requestUrl = CreateRequestUri("Operaciones/AutoRotarTurnos", $"fechaInicioActual={fechaInicioActual:yyyy-MM-dd}&fechaInicioSiguiente={fechaInicioSiguiente:yyyy-MM-dd}");
+                var requestUrl = CreateRequestUri("Operaciones/AutoRotarTurnos", $"fechaInicioActual={fechaInicioActual:yyyy-MM-dd}&fechaInicioSiguiente={fechaInicioSiguiente:yyyy-MM-dd}&operacionId={operacionId}");
                 var registro = await PostAsync(requestUrl, new object());
                 if (registro.IsSuccess)
                 {

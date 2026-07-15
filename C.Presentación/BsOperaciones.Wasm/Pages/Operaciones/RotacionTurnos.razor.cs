@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MediatR;
+using Modelo.ClasesGenericas;
 using Modelo.Entidades.Operaciones;
 using BsOperaciones.Application.Features.Odoo.Queries;
 using BsOperaciones.Application.Features.Odoo.Command;
@@ -16,6 +17,9 @@ namespace BsOperaciones.Pages.Operaciones
         [Inject] private IMediator Mediator { get; set; } = default!;
         [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
+        private List<Combos> OperacionesList { get; set; } = new();
+        private int? SelectedOperacionId { get; set; }
+
         private DateTime? _selectedMonday;
         private DateTime? SelectedMonday
         {
@@ -25,7 +29,7 @@ namespace BsOperaciones.Pages.Operaciones
                 if (_selectedMonday != value)
                 {
                     _selectedMonday = value.HasValue ? GetMonday(value.Value) : null;
-                    if (_selectedMonday.HasValue)
+                    if (_selectedMonday.HasValue && SelectedOperacionId.HasValue)
                     {
                         _ = LoadWeekSchedule(_selectedMonday.Value);
                     }
@@ -40,9 +44,31 @@ namespace BsOperaciones.Pages.Operaciones
         private List<ProgramacionTurnoDto> DayOperators { get; set; } = new();
         private List<ProgramacionTurnoDto> NightOperators { get; set; } = new();
 
-        protected override void OnInitialized()
+        protected override async Task OnInitializedAsync()
         {
             SelectedMonday = GetMonday(DateTime.Today);
+            var result = await Mediator.Send(new GetAllCombosQuery("Operaciones"));
+            if (!result.Respuesta.ExisteError && result.Model != null)
+            {
+                OperacionesList = result.Model.ToList();
+            }
+        }
+
+        private async Task OnOperacionChanged(int? opId)
+        {
+            SelectedOperacionId = opId;
+            if (SelectedOperacionId.HasValue && SelectedMonday.HasValue)
+            {
+                await LoadWeekSchedule(SelectedMonday.Value);
+            }
+            else
+            {
+                DaySupervisor = null;
+                NightSupervisor = null;
+                DayOperators.Clear();
+                NightOperators.Clear();
+                StateHasChanged();
+            }
         }
 
         private DateTime GetMonday(DateTime date)
@@ -53,11 +79,13 @@ namespace BsOperaciones.Pages.Operaciones
 
         private async Task LoadWeekSchedule(DateTime monday)
         {
+            if (!SelectedOperacionId.HasValue) return;
+
             IsLoading = true;
             StateHasChanged();
             try
             {
-                var result = await Mediator.Send(new GetProgramacionTurnosQuery(monday));
+                var result = await Mediator.Send(new GetProgramacionTurnosQuery(monday, SelectedOperacionId.Value));
                 if (!result.Respuesta.ExisteError && result.Model != null)
                 {
                     var allItems = result.Model.ToList();
@@ -152,15 +180,32 @@ namespace BsOperaciones.Pages.Operaciones
 
         private async Task SaveChanges()
         {
-            if (!SelectedMonday.HasValue) return;
+            if (!SelectedMonday.HasValue || !SelectedOperacionId.HasValue) return;
 
             IsLoading = true;
             StateHasChanged();
             try
             {
                 var combined = new List<ProgramacionTurnoDto>();
-                if (DaySupervisor != null) combined.Add(DaySupervisor);
-                if (NightSupervisor != null) combined.Add(NightSupervisor);
+                if (DaySupervisor != null)
+                {
+                    DaySupervisor.OperacionId = SelectedOperacionId.Value;
+                    combined.Add(DaySupervisor);
+                }
+                if (NightSupervisor != null)
+                {
+                    NightSupervisor.OperacionId = SelectedOperacionId.Value;
+                    combined.Add(NightSupervisor);
+                }
+
+                foreach (var op in DayOperators)
+                {
+                    op.OperacionId = SelectedOperacionId.Value;
+                }
+                foreach (var op in NightOperators)
+                {
+                    op.OperacionId = SelectedOperacionId.Value;
+                }
 
                 combined.AddRange(DayOperators);
                 combined.AddRange(NightOperators);
@@ -189,14 +234,14 @@ namespace BsOperaciones.Pages.Operaciones
 
         private async Task AutoRotateNextWeek()
         {
-            if (!SelectedMonday.HasValue) return;
+            if (!SelectedMonday.HasValue || !SelectedOperacionId.HasValue) return;
 
             IsLoading = true;
             StateHasChanged();
             try
             {
                 DateTime nextMonday = SelectedMonday.Value.AddDays(7);
-                var result = await Mediator.Send(new AutoRotarTurnosCommand(SelectedMonday.Value, nextMonday));
+                var result = await Mediator.Send(new AutoRotarTurnosCommand(SelectedMonday.Value, nextMonday, SelectedOperacionId.Value));
                 if (!result.Respuesta.ExisteError)
                 {
                     Snackbar.Add("Turnos rotados y copiados a la siguiente semana.", Severity.Success);

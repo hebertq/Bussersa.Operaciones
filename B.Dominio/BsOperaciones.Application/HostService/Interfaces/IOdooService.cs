@@ -41,9 +41,9 @@ namespace HostService.Interfaces
         Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(int id);
         Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(object matrixData);
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
-        Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio);
+        Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio, int operacionId);
         Task<IResponse> SaveProgramacionTurnos(List<Modelo.Entidades.Operaciones.ProgramacionTurnoDto> turnos);
-        Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente);
+        Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente, int operacionId);
         Task<IListResponse<User>> GetUsers();
         Task<IResponse> AddUser(User user);
         Task<IResponse> UpdateUser(User user);

@@ -12,5 +12,6 @@ namespace Modelo.Entidades.Operaciones
         public string Puesto { get; set; } = string.Empty;
         public string Turno { get; set; } = string.Empty; // "Diurno" o "Nocturno"
         public int? SupervisorId { get; set; }
+        public int OperacionId { get; set; }
     }
 }

@@ -16,6 +16,24 @@
         <MudCardContent Class="py-4">
             <MudGrid AlignItems="AlignItems.Center">
                 <MudItem xs="12" md="4">
+                    <MudSelect T="int?" Label="Seleccione Operación" 
+                               Value="SelectedOperacionId"
+                               ValueChanged="OnOperacionChanged"
+                               Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               Class="mud-width-full"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem T="int?" Value="((int?)null)">-- Seleccione Operación --</MudSelectItem>
+                        @if (OperacionesList != null)
+                        {
+                            foreach (var op in OperacionesList)
+                            {
+                                <MudSelectItem T="int?" Value="((int?)op.id)">@op.nombre</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="3">
                     <MudDatePicker Label="Seleccione Lunes de la Semana" 
                                    @bind-Date="SelectedMonday" 
                                    DateFormat="dd/MM/yyyy"
@@ -23,37 +41,43 @@
                                    Color="Color.Primary"
                                    Class="mud-width-full" />
                 </MudItem>
-                <MudItem xs="12" md="8" Class="d-flex justify-md-end gap-3 flex-wrap">
+                <MudItem xs="12" md="5" Class="d-flex justify-md-end gap-2 flex-wrap">
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Secondary" 
                                StartIcon="@Icons.Material.Filled.SwapHoriz"
                                OnClick="SwapSupervisors"
                                Style="border-radius: 8px; text-transform: none; font-weight: 600;"
-                               Disabled="IsLoading">
-                        Intercambiar Supervisores
+                               Disabled="@(IsLoading || SelectedOperacionId == null)">
+                        Intercambiar
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Primary" 
                                StartIcon="@Icons.Material.Filled.Autorenew"
                                OnClick="AutoRotateNextWeek"
                                Style="border-radius: 8px; text-transform: none; font-weight: 600;"
-                               Disabled="IsLoading">
-                        Auto-rotar Siguiente Semana
+                               Disabled="@(IsLoading || SelectedOperacionId == null)">
+                        Auto-rotar
                     </MudButton>
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Success" 
                                StartIcon="@Icons.Material.Filled.Save"
                                OnClick="SaveChanges"
                                Style="border-radius: 8px; text-transform: none; font-weight: 600; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);"
-                               Disabled="IsLoading">
-                        Guardar Programación
+                               Disabled="@(IsLoading || SelectedOperacionId == null)">
+                        Guardar
                     </MudButton>
                 </MudItem>
             </MudGrid>
         </MudCardContent>
     </MudCard>
 
-    @if (IsLoading)
+    @if (SelectedOperacionId == null)
+    {
+        <MudAlert Severity="Severity.Info" Style="border-radius: 12px;">
+            Por favor, seleccione una operación para visualizar y programar los turnos correspondientes.
+        </MudAlert>
+    }
+    else if (IsLoading)
     {
         <div class="d-flex justify-center align-center my-12">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />

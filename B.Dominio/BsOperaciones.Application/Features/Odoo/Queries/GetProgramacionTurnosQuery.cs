@@ -5,5 +5,5 @@ using System;
 
 namespace BsOperaciones.Application.Features.Odoo.Queries
 {
-    public record GetProgramacionTurnosQuery(DateTime fechaInicio) : IRequest<IListResponse<ProgramacionTurnoDto>>;
+    public record GetProgramacionTurnosQuery(DateTime fechaInicio, int operacionId) : IRequest<IListResponse<ProgramacionTurnoDto>>;
 }

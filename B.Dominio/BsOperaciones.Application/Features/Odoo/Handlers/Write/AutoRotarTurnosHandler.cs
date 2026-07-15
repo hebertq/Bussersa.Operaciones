@@ -17,7 +17,7 @@ namespace BsOperaciones.Application.Features.Odoo.Handlers.Write
 
         public async Task<IResponse> Handle(AutoRotarTurnosCommand request, CancellationToken cancellationToken)
         {
-            return await _odooService.AutoRotarTurnos(request.fechaInicioActual, request.fechaInicioSiguiente);
+            return await _odooService.AutoRotarTurnos(request.fechaInicioActual, request.fechaInicioSiguiente, request.operacionId);
         }
     }
 }
