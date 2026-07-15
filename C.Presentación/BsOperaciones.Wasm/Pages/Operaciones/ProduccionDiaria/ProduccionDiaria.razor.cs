@@ -186,6 +186,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     ms.Position = 0;
 
                     IWorkbook workbook = WorkbookFactory.Create(ms);
+                    IFormulaEvaluator evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
                     ISheet sheet = workbook.GetSheetAt(0);
 
                     IRow headerRow = sheet.GetRow(0);
@@ -232,8 +233,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         IRow row = sheet.GetRow(r);
                         if (row == null) continue;
 
-                        var hs = GetStringVal(row, colIndices, "hoja_servicio") ?? string.Empty;
-                        var sc = GetStringVal(row, colIndices, "servicio_codigo");
+                        var hs = GetStringVal(row, colIndices, "hoja_servicio", evaluator) ?? string.Empty;
+                        var sc = GetStringVal(row, colIndices, "servicio_codigo", evaluator);
                         
                         if (string.IsNullOrEmpty(sc)) continue;
 
@@ -241,21 +242,21 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         {
                             hoja_servicio = hs,
                             servicio_codigo = sc,
-                            actividad = GetStringVal(row, colIndices, "actividad"),
-                            cliente = GetStringVal(row, colIndices, "cliente"),
-                            area_cliente = GetStringVal(row, colIndices, "area_cliente"),
-                            fecha_inicio = GetDateVal(row, colIndices, "fecha"),
-                            hora_inicio = GetStringVal(row, colIndices, "hora_inicio"),
-                            hora_fin = GetStringVal(row, colIndices, "hora_fin"),
-                            nombre_producto = GetStringVal(row, colIndices, "servicio_descripcion"),
-                            servicio_descripcion = GetStringVal(row, colIndices, "servicio_descripcion"),
-                            no_lote = GetStringVal(row, colIndices, "no_lote"),
-                            oc = GetStringVal(row, colIndices, "oc"),
-                            no_marchamo = GetStringVal(row, colIndices, "no_marchamo"),
-                            peso = GetDecimalVal(row, colIndices, "peso"),
-                            cantidad_producto = GetDecimalVal(row, colIndices, "cantidad"),
-                            costo_producto = GetDecimalVal(row, colIndices, "costo_producto"),
-                            asignado_a = GetStringVal(row, colIndices, "asignado_a")
+                            actividad = GetStringVal(row, colIndices, "actividad", evaluator),
+                            cliente = GetStringVal(row, colIndices, "cliente", evaluator),
+                            area_cliente = GetStringVal(row, colIndices, "area_cliente", evaluator),
+                            fecha_inicio = GetDateVal(row, colIndices, "fecha", evaluator),
+                            hora_inicio = GetStringVal(row, colIndices, "hora_inicio", evaluator),
+                            hora_fin = GetStringVal(row, colIndices, "hora_fin", evaluator),
+                            nombre_producto = GetStringVal(row, colIndices, "servicio_descripcion", evaluator),
+                            servicio_descripcion = GetStringVal(row, colIndices, "servicio_descripcion", evaluator),
+                            no_lote = GetStringVal(row, colIndices, "no_lote", evaluator),
+                            oc = GetStringVal(row, colIndices, "oc", evaluator),
+                            no_marchamo = GetStringVal(row, colIndices, "no_marchamo", evaluator),
+                            peso = GetDecimalVal(row, colIndices, "peso", evaluator),
+                            cantidad_producto = GetDecimalVal(row, colIndices, "cantidad", evaluator),
+                            costo_producto = GetDecimalVal(row, colIndices, "costo_producto", evaluator),
+                            asignado_a = GetStringVal(row, colIndices, "asignado_a", evaluator)
                         };
                         dto.fecha_fin = dto.fecha_inicio;
                         dto.operacion_id = operacionCargaId;
@@ -358,7 +359,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         }
 
         #region Helper Excel parsers
-        private string? GetStringVal(IRow row, Dictionary<string, int> indices, string key)
+        private string? GetStringVal(IRow row, Dictionary<string, int> indices, string key, IFormulaEvaluator evaluator)
         {
             if (!indices.ContainsKey(key)) return null;
             var cell = row.GetCell(indices[key]);
@@ -366,16 +367,17 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
             if (cell.CellType == CellType.Formula)
             {
-                if (cell.CachedFormulaResultType == CellType.String) return cell.StringCellValue?.Trim();
-                if (cell.CachedFormulaResultType == CellType.Numeric) return cell.NumericCellValue.ToString()?.Trim();
-                if (cell.CachedFormulaResultType == CellType.Boolean) return cell.BooleanCellValue.ToString()?.Trim();
+                var cv = evaluator.Evaluate(cell);
+                if (cv.CellType == CellType.String) return cv.StringValue?.Trim();
+                if (cv.CellType == CellType.Numeric) return cv.NumberValue.ToString()?.Trim();
+                if (cv.CellType == CellType.Boolean) return cv.BooleanValue.ToString()?.Trim();
                 return string.Empty;
             }
 
             return cell.ToString()?.Trim();
         }
 
-        private DateTime? GetDateVal(IRow row, Dictionary<string, int> indices, string key)
+        private DateTime? GetDateVal(IRow row, Dictionary<string, int> indices, string key, IFormulaEvaluator evaluator)
         {
             if (!indices.ContainsKey(key)) return null;
             var cell = row.GetCell(indices[key]);
@@ -385,18 +387,21 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 return cell.DateCellValue;
             }
-            if (cell.CellType == CellType.Formula && cell.CachedFormulaResultType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
+            
+            if (cell.CellType == CellType.Formula)
             {
-                return cell.DateCellValue;
+                var cv = evaluator.Evaluate(cell);
+                if (cv.CellType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
+                {
+                    return cell.DateCellValue;
+                }
+                
+                string? sVal = cv.CellType == CellType.String ? cv.StringValue : cv.ToString();
+                if (DateTime.TryParse(sVal, out DateTime d)) return d;
+                return null;
             }
 
-            string? strVal = null;
-            if (cell.CellType == CellType.Formula && cell.CachedFormulaResultType == CellType.String)
-                strVal = cell.StringCellValue;
-            else
-                strVal = cell.ToString();
-
-            if (DateTime.TryParse(strVal, out DateTime date))
+            if (DateTime.TryParse(cell.ToString(), out DateTime date))
             {
                 return date;
             }
@@ -404,7 +409,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             return null;
         }
 
-        private decimal GetDecimalVal(IRow row, Dictionary<string, int> indices, string key)
+        private decimal GetDecimalVal(IRow row, Dictionary<string, int> indices, string key, IFormulaEvaluator evaluator)
         {
             if (!indices.ContainsKey(key)) return 0;
             var cell = row.GetCell(indices[key]);
@@ -416,10 +421,12 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
             if (cell.CellType == CellType.Formula)
             {
-                if (cell.CachedFormulaResultType == CellType.Numeric)
-                    return (decimal)cell.NumericCellValue;
-                if (cell.CachedFormulaResultType == CellType.String && decimal.TryParse(cell.StringCellValue, out decimal v))
+                var cv = evaluator.Evaluate(cell);
+                if (cv.CellType == CellType.Numeric)
+                    return (decimal)cv.NumberValue;
+                if (cv.CellType == CellType.String && decimal.TryParse(cv.StringValue, out decimal v))
                     return v;
+                return 0;
             }
 
             if (decimal.TryParse(cell.ToString(), out decimal val))
