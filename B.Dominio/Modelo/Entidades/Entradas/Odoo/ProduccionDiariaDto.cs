@@ -29,5 +29,6 @@ namespace Modelo.Entidades.Entradas.Odoo
         public DateTime fecha_registro { get; set; }
         public int usuario_registro { get; set; }
         public int? proforma_orden { get; set; }
+        public int? operacion_id { get; set; }
     }
 }

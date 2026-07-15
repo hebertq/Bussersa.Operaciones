@@ -30,6 +30,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         // Carga de Excel state
         protected IBrowserFile? archivoExcel;
         protected bool estaImportando;
+        protected List<Combos> operacionesList = new();
+        protected int operacionCargaId;
 
         // Historial / Filtros
         protected DateRange dateRange = new(DateTime.Today.AddDays(-30), DateTime.Today);
@@ -46,6 +48,15 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected override async Task OnInitializedAsync()
         {
+            try
+            {
+                var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+                operacionesList = regop.Model ?? new();
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Error);
+            }
             await CargarProduccion();
         }
 
@@ -125,9 +136,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected async Task DescargarPlantillaExcel()
         {
-            if (string.IsNullOrEmpty(formatoRequest.cliente) || string.IsNullOrEmpty(formatoRequest.area) || plantillaSeleccionada == null)
+            if (plantillaSeleccionada == null)
             {
-                _snackbar.Add("Por favor complete Cliente, Área y Plantilla antes de descargar.", Severity.Warning);
+                _snackbar.Add("Por favor seleccione la plantilla antes de descargar.", Severity.Warning);
                 return;
             }
 
@@ -258,6 +269,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             asignado_a = GetStringVal(row, colIndices, "asignado_a")
                         };
                         dto.fecha_fin = dto.fecha_inicio;
+                        dto.operacion_id = operacionCargaId;
 
                         items.Add(dto);
                     }

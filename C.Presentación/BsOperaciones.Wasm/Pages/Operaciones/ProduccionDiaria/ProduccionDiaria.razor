@@ -59,12 +59,6 @@
                 <MudCardContent Class="pa-0 pt-2">
                     <MudGrid Spacing="2">
                         <MudItem xs="12">
-                            <MudTextField @bind-Value="formatoRequest.cliente" Label="Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="El cliente es requerido" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="formatoRequest.area" Label="Área de Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="El área es requerida" />
-                        </MudItem>
-                        <MudItem xs="12">
                             <MudAutocomplete T="Combos" Label="Buscar Plantilla de Servicio (Odoo)" SearchFunc="@BuscarPlantillas"
                                              Value="plantillaSeleccionada" ValueChanged="OnPlantillaChanged"
                                              ToStringFunc="@(c => c == null ? null : c.nombre)"
@@ -74,7 +68,7 @@
                 </MudCardContent>
                 <MudCardActions Class="pa-0 pt-4 justify-end">
                     <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="DescargarPlantillaExcel"
-                               Disabled="@(string.IsNullOrEmpty(formatoRequest.cliente) || string.IsNullOrEmpty(formatoRequest.area) || plantillaSeleccionada == null || estaDescargando)">
+                               Disabled="@(plantillaSeleccionada == null || estaDescargando)">
                         @(estaDescargando ? "Generando..." : "Descargar Formato")
                     </MudButton>
                 </MudCardActions>
@@ -93,7 +87,18 @@
                         <MudText Typo="Typo.body2" Class="text-secondary">Sube el archivo Excel completado para registrar la producción diaria.</MudText>
                     </CardHeaderContent>
                 </MudCardHeader>
-                <MudCardContent Class="pa-0 pt-2 d-flex align-center justify-center flex-grow-1">
+                <MudCardContent Class="pa-0 pt-2 d-flex flex-column gap-3 justify-center flex-grow-1">
+                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                        @if (operacionesList != null)
+                        {
+                            @foreach (var item in operacionesList)
+                            {
+                                <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+
                     <div class="d-flex flex-column align-center w-100 pa-4" style="border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
                         <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
                         @if (archivoExcel == null)
@@ -115,7 +120,7 @@
                 </MudCardContent>
                 <MudCardActions Class="pa-0 pt-4 justify-end">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload" OnClick="ImportarArchivoProduccion"
-                               Disabled="@(archivoExcel == null || estaImportando)">
+                               Disabled="@(archivoExcel == null || operacionCargaId == 0 || estaImportando)">
                         @(estaImportando ? "Procesando..." : "Importar Producción")
                     </MudButton>
                 </MudCardActions>
