@@ -43,6 +43,7 @@ namespace HostService.Interfaces
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
         Task<IListResponse<Modelo.Entidades.Operaciones.ProgramacionTurnoDto>> GetProgramacionTurnos(DateTime fechaInicio, int operacionId);
         Task<IListResponse<OdooEmployeeDto>> GetEmployeesForRotation(int operacionId);
+        Task<IListResponse<OdooEmployeeDto>> GetAllActiveEmployeesForRotation();
         Task<IResponse> SaveProgramacionTurnos(List<Modelo.Entidades.Operaciones.ProgramacionTurnoDto> turnos);
         Task<IResponse> AutoRotarTurnos(DateTime fechaInicioActual, DateTime fechaInicioSiguiente, int operacionId);
         Task<IListResponse<User>> GetUsers();

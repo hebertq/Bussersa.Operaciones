@@ -880,6 +880,34 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<OdooEmployeeDto>> GetAllActiveEmployeesForRotation()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<OdooEmployeeDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetAllActiveEmployeesForRotation");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<OdooEmployeeDto>(reg.detail.ToString());
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IResponse> SaveProgramacionTurnos(List<Modelo.Entidades.Operaciones.ProgramacionTurnoDto> turnos)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

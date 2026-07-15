@@ -17,6 +17,7 @@ namespace BsOperaciones.Pages.Operaciones
     {
         [Inject] private IMediator Mediator { get; set; } = default!;
         [Inject] private ISnackbar Snackbar { get; set; } = default!;
+        [Inject] private IDialogService DialogService { get; set; } = default!;
 
         private List<Combos> OperacionesList { get; set; } = new();
         private int? SelectedOperacionId { get; set; }
@@ -548,6 +549,66 @@ namespace BsOperaciones.Pages.Operaciones
             if (index == 0) return Shift1Operators;
             if (index == 1) return Shift2Operators;
             return Shift3Operators;
+        }
+
+        private async Task OpenAddEmployeesDialog()
+        {
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = DialogService.Show<DialogAddEmployeesToRotation>("Buscar y Agregar Personal", options);
+            var result = await dialog.Result;
+            if (!result.Canceled && result.Data is List<OdooEmployeeDto> selectedEmployees)
+            {
+                int countAdded = 0;
+                foreach (var emp in selectedEmployees)
+                {
+                    bool isSupervisor = emp.JobTitle == "Supervisor de personal";
+                    bool isOperator = emp.JobTitle == "Operador de almacen";
+
+                    if (isSupervisor)
+                    {
+                        if (!AllSupervisors.Any(s => s.Id == emp.Id))
+                        {
+                            AllSupervisors.Add(emp);
+                            countAdded++;
+                        }
+                    }
+                    else if (isOperator)
+                    {
+                        bool alreadyAssigned = Shift1Operators.Any(o => o.EmpleadoId == emp.Id)
+                                            || Shift2Operators.Any(o => o.EmpleadoId == emp.Id)
+                                            || Shift3Operators.Any(o => o.EmpleadoId == emp.Id)
+                                            || UnassignedOperators.Any(o => o.EmpleadoId == emp.Id);
+
+                        if (!alreadyAssigned)
+                        {
+                            UnassignedOperators.Add(new ProgramacionTurnoDto
+                            {
+                                EmpleadoId = emp.Id,
+                                NombreCompleto = emp.Name,
+                                Puesto = emp.JobTitle,
+                                Turno = "",
+                                SupervisorId = null
+                            });
+
+                            if (!AllOperators.Any(o => o.Id == emp.Id))
+                            {
+                                AllOperators.Add(emp);
+                            }
+                            countAdded++;
+                        }
+                    }
+                }
+
+                if (countAdded > 0)
+                {
+                    Snackbar.Add($"Se agregaron {countAdded} empleados al listado.", Severity.Success);
+                    StateHasChanged();
+                }
+                else
+                {
+                    Snackbar.Add("Los empleados seleccionados ya estaban incluidos en la programación.", Severity.Info);
+                }
+            }
         }
     }
 }

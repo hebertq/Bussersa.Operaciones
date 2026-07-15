@@ -1,0 +1,138 @@
+@using Modelo.Entidades.Entradas.Odoo
+@using MediatR
+@using BsOperaciones.Application.Features.Odoo.Queries
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudDialog Style="border-radius: 16px; overflow: hidden; max-height: 90vh;">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1e293b; font-family: 'Outfit', sans-serif;">
+            <MudIcon Icon="@Icons.Material.Filled.PersonSearch" Class="mr-3 mb-n1" Size="Size.Large" Color="Color.Primary" />
+            Catálogo de Personal Activo
+        </MudText>
+        <MudText Typo="Typo.caption" Style="color: #64748b;">
+            Busque y seleccione operarios o supervisores de cualquier departamento para agregarlos a la programación semanal.
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (IsLoading)
+        {
+            <div class="d-flex justify-center align-center my-8">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+            </div>
+        }
+        else
+        {
+            <MudTable Items="Employees" 
+                      MultiSelection="true" 
+                      @bind-SelectedItems="SelectedItems"
+                      Hover="true" 
+                      Dense="true" 
+                      Striped="true"
+                      Filter="new Func<OdooEmployeeDto, bool>(FilterFunc)"
+                      Class="mud-elevation-0"
+                      FixedHeader="true"
+                      Height="400px">
+                <ToolBarContent>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="SearchString" 
+                                  Placeholder="Buscar por nombre, cargo o departamento..." 
+                                  Adornment="Adornment.Start" 
+                                  AdornmentIcon="@Icons.Material.Filled.Search" 
+                                  IconSize="Size.Medium" 
+                                  Class="mt-0"
+                                  Immediate="true"
+                                  Clearable="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh Style="font-weight: 700;">Nombre</MudTh>
+                    <MudTh Style="font-weight: 700;">Cargo</MudTh>
+                    <MudTh Style="font-weight: 700;">Departamento/Operación (Odoo)</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Nombre" Style="font-weight: 600; color: #1e293b;">@context.Name</MudTd>
+                    <MudTd DataLabel="Cargo">
+                        <MudChip T="string" Color="@GetJobChipColor(context.JobTitle)" Size="Size.Small" Style="font-weight: 600;">
+                            @context.JobTitle
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Departamento">@(string.IsNullOrEmpty(context.DepartmentName) ? "Sin Departamento" : context.DepartmentName)</MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager InfoText="Registros {first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <div class="px-6 pb-4 d-flex justify-end gap-2 w-100">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default" Style="text-transform: none; font-weight: 600;">
+                Cancelar
+            </MudButton>
+            <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Disabled="IsLoading || !SelectedItems.Any()" Style="text-transform: none; font-weight: 600; border-radius: 8px;">
+                Agregar Seleccionados (@SelectedItems.Count)
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private bool IsLoading { get; set; } = true;
+    private List<OdooEmployeeDto> Employees { get; set; } = new();
+    private HashSet<OdooEmployeeDto> SelectedItems { get; set; } = new();
+    private string SearchString { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            var result = await Mediator.Send(new GetAllActiveEmployeesForRotationQuery());
+            if (!result.Respuesta.ExisteError && result.Model != null)
+            {
+                Employees = result.Model.ToList();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar catálogo de empleados: " + result.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Excepción al cargar catálogo: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private bool FilterFunc(OdooEmployeeDto emp)
+    {
+        if (string.IsNullOrWhiteSpace(SearchString))
+            return true;
+        if (emp.Name.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (emp.JobTitle.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (emp.DepartmentName != null && emp.DepartmentName.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private Color GetJobChipColor(string jobTitle)
+    {
+        return jobTitle == "Supervisor de personal" ? Color.Warning : Color.Info;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(SelectedItems.ToList()));
+    }
+}
