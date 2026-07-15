@@ -6,7 +6,14 @@
             <MenuItem MenuId="27" Name="Costeo Personal" Url="/comercial/costeo-personal" IconName="@Icons.Material.Filled.People" />
             <MenuItem MenuId="28" Name="Costeo Producción" Url="/comercial/costeo-produccion" IconName="@Icons.Material.Filled.Build" />
             <MenuItem MenuId="29" Name="Indicadores" Url="/comercial/dashboard" IconName="@Icons.Material.Filled.TrendingUp" />
-            <MenuItem MenuId="34" Name="Agregar Servicio" Url="/comercial/importar-variantes" IconName="@Icons.Material.Filled.CloudUpload" />
+            <AuthorizeView Policy="@Policies.IsMenu" Resource="33" Context="innerContext">
+                <Authorized>
+                    <MudNavGroup Title="Servicios" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+                        <MenuItem MenuId="34" Name="Agregar Servicio" Url="/comercial/importar-variantes" IconName="@Icons.Material.Filled.CloudUpload" />
+                        <MenuItem MenuId="35" Name="Consultar Servicio" Url="/comercial/consultar-servicios" IconName="@Icons.Material.Filled.Search" />
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
         </MudNavGroup>
     </Authorized>
     <NotAuthorized />

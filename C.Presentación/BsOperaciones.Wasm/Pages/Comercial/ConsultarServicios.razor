@@ -1,0 +1,129 @@
+@page "/comercial/consultar-servicios"
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h4" Class="mb-6 font-bold" Style="background: linear-gradient(90deg, #2E7D32, #00C853); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        🔍 Consultar y Actualizar Tarifas de Servicios (Odoo ERP)
+    </MudText>
+
+    <!-- Selector de Plantilla de Producto -->
+    <MudCard Elevation="4" Class="pa-6 mb-6" Style="border-radius: 12px; border-left: 6px solid #2E7D32;">
+        <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Success">Selección de Plantilla de Producto</MudText>
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem XS="12" MD="8">
+                <MudAutocomplete T="Combos" 
+                                 Value="selectedTemplate" 
+                                 ValueChanged="OnTemplateChanged" 
+                                 SearchFunc="SearchTemplates"
+                                 ToStringFunc="@(t => t?.nombre ?? "")"
+                                 Label="Buscar Plantilla de Producto (Odoo)" 
+                                 Variant="Variant.Outlined" 
+                                 Margin="Margin.Dense"
+                                 Placeholder="Escriba el nombre del servicio / plantilla..."
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true"
+                                 CoerceValue="true"
+                                 Adornment="Adornment.Start" 
+                                 AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudItem>
+            <MudItem XS="12" MD="4" Class="d-flex gap-2">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Success" 
+                           StartIcon="@Icons.Material.Filled.Refresh" 
+                           OnClick="FetchVariants" 
+                           Disabled="@(selectedTemplate == null || isSearching)"
+                           Class="flex-grow-1 py-2 font-bold"
+                           Style="border-radius: 8px;">
+                    Consultar Variantes
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCard>
+
+    <!-- Listado de Variantes -->
+    @if (isSearching)
+    {
+        <div class="d-flex flex-column align-center justify-center pa-10">
+            <MudProgressCircular Color="Color.Success" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+            <MudText Typo="Typo.body1" Class="text-muted">Obteniendo variantes y precios desde Odoo...</MudText>
+        </div>
+    }
+    else if (variantsList != null)
+    {
+        @if (!variantsList.Any())
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4" Style="border-radius: 8px;">
+                La plantilla seleccionada no posee variantes activas registradas en Odoo.
+            </MudAlert>
+        }
+        else
+        {
+            <MudCard Elevation="4" Class="pa-6" Style="border-radius: 12px; border-top: 4px solid #1976D2;">
+                <div class="d-flex align-center justify-space-between mb-4 flex-wrap gap-4">
+                    <div>
+                        <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Info">Variantes del Servicio</MudText>
+                        <MudText Typo="Typo.caption" Class="text-muted">Modifique los precios directamente en la tabla y presione Guardar Cambios para actualizar en Odoo.</MudText>
+                    </div>
+                    @if (editedVariants.Any())
+                    {
+                        <MudChip T="string" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning" Size="Size.Small" OnClose="@(() => DiscardChanges())" CloseIcon="@Icons.Material.Filled.Close">
+                            @editedVariants.Count cambios pendientes de guardar
+                        </MudChip>
+                    }
+                </div>
+
+                <MudTable Items="variantsList" Hover="true" Elevation="0" Dense="true" Class="mb-4">
+                    <HeaderContent>
+                        <MudTh>Código SKU (Referencia)</MudTh>
+                        <MudTh>Características (Atributos)</MudTh>
+                        <MudTh Style="text-align: right; width: 220px;">Precio de Lista Odoo (C$)</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Código SKU" Class="font-bold">
+                            @(string.IsNullOrWhiteSpace(context.default_code) ? "S/C" : context.default_code)
+                        </MudTd>
+                        <MudTd DataLabel="Características">
+                            @context.nombre
+                        </MudTd>
+                        <MudTd DataLabel="Precio de Lista" Style="text-align: right;">
+                            <div class="d-flex align-center justify-end gap-2">
+                                <MudNumericField T="decimal" 
+                                                 Value="context.precio" 
+                                                 ValueChanged="@(val => OnPriceEdited(context, val))" 
+                                                 Format="N4" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense" 
+                                                 Style="max-width: 160px; background-color: white;"
+                                                 Adornment="Adornment.Start" 
+                                                 AdornmentText="C$" />
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <!-- Botón de Sincronización -->
+                <div class="d-flex justify-end mt-6">
+                    <MudButton Variant="Variant.Filled" 
+                               Color="Color.Info" 
+                               StartIcon="@Icons.Material.Filled.CloudUpload" 
+                               OnClick="SaveChanges" 
+                               Disabled="@(!editedVariants.Any() || isSaving)"
+                               Class="px-6 py-3 font-bold"
+                               Style="border-radius: 8px;">
+                        @if (isSaving)
+                        {
+                            <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" />
+                            <span>Guardando en Odoo...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar Cambios en Odoo</span>
+                        }
+                    </MudButton>
+                </div>
+            </MudCard>
+        }
+    }
+</MudContainer>

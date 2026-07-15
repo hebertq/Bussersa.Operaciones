@@ -2120,6 +2120,60 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<OdooVariantDto>> GetProductVariants(int templateId)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<OdooVariantDto> response = new ListResponse<OdooVariantDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"OdQuery/GetProductVariants/{templateId}");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<OdooVariantDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+
+            return response;
+        }
+
+        public async Task<IResponse> ActualizarPreciosVariantes(List<OdooVariantDto> model)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("OCommand/ActualizarPreciosVariantes");
+                var registro = await PostAsync(requestUrl, model);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 
