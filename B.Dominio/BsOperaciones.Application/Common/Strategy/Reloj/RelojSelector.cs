@@ -21,8 +21,7 @@ namespace BsOperaciones.Application.Common.Strategy.Reloj
                 TipoReloj.LasConde => ActivatorUtilities.CreateInstance<RelojLasCondeStrategy>(_serviceProvider),
                 TipoReloj.Manual => ActivatorUtilities.CreateInstance<RelojManualStrategy>(_serviceProvider),
                 TipoReloj.Sinsa => ActivatorUtilities.CreateInstance<RelojSinsaStrategy>(_serviceProvider),              
-                // Cuando agregues el 4to reloj, solo añades una línea aquí:
-                // TipoReloj.NuevoBiometrico => ActivatorUtilities.CreateInstance<NuevoRelojStrategy>(_serviceProvider),
+                TipoReloj.Cbc => ActivatorUtilities.CreateInstance<RelojCbcStrategy>(_serviceProvider),
                 _ => throw new ArgumentException($"El tipo de reloj {tipo} no está registrado en el selector.")
             };
         }
