@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Modelo.Entidades.Nomina
 {
@@ -27,6 +27,9 @@ namespace Modelo.Entidades.Nomina
         public decimal aguinaldo { get; set; }
         public decimal otros_ingresos { get; set; }
         public decimal reporte_inss { get; set; }
+        public int semanas_inss { get; set; }
+        public decimal reporte_inss_real { get; set; }
+        public decimal diferencia_inss { get; set; }
         public decimal deduc_inss { get; set; }
         public decimal ir_reportar { get; set; }
         public decimal prestamos { get; set; }
