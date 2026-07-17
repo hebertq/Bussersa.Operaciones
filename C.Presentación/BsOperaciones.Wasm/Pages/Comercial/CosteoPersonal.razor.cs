@@ -123,7 +123,18 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedFfr => salarioBase > 0 ? (CalculatedTarifaSugerida / salarioBase) : 0m;
 
-        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (26m * (decimal)(horasTurno > 0 ? horasTurno : 8));
+        private decimal GetDiasTrabajoMes(int hours)
+        {
+            if (hours <= 0) return 26m;
+            if (hours <= 8) return 26m;
+            if (hours == 12) return 16m;
+            if (hours == 24) return 8m;
+            return Math.Round((48m / (decimal)hours) * 4m, 1);
+        }
+
+        private decimal CalculatedDiasTrabajoMes => GetDiasTrabajoMes(horasTurno);
+
+        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (CalculatedDiasTrabajoMes * (decimal)(horasTurno > 0 ? horasTurno : 8));
 
         private decimal CalculatedTarifaDia => CalculatedTarifaHora * (decimal)horasTurno;
 

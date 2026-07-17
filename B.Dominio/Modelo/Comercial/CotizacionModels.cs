@@ -46,6 +46,15 @@ namespace Modelo.Comercial
         public int DiasFeriados { get; set; } = 15;
         public bool RecargoDoble { get; set; }
         public decimal MontoAdicionalHoraExtra { get; set; } = 15.0m;
+
+        public decimal GetDiasTrabajoMes()
+        {
+            if (HorasTurno <= 0) return 26m;
+            if (HorasTurno <= 8) return 26m;
+            if (HorasTurno == 12) return 16m;
+            if (HorasTurno == 24) return 8m;
+            return Math.Round((48m / (decimal)HorasTurno) * 4m, 1);
+        }
     }
 
     public class CotizacionProduccionDetalle

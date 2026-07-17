@@ -69,8 +69,18 @@ namespace BsOperaciones.Pages.Comercial
         private CatalogoEpp editingEpp = new CatalogoEpp();
         private CatalogoViatico editingViatico = new CatalogoViatico();
 
-        // Cálculos dinámicos
-        private decimal CalculatedCostoDiarioPersona => selectedPersonnelQuote != null ? selectedPersonnelQuote.CostoTotal / 30m : 0m;
+        private decimal GetDiasTrabajoMes(int hours)
+        {
+            if (hours <= 0) return 26m;
+            if (hours <= 8) return 26m;
+            if (hours == 12) return 16m;
+            if (hours == 24) return 8m;
+            return Math.Round((48m / (decimal)hours) * 4m, 1);
+        }
+
+        private decimal CalculatedCostoDiarioPersona => selectedPersonnelQuote != null 
+            ? (selectedPersonnelQuote.CostoTotal / GetDiasTrabajoMes(selectedPersonnelQuote.PersonalDetalle?.HorasTurno ?? 8)) 
+            : 0m;
 
         private decimal CalculatedManoObraUnitaria => selectedPersonnelQuoteId.HasValue 
             ? ((produccionDiaria > 0) ? (CalculatedCostoDiarioPersona / (decimal)produccionDiaria) : 0m)
