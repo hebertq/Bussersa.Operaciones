@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MediatR;
@@ -11,7 +7,6 @@ using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Interfaces;
 using Utilidades.Interfaces;
-using Utilidades.ClasesGenericas;
 using HostService.Interfaces;
 
 namespace BsOperaciones.Pages.Nomina.DiasporPagar

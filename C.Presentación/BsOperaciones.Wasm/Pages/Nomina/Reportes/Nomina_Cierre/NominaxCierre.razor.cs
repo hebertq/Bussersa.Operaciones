@@ -1,15 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MediatR;
 using MudBlazor;
 using BsOperaciones.Application.Features.Odoo.Queries;
 using BsOperaciones.Component.DialogModal;
-using Modelo.ClasesGenericas;
-using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Entidades.Nomina;
 using Modelo.Interfaces;
 using Utilidades.Interfaces;
