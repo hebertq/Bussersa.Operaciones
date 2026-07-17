@@ -37,7 +37,7 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
         public PrintCotizacionPdfHandler(IOdooService odoo) { _Odoo = odoo; }
         public async Task<ISingleResponse<FileNameString>> Handle(PrintCotizacionPdfQuery request, CancellationToken cancellationToken)
         {
-            return await _Odoo.PrintCotizacionPdf(request.Ids);
+            return await _Odoo.PrintCotizacionPdf(request.Ids, request.SelectedSkus);
         }
     }
 
@@ -47,7 +47,7 @@ namespace BsOperaciones.Application.Features.Comercial.Handlers
         public PrintCotizacionDesglosePdfHandler(IOdooService odoo) { _Odoo = odoo; }
         public async Task<ISingleResponse<FileNameString>> Handle(PrintCotizacionDesglosePdfQuery request, CancellationToken cancellationToken)
         {
-            return await _Odoo.PrintCotizacionDesglosePdf(request.Ids);
+            return await _Odoo.PrintCotizacionDesglosePdf(request.Ids, request.SelectedSkus);
         }
     }
 

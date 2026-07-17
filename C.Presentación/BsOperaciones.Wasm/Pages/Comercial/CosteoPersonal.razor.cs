@@ -72,6 +72,7 @@ namespace BsOperaciones.Pages.Comercial
             public decimal CostoTotal => Quotes.Sum(q => q.CostoTotal);
             public decimal TarifaSugerida => Quotes.Sum(q => q.TarifaSugerida);
             public List<Cotizacion> Quotes { get; set; } = new List<Cotizacion>();
+            public HashSet<Cotizacion> SelectedQuotesForPrint { get; set; } = new HashSet<Cotizacion>();
             public bool ShowDetails { get; set; }
         }
 
@@ -198,6 +199,11 @@ namespace BsOperaciones.Pages.Comercial
                     .OrderByDescending(g => g.Year)
                     .ThenByDescending(g => g.Month)
                     .ToList();
+
+                foreach (var g in groupedQuotes)
+                {
+                    g.SelectedQuotesForPrint = new HashSet<Cotizacion>(g.Quotes);
+                }
             }
         }
 
@@ -669,7 +675,12 @@ namespace BsOperaciones.Pages.Comercial
 
         private async Task PrintGroup(GroupedCotizacion group)
         {
-            var ids = group.Quotes.Select(q => q.Id).ToList();
+            if (group.SelectedQuotesForPrint == null || !group.SelectedQuotesForPrint.Any())
+            {
+                Snackbar.Add("Debe seleccionar al menos un turno para imprimir.", Severity.Warning);
+                return;
+            }
+            var ids = group.SelectedQuotesForPrint.Select(q => q.Id).ToList();
             isPrinting = true;
             StateHasChanged();
             try
@@ -695,7 +706,12 @@ namespace BsOperaciones.Pages.Comercial
 
         private async Task PrintGroupDesglose(GroupedCotizacion group)
         {
-            var ids = group.Quotes.Select(q => q.Id).ToList();
+            if (group.SelectedQuotesForPrint == null || !group.SelectedQuotesForPrint.Any())
+            {
+                Snackbar.Add("Debe seleccionar al menos un turno para imprimir.", Severity.Warning);
+                return;
+            }
+            var ids = group.SelectedQuotesForPrint.Select(q => q.Id).ToList();
             isPrinting = true;
             StateHasChanged();
             try

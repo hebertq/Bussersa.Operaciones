@@ -22,6 +22,7 @@ namespace BsOperaciones.Pages.Comercial
         private string? editingNumeroCotizacion;
         private bool isPrinting = false;
         private HashSet<Cotizacion> expandedQuotes = new HashSet<Cotizacion>();
+        private Dictionary<Guid, HashSet<CotizacionProduccionDetalle>> selectedSkusForPrint = new Dictionary<Guid, HashSet<CotizacionProduccionDetalle>>();
 
         private string cliente = "";
         private string skuNombre = "";
@@ -849,14 +850,46 @@ namespace BsOperaciones.Pages.Comercial
             }
         }
 
+        private List<CotizacionProduccionDetalle> GetQuoteDetailsList(Cotizacion quote)
+        {
+            if (quote.ProduccionDetalles != null && quote.ProduccionDetalles.Any())
+            {
+                return quote.ProduccionDetalles;
+            }
+            return new List<CotizacionProduccionDetalle> { quote.ProduccionDetalle };
+        }
+
+        private HashSet<CotizacionProduccionDetalle> GetSelectedSkusForPrint(Cotizacion quote)
+        {
+            if (!selectedSkusForPrint.TryGetValue(quote.Id, out var skus))
+            {
+                skus = GetQuoteDetailsList(quote).ToHashSet();
+                selectedSkusForPrint[quote.Id] = skus;
+            }
+            return skus;
+        }
+
+        private void OnSelectedSkusChanged(Cotizacion quote, IEnumerable<CotizacionProduccionDetalle> selected)
+        {
+            selectedSkusForPrint[quote.Id] = selected.ToHashSet();
+            StateHasChanged();
+        }
+
         private async Task PrintConsolidatedCotizacion(Cotizacion quote)
         {
+            var selectedDetails = GetSelectedSkusForPrint(quote);
+            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            if (skus == null || !skus.Any())
+            {
+                Snackbar.Add("Debe seleccionar al menos un SKU para imprimir.", Severity.Warning);
+                return;
+            }
             isPrinting = true;
             StateHasChanged();
             try
             {
                 var ids = new List<Guid> { quote.Id };
-                var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids));
+                var res = await Mediator.Send(new PrintCotizacionPdfQuery(ids, skus));
                 if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
                 {
                     var fileBytes = Convert.FromBase64String(res.Model.File);
@@ -877,12 +910,19 @@ namespace BsOperaciones.Pages.Comercial
 
         private async Task PrintConsolidatedCotizacionDesglose(Cotizacion quote)
         {
+            var selectedDetails = GetSelectedSkusForPrint(quote);
+            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).ToList();
+            if (skus == null || !skus.Any())
+            {
+                Snackbar.Add("Debe seleccionar al menos un SKU para imprimir.", Severity.Warning);
+                return;
+            }
             isPrinting = true;
             StateHasChanged();
             try
             {
                 var ids = new List<Guid> { quote.Id };
-                var res = await Mediator.Send(new PrintCotizacionDesglosePdfQuery(ids));
+                var res = await Mediator.Send(new PrintCotizacionDesglosePdfQuery(ids, skus));
                 if (!res.Respuesta.ExisteError && res.Model != null && !string.IsNullOrEmpty(res.Model.File))
                 {
                     var fileBytes = Convert.FromBase64String(res.Model.File);

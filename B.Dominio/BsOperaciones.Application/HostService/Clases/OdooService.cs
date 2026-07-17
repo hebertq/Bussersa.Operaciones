@@ -692,14 +692,15 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids)
+        public async Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids, List<string>? selectedSkus = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new SingleResponse<FileNameString>();
             try
             {
                 var requestUrl = CreateRequestUri("Comercial/GenerateCotizacionPdf");
-                var registro = await PostAsync(requestUrl, ids);
+                var payload = new { Ids = ids, SelectedSkus = selectedSkus };
+                var registro = await PostAsync(requestUrl, payload);
                 if (registro.IsSuccess)
                 {
                     var reg = registro.Data;
@@ -718,14 +719,15 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids)
+        public async Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids, List<string>? selectedSkus = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new SingleResponse<FileNameString>();
             try
             {
                 var requestUrl = CreateRequestUri("Comercial/GenerateCotizacionDesglosePdf");
-                var registro = await PostAsync(requestUrl, ids);
+                var payload = new { Ids = ids, SelectedSkus = selectedSkus };
+                var registro = await PostAsync(requestUrl, payload);
                 if (registro.IsSuccess)
                 {
                     var reg = registro.Data;

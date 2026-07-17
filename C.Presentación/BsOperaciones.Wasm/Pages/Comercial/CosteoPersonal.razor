@@ -420,10 +420,10 @@
                         <MudTd DataLabel="Tarifa Sugerida Total" Class="font-bold text-primary">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
                         <MudTd Style="text-align: center;">
                             <div class="d-flex justify-center gap-1">
-                                <MudTooltip Text="Re-Imprimir Cotización Consolidada">
+                                <MudTooltip Text="@($"Re-Imprimir Cotización ({context.SelectedQuotesForPrint.Count} Seleccionados)")">
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Primary" Size="Size.Small" OnClick="@(() => PrintGroup(context))" />
                                 </MudTooltip>
-                                <MudTooltip Text="Imprimir Desglose Detallado">
+                                <MudTooltip Text="@($"Imprimir Desglose ({context.SelectedQuotesForPrint.Count} Seleccionados)")">
                                     <MudIconButton Icon="@Icons.Material.Filled.ReceiptLong" Color="Color.Info" Size="Size.Small" OnClick="@(() => PrintGroupDesglose(context))" />
                                 </MudTooltip>
                                 <MudTooltip Text="Eliminar Grupo Completo">
@@ -441,7 +441,7 @@
                                         <MudText Typo="Typo.subtitle2" Class="mb-3 font-bold" Color="Color.Primary">
                                             Detalle de Turnos: @context.ClienteNombre (@context.Periodo)
                                         </MudText>
-                                        <MudTable Items="context.Quotes" Context="detailContext" Hover="true" Dense="true" Elevation="0">
+                                        <MudTable Items="context.Quotes" MultiSelection="true" T="Cotizacion" @bind-SelectedItems="context.SelectedQuotesForPrint" Context="detailContext" Hover="true" Dense="true" Elevation="0">
                                             <HeaderContent>
                                                 <MudTh>Turno</MudTh>
                                                 <MudTh>Horas</MudTh>

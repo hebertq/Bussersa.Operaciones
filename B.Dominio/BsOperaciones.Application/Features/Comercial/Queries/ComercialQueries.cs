@@ -10,8 +10,8 @@ namespace BsOperaciones.Application.Features.Comercial.Queries
 {
     public record GetCatalogosComercialQuery : IRequest<IListResponse<CatalogoResponse>>;
     public record GetCotizacionesQuery : IRequest<IListResponse<Cotizacion>>;
-    public record PrintCotizacionPdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
-    public record PrintCotizacionDesglosePdfQuery(List<Guid> Ids) : IRequest<ISingleResponse<FileNameString>>;
+    public record PrintCotizacionPdfQuery(List<Guid> Ids, List<string>? SelectedSkus = null) : IRequest<ISingleResponse<FileNameString>>;
+    public record PrintCotizacionDesglosePdfQuery(List<Guid> Ids, List<string>? SelectedSkus = null) : IRequest<ISingleResponse<FileNameString>>;
     public record PrintDescriptorPdfQuery(int Id) : IRequest<ISingleResponse<FileNameString>>;
     public record PrintMatrizDescriptoresPdfQuery(object MatrixData) : IRequest<ISingleResponse<FileNameString>>;
 }

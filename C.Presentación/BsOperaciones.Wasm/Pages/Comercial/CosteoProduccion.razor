@@ -431,10 +431,10 @@
                         <MudTd DataLabel="Tarifa Sugerida Total" Class="font-bold text-success">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
                         <MudTd Style="text-align: center;">
                             <div class="d-flex justify-center gap-1">
-                                <MudTooltip Text="Re-Imprimir Cotización Consolidada">
+                                <MudTooltip Text="@($"Re-Imprimir Cotización ({GetSelectedSkusForPrint(context).Count} Seleccionados)")">
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Color="Color.Success" Size="Size.Small" OnClick="@(() => PrintConsolidatedCotizacion(context))" />
                                 </MudTooltip>
-                                <MudTooltip Text="Imprimir Desglose Detallado">
+                                <MudTooltip Text="@($"Imprimir Desglose ({GetSelectedSkusForPrint(context).Count} Seleccionados)")">
                                     <MudIconButton Icon="@Icons.Material.Filled.ReceiptLong" Color="Color.Info" Size="Size.Small" OnClick="@(() => PrintConsolidatedCotizacionDesglose(context))" />
                                 </MudTooltip>
                                 <MudTooltip Text="Eliminar Grupo Completo">
@@ -452,7 +452,7 @@
                                         <MudText Typo="Typo.subtitle2" Class="mb-3 font-bold" Color="Color.Success">
                                             Detalle de Productos / SKUs Cotizados: @context.ClienteNombre (@context.FechaCreacion.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-NI")))
                                         </MudText>
-                                        <MudTable Items="@((context.ProduccionDetalles != null && context.ProduccionDetalles.Any()) ? context.ProduccionDetalles : new List<CotizacionProduccionDetalle> { context.ProduccionDetalle })" Context="detailContext" Hover="true" Dense="true" Elevation="0">
+                                        <MudTable Items="GetQuoteDetailsList(context)" MultiSelection="true" T="CotizacionProduccionDetalle" SelectedItems="GetSelectedSkusForPrint(context)" SelectedItemsChanged="((val) => OnSelectedSkusChanged(context, val))" Context="detailContext" Hover="true" Dense="true" Elevation="0">
                                             <HeaderContent>
                                                 <MudTh>Producto / SKU</MudTh>
                                                 <MudTh>Volumen Diario</MudTh>

@@ -36,8 +36,8 @@ namespace HostService.Interfaces
         Task<IListResponse<SeveranceDetail>> GetAllPendingSeverance();
         Task<IResponse> CreateSettlementPayroll(DateTime Inicio, DateTime Fin, string Nombre, List<SeveranceDetail> Param);
         Task<ISingleResponse<FileNameString>> PrintPayrollPdf(string nombre, repnominapago modelo);
-        Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids);
-        Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids);
+        Task<ISingleResponse<FileNameString>> PrintCotizacionPdf(List<Guid> ids, List<string>? selectedSkus = null);
+        Task<ISingleResponse<FileNameString>> PrintCotizacionDesglosePdf(List<Guid> ids, List<string>? selectedSkus = null);
         Task<ISingleResponse<FileNameString>> PrintDescriptorPdf(int id);
         Task<ISingleResponse<FileNameString>> PrintMatrizDescriptoresPdf(object matrixData);
         Task<ISingleResponse<FileNameString>> GenerateExcel(MultiSheetExcelRequest request);
