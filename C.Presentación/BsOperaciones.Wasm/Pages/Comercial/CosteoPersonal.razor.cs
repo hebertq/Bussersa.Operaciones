@@ -60,8 +60,8 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedPrestacionesFactor => cargosConfig != null 
             ? ((cargosConfig.InssPatronal + cargosConfig.Inatec + cargosConfig.ColchonSubsidio) / 100m) 
-              + (((decimal)diasFeriados + cargosConfig.VacacionesDias + cargosConfig.AguinaldoDias + cargosConfig.IndemnizacionDias) / 360m)
-            : 0.569m;
+              + (((decimal)diasFeriados + cargosConfig.AguinaldoDias + cargosConfig.IndemnizacionDias) / 360m)
+            : 0.503m;
 
         public class GroupedCotizacion
         {
