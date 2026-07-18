@@ -115,7 +115,7 @@ namespace BsOperaciones.Pages.Comercial
             + seguros 
             + gastosOperativos;
 
-        private decimal CalculatedUtility => (salarioBase / (1.0m - (utilidadPorcentaje / 100.0m))) - salarioBase;
+        private decimal CalculatedUtility => (CalculatedCmt / (1.0m - (utilidadPorcentaje / 100.0m))) - CalculatedCmt;
 
         private decimal CalculatedTarifaSugerida => CalculatedCmt + CalculatedUtility;
 
