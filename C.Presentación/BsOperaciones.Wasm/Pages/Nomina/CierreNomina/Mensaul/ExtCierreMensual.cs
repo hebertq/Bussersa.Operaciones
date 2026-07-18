@@ -1,4 +1,4 @@
-﻿using Modelo.Entidades.Entradas.Odoo;
+using Modelo.Entidades.Entradas.Odoo;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -86,9 +86,15 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 foreach (var item2 in queryadmin)
                 {
                     item2.NombreCompleto = item2.NombreCompleto.Replace("'", "");
-                    foreach (var item in _PayLoadListLocal.Where(x => x.NoInss.Equals(item2.NoInss)))
+                    
+                    // Buscar coincidencia en la lista de Odoo (por INSS, Cédula o Nombre)
+                    var match = _PayLoadListLocal.FirstOrDefault(x => x.NoInss == item2.NoInss && x.NoInss > 0)
+                                ?? _PayLoadListLocal.FirstOrDefault(x => !string.IsNullOrEmpty(x.NoCedula) && x.NoCedula.Trim().ToLower() == item2.NoCedula.Trim().ToLower())
+                                ?? _PayLoadListLocal.FirstOrDefault(x => !string.IsNullOrEmpty(x.NombreCompleto) && x.NombreCompleto.Replace(" ", "").Trim().ToLower() == item2.NombreCompleto.Replace(" ", "").Trim().ToLower());
+
+                    if (match != null)
                     {
-                        item2.IdNomina = item.IdNomina;
+                        item2.IdNomina = match.IdNomina;
                     }
                 }
 
