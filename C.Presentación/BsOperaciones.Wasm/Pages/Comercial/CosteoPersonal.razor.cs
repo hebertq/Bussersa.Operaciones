@@ -132,7 +132,7 @@ namespace BsOperaciones.Pages.Comercial
             return Math.Round((48m / (decimal)hours) * 4m, 1);
         }
 
-        private decimal CalculatedDiasTrabajoMes => GetDiasTrabajoMes(horasTurno);
+        private decimal CalculatedDiasTrabajoMes => (360m - (cargosConfig != null ? cargosConfig.DomingosDias : 52m) - (decimal)diasFeriados) / 12m;
 
         private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (CalculatedDiasTrabajoMes * (decimal)(horasTurno > 0 ? horasTurno : 8));
 
