@@ -18,7 +18,7 @@ namespace BsOperaciones.Application.Features.Odoo.Handlers.Read
 
         public async Task<IListResponse<ProduccionDiariaDto>> Handle(GetProduccionDiariaQuery request, CancellationToken cancellationToken)
         {
-            return await _Odoo.GetProduccionDiaria(request.inicio, request.fin, request.cliente, request.estadoFactura);
+            return await _Odoo.GetProduccionDiaria(request.inicio, request.fin, request.operacionId, request.estadoFactura);
         }
     }
 }

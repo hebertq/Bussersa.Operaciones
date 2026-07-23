@@ -2334,7 +2334,7 @@ namespace HostService.Clases
             }
             return response;
         }
-        public async Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, string? cliente, string? estadoFactura)
+        public async Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<ProduccionDiariaDto> response = new ListResponse<ProduccionDiariaDto>();
@@ -2343,7 +2343,7 @@ namespace HostService.Clases
                 var queryParams = new List<string>();
                 if (inicio.HasValue) queryParams.Add($"inicio={inicio.Value:yyyy-MM-dd}");
                 if (fin.HasValue) queryParams.Add($"fin={fin.Value:yyyy-MM-dd}");
-                if (!string.IsNullOrEmpty(cliente)) queryParams.Add($"cliente={Uri.EscapeDataString(cliente)}");
+                if (operacionId.HasValue && operacionId.Value > 0) queryParams.Add($"operacionId={operacionId.Value}");
                 if (!string.IsNullOrEmpty(estadoFactura)) queryParams.Add($"estadoFactura={estadoFactura}");
 
                 string queryStr = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
@@ -2358,6 +2358,32 @@ namespace HostService.Clases
                         response.Model = _Util.ObtenerDato<ProduccionDiariaDto>(reg.detail.ToString());
                         response.Respuesta.SetErrHost(reg);
                     }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> UpdateProduccionDiaria(ProduccionDiariaDto item)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/UpdateProduccion");
+                var registro = await PostAsync(requestUrl, item);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
                     else
                         response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
                 }

@@ -1,0 +1,128 @@
+@using MudBlazor
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            Editar Registro de Producción
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form" IsValid="@isValid">
+            <MudGrid Class="pt-2">
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="Fecha" @bind-Date="fecha" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @foreach (var item in OperacionesList)
+                        {
+                            <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Área Cliente" @bind-Value="item.area_cliente" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="SKU (Servicio)" @bind-Value="item.servicio_codigo" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Descripción de Servicio" @bind-Value="item.servicio_descripcion" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Hoja de Servicio" @bind-Value="item.hoja_servicio" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Actividad" @bind-Value="item.actividad" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField Label="Cantidad" @bind-Value="item.cantidad_producto" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField Label="Peso" @bind-Value="item.peso" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField Label="Tarifa / Costo" @bind-Value="item.costo_producto" Disabled="true" HelperText="Se recalculará al guardar" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="Lote" @bind-Value="item.no_lote" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="OC" @bind-Value="item.oc" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="Marchamo" @bind-Value="item.no_marchamo" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField Label="Asignado a" @bind-Value="item.asignado_a" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Save" Variant="Variant.Filled" Disabled="@(!isValid)">Guardar Cambios</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ProduccionDiariaDto Item { get; set; } = null!;
+    [Parameter] public List<Combos> OperacionesList { get; set; } = new();
+
+    private ProduccionDiariaDto item = new();
+    private DateTime? fecha;
+    private int operacionId;
+    private bool isValid;
+    private MudForm form = null!;
+
+    protected override void OnInitialized()
+    {
+        item = new ProduccionDiariaDto
+        {
+            id = Item.id,
+            hoja_servicio = Item.hoja_servicio,
+            actividad = Item.actividad,
+            cliente = Item.cliente,
+            area_cliente = Item.area_cliente,
+            fecha_inicio = Item.fecha_inicio,
+            fecha_fin = Item.fecha_fin,
+            hora_inicio = Item.hora_inicio,
+            hora_fin = Item.hora_fin,
+            nombre_producto = Item.nombre_producto,
+            servicio_codigo = Item.servicio_codigo,
+            servicio_descripcion = Item.servicio_descripcion,
+            no_lote = Item.no_lote,
+            oc = Item.oc,
+            no_marchamo = Item.no_marchamo,
+            peso = Item.peso,
+            cantidad_producto = Item.cantidad_producto,
+            costo_producto = Item.costo_producto,
+            asignado_a = Item.asignado_a,
+            no_proforma = Item.no_proforma,
+            no_factura = Item.no_factura,
+            facturada = Item.facturada,
+            proforma_orden = Item.proforma_orden,
+            operacion_id = Item.operacion_id
+        };
+
+        fecha = item.fecha_inicio;
+        operacionId = item.operacion_id ?? 0;
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Save()
+    {
+        item.fecha_inicio = fecha;
+        item.fecha_fin = fecha;
+        item.operacion_id = operacionId;
+        MudDialog.Close(DialogResult.Ok(item));
+    }
+}

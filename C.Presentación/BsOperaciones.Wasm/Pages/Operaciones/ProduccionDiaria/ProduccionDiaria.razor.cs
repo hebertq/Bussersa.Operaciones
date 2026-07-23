@@ -37,7 +37,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         // Historial / Filtros
         protected DateRange dateRange = new(DateTime.Today.AddDays(-30), DateTime.Today);
-        protected string? filtroCliente;
+        protected int? filtroOperacionId;
         protected string filtroEstado = "Todos";
         protected bool estaCargando;
         protected bool estaExportando;
@@ -72,7 +72,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 var response = await _mediator.Send(new GetProduccionDiariaQuery(
                     dateRange.Start, 
                     dateRange.End, 
-                    filtroCliente, 
+                    filtroOperacionId, 
                     filtroEstado == "Todos" ? null : filtroEstado
                 ));
 
@@ -99,7 +99,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected void LimpiarFiltros()
         {
             dateRange = new DateRange(DateTime.Today.AddDays(-30), DateTime.Today);
-            filtroCliente = null;
+            filtroOperacionId = null;
             filtroEstado = "Todos";
             _ = CargarProduccion();
         }
@@ -671,6 +671,53 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 estaExportando = false;
                 StateHasChanged();
+            }
+        }
+
+        protected async Task EditarRegistro(ProduccionDiariaDto item)
+        {
+            if (!string.IsNullOrEmpty(item.no_proforma) || !string.IsNullOrEmpty(item.no_factura) || item.facturada)
+            {
+                _snackbar.Add("No se puede editar un registro que ya tiene proforma o factura asignada.", Severity.Warning);
+                return;
+            }
+
+            var parameters = new DialogParameters
+            {
+                { "Item", item },
+                { "OperacionesList", operacionesList }
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = _dialogService.Show<EditarProduccionDialog>("Editar Registro de Producción", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is ProduccionDiariaDto updatedItem)
+            {
+                estaCargando = true;
+                StateHasChanged();
+                try
+                {
+                    var response = await _mediator.Send(new UpdateProduccionDiariaCommand(updatedItem));
+                    if (response.Respuesta.ExisteError)
+                    {
+                        _snackbar.Add($"Error al actualizar: {response.Respuesta.MensajeError}", Severity.Error);
+                    }
+                    else
+                    {
+                        _snackbar.Add("Registro actualizado exitosamente.", Severity.Success);
+                        await CargarProduccion();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Excepción al actualizar: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
             }
         }
     }

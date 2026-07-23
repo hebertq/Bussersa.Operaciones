@@ -140,7 +140,16 @@
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12" sm="2">
-                <MudTextField @bind-Value="filtroCliente" Label="Buscar Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+                <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem Value="@((int?)null)">Todos</MudSelectItem>
+                    @if (operacionesList != null)
+                    {
+                        @foreach (var item in operacionesList)
+                        {
+                            <MudSelectItem Value="@((int?)item.id)">@item.nombre</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="3">
                 <MudSelect T="string" Label="Estado de Facturación" @bind-Value="filtroEstado" Variant="Variant.Outlined" Margin="Margin.Dense">
@@ -258,6 +267,7 @@
             <MudTd DataLabel="Acciones">
                 @if (string.IsNullOrEmpty(context.no_proforma) && string.IsNullOrEmpty(context.no_factura) && !context.facturada)
                 {
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => EditarRegistro(context))" Class="mr-1" />
                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarRegistro(context))" />
                 }
             </MudTd>
