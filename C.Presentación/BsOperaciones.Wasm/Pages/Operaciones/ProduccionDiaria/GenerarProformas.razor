@@ -82,6 +82,19 @@
                     Suba el archivo Excel exportado de Producción Diaria donde haya completado la columna <strong>"Agrupación"</strong> para agrupar y generar las proformas correspondientes en Odoo.
                 </MudText>
 
+                <div style="max-width: 400px;" class="mb-4">
+                    <MudSelect T="int?" Label="Seleccione la Operación / Departamento" @bind-Value="selectedOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="Debe seleccionar la operación para la relación en Odoo.">
+                        <MudSelectItem Value="@((int?)null)">-- Seleccione una Operación --</MudSelectItem>
+                        @if (operacionesList != null)
+                        {
+                            @foreach (var item in operacionesList)
+                            {
+                                <MudSelectItem Value="@((int?)item.id)">@item.nombre</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                </div>
+
                 <MudFileUpload T="IBrowserFile" OnFilesChanged="OnExcelFileSelected" Accept=".xlsx, .xls">
                     <ActivatorContent>
                         <div class="file-drop-zone">

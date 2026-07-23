@@ -11,6 +11,7 @@ using NPOI.XSSF.UserModel;
 using HostService.Interfaces;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.ClasesGenericas;
+using BsOperaciones.Application.Features.Odoo.Queries;
 
 namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 {
@@ -19,11 +20,14 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
         [Inject] private IOdooService OdooService { get; set; } = null!;
         [Inject] private NavigationManager _navigationManager { get; set; } = null!;
+        [Inject] private MediatR.IMediator _mediator { get; set; } = null!;
 
         protected IBrowserFile? archivoExcel;
         protected bool estaCargandoArchivo = false;
         protected bool estaGenerando = false;
         protected List<ProformaGrupoDto> gruposProformas = new();
+        protected List<Combos> operacionesList = new();
+        protected int? selectedOperacionId;
 
         protected async Task OnExcelFileSelected(InputFileChangeEventArgs e)
         {
@@ -163,11 +167,33 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
         }
 
+        protected override async Task OnInitializedAsync()
+        {
+            try
+            {
+                var opResponse = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
+                if (opResponse.Model != null)
+                {
+                    operacionesList = opResponse.Model.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Error);
+            }
+        }
+
         protected async Task GenerarProformasOdoo()
         {
             if (gruposProformas == null || !gruposProformas.Any())
             {
                 _snackbar.Add("No hay proformas para generar.", Severity.Warning);
+                return;
+            }
+
+            if (!selectedOperacionId.HasValue || selectedOperacionId.Value <= 0)
+            {
+                _snackbar.Add("Debe seleccionar la Operación antes de generar las proformas.", Severity.Warning);
                 return;
             }
 
@@ -178,6 +204,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 var request = new GenerarProformasOdooRequest
                 {
+                    OperacionId = selectedOperacionId.Value,
                     Grupos = gruposProformas
                 };
 

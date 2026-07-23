@@ -4,6 +4,7 @@ namespace Modelo.Entidades.Entradas.Odoo
 {
     public class GenerarProformasOdooRequest
     {
+        public int OperacionId { get; set; }
         public List<ProformaGrupoDto> Grupos { get; set; } = new();
     }
 
