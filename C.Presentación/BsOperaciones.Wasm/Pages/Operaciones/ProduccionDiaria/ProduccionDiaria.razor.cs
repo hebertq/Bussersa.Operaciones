@@ -591,7 +591,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         { "Tarifa Unitario", x.Tarifa },
                         { "Cantidad Total", x.Cantidad },
                         { "Peso Total (kg)", x.Peso },
-                        { "Total Facturado (C$)", x.Total }
+                        { "Total Facturado (C$)", x.Total },
+                        { "Agrupación", "" }
                     };
                     consolidatedData.Add(dict);
                 }

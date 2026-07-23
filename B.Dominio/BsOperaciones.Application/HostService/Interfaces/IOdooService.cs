@@ -114,5 +114,6 @@ namespace HostService.Interfaces
         Task<ISingleResponse<FileResponseDto>> GenerarFormatoExcel(GenerarFormatoRequest request);
         Task<IResponse> DeleteProduccionDiaria(int id);
         Task<IResponse> DeleteBulkProduccionDiaria(List<int> ids);
+        Task<IResponse> GenerarProformasOdoo(GenerarProformasOdooRequest request);
     }
 }

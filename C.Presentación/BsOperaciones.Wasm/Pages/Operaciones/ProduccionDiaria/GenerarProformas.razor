@@ -1,0 +1,179 @@
+@page "/operaciones/generar-proformas"
+@using MudBlazor
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@inherits Microsoft.AspNetCore.Components.ComponentBase
+
+<style>
+    .page-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .section-title {
+        color: #0f172a;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .accent-bar {
+        height: 4px;
+        width: 60px;
+        background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+        border-radius: 2px;
+        margin-bottom: 20px;
+    }
+    .file-drop-zone {
+        border: 2px dashed #3b82f6;
+        border-radius: 12px;
+        background: #f0f7ff;
+        padding: 32px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .file-drop-zone:hover {
+        background: #e0f2fe;
+        border-color: #0284c7;
+    }
+    .group-header {
+        background: #f1f5f9;
+        font-weight: 700;
+        padding: 8px 16px;
+        border-radius: 6px;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+
+<div class="page-container">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h3 class="section-title">
+                <MudIcon Icon="@Icons.Material.Filled.Autorenew" Color="Color.Primary" Size="Size.Large" />
+                Generación Automatizada de Proformas Odoo
+            </h3>
+            <div class="accent-bar"></div>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.ArrowBack" Link="/operaciones/produccion-diaria">
+            Regresar a Producción
+        </MudButton>
+    </div>
+
+    <MudGrid>
+        <!-- Carga de Archivo Excel Consolidado Agrupado -->
+        <MudItem xs="12">
+            <MudCard Class="panel-card pa-6">
+                <MudText Typo="Typo.h6" Class="font-bold text-primary mb-2 d-flex align-items-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" />
+                    Importar Excel Consolidado
+                </MudText>
+                <MudText Typo="Typo.body2" Class="text-secondary mb-4">
+                    Suba el archivo Excel exportado de Producción Diaria donde haya completado la columna <strong>"Agrupación"</strong> para agrupar y generar las proformas correspondientes en Odoo.
+                </MudText>
+
+                <MudFileUpload T="IBrowserFile" FilesChanged="ProcesarArchivoExcel" Accept=".xlsx">
+                    <ButtonTemplate>
+                        <div class="file-drop-zone">
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                            @if (archivoExcel == null)
+                            {
+                                <MudText Typo="Typo.body1" Class="font-medium">Haga clic aquí o arrastre el archivo Excel consolidado</MudText>
+                                <MudText Typo="Typo.caption" Class="text-secondary">Soporta formato (.xlsx)</MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body1" Class="font-bold text-success">@archivoExcel.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="text-success">(@(archivoExcel.Size / 1024) KB) - Listo para procesar</MudText>
+                            }
+                        </div>
+                    </ButtonTemplate>
+                </MudFileUpload>
+            </MudCard>
+        </MudItem>
+
+        <!-- Previsualización de Proformas a Generar -->
+        @if (estaCargandoArchivo)
+        {
+            <MudItem xs="12" Class="text-center pa-12">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.body1" Class="mt-3">Analizando archivo Excel...</MudText>
+            </MudItem>
+        }
+        else if (gruposProformas != null && gruposProformas.Any())
+        {
+            <MudItem xs="12">
+                <MudCard Class="panel-card pa-6">
+                    <div class="d-flex justify-between align-center mb-4">
+                        <MudText Typo="Typo.h6" Class="font-bold text-success d-flex align-items-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                            Previsualización de Proformas Detectadas (@gruposProformas.Count)
+                        </MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large"
+                                   OnClick="GenerarProformasOdoo" Disabled="estaGenerando">
+                            @if (estaGenerando)
+                            {
+                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                                <MudText Class="ms-2">Generando Proformas...</MudText>
+                            }
+                            else
+                            {
+                                <MudText>Generar Proformas en Odoo</MudText>
+                            }
+                        </MudButton>
+                    </div>
+
+                    @foreach (var grupo in gruposProformas)
+                    {
+                        <div class="group-header">
+                            <span class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" />
+                                <strong>@grupo.Cliente</strong> - Agrupación: <span class="text-primary">@grupo.Agrupacion</span>
+                            </span>
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">
+                                Total: C$ @grupo.Items.Sum(x => x.Cantidad * x.Tarifa).ToString("N2")
+                            </MudChip>
+                        </div>
+
+                        <MudTable Items="grupo.Items" Hover="true" Dense="true" Bordered="false" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Área / Cadena</MudTh>
+                                <MudTh>Código SKU</MudTh>
+                                <MudTh>Descripción</MudTh>
+                                <MudTh Style="text-align: right;">Cantidad</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa</MudTh>
+                                <MudTh Style="text-align: right;">Subtotal</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Área / Cadena">@context.Area</MudTd>
+                                <MudTd DataLabel="Código SKU">@context.SKU</MudTd>
+                                <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+                                <MudTd DataLabel="Cantidad" Style="text-align: right;">@context.Cantidad.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa" Style="text-align: right;">C$ @context.Tarifa.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Subtotal" Style="text-align: right;"><strong>C$ @((context.Cantidad * context.Tarifa).ToString("N2"))</strong></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudCard>
+            </MudItem>
+        }
+        else if (archivoExcel != null)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Square="true">
+                    No se encontraron agrupaciones válidas en el archivo Excel. Asegúrese de que la hoja de cálculo se llame "Consolidado" y que haya rellenado la columna "Agrupación" para las filas correspondientes.
+                </MudAlert>
+            </MudItem>
+        }
+    </MudGrid>
+</div>
