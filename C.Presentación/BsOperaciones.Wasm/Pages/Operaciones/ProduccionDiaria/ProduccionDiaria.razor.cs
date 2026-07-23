@@ -1,5 +1,6 @@
 using BsOperaciones.Application.Features.Odoo.Commands;
 using BsOperaciones.Application.Features.Odoo.Queries;
+using HostService.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -22,6 +23,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
         [Inject] private IJSRuntime _jsRuntime { get; set; } = null!;
         [Inject] private IDialogService _dialogService { get; set; } = null!;
+        [Inject] private IOdooService OdooService { get; set; } = null!;
 
         // Formato prellenado state
         protected GenerarFormatoRequest formatoRequest = new();
@@ -38,6 +40,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected string? filtroCliente;
         protected string filtroEstado = "Todos";
         protected bool estaCargando;
+        protected bool estaExportando;
         protected List<ProduccionDiariaDto> produccionDiariaList = new();
 
         // Consolidación
@@ -539,5 +542,135 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             return 0;
         }
         #endregion
+
+        protected async Task ExportarExcelAnalisis()
+        {
+            if (produccionDiariaList == null || !produccionDiariaList.Any())
+            {
+                _snackbar.Add("No hay datos cargados para exportar.", Severity.Warning);
+                return;
+            }
+
+            estaExportando = true;
+            StateHasChanged();
+            try
+            {
+                // 1. Group items for the Consolidado sheet
+                var consolidatedGroups = produccionDiariaList
+                    .GroupBy(x => new { 
+                        Cliente = x.cliente ?? "", 
+                        Area = x.area_cliente ?? "", 
+                        SKU = x.servicio_codigo ?? "", 
+                        Descripcion = x.servicio_descripcion ?? "", 
+                        Tarifa = x.costo_producto 
+                    })
+                    .Select(g => new
+                    {
+                        g.Key.Cliente,
+                        g.Key.Area,
+                        g.Key.SKU,
+                        g.Key.Descripcion,
+                        g.Key.Tarifa,
+                        Cantidad = g.Sum(x => x.cantidad_producto),
+                        Peso = g.Sum(x => x.peso),
+                        Total = g.Sum(x => x.cantidad_producto * x.costo_producto)
+                    })
+                    .OrderBy(x => x.Cliente)
+                    .ThenBy(x => x.SKU)
+                    .ToList();
+
+                var consolidatedData = new List<Dictionary<string, object>>();
+                foreach (var x in consolidatedGroups)
+                {
+                    var dict = new Dictionary<string, object>
+                    {
+                        { "Cliente", x.Cliente },
+                        { "Área / Cadena", x.Area },
+                        { "Código SKU", x.SKU },
+                        { "Descripción", x.Descripcion },
+                        { "Tarifa Unitario", x.Tarifa },
+                        { "Cantidad Total", x.Cantidad },
+                        { "Peso Total (kg)", x.Peso },
+                        { "Total Facturado (C$)", x.Total }
+                    };
+                    consolidatedData.Add(dict);
+                }
+
+                // 2. Map items for the Detalle sheet
+                var detailData = new List<Dictionary<string, object>>();
+                var detailSorted = produccionDiariaList
+                    .OrderByDescending(x => x.fecha_inicio)
+                    .ThenBy(x => x.cliente)
+                    .ToList();
+
+                foreach (var x in detailSorted)
+                {
+                    var dict = new Dictionary<string, object>
+                    {
+                        { "Fecha", x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
+                        { "Hoja Servicio", x.hoja_servicio ?? "" },
+                        { "Cliente", x.cliente ?? "" },
+                        { "Área / Cadena", x.area_cliente ?? "" },
+                        { "Actividad", x.actividad ?? "" },
+                        { "Código SKU", x.servicio_codigo ?? "" },
+                        { "Descripción", x.servicio_descripcion ?? "" },
+                        { "No. Lote", x.no_lote ?? "" },
+                        { "OC", x.oc ?? "" },
+                        { "No. Marchamo", x.no_marchamo ?? "" },
+                        { "Peso (kg)", x.peso },
+                        { "Cantidad", x.cantidad_producto },
+                        { "Tarifa / Costo", x.costo_producto },
+                        { "Total Facturado (C$)", x.cantidad_producto * x.costo_producto },
+                        { "No. Proforma", x.no_proforma ?? "Sin Proforma" },
+                        { "No. Factura", x.no_factura ?? "Sin Factura" },
+                        { "Asignado A", x.asignado_a ?? "" }
+                    };
+                    detailData.Add(dict);
+                }
+
+                // 3. Construct the request for GenerateExcel
+                var request = new MultiSheetExcelRequest
+                {
+                    Hojas = new List<ExcelRequest>
+                    {
+                        new ExcelRequest { Hoja = "Consolidado", Datos = consolidatedData, IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Detalle", Datos = detailData, IncludeHeader = true }
+                    }
+                };
+
+                // 4. Generate the Excel from OdooService
+                var response = await OdooService.GenerateExcel(request);
+
+                if (response == null || response.Model == null || string.IsNullOrEmpty(response.Model.File))
+                {
+                    _snackbar.Add("Error al generar el archivo Excel consolidado.", Severity.Error);
+                }
+                else
+                {
+                    string dateRangeStr = "";
+                    if (dateRange.Start.HasValue && dateRange.End.HasValue)
+                    {
+                        dateRangeStr = $"_{dateRange.Start.Value:yyyyMMdd}_al_{dateRange.End.Value:yyyyMMdd}";
+                    }
+                    string fileName = $"Consolidado_Produccion{dateRangeStr}.xlsx";
+                    await _jsRuntime.InvokeVoidAsync(
+                        "downloadFile",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        response.Model.File,
+                        fileName
+                    );
+                    _snackbar.Add("Excel de producción exportado correctamente.", Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al exportar reporte Excel: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaExportando = false;
+                StateHasChanged();
+            }
+        }
     }
 }

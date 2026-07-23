@@ -134,7 +134,7 @@
             <MudItem xs="12" sm="3">
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
-            <MudItem xs="12" sm="3">
+            <MudItem xs="12" sm="2">
                 <MudTextField @bind-Value="filtroCliente" Label="Buscar Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
             </MudItem>
             <MudItem xs="12" sm="3">
@@ -145,12 +145,15 @@
                     <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="3" Class="d-flex gap-2">
+            <MudItem xs="12" sm="4" Class="d-flex gap-2">
                 <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
                     Buscar
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="LimpiarFiltros">
                     Limpiar
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)">
+                    @(estaExportando ? "Exportando..." : "Exportar")
                 </MudButton>
             </MudItem>
         </MudGrid>
