@@ -472,10 +472,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
             if (cell.CellType == CellType.Formula)
             {
-                var cv = evaluator.Evaluate(cell);
-                if (cv.CellType == CellType.String) return cv.StringValue?.Trim();
-                if (cv.CellType == CellType.Numeric) return cv.NumberValue.ToString()?.Trim();
-                if (cv.CellType == CellType.Boolean) return cv.BooleanValue.ToString()?.Trim();
+                if (cell.CachedFormulaResultType == CellType.String) return cell.StringCellValue?.Trim();
+                if (cell.CachedFormulaResultType == CellType.Numeric) return cell.NumericCellValue.ToString()?.Trim();
+                if (cell.CachedFormulaResultType == CellType.Boolean) return cell.BooleanCellValue.ToString()?.Trim();
                 return string.Empty;
             }
 
@@ -495,13 +494,12 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             
             if (cell.CellType == CellType.Formula)
             {
-                var cv = evaluator.Evaluate(cell);
-                if (cv.CellType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
+                if (cell.CachedFormulaResultType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
                 {
                     return cell.DateCellValue;
                 }
                 
-                string? sVal = cv.CellType == CellType.String ? cv.StringValue : cv.ToString();
+                string? sVal = cell.CachedFormulaResultType == CellType.String ? cell.StringCellValue : null;
                 if (DateTime.TryParse(sVal, out DateTime d)) return d;
                 return null;
             }
@@ -526,10 +524,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
             if (cell.CellType == CellType.Formula)
             {
-                var cv = evaluator.Evaluate(cell);
-                if (cv.CellType == CellType.Numeric)
-                    return (decimal)cv.NumberValue;
-                if (cv.CellType == CellType.String && decimal.TryParse(cv.StringValue, out decimal v))
+                if (cell.CachedFormulaResultType == CellType.Numeric)
+                    return (decimal)cell.NumericCellValue;
+                if (cell.CachedFormulaResultType == CellType.String && decimal.TryParse(cell.StringCellValue, out decimal v))
                     return v;
                 return 0;
             }
