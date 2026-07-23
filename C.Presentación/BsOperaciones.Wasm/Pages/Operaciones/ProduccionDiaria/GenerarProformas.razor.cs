@@ -25,8 +25,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected bool estaGenerando = false;
         protected List<ProformaGrupoDto> gruposProformas = new();
 
-        protected async Task ProcesarArchivoExcel(IBrowserFile file)
+        protected async Task OnExcelFileSelected(InputFileChangeEventArgs e)
         {
+            var file = e.File;
             if (file == null) return;
             archivoExcel = file;
             estaCargandoArchivo = true;

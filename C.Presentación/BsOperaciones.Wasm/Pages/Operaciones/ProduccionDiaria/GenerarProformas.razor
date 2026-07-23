@@ -82,14 +82,14 @@
                     Suba el archivo Excel exportado de Producción Diaria donde haya completado la columna <strong>"Agrupación"</strong> para agrupar y generar las proformas correspondientes en Odoo.
                 </MudText>
 
-                <MudFileUpload T="IBrowserFile" FilesChanged="ProcesarArchivoExcel" Accept=".xlsx">
-                    <ButtonTemplate>
+                <MudFileUpload T="IBrowserFile" OnFilesChanged="OnExcelFileSelected" Accept=".xlsx, .xls">
+                    <ActivatorContent>
                         <div class="file-drop-zone">
                             <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
                             @if (archivoExcel == null)
                             {
                                 <MudText Typo="Typo.body1" Class="font-medium">Haga clic aquí o arrastre el archivo Excel consolidado</MudText>
-                                <MudText Typo="Typo.caption" Class="text-secondary">Soporta formato (.xlsx)</MudText>
+                                <MudText Typo="Typo.caption" Class="text-secondary">Soporta formatos (.xlsx, .xls)</MudText>
                             }
                             else
                             {
@@ -97,7 +97,7 @@
                                 <MudText Typo="Typo.caption" Class="text-success">(@(archivoExcel.Size / 1024) KB) - Listo para procesar</MudText>
                             }
                         </div>
-                    </ButtonTemplate>
+                    </ActivatorContent>
                 </MudFileUpload>
             </MudCard>
         </MudItem>
