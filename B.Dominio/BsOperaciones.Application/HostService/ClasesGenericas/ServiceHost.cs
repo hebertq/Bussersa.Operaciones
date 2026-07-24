@@ -229,6 +229,10 @@ namespace HostService.ClasesGenericas
         {
             string path = string.Format(System.Globalization.CultureInfo.InvariantCulture, relativePath);
             var endpoint = new Uri(new Uri(_Util.BaseUrlApiLog), path);
+            if (string.IsNullOrEmpty(queryString))
+            {
+                return endpoint;
+            }
             var uriBuilder = new UriBuilder(endpoint);
             uriBuilder.Query = queryString;
             return uriBuilder.Uri;
@@ -238,6 +242,10 @@ namespace HostService.ClasesGenericas
         {
             string path = string.Format(System.Globalization.CultureInfo.InvariantCulture, relativePath);
             var endpoint = new Uri(new Uri(_Util.BaseUrlRedmine), path);
+            if (string.IsNullOrEmpty(queryString))
+            {
+                return endpoint;
+            }
             var uriBuilder = new UriBuilder(endpoint);
             uriBuilder.Query = queryString;
             return uriBuilder.Uri;
