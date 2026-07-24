@@ -141,12 +141,12 @@
             </MudItem>
             <MudItem xs="12" sm="4">
                 <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem Value="@((int?)null)">Todos</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todos</MudSelectItem>
                     @if (operacionesList != null)
                     {
                         @foreach (var item in operacionesList)
                         {
-                            <MudSelectItem Value="@((int?)item.id)">@item.nombre</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@((int?)item.id)">@item.nombre</MudSelectItem>
                         }
                     }
                 </MudSelect>
@@ -159,14 +159,12 @@
                     <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="6" sm="1">
-                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" FullWidth="true">
+            <MudItem xs="12" sm="3" Class="d-flex gap-2" Style="margin-bottom: 5px;">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
                     Buscar
                 </MudButton>
-            </MudItem>
-            <MudItem xs="6" sm="2">
-                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)" FullWidth="true">
-                    @(estaExportando ? "Exportando..." : "Exportar")
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)">
+                    Exportar
                 </MudButton>
             </MudItem>
         </MudGrid>
