@@ -55,20 +55,23 @@ namespace BsOperaciones.Pages.Operaciones
 
         private bool IsLoading { get; set; } = false;
 
-        // Active Odoo Employees Pools
-        private List<OdooEmployeeDto> AllSupervisors { get; set; } = new();
-        private List<OdooEmployeeDto> AllOperators { get; set; } = new();
+        // Single unifed collection for all employees in the screen
+        private List<ProgramacionTurnoDto> AllRotationItems { get; set; } = new();
 
-        // Supervisor ID for each shift
-        private int? Shift1SupervisorId { get; set; }
-        private int? Shift2SupervisorId { get; set; }
-        private int? Shift3SupervisorId { get; set; }
+        // Computed properties to filter items dynamically based on their zone
+        private List<ProgramacionTurnoDto> UnassignedOperators => AllRotationItems.Where(x => GetItemZone(x) == "disponible").ToList();
+        
+        private ProgramacionTurnoDto? Shift1Supervisor => AllRotationItems.FirstOrDefault(x => GetItemZone(x) == "supervisor_1");
+        private ProgramacionTurnoDto? Shift2Supervisor => AllRotationItems.FirstOrDefault(x => GetItemZone(x) == "supervisor_2");
+        private ProgramacionTurnoDto? Shift3Supervisor => AllRotationItems.FirstOrDefault(x => GetItemZone(x) == "supervisor_3");
 
-        // Operators lists
-        private List<ProgramacionTurnoDto> Shift1Operators { get; set; } = new();
-        private List<ProgramacionTurnoDto> Shift2Operators { get; set; } = new();
-        private List<ProgramacionTurnoDto> Shift3Operators { get; set; } = new();
-        private List<ProgramacionTurnoDto> UnassignedOperators { get; set; } = new();
+        private int? Shift1SupervisorId => Shift1Supervisor?.EmpleadoId;
+        private int? Shift2SupervisorId => Shift2Supervisor?.EmpleadoId;
+        private int? Shift3SupervisorId => Shift3Supervisor?.EmpleadoId;
+
+        private List<ProgramacionTurnoDto> Shift1Operators => AllRotationItems.Where(x => GetItemZone(x) == "turno_1").ToList();
+        private List<ProgramacionTurnoDto> Shift2Operators => AllRotationItems.Where(x => GetItemZone(x) == "turno_2").ToList();
+        private List<ProgramacionTurnoDto> Shift3Operators => AllRotationItems.Where(x => GetItemZone(x) == "turno_3").ToList();
 
         protected override async Task OnInitializedAsync()
         {
@@ -96,60 +99,46 @@ namespace BsOperaciones.Pages.Operaciones
 
         private void ClearAllLists()
         {
-            AllSupervisors.Clear();
-            AllOperators.Clear();
-            Shift1SupervisorId = null;
-            Shift2SupervisorId = null;
-            Shift3SupervisorId = null;
-            Shift1Operators.Clear();
-            Shift2Operators.Clear();
-            Shift3Operators.Clear();
-            UnassignedOperators.Clear();
+            AllRotationItems.Clear();
         }
 
         private void OnCantidadTurnosChanged()
         {
             // If the user changes quantity, we redistribute operators who are now in unsupported shifts
-            if (SelectedCantidadTurnos < 3 && Shift3Operators.Any())
+            foreach (var item in AllRotationItems)
             {
-                foreach (var op in Shift3Operators)
+                string zone = GetItemZone(item);
+                if (SelectedCantidadTurnos == 1 && (zone.EndsWith("_2") || zone.EndsWith("_3")))
                 {
-                    op.Turno = "";
-                    op.SupervisorId = null;
-                    UnassignedOperators.Add(op);
+                    item.Turno = "";
+                    item.Puesto = "Operador de almacen";
+                    item.SupervisorId = null;
                 }
-                Shift3Operators.Clear();
-                Shift3SupervisorId = null;
-            }
-
-            if (SelectedCantidadTurnos < 2 && Shift2Operators.Any())
-            {
-                foreach (var op in Shift2Operators)
+                else if (SelectedCantidadTurnos == 2 && zone.EndsWith("_3"))
                 {
-                    op.Turno = "";
-                    op.SupervisorId = null;
-                    UnassignedOperators.Add(op);
+                    item.Turno = "";
+                    item.Puesto = "Operador de almacen";
+                    item.SupervisorId = null;
                 }
-                Shift2Operators.Clear();
-                Shift2SupervisorId = null;
             }
 
             // Sync shift names on existing lists
             UpdateShiftNamesOnAssignedOperators();
+            SyncSupervisorsForShifts();
             StateHasChanged();
         }
 
         private void UpdateShiftNamesOnAssignedOperators()
         {
             var names = GetShiftNames();
-            foreach (var op in Shift1Operators) op.Turno = names[0];
-            if (SelectedCantidadTurnos > 1)
+            foreach (var item in AllRotationItems)
             {
-                foreach (var op in Shift2Operators) op.Turno = names[1];
-            }
-            if (SelectedCantidadTurnos > 2)
-            {
-                foreach (var op in Shift3Operators) op.Turno = names[2];
+                if (string.IsNullOrEmpty(item.Turno)) continue;
+
+                string zone = GetItemZone(item);
+                if (zone.EndsWith("_1")) item.Turno = names[0];
+                else if (zone.EndsWith("_2") && names.Count > 1) item.Turno = names[1];
+                else if (zone.EndsWith("_3") && names.Count > 2) item.Turno = names[2];
             }
         }
 
@@ -175,19 +164,7 @@ namespace BsOperaciones.Pages.Operaciones
             ClearAllLists();
             try
             {
-                // 1. Load active employees from Odoo
-                var odooEmpsResult = await Mediator.Send(new GetEmployeesForRotationQuery(SelectedOperacionId.Value));
-                if (odooEmpsResult.Respuesta.ExisteError || odooEmpsResult.Model == null)
-                {
-                    Snackbar.Add("Error al cargar empleados de Odoo: " + odooEmpsResult.Respuesta.MensajeError, Severity.Error);
-                    return;
-                }
-
-                var activeEmps = odooEmpsResult.Model.ToList();
-                AllSupervisors = activeEmps.Where(e => e.JobTitle == "Supervisor de personal").ToList();
-                AllOperators = activeEmps.Where(e => e.JobTitle == "Operador de almacen").ToList();
-
-                // 2. Load turnos programming from DB
+                // Load turnos programming from DB
                 var result = await Mediator.Send(new GetProgramacionTurnosQuery(monday, SelectedOperacionId.Value));
                 if (!result.Respuesta.ExisteError)
                 {
@@ -200,65 +177,8 @@ namespace BsOperaciones.Pages.Operaciones
                         bool hasOne = savedList.All(x => x.Turno == "Turno Único");
                         _selectedCantidadTurnos = hasThree ? 3 : (hasOne ? 1 : 2);
 
-                        var names = GetShiftNames();
-
-                        // Supervisors
-                        var supervisors = savedList.Where(x => x.Puesto == "Supervisor de personal").ToList();
-                        var shift1Sup = supervisors.FirstOrDefault(x => x.Turno == names[0]);
-                        Shift1SupervisorId = shift1Sup?.EmpleadoId;
-
-                        if (SelectedCantidadTurnos > 1)
-                        {
-                            var shift2Sup = supervisors.FirstOrDefault(x => x.Turno == names[1]);
-                            Shift2SupervisorId = shift2Sup?.EmpleadoId;
-                        }
-                        if (SelectedCantidadTurnos > 2)
-                        {
-                            var shift3Sup = supervisors.FirstOrDefault(x => x.Turno == names[2]);
-                            Shift3SupervisorId = shift3Sup?.EmpleadoId;
-                        }
-
-                        // Operators
-                        var dbOperators = savedList.Where(x => x.Puesto != "Supervisor de personal").ToList();
-                        Shift1Operators = dbOperators.Where(x => x.Turno == names[0]).ToList();
-                        if (SelectedCantidadTurnos > 1)
-                        {
-                            Shift2Operators = dbOperators.Where(x => x.Turno == names[1]).ToList();
-                        }
-                        if (SelectedCantidadTurnos > 2)
-                        {
-                            Shift3Operators = dbOperators.Where(x => x.Turno == names[2]).ToList();
-                        }
-
-                        // Add new/missing Odoo operators to Unassigned
-                        var savedOperatorIds = dbOperators.Select(o => o.EmpleadoId).ToHashSet();
-                        var missingOperators = AllOperators.Where(o => !savedOperatorIds.Contains(o.Id)).ToList();
-                        foreach (var op in missingOperators)
-                        {
-                            UnassignedOperators.Add(new ProgramacionTurnoDto
-                            {
-                                EmpleadoId = op.Id,
-                                NombreCompleto = op.Name,
-                                Puesto = op.JobTitle,
-                                Turno = "",
-                                SupervisorId = null
-                            });
-                        }
-                    }
-                    else
-                    {
-                        // New week: put all operators in Unassigned pool
-                        foreach (var op in AllOperators)
-                        {
-                            UnassignedOperators.Add(new ProgramacionTurnoDto
-                            {
-                                EmpleadoId = op.Id,
-                                NombreCompleto = op.Name,
-                                Puesto = op.JobTitle,
-                                Turno = "",
-                                SupervisorId = null
-                            });
-                        }
+                        // Populate all loaded items into the collection
+                        AllRotationItems.AddRange(savedList);
                     }
                 }
                 else
@@ -277,40 +197,180 @@ namespace BsOperaciones.Pages.Operaciones
             }
         }
 
+        // Maps an item dynamically to its drop zone identifier
+        private string GetItemZone(ProgramacionTurnoDto item)
+        {
+            if (string.IsNullOrEmpty(item.Turno))
+            {
+                return "disponible";
+            }
+
+            var names = GetShiftNames();
+            bool isSupervisor = item.Puesto == "Supervisor de personal";
+
+            if (item.Turno == names[0])
+            {
+                return isSupervisor ? "supervisor_1" : "turno_1";
+            }
+            if (names.Count > 1 && item.Turno == names[1])
+            {
+                return isSupervisor ? "supervisor_2" : "turno_2";
+            }
+            if (names.Count > 2 && item.Turno == names[2])
+            {
+                return isSupervisor ? "supervisor_3" : "turno_3";
+            }
+
+            return "disponible";
+        }
+
+        // Handles Blazor Drag & Drop event
+        private void ItemUpdated(MudItemDropInfo<ProgramacionTurnoDto> dropInfo)
+        {
+            var item = dropInfo.Item;
+            var targetZone = dropInfo.DropzoneIdentifier;
+
+            if (item == null) return;
+
+            var names = GetShiftNames();
+
+            // Clear previous supervisor if a new one is dropped into the slot
+            if (targetZone.StartsWith("supervisor_"))
+            {
+                // Find if there is already a supervisor assigned in that zone
+                var currentSup = AllRotationItems.FirstOrDefault(x => GetItemZone(x) == targetZone);
+                if (currentSup != null && currentSup != item)
+                {
+                    currentSup.Turno = "";
+                    currentSup.Puesto = "Operador de almacen";
+                    currentSup.SupervisorId = null;
+                }
+
+                item.Puesto = "Supervisor de personal";
+            }
+            else if (targetZone.StartsWith("turno_"))
+            {
+                item.Puesto = "Operador de almacen";
+            }
+            else if (targetZone == "disponible")
+            {
+                item.Puesto = "Operador de almacen";
+            }
+
+            // Assign new Turno value
+            if (targetZone == "disponible")
+            {
+                item.Turno = "";
+                item.SupervisorId = null;
+            }
+            else if (targetZone == "turno_1" || targetZone == "supervisor_1")
+            {
+                item.Turno = names[0];
+            }
+            else if (targetZone == "turno_2" || targetZone == "supervisor_2")
+            {
+                item.Turno = names[1];
+            }
+            else if (targetZone == "turno_3" || targetZone == "supervisor_3")
+            {
+                item.Turno = names[2];
+            }
+
+            SyncSupervisorsForShifts();
+            StateHasChanged();
+        }
+
+        private void SyncSupervisorsForShifts()
+        {
+            var names = GetShiftNames();
+            var shift1SupId = Shift1Supervisor?.EmpleadoId;
+            var shift2SupId = Shift2Supervisor?.EmpleadoId;
+            var shift3SupId = Shift3Supervisor?.EmpleadoId;
+
+            foreach (var item in AllRotationItems)
+            {
+                if (item.Puesto != "Supervisor de personal")
+                {
+                    if (item.Turno == names[0]) item.SupervisorId = shift1SupId;
+                    else if (names.Count > 1 && item.Turno == names[1]) item.SupervisorId = shift2SupId;
+                    else if (names.Count > 2 && item.Turno == names[2]) item.SupervisorId = shift3SupId;
+                    else item.SupervisorId = null;
+                }
+            }
+        }
+
         private void MoveOperator(ProgramacionTurnoDto op, string targetShift)
         {
-            // Remove from current list
-            Shift1Operators.Remove(op);
-            Shift2Operators.Remove(op);
-            Shift3Operators.Remove(op);
-            UnassignedOperators.Remove(op);
-
             var names = GetShiftNames();
             if (targetShift == "")
             {
                 op.Turno = "";
+                op.Puesto = "Operador de almacen";
                 op.SupervisorId = null;
-                UnassignedOperators.Add(op);
             }
             else if (targetShift == names[0])
             {
                 op.Turno = names[0];
-                op.SupervisorId = Shift1SupervisorId;
-                Shift1Operators.Add(op);
+                op.Puesto = "Operador de almacen";
             }
             else if (SelectedCantidadTurnos > 1 && targetShift == names[1])
             {
                 op.Turno = names[1];
-                op.SupervisorId = Shift2SupervisorId;
-                Shift2Operators.Add(op);
+                op.Puesto = "Operador de almacen";
             }
             else if (SelectedCantidadTurnos > 2 && targetShift == names[2])
             {
                 op.Turno = names[2];
-                op.SupervisorId = Shift3SupervisorId;
-                Shift3Operators.Add(op);
+                op.Puesto = "Operador de almacen";
             }
 
+            SyncSupervisorsForShifts();
+            StateHasChanged();
+        }
+
+        private void AssignSupervisor(ProgramacionTurnoDto op, string targetShift)
+        {
+            var names = GetShiftNames();
+            string targetZone = targetShift == names[0] ? "supervisor_1" :
+                                (names.Count > 1 && targetShift == names[1] ? "supervisor_2" : "supervisor_3");
+
+            // Reset current supervisor in that shift
+            var currentSup = AllRotationItems.FirstOrDefault(x => GetItemZone(x) == targetZone);
+            if (currentSup != null && currentSup != op)
+            {
+                currentSup.Turno = "";
+                currentSup.Puesto = "Operador de almacen";
+                currentSup.SupervisorId = null;
+            }
+
+            op.Turno = targetShift;
+            op.Puesto = "Supervisor de personal";
+            op.SupervisorId = null;
+
+            SyncSupervisorsForShifts();
+            StateHasChanged();
+        }
+
+        private void UnassignSupervisor(int index)
+        {
+            ProgramacionTurnoDto? sup = index == 0 ? Shift1Supervisor :
+                                        (index == 1 ? Shift2Supervisor : Shift3Supervisor);
+
+            if (sup != null)
+            {
+                sup.Turno = "";
+                sup.Puesto = "Operador de almacen";
+                sup.SupervisorId = null;
+            }
+
+            SyncSupervisorsForShifts();
+            StateHasChanged();
+        }
+
+        private void RemoveOperatorCompletely(ProgramacionTurnoDto op)
+        {
+            AllRotationItems.Remove(op);
+            SyncSupervisorsForShifts();
             StateHasChanged();
         }
 
@@ -322,26 +382,24 @@ namespace BsOperaciones.Pages.Operaciones
                 return;
             }
 
+            var names = GetShiftNames();
+            var s1 = Shift1Supervisor;
+            var s2 = Shift2Supervisor;
+            var s3 = Shift3Supervisor;
+
             if (SelectedCantidadTurnos == 2)
             {
-                var temp = Shift1SupervisorId;
-                Shift1SupervisorId = Shift2SupervisorId;
-                Shift2SupervisorId = temp;
+                if (s1 != null) s1.Turno = names[1];
+                if (s2 != null) s2.Turno = names[0];
             }
             else if (SelectedCantidadTurnos == 3)
             {
-                // Shift 1 -> Shift 2 -> Shift 3 -> Shift 1
-                var temp = Shift1SupervisorId;
-                Shift1SupervisorId = Shift3SupervisorId;
-                Shift3SupervisorId = Shift2SupervisorId;
-                Shift2SupervisorId = temp;
+                if (s1 != null) s1.Turno = names[1];
+                if (s2 != null) s2.Turno = names[2];
+                if (s3 != null) s3.Turno = names[0];
             }
 
-            // Sync supervisors IDs in operators lists
-            foreach (var op in Shift1Operators) op.SupervisorId = Shift1SupervisorId;
-            foreach (var op in Shift2Operators) op.SupervisorId = Shift2SupervisorId;
-            foreach (var op in Shift3Operators) op.SupervisorId = Shift3SupervisorId;
-
+            SyncSupervisorsForShifts();
             Snackbar.Add("Supervisores rotados. Recuerde guardar la programación.", Severity.Info);
             StateHasChanged();
         }
@@ -358,50 +416,33 @@ namespace BsOperaciones.Pages.Operaciones
                 var names = GetShiftNames();
                 DateTime fechaFin = SelectedMonday.Value.AddDays(6);
 
-                // Add supervisor DTOs
-                void AddSupervisorDto(int? supervisorId, string shiftName)
+                // Collect all assigned items (both supervisors and operators)
+                foreach (var item in AllRotationItems)
                 {
-                    if (supervisorId.HasValue)
+                    if (!string.IsNullOrEmpty(item.Turno))
                     {
-                        var sup = AllSupervisors.FirstOrDefault(s => s.Id == supervisorId.Value);
-                        if (sup != null)
-                        {
-                            combined.Add(new ProgramacionTurnoDto
-                            {
-                                EmpleadoId = sup.Id,
-                                NombreCompleto = sup.Name,
-                                Puesto = sup.JobTitle,
-                                Turno = shiftName,
-                                SupervisorId = null,
-                                FechaInicio = SelectedMonday.Value,
-                                FechaFin = fechaFin,
-                                OperacionId = SelectedOperacionId.Value
-                            });
-                        }
+                        item.FechaInicio = SelectedMonday.Value;
+                        item.FechaFin = fechaFin;
+                        item.OperacionId = SelectedOperacionId.Value;
+                        combined.Add(item);
                     }
                 }
 
-                AddSupervisorDto(Shift1SupervisorId, names[0]);
-                if (SelectedCantidadTurnos > 1) AddSupervisorDto(Shift2SupervisorId, names[1]);
-                if (SelectedCantidadTurnos > 2) AddSupervisorDto(Shift3SupervisorId, names[2]);
-
-                // Add operators DTOs
-                void PopulateOperatorsDto(List<ProgramacionTurnoDto> list, string shiftName, int? supervisorId)
+                // If combined is empty, we force a clear by sending a dummy item with EmpleadoId = 0
+                if (!combined.Any())
                 {
-                    foreach (var op in list)
+                    combined.Add(new ProgramacionTurnoDto
                     {
-                        op.Turno = shiftName;
-                        op.SupervisorId = supervisorId;
-                        op.FechaInicio = SelectedMonday.Value;
-                        op.FechaFin = fechaFin;
-                        op.OperacionId = SelectedOperacionId.Value;
-                        combined.Add(op);
-                    }
+                        EmpleadoId = 0,
+                        NombreCompleto = "CLEAR_ALL",
+                        Puesto = "CLEAR_ALL",
+                        Turno = "",
+                        SupervisorId = null,
+                        FechaInicio = SelectedMonday.Value,
+                        FechaFin = fechaFin,
+                        OperacionId = SelectedOperacionId.Value
+                    });
                 }
-
-                PopulateOperatorsDto(Shift1Operators, names[0], Shift1SupervisorId);
-                if (SelectedCantidadTurnos > 1) PopulateOperatorsDto(Shift2Operators, names[1], Shift2SupervisorId);
-                if (SelectedCantidadTurnos > 2) PopulateOperatorsDto(Shift3Operators, names[2], Shift3SupervisorId);
 
                 var result = await Mediator.Send(new SaveProgramacionTurnosCommand(combined));
                 if (!result.Respuesta.ExisteError)
@@ -517,31 +558,11 @@ namespace BsOperaciones.Pages.Operaciones
             return "background: #ffffff; border-radius: 12px; border: 1px dashed #64748b;";
         }
 
-        private int? GetShiftSupervisorId(int index)
+        private ProgramacionTurnoDto? GetShiftSupervisor(int index)
         {
-            if (index == 0) return Shift1SupervisorId;
-            if (index == 1) return Shift2SupervisorId;
-            return Shift3SupervisorId;
-        }
-
-        private void SetShiftSupervisorId(int index, int? value)
-        {
-            if (index == 0)
-            {
-                Shift1SupervisorId = value;
-                foreach (var op in Shift1Operators) op.SupervisorId = value;
-            }
-            else if (index == 1)
-            {
-                Shift2SupervisorId = value;
-                foreach (var op in Shift2Operators) op.SupervisorId = value;
-            }
-            else if (index == 2)
-            {
-                Shift3SupervisorId = value;
-                foreach (var op in Shift3Operators) op.SupervisorId = value;
-            }
-            StateHasChanged();
+            if (index == 0) return Shift1Supervisor;
+            if (index == 1) return Shift2Supervisor;
+            return Shift3Supervisor;
         }
 
         private List<ProgramacionTurnoDto> GetShiftOperators(int index)
@@ -561,47 +582,25 @@ namespace BsOperaciones.Pages.Operaciones
                 int countAdded = 0;
                 foreach (var emp in selectedEmployees)
                 {
-                    bool isSupervisor = emp.JobTitle == "Supervisor de personal";
-                    bool isOperator = emp.JobTitle == "Operador de almacen";
+                    bool alreadyAssigned = AllRotationItems.Any(o => o.EmpleadoId == emp.Id);
 
-                    if (isSupervisor)
+                    if (!alreadyAssigned)
                     {
-                        if (!AllSupervisors.Any(s => s.Id == emp.Id))
+                        AllRotationItems.Add(new ProgramacionTurnoDto
                         {
-                            AllSupervisors.Add(emp);
-                            countAdded++;
-                        }
-                    }
-                    else if (isOperator)
-                    {
-                        bool alreadyAssigned = Shift1Operators.Any(o => o.EmpleadoId == emp.Id)
-                                            || Shift2Operators.Any(o => o.EmpleadoId == emp.Id)
-                                            || Shift3Operators.Any(o => o.EmpleadoId == emp.Id)
-                                            || UnassignedOperators.Any(o => o.EmpleadoId == emp.Id);
-
-                        if (!alreadyAssigned)
-                        {
-                            UnassignedOperators.Add(new ProgramacionTurnoDto
-                            {
-                                EmpleadoId = emp.Id,
-                                NombreCompleto = emp.Name,
-                                Puesto = emp.JobTitle,
-                                Turno = "",
-                                SupervisorId = null
-                            });
-
-                            if (!AllOperators.Any(o => o.Id == emp.Id))
-                            {
-                                AllOperators.Add(emp);
-                            }
-                            countAdded++;
-                        }
+                            EmpleadoId = emp.Id,
+                            NombreCompleto = emp.Name,
+                            Puesto = emp.JobTitle == "Supervisor de personal" ? "Supervisor de personal" : "Operador de almacen",
+                            Turno = "",
+                            SupervisorId = null
+                        });
+                        countAdded++;
                     }
                 }
 
                 if (countAdded > 0)
                 {
-                    Snackbar.Add($"Se agregaron {countAdded} empleados al listado.", Severity.Success);
+                    Snackbar.Add($"Se agregaron {countAdded} empleados al listado disponible.", Severity.Success);
                     StateHasChanged();
                 }
                 else
