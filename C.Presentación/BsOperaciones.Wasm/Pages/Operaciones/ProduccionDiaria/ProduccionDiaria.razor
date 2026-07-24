@@ -170,6 +170,17 @@
         </MudGrid>
     </MudCard>
 
+    <div class="px-4 py-2 mb-6 border rounded-lg bg-light d-flex align-center gap-4 text-secondary" style="font-size: 12px; border-color: var(--mud-palette-divider); background-color: #f8f9fa;">
+        <div class="d-flex align-center gap-1">
+            <MudIcon Icon="@Icons.Material.Filled.BugReport" Size="Size.Small" Color="Color.Warning" />
+            <strong>Parámetros de Búsqueda Activos:</strong>
+        </div>
+        <div>Rango: <span class="font-medium text-dark">@(dateRange?.Start?.ToString("dd/MM/yyyy") ?? "N/A")</span> al <span class="font-medium text-dark">@(dateRange?.End?.ToString("dd/MM/yyyy") ?? "N/A")</span></div>
+        <div>ID Operación: <span class="font-bold text-primary">@(filtroOperacionId?.ToString() ?? "null (Todos)")</span></div>
+        <div>Filtro Estado: <span class="font-bold text-success">@filtroEstado</span></div>
+        <div>Registros Cargados: <span class="font-bold text-info">@produccionDiariaList.Count</span></div>
+    </div>
+
     <!-- Panel de Acciones de Consolidación (Se muestra al seleccionar filas) -->
     @if (selectedItems != null && selectedItems.Any())
     {
