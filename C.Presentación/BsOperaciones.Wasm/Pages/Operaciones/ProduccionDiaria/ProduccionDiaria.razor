@@ -139,7 +139,7 @@
             <MudItem xs="12" sm="3">
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
-            <MudItem xs="12" sm="2">
+            <MudItem xs="12" sm="4">
                 <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                     <MudSelectItem Value="@((int?)null)">Todos</MudSelectItem>
                     @if (operacionesList != null)
@@ -151,7 +151,7 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="3">
+            <MudItem xs="12" sm="2">
                 <MudSelect T="string" Label="Estado de Facturación" @bind-Value="filtroEstado" Variant="Variant.Outlined" Margin="Margin.Dense">
                     <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
                     <MudSelectItem Value="@("SinProforma")">Sin Proforma</MudSelectItem>
@@ -159,11 +159,13 @@
                     <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="4" Class="d-flex gap-2">
-                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
+            <MudItem xs="6" sm="1">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" FullWidth="true">
                     Buscar
                 </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)">
+            </MudItem>
+            <MudItem xs="6" sm="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)" FullWidth="true">
                     @(estaExportando ? "Exportando..." : "Exportar")
                 </MudButton>
             </MudItem>
