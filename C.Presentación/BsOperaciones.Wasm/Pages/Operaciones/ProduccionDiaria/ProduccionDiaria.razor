@@ -163,9 +163,6 @@
                 <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
                     Buscar
                 </MudButton>
-                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="LimpiarFiltros">
-                    Limpiar
-                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)">
                     @(estaExportando ? "Exportando..." : "Exportar")
                 </MudButton>
@@ -208,9 +205,6 @@
             <MudTh>SKU / Servicio</MudTh>
             <MudTh>Peso / Cantidad</MudTh>
             <MudTh>Tarifa / Costo</MudTh>
-            <MudTh>Proforma</MudTh>
-            <MudTh>Factura</MudTh>
-            <MudTh Style="width: 100px;">Orden Prof.</MudTh>
             <MudTh>Acciones</MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -233,37 +227,6 @@
                 <div>@context.cantidad_producto.ToString("N0") uds</div>
             </MudTd>
             <MudTd DataLabel="Tarifa / Costo">C$ @context.costo_producto.ToString("N2")</MudTd>
-            <MudTd DataLabel="Proforma">
-                @if (string.IsNullOrEmpty(context.no_proforma))
-                {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small">Sin Proforma</MudChip>
-                }
-                else
-                {
-                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">@context.no_proforma</MudChip>
-                }
-            </MudTd>
-            <MudTd DataLabel="Factura">
-                @if (string.IsNullOrEmpty(context.no_factura))
-                {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small">Sin Factura</MudChip>
-                }
-                else
-                {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small">@context.no_factura</MudChip>
-                }
-            </MudTd>
-            <MudTd DataLabel="Orden Prof.">
-                @if (!string.IsNullOrEmpty(context.no_proforma))
-                {
-                    <MudNumericField T="int?" Value="context.proforma_orden" ValueChanged="@(val => OnOrderChanged(context, val))"
-                                     Margin="Margin.Dense" HideSpinButtons="true" Style="max-width: 70px; text-align: center;" />
-                }
-                else
-                {
-                    <MudText Align="Align.Center">-</MudText>
-                }
-            </MudTd>
             <MudTd DataLabel="Acciones">
                 @if (string.IsNullOrEmpty(context.no_proforma) && string.IsNullOrEmpty(context.no_factura) && !context.facturada)
                 {

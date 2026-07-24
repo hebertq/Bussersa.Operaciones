@@ -10,7 +10,7 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudForm @ref="form" IsValid="@isValid">
+        <MudForm @ref="form" @bind-IsValid="isValid">
             <MudGrid Class="pt-2">
                 <MudItem xs="12" sm="6">
                     <MudDatePicker Label="Fecha" @bind-Date="fecha" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
@@ -55,9 +55,6 @@
                 </MudItem>
                 <MudItem xs="12" sm="4">
                     <MudTextField Label="Marchamo" @bind-Value="item.no_marchamo" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField Label="Asignado a" @bind-Value="item.asignado_a" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
             </MudGrid>
         </MudForm>
