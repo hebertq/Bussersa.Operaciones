@@ -311,7 +311,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         var cellValue = headerRow.GetCell(i)?.ToString()?.Trim()?.ToLower();
                         if (string.IsNullOrEmpty(cellValue)) continue;
 
-                        if (cellValue.Contains("fecha")) colIndices["fecha"] = i;
+                        if (cellValue.Contains("fecha inicio") || cellValue.Contains("fecha_inicio") || cellValue.Contains("fecha de inicio") || cellValue.Contains("fecha desde")) colIndices["fecha_inicio"] = i;
+                        else if (cellValue.Contains("fecha fin") || cellValue.Contains("fecha_fin") || cellValue.Contains("fecha de fin") || cellValue.Contains("fecha final") || cellValue.Contains("fecha hasta")) colIndices["fecha_fin"] = i;
+                        else if (cellValue.Contains("fecha")) colIndices["fecha"] = i;
                         else if (cellValue.Contains("hoja")) colIndices["hoja_servicio"] = i;
                         else if (cellValue.Contains("cliente") && !cellValue.Contains("área") && !cellValue.Contains("area")) colIndices["cliente"] = i;
                         else if (cellValue.Contains("área") || cellValue.Contains("area")) colIndices["area_cliente"] = i;
@@ -346,6 +348,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         
                         if (string.IsNullOrEmpty(sc)) continue;
 
+                        var fInicio = GetDateVal(row, colIndices, "fecha_inicio", evaluator) ?? GetDateVal(row, colIndices, "fecha", evaluator);
+                        var fFin = GetDateVal(row, colIndices, "fecha_fin", evaluator) ?? fInicio;
+
                         var dto = new ProduccionDiariaDto
                         {
                             hoja_servicio = hs,
@@ -353,7 +358,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             actividad = GetStringVal(row, colIndices, "actividad", evaluator),
                             cliente = GetStringVal(row, colIndices, "cliente", evaluator),
                             area_cliente = GetStringVal(row, colIndices, "area_cliente", evaluator),
-                            fecha_inicio = GetDateVal(row, colIndices, "fecha", evaluator),
+                            fecha_inicio = fInicio,
+                            fecha_fin = fFin,
                             hora_inicio = GetStringVal(row, colIndices, "hora_inicio", evaluator),
                             hora_fin = GetStringVal(row, colIndices, "hora_fin", evaluator),
                             nombre_producto = GetStringVal(row, colIndices, "servicio_descripcion", evaluator),
@@ -366,7 +372,6 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             costo_producto = GetDecimalVal(row, colIndices, "costo_producto", evaluator),
                             asignado_a = GetStringVal(row, colIndices, "asignado_a", evaluator)
                         };
-                        dto.fecha_fin = dto.fecha_inicio;
                         dto.operacion_id = operacionCargaId;
 
                         items.Add(dto);
