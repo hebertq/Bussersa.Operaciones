@@ -575,6 +575,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         g.Key.Area,
                         g.Key.SKU,
                         g.Key.Descripcion,
+                        FechaInicio = g.Min(x => x.fecha_inicio),
+                        FechaFin = g.Max(x => x.fecha_fin ?? x.fecha_inicio),
                         g.Key.Tarifa,
                         Cantidad = g.Sum(x => x.cantidad_producto),
                         Peso = g.Sum(x => x.peso),
@@ -587,12 +589,33 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 var consolidatedData = new List<Dictionary<string, object>>();
                 foreach (var x in consolidatedGroups)
                 {
+                    string rangoFechas = "";
+                    if (x.FechaInicio.HasValue && x.FechaFin.HasValue)
+                    {
+                        rangoFechas = x.FechaInicio.Value.Date == x.FechaFin.Value.Date 
+                            ? x.FechaInicio.Value.ToString("dd/MM/yyyy") 
+                            : $"Del {x.FechaInicio.Value:dd/MM/yyyy} al {x.FechaFin.Value:dd/MM/yyyy}";
+                    }
+                    else if (x.FechaInicio.HasValue)
+                    {
+                        rangoFechas = x.FechaInicio.Value.ToString("dd/MM/yyyy");
+                    }
+
+                    string descCompleta = x.Descripcion;
+                    if (!string.IsNullOrEmpty(rangoFechas) && !descCompleta.Contains("Del ") && !descCompleta.Contains("del ") && !descCompleta.Contains(rangoFechas))
+                    {
+                        descCompleta = $"{descCompleta} ({rangoFechas})";
+                    }
+
                     var dict = new Dictionary<string, object>
                     {
                         { "Cliente", x.Cliente },
                         { "Área / Cadena", x.Area },
                         { "Código SKU", x.SKU },
-                        { "Descripción", x.Descripcion },
+                        { "Descripción", descCompleta },
+                        { "Rango de Fechas", rangoFechas },
+                        { "Fecha Inicio", x.FechaInicio?.ToString("yyyy-MM-dd") ?? "" },
+                        { "Fecha Fin", x.FechaFin?.ToString("yyyy-MM-dd") ?? "" },
                         { "Tarifa Unitario", x.Tarifa },
                         { "Cantidad Total", x.Cantidad },
                         { "Peso Total (kg)", x.Peso },
@@ -611,9 +634,23 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
                 foreach (var x in detailSorted)
                 {
+                    string rangoFechas = "";
+                    if (x.fecha_inicio.HasValue && x.fecha_fin.HasValue)
+                    {
+                        rangoFechas = x.fecha_inicio.Value.Date == x.fecha_fin.Value.Date 
+                            ? x.fecha_inicio.Value.ToString("dd/MM/yyyy") 
+                            : $"Del {x.fecha_inicio.Value:dd/MM/yyyy} al {x.fecha_fin.Value:dd/MM/yyyy}";
+                    }
+                    else if (x.fecha_inicio.HasValue)
+                    {
+                        rangoFechas = x.fecha_inicio.Value.ToString("dd/MM/yyyy");
+                    }
+
                     var dict = new Dictionary<string, object>
                     {
-                        { "Fecha", x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
+                        { "Fecha Inicio", x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
+                        { "Fecha Fin", x.fecha_fin?.ToString("yyyy-MM-dd") ?? x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
+                        { "Rango de Fechas", rangoFechas },
                         { "Hoja Servicio", x.hoja_servicio ?? "" },
                         { "Cliente", x.cliente ?? "" },
                         { "Área / Cadena", x.area_cliente ?? "" },

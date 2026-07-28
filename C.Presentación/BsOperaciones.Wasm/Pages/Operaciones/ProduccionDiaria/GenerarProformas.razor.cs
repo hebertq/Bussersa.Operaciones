@@ -91,6 +91,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         else if (cellValue.Contains("área") || cellValue.Contains("area") || cellValue.Contains("cadena")) colIndices["area"] = i;
                         else if (cellValue.Contains("sku") || cellValue.Contains("código") || cellValue.Contains("codigo")) colIndices["sku"] = i;
                         else if (cellValue.Contains("descripción") || cellValue.Contains("descripcion")) colIndices["descripcion"] = i;
+                        else if (cellValue.Contains("rango") || cellValue.Contains("fechas") || cellValue.Contains("período") || cellValue.Contains("periodo")) colIndices["rango_fechas"] = i;
                         else if (cellValue.Contains("tarifa")) colIndices["tarifa"] = i;
                         else if (cellValue.Contains("cantidad")) colIndices["cantidad"] = i;
                         else if (cellValue.Contains("agrupación") || cellValue.Contains("agrupacion")) colIndices["agrupacion"] = i;
@@ -120,11 +121,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         if (string.IsNullOrEmpty(cliente) || string.IsNullOrEmpty(sku) || string.IsNullOrEmpty(agrupacion))
                             continue;
 
+                        var descCompleta = GetStringVal(row, colIndices, "descripcion", evaluator) ?? sku;
+                        var rangoFechas = GetStringVal(row, colIndices, "rango_fechas", evaluator);
+                        if (!string.IsNullOrEmpty(rangoFechas) && !descCompleta.Contains("Del ") && !descCompleta.Contains("del ") && !descCompleta.Contains(rangoFechas))
+                        {
+                            descCompleta = $"{descCompleta} ({rangoFechas})";
+                        }
+
                         var itemDto = new ProformaItemDto
                         {
                             Area = GetStringVal(row, colIndices, "area", evaluator) ?? "",
                             SKU = sku,
-                            Descripcion = GetStringVal(row, colIndices, "descripcion", evaluator) ?? sku,
+                            Descripcion = descCompleta,
                             Cantidad = GetDecimalVal(row, colIndices, "cantidad", evaluator),
                             Tarifa = GetDecimalVal(row, colIndices, "tarifa", evaluator)
                         };
