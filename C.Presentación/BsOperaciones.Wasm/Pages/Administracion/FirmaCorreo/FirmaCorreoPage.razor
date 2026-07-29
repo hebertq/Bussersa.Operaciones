@@ -1,0 +1,90 @@
+@page "/admon/firma-correo"
+@using MudBlazor
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Generador de Firma de Correo - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-6">
+    <MudText Typo="Typo.h5" Class="mb-1 fw-bold text-primary">
+        <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
+        Generador de Firmas de Correo
+    </MudText>
+    <MudText Typo="Typo.body2" Class="text-secondary mb-4">
+        Crea y exporta firmas de correo electrónico institucionales ligeras, ultracompatibles con Outlook, Gmail y dispositivos móviles.
+    </MudText>
+
+    <MudGrid>
+        <!-- COLUMNA IZQUIERDA: FORMULARIO DE DATOS -->
+        <MudItem xs="12" md="5">
+            <MudPaper Elevation="3" Class="pa-4 rounded-lg">
+                <MudText Typo="Typo.h6" Class="mb-3 fw-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.EditNote" Class="mr-2" />
+                    Datos del Colaborador
+                </MudText>
+                
+                <MudTextField @bind-Value="Nombre" Label="Nombre Completo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Ing. Hebert Quintero" Immediate="true" />
+                <MudTextField @bind-Value="Cargo" Label="Cargo / Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Gerente Administrativo" Immediate="true" />
+                <MudTextField @bind-Value="Departamento" Label="Departamento / Área" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Administración" Immediate="true" />
+                <MudTextField @bind-Value="Telefono" Label="Teléfonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
+                <MudTextField @bind-Value="Email" Label="Correo Electrónico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
+                <MudTextField @bind-Value="SitioWeb" Label="Sitio Web" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. www.bussersa.com" Immediate="true" />
+                <MudTextField @bind-Value="FotoUrl" Label="URL de Foto (Opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="https://www.bussersa.com/img/avatars/hebert.png" Immediate="true" HelperText="Deja en blanco si prefieres no usar foto" />
+
+                <MudDivider Class="my-3" />
+
+                <MudSwitch @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda Ecológica (Verde)" Class="mb-2" />
+                <MudSwitch @bind-Checked="IncluirConfidencialidad" Color="Color.Primary" Label="Incluir Nota de Confidencialidad" Class="mb-3" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetearValores" FullWidth="true">
+                    Restablecer Valores por Defecto
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <!-- COLUMNA DERECHA: PREVISUALIZACIÓN Y BOTONES DE EXPORTACIÓN -->
+        <MudItem xs="12" md="7">
+            <MudPaper Elevation="3" Class="pa-4 rounded-lg">
+                <div class="d-flex align-center justify-space-between mb-3">
+                    <MudText Typo="Typo.h6" Class="fw-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-2" />
+                        Vista Previa de la Firma
+                    </MudText>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Speed">
+                        Ultraligera (~2.5 KB)
+                    </MudChip>
+                </div>
+
+                <!-- CONTENEDOR DE LA FIRMA RENDERIZADA -->
+                <div id="firmaContainer" style="background-color: #ffffff; border: 1px dashed #ccc; padding: 16px; border-radius: 8px; overflow-x: auto; min-height: 220px;" class="mb-4">
+                    @((MarkupString)ObtenerHtmlFirma())
+                </div>
+
+                <MudGrid Class="mt-2">
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.ContentCopy" OnClick="CopiarHtml" FullWidth="true" Size="Size.Large">
+                            Copiar Firma HTML
+                        </MudButton>
+                        <MudText Typo="Typo.caption" Class="text-secondary d-block mt-1 text-center">
+                            Para pegar en Outlook Desktop / Web / Gmail
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Image" OnClick="DescargarImagen" FullWidth="true" Size="Size.Large">
+                            Descargar como Imagen PNG
+                        </MudButton>
+                        <MudText Typo="Typo.caption" Class="text-secondary d-block mt-1 text-center">
+                            Si prefieres usar la firma como 1 sola imagen
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+
+                <MudExpansionPanels Class="mt-4" MultiExpansion="false">
+                    <MudExpansionPanel Text="Ver Código HTML Generado (Para inspección)" Icon="@Icons.Material.Filled.Code">
+                        <MudTextField Value="@ObtenerHtmlFirma()" ReadOnly="true" Lines="10" Variant="Variant.Outlined" Margin="Margin.Dense" Style="font-family: monospace; font-size: 11px;" />
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
