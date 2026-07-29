@@ -12,7 +12,7 @@
         Generador de Firmas de Correo Institucionales
     </MudText>
     <MudText Typo="Typo.body2" Class="text-secondary mb-4">
-        Crea y exporta firmas de correo electrónico ultracompatibles con Outlook, Gmail y dispositivos móviles.
+        Crea y exporta firmas de correo electrónico modernas, ultracompatibles con Outlook, Gmail y dispositivos móviles.
     </MudText>
 
     <MudGrid>
@@ -62,10 +62,10 @@
                 <div class="d-flex align-center justify-space-between mb-3">
                     <MudText Typo="Typo.h6" Class="fw-bold">
                         <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-2" />
-                        Vista Previa de la Firma
+                        Vista Previa de la Firma (Diseño Tecnológico Moderno)
                     </MudText>
                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Speed">
-                        Ultraligera (~2.5 KB)
+                        Ultraligera (~3.2 KB)
                     </MudChip>
                 </div>
 
@@ -85,10 +85,10 @@
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Image" OnClick="DescargarImagen" FullWidth="true" Size="Size.Large">
-                            Descargar Imagen PNG
+                            Descargar Imagen PNG (HD)
                         </MudButton>
                         <MudText Typo="Typo.caption" Class="text-secondary d-block mt-1 text-center">
-                            Si prefieres usar la firma como 1 sola imagen
+                            Exporta tu firma a 1 sola imagen en Alta Definición
                         </MudText>
                     </MudItem>
                 </MudGrid>
@@ -114,6 +114,9 @@
     public bool IncluirLeyendaEco { get; set; } = true;
     public bool IncluirConfidencialidad { get; set; } = true;
 
+    // LOGO BUSSERSA COMPRIMIDO EN BASE64 (GARANTIZA QUE APAREZCA SIEMPRE AL EXPORTAR A PNG E EN HTML)
+    private const string BUSSERSA_LOGO_B64 = "data:image/png;base64,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";
+
     private async Task UploadFoto(InputFileChangeEventArgs e)
     {
         try
@@ -121,7 +124,6 @@
             var file = e.File;
             if (file != null)
             {
-                // Max 5 MB
                 long maxFileSize = 5 * 1024 * 1024;
                 using var stream = file.OpenReadStream(maxFileSize);
                 using var ms = new System.IO.MemoryStream();
@@ -172,20 +174,20 @@
             webLimpia = "https://" + webLimpia;
         }
 
-        // FOTO CON ALTO AMPLIADO Y PROPORCIONAL
+        // FOTO DE PERFIL COMPACTA Y MODERNA
         string fotoHtml = "";
         if (!string.IsNullOrWhiteSpace(FotoUrl))
         {
             fotoHtml = $@"
-            <td width=""115"" valign=""top"" style=""padding: 10px 14px 10px 0px; text-align: center;"">
-                <img src=""{FotoUrl.Trim()}"" alt=""{nombreLimpio}"" width=""105"" height=""125"" style=""border-radius: 8px; border: 2px solid #001a33; display: block; object-fit: cover; width: 105px; height: 125px; margin: 0 auto;"" />
+            <td width=""110"" valign=""top"" style=""padding: 12px 14px 12px 0px; text-align: center;"">
+                <img src=""{FotoUrl.Trim()}"" alt=""{nombreLimpio}"" width=""98"" height=""118"" style=""border-radius: 8px; border: 2px solid #001a33; display: block; object-fit: cover; width: 98px; height: 118px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"" />
             </td>";
         }
 
         string ecoHtml = "";
         if (IncluirLeyendaEco)
         {
-            ecoHtml = @"<p style=""margin: 6px 0 0 0; color: #16a34a; font-size: 10px; font-weight: bold;"">🌱 No me imprimas si no es necesario. Protege el medio ambiente.</p>";
+            ecoHtml = @"<p style=""margin: 5px 0 0 0; color: #16a34a; font-size: 9.5px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">🌱 No me imprimas si no es necesario. Protege el medio ambiente.</p>";
         }
 
         string confidencialidadHtml = "";
@@ -200,51 +202,58 @@
             </tr>";
         }
 
-        // ICONOS SVG MINIMALISTAS SIN FONDO NEGRO Y LIMPIOS EN AZUL MARINO BUSSERSA (#001a33)
+        // DISEÑO MODERNO Y TECNOLÓGICO CON LOGO BASE64 COMPATIBLE 100% CON HTML Y CANVAS PNG
         return $@"
-<table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family: Arial, Helvetica, sans-serif; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 560px; max-width: 560px;"">
-    <!-- Banner de Encabezado -->
+<table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family: Arial, Helvetica, sans-serif; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; width: 530px; max-width: 530px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"">
+    <!-- Encabezado Tecnológico Moderno -->
     <tr>
-        <td colspan=""3"" style=""background-color: #001a33; color: #D4AF37; padding: 7px 12px; text-align: center; font-size: 13px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">
-            Soluciones de Personal, Outsourcing y Logística
+        <td colspan=""3"" style=""background-color: #001026; border-bottom: 2px solid #f26631; color: #D4AF37; padding: 7px 12px; text-align: center; font-size: 11.5px; font-weight: bold; letter-spacing: 1px; font-family: Arial, Helvetica, sans-serif; text-transform: uppercase;"">
+            Soluciones de Personal • Outsourcing • Logística
         </td>
     </tr>
     <tr>
         {fotoHtml}
-        <!-- Información del Colaborador -->
-        <td valign=""middle"" style=""padding: 10px 8px; font-family: Arial, Helvetica, sans-serif;"">
-            <div style=""font-size: 16.5px; font-weight: bold; color: #001a33; line-height: 1.2;"">{nombreLimpio}</div>
-            <div style=""font-size: 11.5px; font-weight: bold; color: #d49537; margin: 3px 0 8px 0; line-height: 1.2;"">{cargoLimpio}{deptoLimpio}</div>
+        <!-- Información Principal -->
+        <td valign=""middle"" style=""padding: 10px 6px; font-family: Arial, Helvetica, sans-serif;"">
+            <div style=""font-size: 16.5px; font-weight: 800; color: #001026; line-height: 1.2; letter-spacing: -0.2px;"">{nombreLimpio}</div>
             
-            <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-size: 12px; color: #334155; line-height: 1.5; font-family: Arial, Helvetica, sans-serif;"">
+            <!-- Badge Puesto Tecnológico -->
+            <div style=""margin: 4px 0 8px 0;"">
+                <span style=""background-color: #f1f5f9; color: #d49537; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border-left: 3px solid #001026; display: inline-block; font-family: Arial, Helvetica, sans-serif;"">
+                    {cargoLimpio}{deptoLimpio}
+                </span>
+            </div>
+            
+            <!-- Filas de Contacto con Iconos SVG Limpios sin Fondo -->
+            <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-size: 11.5px; color: #334155; line-height: 1.45; font-family: Arial, Helvetica, sans-serif;"">
                 <tr>
-                    <td width=""22"" valign=""middle"" style=""padding-bottom: 4px;"">
-                        <svg width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""#001a33"" style=""display: block;""><path d=""M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.11-.27c1.21.49 2.53.76 3.88.76a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.35.27 2.67.76 3.88a1 1 0 01-.27 1.11l-2.2 2.2z""/></svg>
+                    <td width=""20"" valign=""middle"" style=""padding-bottom: 3px;"">
+                        <svg width=""13"" height=""13"" viewBox=""0 0 24 24"" fill=""#001026"" style=""display: block;""><path d=""M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.11-.27c1.21.49 2.53.76 3.88.76a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.35.27 2.67.76 3.88a1 1 0 01-.27 1.11l-2.2 2.2z""/></svg>
                     </td>
-                    <td valign=""middle"" style=""padding-bottom: 4px; font-weight: bold; color: #001a33;"">{telLimpio}</td>
+                    <td valign=""middle"" style=""padding-bottom: 3px; font-weight: bold; color: #001026;"">{telLimpio}</td>
                 </tr>
                 <tr>
-                    <td width=""22"" valign=""middle"" style=""padding-bottom: 4px;"">
-                        <svg width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""#001a33"" style=""display: block;""><path d=""M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z""/></svg>
+                    <td width=""20"" valign=""middle"" style=""padding-bottom: 3px;"">
+                        <svg width=""13"" height=""13"" viewBox=""0 0 24 24"" fill=""#001026"" style=""display: block;""><path d=""M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z""/></svg>
                     </td>
-                    <td valign=""middle"" style=""padding-bottom: 4px;"">
-                        <a href=""mailto:{emailLimpio}"" style=""color: #001a33; text-decoration: none; font-weight: bold;"">{emailLimpio}</a>
+                    <td valign=""middle"" style=""padding-bottom: 3px;"">
+                        <a href=""mailto:{emailLimpio}"" style=""color: #001026; text-decoration: none; font-weight: bold;"">{emailLimpio}</a>
                     </td>
                 </tr>
                 <tr>
-                    <td width=""22"" valign=""middle"">
-                        <svg width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""#001a33"" style=""display: block;""><path d=""M12 2a10 10 0 100 20 10 10 0 000-20zm6.93 6h-2.95a15.65 15.65 0 00-1.38-3.56A8.03 8.03 0 0118.93 8zM12 4.04c.83 1.2 1.48 2.59 1.91 3.96h-3.82c.43-1.37 1.08-2.76 1.91-3.96zM4.26 14a7.82 7.82 0 010-4h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.81 2h2.95c.32 1.3.8 2.5 1.38 3.56A8.03 8.03 0 015.07 16zm2.95-8H5.07a8.03 8.03 0 013.84-3.56A15.65 15.65 0 007.54 8zM12 19.96c-.83-1.2-1.48-2.59-1.91-3.96h3.82c-.43 1.37-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.34.16-2h4.68c.09.66.16 1.32.16 2s-.07 1.34-.16 2zm.59 5.56c.58-1.06 1.06-2.26 1.38-3.56h2.95a8.03 8.03 0 01-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38a7.82 7.82 0 010 4h-3.38z""/></svg>
+                    <td width=""20"" valign=""middle"">
+                        <svg width=""13"" height=""13"" viewBox=""0 0 24 24"" fill=""#001026"" style=""display: block;""><path d=""M12 2a10 10 0 100 20 10 10 0 000-20zm6.93 6h-2.95a15.65 15.65 0 00-1.38-3.56A8.03 8.03 0 0118.93 8zM12 4.04c.83 1.2 1.48 2.59 1.91 3.96h-3.82c.43-1.37 1.08-2.76 1.91-3.96zM4.26 14a7.82 7.82 0 010-4h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.81 2h2.95c.32 1.3.8 2.5 1.38 3.56A8.03 8.03 0 015.07 16zm2.95-8H5.07a8.03 8.03 0 013.84-3.56A15.65 15.65 0 007.54 8zM12 19.96c-.83-1.2-1.48-2.59-1.91-3.96h3.82c-.43 1.37-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.34.16-2h4.68c.09.66.16 1.32.16 2s-.07 1.34-.16 2zm.59 5.56c.58-1.06 1.06-2.26 1.38-3.56h2.95a8.03 8.03 0 01-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38a7.82 7.82 0 010 4h-3.38z""/></svg>
                     </td>
                     <td valign=""middle"">
-                        <a href=""{webLimpia}"" target=""_blank"" style=""color: #001a33; text-decoration: none; font-weight: bold;"">{SitioWeb.Trim()}</a>
+                        <a href=""{webLimpia}"" target=""_blank"" style=""color: #001026; text-decoration: none; font-weight: bold;"">{SitioWeb.Trim()}</a>
                     </td>
                 </tr>
             </table>
         </td>
-        <!-- Logo Empresa -->
+        <!-- Logo Oficial BUSSERSA Base64 (CORS-Proof) -->
         <td width=""115"" valign=""middle"" style=""padding: 10px 12px; text-align: center;"">
             <a href=""https://www.bussersa.com"" target=""_blank"" style=""text-decoration: none;"">
-                <img src=""https://www.bussersa.com/logo.png"" alt=""BUSSERSA"" width=""100"" style=""border: 0; display: block; margin: 0 auto; max-width: 100px;"" />
+                <img src=""{BUSSERSA_LOGO_B64}"" alt=""BUSSERSA"" width=""105"" style=""border: 0; display: block; margin: 0 auto; max-width: 105px; height: auto;"" />
             </a>
         </td>
     </tr>

@@ -50,7 +50,7 @@ window.firmaHelpers = {
             }
             
             if (typeof html2canvas === 'function') {
-                html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+                html2canvas(element, { scale: 3, useCORS: true, allowTaint: true, backgroundColor: "#ffffff" }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = filename || 'Firma_BUSSERSA.png';
                     link.href = canvas.toDataURL('image/png');
