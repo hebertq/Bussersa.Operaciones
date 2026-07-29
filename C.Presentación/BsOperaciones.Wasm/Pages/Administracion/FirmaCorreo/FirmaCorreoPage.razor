@@ -33,8 +33,8 @@
 
                 <MudDivider Class="my-3" />
 
-                <MudSwitch @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda Ecológica (Verde)" Class="mb-2" />
-                <MudSwitch @bind-Checked="IncluirConfidencialidad" Color="Color.Primary" Label="Incluir Nota de Confidencialidad" Class="mb-3" />
+                <MudSwitch T="bool" @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda Ecológica (Verde)" Class="mb-2" />
+                <MudSwitch T="bool" @bind-Checked="IncluirConfidencialidad" Color="Color.Primary" Label="Incluir Nota de Confidencialidad" Class="mb-3" />
 
                 <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetearValores" FullWidth="true">
                     Restablecer Valores por Defecto
