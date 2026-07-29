@@ -171,7 +171,7 @@
             webLimpia = "https://" + webLimpia;
         }
 
-        // FOTO DE PERFIL (AJUSTADA Y CON MARGEN IZQUIERDO PERFECTO)
+        // FOTO DE PERFIL (AJUSTADA CON PADDING)
         string fotoHtml = "";
         if (!string.IsNullOrWhiteSpace(FotoUrl))
         {
@@ -199,7 +199,7 @@
             </tr>";
         }
 
-        // ICONOS Y LOGO BASE64 INCRUSTADOS DIRECTAMENTE EN EL STRING TEMPLATE
+        // ICONOS Y LOGO BASE64 CON ESPACIADO (MARGIN-RIGHT & PADDING-RIGHT) PARA EVITAR QUE SE PEGUEN EN ZOHO MAIL
         return $@"
 <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family: Arial, Helvetica, sans-serif; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; width: 530px; max-width: 530px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"">
     <!-- Encabezado Tecnológico Moderno -->
@@ -221,27 +221,27 @@
                 </span>
             </div>
             
-            <!-- Filas de Contacto con Iconos PNG Base64 Inmunes -->
+            <!-- Filas de Contacto con Separación de Iconos Garantizada -->
             <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-size: 11.5px; color: #334155; line-height: 1.45; font-family: Arial, Helvetica, sans-serif;"">
                 <tr>
-                    <td width=""22"" valign=""middle"" style=""padding-bottom: 4px;"">
-                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAC5SURBVDhPYxhEgF/dgYFftQGBQXx1BagsEQCkSUDtPxL+DsTLobJEALgB6siGvIfKEgHQXcCveoBBXp4DKksEEFRpYRBEMaABKkMkEFCvgWr+DjYMFIgkAX7VBIgBqvehIiQChAHPoSKoAFs0owBQnMP8L6jmARVFAMxAxhJGAqrrIQqA3kBPREQZIKymAZR8j6RwOQO/vABYjigDQIBf1QCoAGbIeagoCQbAgKBqBEpYEAxEsgADAwCCu0/T2kvN2wAAAABJRU5ErkJggg=="" width=""14"" height=""14"" alt=""Tel"" style=""border:0; display:block; vertical-align:middle; margin:0;"" />
+                    <td width=""26"" valign=""middle"" style=""padding-bottom: 5px; padding-right: 8px; text-align: center;"">
+                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAC5SURBVDhPYxhEgF/dgYFftQGBQXx1BagsEQCkSUDtPxL+DsTLobJEALgB6siGvIfKEgHQXcCveoBBXp4DKksEEFRpYRBEMaABKkMkEFCvgWr+DjYMFIgkAX7VBIgBqvehIiQChAHPoSKoAFs0owBQnMP8L6jmARVFAMxAxhJGAqrrIQqA3kBPREQZIKymAZR8j6RwOQO/vABYjigDQIBf1QCoAGbIeagoCQbAgKBqBEpYEAxEsgADAwCCu0/T2kvN2wAAAABJRU5ErkJggg=="" width=""14"" height=""14"" alt=""Tel"" style=""border:0; vertical-align:middle; margin-right:6px; display:inline-block;"" />
                     </td>
-                    <td valign=""middle"" style=""padding-bottom: 4px; font-weight: bold; color: #001026;"">{telLimpio}</td>
+                    <td valign=""middle"" style=""padding-bottom: 5px; padding-left: 4px; font-weight: bold; color: #001026;"">{telLimpio}</td>
                 </tr>
                 <tr>
-                    <td width=""22"" valign=""middle"" style=""padding-bottom: 4px;"">
-                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAADaSURBVDhPYxgEQFRLgoFf3YFMrMDAwK+awCCg9p9BEIhBNDEYppZftQFiAELzdyB/A1gCGxZQ6wHix1C1QINUWhAuEFDZAqS/QyXnM/DLC0A9CQH8qgYMAqr3IfLq18E0yFC4ASCOsJoGkH0eogioWEjFAqJZLQAoBjN8OoOgaiqYjWEACMjLcwA1t0MVgwzaA2fzqxWA1aDoQTcABgTVPICanwPxTaD8ezAfBogyAARA4QDGoOhCAkQbgAtgNQAc8lgTCyaGhRGaAaRjqAEGYAZZGOiaAQYMDAClaIdmjNh40QAAAABJRU5ErkJggg=="" width=""14"" height=""14"" alt=""Email"" style=""border:0; display:block; vertical-align:middle; margin:0;"" />
+                    <td width=""26"" valign=""middle"" style=""padding-bottom: 5px; padding-right: 8px; text-align: center;"">
+                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAADaSURBVDhPYxgEQFRLgoFf3YFMrMDAwK+awCCg9p9BEIhBNDEYppZftQFiAELzdyB/A1gCGxZQ6wHix1C1QINUWhAuEFDZAqS/QyXnM/DLC0A9CQH8qgYMAqr3IfLq18E0yFC4ASCOsJoGkH0eogioWEjFAqJZLQAoBjN8OoOgaiqYjWEACMjLcwA1t0MVgwzaA2fzqxWA1aDoQTcABgTVPICanwPxTaD8ezAfBogyAARA4QDGoOhCAkQbgAtgNQAc8lgTCyaGhRGaAaRjqAEGYAZZGOiaAQYMDAClaIdmjNh40QAAAABJRU5ErkJggg=="" width=""14"" height=""14"" alt=""Email"" style=""border:0; vertical-align:middle; margin-right:6px; display:inline-block;"" />
                     </td>
-                    <td valign=""middle"" style=""padding-bottom: 4px;"">
+                    <td valign=""middle"" style=""padding-bottom: 5px; padding-left: 4px;"">
                         <a href=""mailto:{emailLimpio}"" style=""color: #001026; text-decoration: none; font-weight: bold;"">{emailLimpio}</a>
                     </td>
                 </tr>
                 <tr>
-                    <td width=""22"" valign=""middle"">
-                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGESURBVDhPlVIrS0RBFJ5om3tXXW2rcOfsRUSMRpMYjUaj+AuMNgXBDdpVEEQUFsFgEAwGMQkibFoMho0+glcF0e887roPV/SDjzkz33nNnHG/ojg65AZSst0f0U+pi0LVxeHRRfTpYjAKb84nF7BnzasHfFhAUCaBTE/34I3tP3QNFVcq9VlEC+JkUR2SugWcm8KJVyz41rR9UwzSNlcONSRYFyc+y8EVI3oALyWY9TjMmwrwnTlBIZnSJHDsBLfOgcXxCdgN8M4UwNMTeOV8eVqz07HYbQxrokW0BB6KPTg2jODyiAn/p6c5fqBJPQhnuNeWCafycG2kHfM7wn5P7OY76ANW7bHYqaJCC9hZkuM6MS2rjeKCiK4R1NAE8kBVFVqQB+nEeBqZKYB+IL7XNshjyro+i0wHyZv/JayaYtBRsnAgK1fMIeOVAieg/peu38gj0dbY8UXXsIHuML7wjP27ndW+7/4TuLKnV6ycqINou6tyL3DbMW2Cu66QzthpB5z7Ak6Ql22H0ga1AAAAAElFTkSuQmCC"" width=""14"" height=""14"" alt=""Web"" style=""border:0; display:block; vertical-align:middle; margin:0;"" />
+                    <td width=""26"" valign=""middle"" style=""padding-right: 8px; text-align: center;"">
+                        <img src=""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGESURBVDhPlVIrS0RBFJ5om3tXXW2rcOfsRUSMRpMYjUaj+AuMNgXBDdpVEEQUFsFgEAwGMQkibFoMho0+glcF0e887roPV/SDjzkz33nNnHG/ojg65AZSst0f0U+pi0LVxeHRRfTpYjAKb84nF7BnzasHfFhAUCaBTE/34I3tP3QNFVcq9VlEC+JkUR2SugWcm8KJVyz41rR9UwzSNlcONSRYFyc+y8EVI3oALyWY9TjMmwrwnTlBIZnSJHDsBLfOgcXxCdgN8M4UwNMTeOV8eVqz07HYbQxrokW0BB6KPTg2jODyiAn/p6c5fqBJPQhnuNeWCafycG2kHfM7wn5P7OY76ANW7bHYqaJCC9hZkuM6MS2rjeKCiK4R1NAE8kBVFVqQB+nEeBqZKYB+IL7XNshjyro+i0wHyZv/JayaYtBRsnAgK1fMIeOVAieg/peu38gj0dbY8UXXsIHuML7wjP27ndW+7/4TuLKnV6ycqINou6tyL3DbMW2Cu66QzthpB5z7Ak6Ql22H0ga1AAAAAElFTkSuQmCC"" width=""14"" height=""14"" alt=""Web"" style=""border:0; vertical-align:middle; margin-right:6px; display:inline-block;"" />
                     </td>
-                    <td valign=""middle"">
+                    <td valign=""middle"" style=""padding-left: 4px;"">
                         <a href=""{webLimpia}"" target=""_blank"" style=""color: #001026; text-decoration: none; font-weight: bold;"">{SitioWeb.Trim()}</a>
                     </td>
                 </tr>
