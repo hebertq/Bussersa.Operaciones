@@ -1,4 +1,4 @@
-@page "/admon/firma-correo"
+﻿@page "/admon/firma-correo"
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 @inject ISnackbar Snackbar
@@ -12,7 +12,7 @@
         Generador de Firmas de Correo Institucionales
     </MudText>
     <MudText Typo="Typo.body2" Class="text-secondary mb-4">
-        Crea y exporta firmas de correo electrónico modernas, ultracompatibles con Outlook, Gmail y dispositivos móviles.
+        Crea y exporta firmas de correo electrÃ³nico modernas, ultracompatibles con Outlook, Gmail y dispositivos mÃ³viles.
     </MudText>
 
     <MudGrid>
@@ -26,12 +26,12 @@
                 
                 <MudTextField @bind-Value="Nombre" Label="Nombre Completo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Ing. Hebert Quintero" Immediate="true" />
                 <MudTextField @bind-Value="Cargo" Label="Cargo / Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Gerente Administrativo" Immediate="true" />
-                <MudTextField @bind-Value="Departamento" Label="Departamento / Área" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Administración" Immediate="true" />
-                <MudTextField @bind-Value="Telefono" Label="Teléfonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
-                <MudTextField @bind-Value="Email" Label="Correo Electrónico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
+                <MudTextField @bind-Value="Departamento" Label="Departamento / Ãrea" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. AdministraciÃ³n" Immediate="true" />
+                <MudTextField @bind-Value="Telefono" Label="TelÃ©fonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
+                <MudTextField @bind-Value="Email" Label="Correo ElectrÃ³nico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
                 <MudTextField @bind-Value="SitioWeb" Label="Sitio Web" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. www.bussersa.com" Immediate="true" />
 
-                <!-- SECCIÓN FOTO DE PERFIL: URL O SUBIR DESDE COMPUTADORA -->
+                <!-- SECCIÃ“N FOTO DE PERFIL: URL O SUBIR DESDE COMPUTADORA -->
                 <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">Foto de Perfil del Colaborador</MudText>
                 <div class="d-flex align-center gap-2 mb-2">
                     <InputFile id="fileInputFoto" OnChange="UploadFoto" hidden accept=".jpg,.jpeg,.png,.webp" />
@@ -47,7 +47,7 @@
 
                 <MudDivider Class="my-3" />
 
-                <MudSwitch T="bool" @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda Ecológica (Verde)" Class="mb-2" />
+                <MudSwitch T="bool" @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda EcolÃ³gica (Verde)" Class="mb-2" />
                 <MudSwitch T="bool" @bind-Checked="IncluirConfidencialidad" Color="Color.Primary" Label="Incluir Nota de Confidencialidad" Class="mb-3" />
 
                 <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetearValores" FullWidth="true">
@@ -56,13 +56,13 @@
             </MudPaper>
         </MudItem>
 
-        <!-- COLUMNA DERECHA: PREVISUALIZACIÓN Y BOTONES DE EXPORTACIÓN -->
+        <!-- COLUMNA DERECHA: PREVISUALIZACIÃ“N Y BOTONES DE EXPORTACIÃ“N -->
         <MudItem xs="12" md="7">
             <MudPaper Elevation="3" Class="pa-4 rounded-lg">
                 <div class="d-flex align-center justify-space-between mb-3">
                     <MudText Typo="Typo.h6" Class="fw-bold">
                         <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-2" />
-                        Vista Previa de la Firma (Diseño Tecnológico Moderno)
+                        Vista Previa de la Firma (DiseÃ±o TecnolÃ³gico Moderno)
                     </MudText>
                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Speed">
                         Ultraligera (~3.2 KB)
@@ -88,13 +88,13 @@
                             Descargar Imagen PNG (HD)
                         </MudButton>
                         <MudText Typo="Typo.caption" Class="text-secondary d-block mt-1 text-center">
-                            Exporta tu firma a 1 sola imagen en Alta Definición
+                            Exporta tu firma a 1 sola imagen en Alta DefiniciÃ³n
                         </MudText>
                     </MudItem>
                 </MudGrid>
 
                 <MudExpansionPanels Class="mt-4" MultiExpansion="false">
-                    <MudExpansionPanel Text="Ver Código HTML Generado (Para inspección)" Icon="@Icons.Material.Filled.Code">
+                    <MudExpansionPanel Text="Ver CÃ³digo HTML Generado (Para inspecciÃ³n)" Icon="@Icons.Material.Filled.Code">
                         <MudTextField Value="@ObtenerHtmlFirma()" ReadOnly="true" Lines="10" Variant="Variant.Outlined" Margin="Margin.Dense" Style="font-family: monospace; font-size: 11px;" />
                     </MudExpansionPanel>
                 </MudExpansionPanels>
@@ -106,7 +106,7 @@
 @code {
     public string Nombre { get; set; } = "Ing. Hebert Quintero";
     public string Cargo { get; set; } = "Gerente Administrativo";
-    public string Departamento { get; set; } = "Administración";
+    public string Departamento { get; set; } = "AdministraciÃ³n";
     public string Telefono { get; set; } = "8654-0495 | 8597-5052";
     public string Email { get; set; } = "info@bussersa.com";
     public string SitioWeb { get; set; } = "www.bussersa.com";
@@ -115,7 +115,7 @@
     public bool IncluirConfidencialidad { get; set; } = true;
 
     // LOGO BUSSERSA COMPRIMIDO EN BASE64 (GARANTIZA QUE APAREZCA SIEMPRE AL EXPORTAR A PNG E EN HTML)
-    private const string BUSSERSA_LOGO_B64 = "data:image/png;base64,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";
+    private const string BUSSERSA_LOGO_B64 = "data:image/png;base64,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";
 
     private async Task UploadFoto(InputFileChangeEventArgs e)
     {
@@ -132,7 +132,7 @@
                 string format = file.ContentType;
                 if (string.IsNullOrWhiteSpace(format)) format = "image/png";
                 FotoUrl = $"data:{format};base64,{Convert.ToBase64String(bytes)}";
-                Snackbar.Add($"¡Foto '{file.Name}' cargada correctamente!", Severity.Success);
+                Snackbar.Add($"Â¡Foto '{file.Name}' cargada correctamente!", Severity.Success);
             }
         }
         catch (Exception ex)
@@ -151,7 +151,7 @@
     {
         Nombre = "Ing. Hebert Quintero";
         Cargo = "Gerente Administrativo";
-        Departamento = "Administración";
+        Departamento = "AdministraciÃ³n";
         Telefono = "8654-0495 | 8597-5052";
         Email = "info@bussersa.com";
         SitioWeb = "www.bussersa.com";
@@ -187,7 +187,7 @@
         string ecoHtml = "";
         if (IncluirLeyendaEco)
         {
-            ecoHtml = @"<p style=""margin: 5px 0 0 0; color: #16a34a; font-size: 9.5px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">🌱 No me imprimas si no es necesario. Protege el medio ambiente.</p>";
+            ecoHtml = @"<p style=""margin: 5px 0 0 0; color: #16a34a; font-size: 9.5px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">ðŸŒ± No me imprimas si no es necesario. Protege el medio ambiente.</p>";
         }
 
         string confidencialidadHtml = "";
@@ -196,28 +196,28 @@
             confidencialidadHtml = $@"
             <tr>
                 <td colspan=""3"" style=""padding: 8px 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #64748b; line-height: 1.35; font-family: Arial, Helvetica, sans-serif;"">
-                    El contenido de esta comunicación y de toda documentación anexa es confidencial, dirigido únicamente al destinatario. Si no es el destinatario, le solicitamos que no divulgue su contenido y proceda a su eliminación.
+                    El contenido de esta comunicaciÃ³n y de toda documentaciÃ³n anexa es confidencial, dirigido Ãºnicamente al destinatario. Si no es el destinatario, le solicitamos que no divulgue su contenido y proceda a su eliminaciÃ³n.
                     {ecoHtml}
                 </td>
             </tr>";
         }
 
-        // DISEÑO MODERNO Y TECNOLÓGICO CON LOGO BASE64 COMPATIBLE 100% CON HTML Y CANVAS PNG
+        // DISEÃ‘O MODERNO Y TECNOLÃ“GICO CON LOGO BASE64 COMPATIBLE 100% CON HTML Y CANVAS PNG
         return $@"
 <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family: Arial, Helvetica, sans-serif; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; width: 530px; max-width: 530px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"">
-    <!-- Encabezado Tecnológico Moderno -->
+    <!-- Encabezado TecnolÃ³gico Moderno -->
     <tr>
         <td colspan=""3"" style=""background-color: #001026; border-bottom: 2px solid #f26631; color: #D4AF37; padding: 7px 12px; text-align: center; font-size: 11.5px; font-weight: bold; letter-spacing: 1px; font-family: Arial, Helvetica, sans-serif; text-transform: uppercase;"">
-            Soluciones de Personal • Outsourcing • Logística
+            Soluciones de Personal â€¢ Outsourcing â€¢ LogÃ­stica
         </td>
     </tr>
     <tr>
         {fotoHtml}
-        <!-- Información Principal -->
+        <!-- InformaciÃ³n Principal -->
         <td valign=""middle"" style=""padding: 10px 6px; font-family: Arial, Helvetica, sans-serif;"">
             <div style=""font-size: 16.5px; font-weight: 800; color: #001026; line-height: 1.2; letter-spacing: -0.2px;"">{nombreLimpio}</div>
             
-            <!-- Badge Puesto Tecnológico -->
+            <!-- Badge Puesto TecnolÃ³gico -->
             <div style=""margin: 4px 0 8px 0;"">
                 <span style=""background-color: #f1f5f9; color: #d49537; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border-left: 3px solid #001026; display: inline-block; font-family: Arial, Helvetica, sans-serif;"">
                     {cargoLimpio}{deptoLimpio}
@@ -269,11 +269,11 @@
             bool exito = await JSRuntime.InvokeAsync<bool>("firmaHelpers.copiarHtml", html);
             if (exito)
             {
-                Snackbar.Add("¡Firma HTML copiada al portapapeles! Ya puedes pegarla en tu correo.", Severity.Success);
+                Snackbar.Add("Â¡Firma HTML copiada al portapapeles! Ya puedes pegarla en tu correo.", Severity.Success);
             }
             else
             {
-                Snackbar.Add("No se pudo copiar automáticamente. Puedes copiar el código HTML desde la sección inferior.", Severity.Warning);
+                Snackbar.Add("No se pudo copiar automÃ¡ticamente. Puedes copiar el cÃ³digo HTML desde la secciÃ³n inferior.", Severity.Warning);
             }
         }
         catch (Exception ex)
@@ -290,7 +290,7 @@
             bool exito = await JSRuntime.InvokeAsync<bool>("firmaHelpers.descargarImagenFirma", "firmaContainer", nombreArchivo);
             if (exito)
             {
-                Snackbar.Add("¡Imagen de firma descargada con éxito!", Severity.Success);
+                Snackbar.Add("Â¡Imagen de firma descargada con Ã©xito!", Severity.Success);
             }
         }
         catch (Exception ex)
@@ -299,3 +299,4 @@
         }
     }
 }
+
