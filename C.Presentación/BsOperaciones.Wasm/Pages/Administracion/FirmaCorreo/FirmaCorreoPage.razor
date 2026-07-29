@@ -1,5 +1,6 @@
 @page "/admon/firma-correo"
 @using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 
@@ -29,7 +30,20 @@
                 <MudTextField @bind-Value="Telefono" Label="Teléfonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
                 <MudTextField @bind-Value="Email" Label="Correo Electrónico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
                 <MudTextField @bind-Value="SitioWeb" Label="Sitio Web" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. www.bussersa.com" Immediate="true" />
-                <MudTextField @bind-Value="FotoUrl" Label="URL de Foto (Opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="https://www.bussersa.com/img/avatars/hebert.png" Immediate="true" HelperText="Deja en blanco si prefieres no usar foto" />
+
+                <!-- SECCIÓN FOTO DE PERFIL: URL O SUBIR DESDE COMPUTADORA -->
+                <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">Foto de Perfil del Colaborador</MudText>
+                <div class="d-flex align-center gap-2 mb-2">
+                    <InputFile id="fileInputFoto" OnChange="UploadFoto" hidden accept=".jpg,.jpeg,.png,.webp" />
+                    <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.CloudUpload" for="fileInputFoto" FullWidth="true">
+                        Subir Foto desde Computadora
+                    </MudButton>
+                    @if (!string.IsNullOrEmpty(FotoUrl))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="QuitarFoto" Title="Quitar foto" />
+                    }
+                </div>
+                <MudTextField @bind-Value="FotoUrl" Label="O pegar URL de Foto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="https://www.bussersa.com/img/avatars/hebert.png" Immediate="true" HelperText="Sube una foto local o pega un enlace de foto" />
 
                 <MudDivider Class="my-3" />
 
@@ -99,6 +113,37 @@
     public string FotoUrl { get; set; } = "https://www.bussersa.com/img/avatars/hebert.png";
     public bool IncluirLeyendaEco { get; set; } = true;
     public bool IncluirConfidencialidad { get; set; } = true;
+
+    private async Task UploadFoto(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                // Max 5 MB
+                long maxFileSize = 5 * 1024 * 1024;
+                using var stream = file.OpenReadStream(maxFileSize);
+                using var ms = new System.IO.MemoryStream();
+                await stream.CopyToAsync(ms);
+                byte[] bytes = ms.ToArray();
+                string format = file.ContentType;
+                if (string.IsNullOrWhiteSpace(format)) format = "image/png";
+                FotoUrl = $"data:{format};base64,{Convert.ToBase64String(bytes)}";
+                Snackbar.Add($"¡Foto '{file.Name}' cargada correctamente!", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar la foto: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void QuitarFoto()
+    {
+        FotoUrl = "";
+        Snackbar.Add("Foto removida.", Severity.Info);
+    }
 
     private void ResetearValores()
     {
