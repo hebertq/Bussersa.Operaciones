@@ -1,4 +1,4 @@
-﻿@page "/admon/firma-correo"
+@page "/admon/firma-correo"
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 @inject ISnackbar Snackbar
@@ -12,7 +12,7 @@
         Generador de Firmas de Correo Institucionales
     </MudText>
     <MudText Typo="Typo.body2" Class="text-secondary mb-4">
-        Crea y exporta firmas de correo electrÃ³nico modernas, ultracompatibles con Outlook, Gmail y dispositivos mÃ³viles.
+        Crea y exporta firmas de correo electr&oacute;nico modernas, ultracompatibles con Outlook, Gmail y dispositivos m&oacute;viles.
     </MudText>
 
     <MudGrid>
@@ -26,9 +26,9 @@
                 
                 <MudTextField @bind-Value="Nombre" Label="Nombre Completo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Ing. Hebert Quintero" Immediate="true" />
                 <MudTextField @bind-Value="Cargo" Label="Cargo / Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Gerente Administrativo" Immediate="true" />
-                <MudTextField @bind-Value="Departamento" Label="Departamento / Ãrea" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. AdministraciÃ³n" Immediate="true" />
-                <MudTextField @bind-Value="Telefono" Label="TelÃ©fonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
-                <MudTextField @bind-Value="Email" Label="Correo ElectrÃ³nico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
+                <MudTextField @bind-Value="Departamento" Label="Departamento / &Aacute;rea" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. Administraci&oacute;n" Immediate="true" />
+                <MudTextField @bind-Value="Telefono" Label="Tel&eacute;fonos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. 8654-0495 | 8597-5052" Immediate="true" />
+                <MudTextField @bind-Value="Email" Label="Correo Electr&oacute;nico" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. info@bussersa.com" Immediate="true" />
                 <MudTextField @bind-Value="SitioWeb" Label="Sitio Web" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Placeholder="ej. www.bussersa.com" Immediate="true" />
 
                 <!-- SECCIÃ“N FOTO DE PERFIL: URL O SUBIR DESDE COMPUTADORA -->
@@ -47,7 +47,7 @@
 
                 <MudDivider Class="my-3" />
 
-                <MudSwitch T="bool" @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda EcolÃ³gica (Verde)" Class="mb-2" />
+                <MudSwitch T="bool" @bind-Checked="IncluirLeyendaEco" Color="Color.Success" Label="Incluir Leyenda Ecol&oacute;gica (Verde)" Class="mb-2" />
                 <MudSwitch T="bool" @bind-Checked="IncluirConfidencialidad" Color="Color.Primary" Label="Incluir Nota de Confidencialidad" Class="mb-3" />
 
                 <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetearValores" FullWidth="true">
@@ -62,7 +62,7 @@
                 <div class="d-flex align-center justify-space-between mb-3">
                     <MudText Typo="Typo.h6" Class="fw-bold">
                         <MudIcon Icon="@Icons.Material.Filled.Preview" Class="mr-2" />
-                        Vista Previa de la Firma (DiseÃ±o TecnolÃ³gico Moderno)
+                        Vista Previa de la Firma (Dise&ntilde;o Tecnol&oacute;gico Moderno)
                     </MudText>
                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Speed">
                         Ultraligera (~3.2 KB)
@@ -88,13 +88,13 @@
                             Descargar Imagen PNG (HD)
                         </MudButton>
                         <MudText Typo="Typo.caption" Class="text-secondary d-block mt-1 text-center">
-                            Exporta tu firma a 1 sola imagen en Alta DefiniciÃ³n
+                            Exporta tu firma a 1 sola imagen en Alta Definici&oacute;n
                         </MudText>
                     </MudItem>
                 </MudGrid>
 
                 <MudExpansionPanels Class="mt-4" MultiExpansion="false">
-                    <MudExpansionPanel Text="Ver CÃ³digo HTML Generado (Para inspecciÃ³n)" Icon="@Icons.Material.Filled.Code">
+                    <MudExpansionPanel Text="Ver C&oacute;digo HTML Generado (Para inspecci&oacute;n)" Icon="@Icons.Material.Filled.Code">
                         <MudTextField Value="@ObtenerHtmlFirma()" ReadOnly="true" Lines="10" Variant="Variant.Outlined" Margin="Margin.Dense" Style="font-family: monospace; font-size: 11px;" />
                     </MudExpansionPanel>
                 </MudExpansionPanels>
@@ -106,7 +106,7 @@
 @code {
     public string Nombre { get; set; } = "Ing. Hebert Quintero";
     public string Cargo { get; set; } = "Gerente Administrativo";
-    public string Departamento { get; set; } = "AdministraciÃ³n";
+    public string Departamento { get; set; } = "Administraci&oacute;n";
     public string Telefono { get; set; } = "8654-0495 | 8597-5052";
     public string Email { get; set; } = "info@bussersa.com";
     public string SitioWeb { get; set; } = "www.bussersa.com";
@@ -151,7 +151,7 @@
     {
         Nombre = "Ing. Hebert Quintero";
         Cargo = "Gerente Administrativo";
-        Departamento = "AdministraciÃ³n";
+        Departamento = "Administraci&oacute;n";
         Telefono = "8654-0495 | 8597-5052";
         Email = "info@bussersa.com";
         SitioWeb = "www.bussersa.com";
@@ -187,7 +187,7 @@
         string ecoHtml = "";
         if (IncluirLeyendaEco)
         {
-            ecoHtml = @"<p style=""margin: 5px 0 0 0; color: #16a34a; font-size: 9.5px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">ðŸŒ± No me imprimas si no es necesario. Protege el medio ambiente.</p>";
+            ecoHtml = @"<p style=""margin: 5px 0 0 0; color: #16a34a; font-size: 9.5px; font-weight: bold; font-family: Arial, Helvetica, sans-serif;"">&#127793; No me imprimas si no es necesario. Protege el medio ambiente.</p>";
         }
 
         string confidencialidadHtml = "";
@@ -196,7 +196,7 @@
             confidencialidadHtml = $@"
             <tr>
                 <td colspan=""3"" style=""padding: 8px 12px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #64748b; line-height: 1.35; font-family: Arial, Helvetica, sans-serif;"">
-                    El contenido de esta comunicaciÃ³n y de toda documentaciÃ³n anexa es confidencial, dirigido Ãºnicamente al destinatario. Si no es el destinatario, le solicitamos que no divulgue su contenido y proceda a su eliminaciÃ³n.
+                    El contenido de esta comunicaci&oacute;n y de toda documentaci&oacute;n anexa es confidencial, dirigido &uacute;nicamente al destinatario. Si no es el destinatario, le solicitamos que no divulgue su contenido y proceda a su eliminaci&oacute;n.
                     {ecoHtml}
                 </td>
             </tr>";
@@ -205,19 +205,19 @@
         // DISEÃ‘O MODERNO Y TECNOLÃ“GICO CON LOGO BASE64 COMPATIBLE 100% CON HTML Y CANVAS PNG
         return $@"
 <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family: Arial, Helvetica, sans-serif; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; width: 530px; max-width: 530px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"">
-    <!-- Encabezado TecnolÃ³gico Moderno -->
+    <!-- Encabezado Tecnol&oacute;gico Moderno -->
     <tr>
         <td colspan=""3"" style=""background-color: #001026; border-bottom: 2px solid #f26631; color: #D4AF37; padding: 7px 12px; text-align: center; font-size: 11.5px; font-weight: bold; letter-spacing: 1px; font-family: Arial, Helvetica, sans-serif; text-transform: uppercase;"">
-            Soluciones de Personal â€¢ Outsourcing â€¢ LogÃ­stica
+            Soluciones de Personal &bull; Outsourcing &bull; Log&iacute;stica
         </td>
     </tr>
     <tr>
         {fotoHtml}
-        <!-- InformaciÃ³n Principal -->
+        <!-- Informaci&oacute;n Principal -->
         <td valign=""middle"" style=""padding: 10px 6px; font-family: Arial, Helvetica, sans-serif;"">
             <div style=""font-size: 16.5px; font-weight: 800; color: #001026; line-height: 1.2; letter-spacing: -0.2px;"">{nombreLimpio}</div>
             
-            <!-- Badge Puesto TecnolÃ³gico -->
+            <!-- Badge Puesto Tecnol&oacute;gico -->
             <div style=""margin: 4px 0 8px 0;"">
                 <span style=""background-color: #f1f5f9; color: #d49537; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border-left: 3px solid #001026; display: inline-block; font-family: Arial, Helvetica, sans-serif;"">
                     {cargoLimpio}{deptoLimpio}
@@ -273,7 +273,7 @@
             }
             else
             {
-                Snackbar.Add("No se pudo copiar automÃ¡ticamente. Puedes copiar el cÃ³digo HTML desde la secciÃ³n inferior.", Severity.Warning);
+                Snackbar.Add("No se pudo copiar autom&aacute;ticamente. Puedes copiar el c&oacute;digo HTML desde la secci&oacute;n inferior.", Severity.Warning);
             }
         }
         catch (Exception ex)
@@ -290,7 +290,7 @@
             bool exito = await JSRuntime.InvokeAsync<bool>("firmaHelpers.descargarImagenFirma", "firmaContainer", nombreArchivo);
             if (exito)
             {
-                Snackbar.Add("Â¡Imagen de firma descargada con Ã©xito!", Severity.Success);
+                Snackbar.Add("Â¡Imagen de firma descargada con &eacute;xito!", Severity.Success);
             }
         }
         catch (Exception ex)
