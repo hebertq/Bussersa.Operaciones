@@ -1,6 +1,7 @@
 @page "/comercial/dashboard"
 @using Modelo.Comercial
 @using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
 @using HostService.Interfaces
 @inject IOdooService _OdooService
 @inject ISnackbar Snackbar
@@ -52,10 +53,10 @@
         <div>
             <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
                 <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Color="Color.Primary" Size="Size.Large" />
-                Dashboard Ejecutivo de Rentabilidad por Empresa
+                Dashboard Ejecutivo de Rentabilidad por Operación / Empresa
             </h3>
             <MudText Typo="Typo.body2" Class="text-secondary">
-                Análisis automático de ingresos, costos operativos y margen de rentabilidad por cliente (calculado directamente desde la Producción Diaria).
+                Análisis automático de ingresos, costos operativos y margen de rentabilidad por operación (calculado dinámicamente mediante ID de operación).
             </MudText>
         </div>
         
@@ -64,18 +65,21 @@
         </MudButton>
     </div>
 
-    <!-- Filtros de Rango de Fechas y Empresa -->
+    <!-- Filtros por Rango de Fechas y Combo de Operación / Cliente (ID Entero Estándar) -->
     <MudPaper Class="pa-4 mb-6" Elevation="2" Style="border-radius: 12px; background: white;">
         <MudGrid AlignItems="AlignItems.Center">
             <MudItem XS="12" SM="5">
                 <MudDateRangePicker Label="Rango de Fechas de Producción" @bind-DateRange="dateRangeReal" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem XS="12" SM="4">
-                <MudSelect T="string" Label="Empresa / Cliente" @bind-Value="selectedClienteReal" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem T="string" Value="@((string)null)">Todas las Empresas</MudSelectItem>
-                    @foreach (var emp in empresasDisponibles)
+                <MudSelect T="int?" Label="Operación / Cliente" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todas las Operaciones</MudSelectItem>
+                    @if (operacionesList != null)
                     {
-                        <MudSelectItem Value="@emp">@emp</MudSelectItem>
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                        }
                     }
                 </MudSelect>
             </MudItem>
@@ -97,8 +101,8 @@
     {
         <MudPaper Class="pa-12 text-center my-6" Elevation="2" Style="border-radius: 12px; background: white;">
             <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-3" Style="font-size: 48px;" />
-            <MudText Typo="Typo.h6" Class="font-bold">No se encontraron registros de producción</MudText>
-            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Asegúrate de haber registrado producción diaria en la tabla para el período de fechas seleccionado.</MudText>
+            <MudText Typo="Typo.h6" Class="font-bold">No se encontraron registros de producción para esta operación</MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Verifica que existan datos de producción diaria registrados en la operación y rango de fechas seleccionado.</MudText>
         </MudPaper>
     }
     else
@@ -131,22 +135,23 @@
             </MudItem>
         </MudGrid>
 
-        <!-- Tabla de Rentabilidad por Empresa -->
+        <!-- Tabla de Rentabilidad por Operación / Empresa -->
         <MudCard Elevation="3" Class="pa-4 mb-6" Style="border-radius: 12px;">
             <div class="d-flex justify-between align-center mb-4">
                 <MudText Typo="Typo.h6" Class="font-bold d-flex align-center gap-2" Color="Color.Primary">
                     <MudIcon Icon="@Icons.Material.Filled.Assessment" />
-                    Desglose de Rentabilidad y Estimación de Precios por Empresa
+                    Desglose de Rentabilidad por Operación
                 </MudText>
                 <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
-                    @rentabilidadEmpresas.Count Empresas Analizadas
+                    @rentabilidadEmpresas.Count Operaciones Analizadas
                 </MudChip>
             </div>
 
             <MudTable Items="rentabilidadEmpresas" Hover="true" Striped="true" Dense="true" Elevation="0">
                 <HeaderContent>
-                    <MudTh>Empresa / Cliente</MudTh>
-                    <MudTh Style="text-align:center;">Servicios Registrados</MudTh>
+                    <MudTh Style="text-align:center;">ID Operación</MudTh>
+                    <MudTh>Empresa / Operación</MudTh>
+                    <MudTh Style="text-align:center;">Servicios</MudTh>
                     <MudTh Style="text-align:center;">Proformas</MudTh>
                     <MudTh Style="text-align:center;">Facturas</MudTh>
                     <MudTh Style="text-align:right;">Ingreso Total (C$)</MudTh>
@@ -156,6 +161,9 @@
                     <MudTh Style="text-align:center;">Recomendación Tarifaria</MudTh>
                 </HeaderContent>
                 <RowTemplate>
+                    <MudTd Style="text-align:center; font-weight:bold;">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">#@context.OperacionId</MudChip>
+                    </MudTd>
                     <MudTd Class="font-bold text-dark" Style="font-size: 14px;">@context.Cliente</MudTd>
                     <MudTd Style="text-align:center;">@context.CantidadServicios</MudTd>
                     <MudTd Style="text-align:center;">
@@ -196,9 +204,9 @@
 
 @code {
     private DateRange dateRangeReal = new DateRange(DateTime.Now.AddMonths(-1), DateTime.Now);
-    private string selectedClienteReal = null;
+    private int? filtroOperacionId = null;
     private bool isLoadingReal = false;
-    private List<string> empresasDisponibles = new List<string>();
+    private List<Combos> operacionesList = new List<Combos>();
     private List<RentabilidadEmpresaItem> rentabilidadEmpresas = new List<RentabilidadEmpresaItem>();
 
     private decimal totalIngresosReal = 0;
@@ -208,6 +216,7 @@
 
     public class RentabilidadEmpresaItem
     {
+        public int OperacionId { get; set; }
         public string Cliente { get; set; } = string.Empty;
         public int CantidadServicios { get; set; }
         public int TotalProformas { get; set; }
@@ -220,7 +229,24 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarCombosOperaciones();
         await CargarRentabilidadReal();
+    }
+
+    private async Task CargarCombosOperaciones()
+    {
+        try
+        {
+            var res = await _OdooService.GetAllCombosHost("Operaciones");
+            if (res.Model != null)
+            {
+                operacionesList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar las operaciones: " + ex.Message, Severity.Warning);
+        }
     }
 
     private async Task CargarRentabilidadReal()
@@ -233,34 +259,32 @@
             DateTime? inicio = dateRangeReal?.Start;
             DateTime? fin = dateRangeReal?.End;
 
-            var res = await _OdooService.GetProduccionDiaria(inicio, fin, null, null);
+            var res = await _OdooService.GetProduccionDiaria(inicio, fin, filtroOperacionId, null);
             if (res.Model != null && res.Model.Any())
             {
                 var produccion = res.Model.ToList();
 
-                // Cargar lista de empresas únicas
-                empresasDisponibles = produccion.Where(x => !string.IsNullOrEmpty(x.cliente))
-                                               .Select(x => x.cliente!)
-                                               .Distinct()
-                                               .OrderBy(x => x)
-                                               .ToList();
-
-                // Filtrar por cliente si se seleccionó
-                if (!string.IsNullOrEmpty(selectedClienteReal))
-                {
-                    produccion = produccion.Where(x => x.cliente == selectedClienteReal).ToList();
-                }
-
-                // Agrupar por empresa directamente desde admon.produccion_diaria
+                // Agrupar por operacion_id (Entero Estándar)
                 rentabilidadEmpresas = produccion
-                    .GroupBy(x => string.IsNullOrEmpty(x.cliente) ? "Sin Especificar" : x.cliente)
+                    .GroupBy(x => x.operacion_id ?? 0)
                     .Select(g => {
+                        var firstItem = g.First();
+                        string nombreCliente = firstItem.cliente;
+
+                        // Si no viene cliente en la fila, buscarlo por operacion_id en el combo
+                        if (string.IsNullOrEmpty(nombreCliente))
+                        {
+                            var matchCombo = operacionesList.FirstOrDefault(c => c.id == g.Key);
+                            nombreCliente = matchCombo != null ? matchCombo.nombre : $"Operación ID: {g.Key}";
+                        }
+
                         decimal ingresos = g.Sum(x => x.cantidad_producto * x.costo_producto);
-                        // Estimado de costo operativo laboral (~60% de ingresos)
+                        // Estimado de costo operativo (~60% de ingresos)
                         decimal costoEst = ingresos * 0.60m;
                         return new RentabilidadEmpresaItem
                         {
-                            Cliente = g.Key,
+                            OperacionId = g.Key,
+                            Cliente = nombreCliente,
                             CantidadServicios = g.Count(),
                             TotalProformas = g.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),
                             TotalFacturas = g.Where(x => !string.IsNullOrEmpty(x.no_factura)).Select(x => x.no_factura).Distinct().Count(),
@@ -271,7 +295,7 @@
                     .OrderByDescending(x => x.IngresosTotales)
                     .ToList();
 
-                // Calcular totales generales del dashboard
+                // Calcular totales generales
                 totalIngresosReal = rentabilidadEmpresas.Sum(x => x.IngresosTotales);
                 totalCostoReal = rentabilidadEmpresas.Sum(x => x.CostoOperativoEstimado);
                 totalUtilidadReal = totalIngresosReal - totalCostoReal;
@@ -288,7 +312,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add("Error al cargar la rentabilidad por empresa: " + ex.Message, Severity.Error);
+            Snackbar.Add("Error al cargar la rentabilidad por operación: " + ex.Message, Severity.Error);
         }
         finally
         {
