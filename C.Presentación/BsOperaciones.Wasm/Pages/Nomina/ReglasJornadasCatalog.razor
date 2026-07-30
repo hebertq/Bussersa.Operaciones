@@ -1,0 +1,391 @@
+@page "/nomina/reglas-jornadas"
+@inject IOdooService OdooService
+@inject IJSRuntime JSRuntime
+@using Modelo.Entidades.Nomina
+@using HostService.Interfaces
+
+<div class="container-fluid p-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">
+                <i class="bi bi-journal-check text-primary me-2"></i>Catálogo Módulos de Reglas Atómicas (Ley 185 CT + Operativas)
+            </h2>
+            <p class="text-muted small mb-0">
+                Librería centralizada de reglas de cálculo legales según el Código del Trabajo de Nicaragua y convenios operacionales.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/nomina/configuracion-jornadas" class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-semibold">
+                <i class="bi bi-building-gear me-1"></i>Asignar a Clientes
+            </a>
+            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-semibold" @onclick="PrepareCreate">
+                <i class="bi bi-plus-lg me-1"></i>+ NUEVA REGLA ATÓMICA
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats summary badges -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary text-white rounded-3 p-3">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-white text-primary p-3 me-3 fs-4">
+                        <i class="bi bi-cpu-fill"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">TOTAL REGLAS ATÓMICAS</div>
+                        <div class="fs-3 fw-bold">@atomicasList.Count</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-success text-white rounded-3 p-3">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-white text-success p-3 me-3 fs-4">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">CAPACIDAD JORNADAS (ART 51)</div>
+                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "JORNADA")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-warning text-dark rounded-3 p-3">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-white text-dark p-3 me-3 fs-4">
+                        <i class="bi bi-calendar-week-fill"></i>
+                    </div>
+                    <div>
+                        <div class="text-dark-50 small fw-bold">DOMINGOS Y FERIADOS (ART 64-67)</div>
+                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "DESCANSO" || r.Categoria == "FERIADO")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-info text-white rounded-3 p-3">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-white text-info p-3 me-3 fs-4">
+                        <i class="bi bi-gear-wide-connected"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">TURNOS Y MARCAS OPERATIVAS</div>
+                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "TURNO_ESPECIAL" || r.Categoria == "MARCADAS" || r.Categoria == "EXTRAS" || r.Categoria == "BENEFICIOS")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs & Search -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <ul class="nav nav-pills card-header-pills">
+                <li class="nav-item">
+                    <button class="nav-link @(filterCategoria == "TODAS" ? "active" : "") fw-semibold" @onclick='() => filterCategoria = "TODAS"'>
+                        Todas (@atomicasList.Count)
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(filterCategoria == "JORNADA" ? "active text-white bg-success" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "JORNADA"'>
+                        📜 Jornadas y Capacidad
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(filterCategoria == "DESCANSO" ? "active text-dark bg-warning" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "DESCANSO"'>
+                        📅 Séptimo Día y Descansos
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(filterCategoria == "FERIADO" ? "active text-white bg-danger" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "FERIADO"'>
+                        🎉 Feriados Nacionales
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(filterCategoria == "OPERATIVO" ? "active text-white bg-info" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "OPERATIVO"'>
+                        ⚡ Turnos Operativos & Extras
+                    </button>
+                </li>
+            </ul>
+
+            <div class="input-group input-group-sm" style="max-width: 280px;">
+                <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" class="form-control bg-light border-0" placeholder="Buscar regla..." @bind="searchText" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            @if (loading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2">Cargando catálogo de reglas atómicas de Ley 185...</p>
+                </div>
+            }
+            else if (!FilteredReglas.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-muted display-4"></i>
+                    <p class="text-muted mt-2">No se encontraron reglas en esta categoría.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary small text-uppercase">
+                            <tr>
+                                <th style="width: 180px;" class="ps-3">Código Regla</th>
+                                <th style="width: 120px;">Artículo Ley</th>
+                                <th>Nombre del Módulo / Regla</th>
+                                <th>Categoría</th>
+                                <th>Descripción y Comportamiento</th>
+                                <th style="width: 140px;">Evaluador SQL</th>
+                                <th class="text-end pe-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in FilteredReglas)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <code class="fw-bold text-primary bg-primary bg-opacity-10 px-2 py-1 rounded">@r.CodigoRegla</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2 py-1 small fw-bold">
+                                            @(string.IsNullOrWhiteSpace(r.ArticuloLey) ? "OPERATIVO" : r.ArticuloLey)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">@r.NombreRegla</div>
+                                    </td>
+                                    <td>
+                                        @switch (r.Categoria)
+                                        {
+                                            case "JORNADA":
+                                                <span class="badge bg-success text-white rounded-pill px-2 py-1">Capacidad Jornada</span>
+                                                break;
+                                            case "DESCANSO":
+                                                <span class="badge bg-warning text-dark rounded-pill px-2 py-1">Séptimo Día / Descanso</span>
+                                                break;
+                                            case "FERIADO":
+                                                <span class="badge bg-danger text-white rounded-pill px-2 py-1">Feriado Ley 185</span>
+                                                break;
+                                            case "TURNO_ESPECIAL":
+                                                <span class="badge bg-purple text-white rounded-pill px-2 py-1">Turno Especial 4/3</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-info text-white rounded-pill px-2 py-1">@r.Categoria</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="text-muted small" style="max-width: 420px;">@r.Descripcion</div>
+                                    </td>
+                                    <td>
+                                        <span class="small text-muted font-monospace"><i class="bi bi-code-square me-1"></i>@r.EvaluadorFunc</span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <button class="btn btn-outline-primary btn-sm rounded-circle me-1" title="Editar Parámetros" @onclick="() => EditRegla(r)">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar Regla" @onclick="() => DeleteRegla(r.CodigoRegla)">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Form Regla Atómica -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-sliders me-2"></i>Regla Atómica de Jornada (Ley 185 CT)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Código Único de Regla</label>
+                            <input type="text" class="form-control" @bind="activeRegla.CodigoRegla" placeholder="Ej: REGLA_JORNADA_MIXTA" readonly="@isEditing" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Nombre descriptivo de la Regla</label>
+                            <input type="text" class="form-control" @bind="activeRegla.NombreRegla" placeholder="Ej: Jornada Mixta (7.5h = 8h Pagadas)" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Categoría de la Regla</label>
+                            <select class="form-select" @bind="activeRegla.Categoria">
+                                <option value="JORNADA">📜 JORNADA (Capacidad Diurna/Nocturna/Mixta)</option>
+                                <option value="DESCANSO">📅 DESCANSO (Séptimo Día / Domingo)</option>
+                                <option value="FERIADO">🎉 FERIADO (Días Nacionales Ley 185)</option>
+                                <option value="EXTRAS">⚡ EXTRAS (Horas Extras Ordinarias)</option>
+                                <option value="TURNO_ESPECIAL">🔄 TURNO ESPECIAL (4/3 Turnos 12h)</option>
+                                <option value="MARCADAS">📌 MARCADAS (Marca Única 8h)</option>
+                                <option value="BENEFICIOS">☕ BENEFICIOS (Viáticos de Comida)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Artículo Ley 185 / Fuente</label>
+                            <input type="text" class="form-control" @bind="activeRegla.ArticuloLey" placeholder="Ej: Art. 51 y 53 CT" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold small text-secondary">Descripción y Marco Jurídico / Comportamiento</label>
+                            <textarea class="form-control" rows="2" @bind="activeRegla.Descripcion" placeholder="Describa el comportamiento de este módulo..."></textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Función Evaluadora SQL</label>
+                            <input type="text" class="form-control font-monospace" @bind="activeRegla.EvaluadorFunc" placeholder="Ej: fn_regla_jornada_mixta" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-secondary">Parámetros JSON de Configuración</label>
+                            <input type="text" class="form-control font-monospace" @bind="activeRegla.ParametrosJson" placeholder="{}" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" @onclick="SaveRegla" disabled="@saving">
+                        @if (saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Guardar Regla
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ReglaAtomica> atomicasList = new();
+    private bool loading = true;
+    private bool saving = false;
+    private bool showModal = false;
+    private bool isEditing = false;
+    private string filterCategoria = "TODAS";
+    private string searchText = "";
+    private ReglaAtomica activeRegla = new();
+
+    private IEnumerable<ReglaAtomica> FilteredReglas => atomicasList
+        .Where(r => filterCategoria == "TODAS" ||
+                    (filterCategoria == "OPERATIVO" && (r.Categoria == "TURNO_ESPECIAL" || r.Categoria == "MARCADAS" || r.Categoria == "EXTRAS" || r.Categoria == "BENEFICIOS")) ||
+                    r.Categoria == filterCategoria)
+        .Where(r => string.IsNullOrWhiteSpace(searchText) ||
+                    r.NombreRegla.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    r.CodigoRegla.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Descripcion != null && r.Descripcion.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReglas();
+    }
+
+    private async Task LoadReglas()
+    {
+        loading = true;
+        try
+        {
+            var res = await OdooService.GetAllReglasAtomicas();
+            if (res?.Model != null)
+            {
+                atomicasList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando reglas atómicas: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void PrepareCreate()
+    {
+        activeRegla = new ReglaAtomica();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void EditRegla(ReglaAtomica r)
+    {
+        activeRegla = new ReglaAtomica
+        {
+            CodigoRegla = r.CodigoRegla,
+            NombreRegla = r.NombreRegla,
+            Categoria = r.Categoria,
+            ArticuloLey = r.ArticuloLey,
+            Descripcion = r.Descripcion,
+            ParametrosJson = r.ParametrosJson,
+            EvaluadorFunc = r.EvaluadorFunc,
+            Activo = r.Activo
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private async Task SaveRegla()
+    {
+        if (string.IsNullOrWhiteSpace(activeRegla.CodigoRegla) || string.IsNullOrWhiteSpace(activeRegla.NombreRegla))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Ingrese el código y el nombre de la regla.");
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            await OdooService.SaveReglaAtomica(activeRegla);
+            showModal = false;
+            await LoadReglas();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error guardando regla: {ex.Message}");
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task DeleteRegla(string codigoRegla)
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de eliminar la regla atómica '{codigoRegla}' del catálogo?");
+        if (!confirm) return;
+
+        try
+        {
+            await OdooService.DeleteReglaAtomica(codigoRegla);
+            await LoadReglas();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error eliminando regla: {ex.Message}");
+        }
+    }
+}

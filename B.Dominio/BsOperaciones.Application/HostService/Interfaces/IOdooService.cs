@@ -120,5 +120,14 @@ namespace HostService.Interfaces
         Task<IListResponse<Combos>> GetAllEstructurasSalariales();
         Task<IResponse> SaveJornadaConfiguracion(JornadaConfiguracion model);
         Task<IResponse> DeleteJornadaConfiguracion(int id);
+        Task<IListResponse<ReglaJornada>> GetAllReglasJornadas();
+        Task<IResponse> SaveReglaJornada(ReglaJornada model);
+        Task<IResponse> DeleteReglaJornada(int id);
+        Task<IListResponse<AsignacionJornadaCliente>> GetAllAsignacionesJornada();
+        Task<IResponse> SaveAsignacionJornada(AsignacionJornadaCliente model);
+        Task<IResponse> DeleteAsignacionJornada(int id);
+        Task<IListResponse<ReglaAtomica>> GetAllReglasAtomicas();
+        Task<IResponse> SaveReglaAtomica(ReglaAtomica model);
+        Task<IResponse> DeleteReglaAtomica(string codigoRegla);
     }
 }
