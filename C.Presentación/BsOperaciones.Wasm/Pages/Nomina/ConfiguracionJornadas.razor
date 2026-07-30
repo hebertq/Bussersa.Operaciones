@@ -1,0 +1,390 @@
+@page "/nomina/configuracion-jornadas"
+@using Modelo.Entidades.Nomina
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<style>
+    .page-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .badge-primary { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .badge-success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-warning { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+</style>
+
+<div class="page-container">
+    <div class="d-flex justify-between align-center flex-wrap mb-6">
+        <div>
+            <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
+                <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Color="Color.Primary" Size="Size.Large" />
+                Configuración de Jornadas, Cortes de Nómina y Estructuras Salariales
+            </h3>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Administración de reglas de cálculo de horas laborales, facturables, días laborados (48h/96h/4x12), cortes de nómina (8-23 / 13-28) y viáticos automáticos por cliente.
+            </MudText>
+        </div>
+        <div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog" Style="border-radius: 8px; font-weight: 700;">
+                Nueva Regla de Configuración
+            </MudButton>
+        </div>
+    </div>
+
+    <MudOverlay Visible="isLoading" DarkBackground="true" Absolute="true" ZIndex="9999">
+        <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+    </MudOverlay>
+
+    <div class="panel-card pa-4">
+        <MudTable Items="@configuraciones" Hover="true" Striped="true" Dense="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Nombre de Regla</MudTh>
+                <MudTh>Cliente / Operación</MudTh>
+                <MudTh>Estructura Salarial</MudTh>
+                <MudTh>Corte de Nómina</MudTh>
+                <MudTh>Modo de Cálculo</MudTh>
+                <MudTh>Domingo Ordinario</MudTh>
+                <MudTh>Marca Única 8h</MudTh>
+                <MudTh>Viático Alimentos</MudTh>
+                <MudTh Style="text-align: right;">Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.Id</MudTd>
+                <MudTd DataLabel="Nombre">
+                    <span style="font-weight: 700;">@context.NombreConfiguracion</span>
+                </MudTd>
+                <MudTd DataLabel="Cliente">
+                    @if (context.OperacionId.HasValue)
+                    {
+                        <span class="status-badge badge-primary">#@context.OperacionId @context.OperacionNombre</span>
+                    }
+                    else
+                    {
+                        <span class="status-badge badge-success">GLOBAL (Todas las operaciones)</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Estructura">
+                    @if (context.EstructuraSalarialId.HasValue)
+                    {
+                        <span class="status-badge badge-warning">@context.EstructuraSalarialNombre</span>
+                    }
+                    else
+                    {
+                        <span>Todas las estructuras</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Corte">
+                    @if (context.CorteNominaTipo == "CORTE_8_23")
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small">Corte 8 y 23</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Secondary" Size="Size.Small">Corte 13 y 28</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Modo">
+                    @switch (context.ModoCalculoLaboral)
+                    {
+                        case "JORNADA_4X12":
+                            <MudChip T="string" Color="Color.Tertiary" Size="Size.Small">4x12 (1.5 días/turno)</MudChip>
+                            break;
+                        case "QUINCENAL_96H":
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Quincenal 96h</MudChip>
+                            break;
+                        case "DIARIO_ESTANDAR":
+                            <MudChip T="string" Color="Color.Dark" Size="Size.Small">Diario Estándar</MudChip>
+                            break;
+                        default:
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small">Semanal 48h</MudChip>
+                            break;
+                    }
+                </MudTd>
+                <MudTd DataLabel="Domingo Ordinario">
+                    @if (context.DomingoEsDiaOrdinario)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                    }
+                </MudTd>
+                <MudTd DataLabel="Marca Única">
+                    @if (context.PermiteMarcaUnica8h)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small">8h (1 Día)</MudChip>
+                    }
+                    else
+                    {
+                        <span>No</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Viático Alimentos">
+                    @if (context.AplicaViaticoAlimentos)
+                    {
+                        <div>
+                            <MudText Typo="Typo.caption" Class="font-bold">C$ @context.MontoViaticoAlimentos.ToString("N2")</MudText><br />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">In &lt;= @context.HoraEntradaMaxViatico | Out &gt;= @context.HoraSalidaMinViatico</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <span>No aplica</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Acciones" Style="text-align: right;">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)" />
+                    @if (context.OperacionId.HasValue || context.EstructuraSalarialId.HasValue)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteConfig(context.Id)" />
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </div>
+</div>
+
+@* Dialog Modal para Edición/Creación *@
+<MudDialog @bind-IsVisible="showDialog" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="font-bold">
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Class="mr-2" />
+            @(selectedItem.Id > 0 ? "Editar Regla de Configuración" : "Nueva Regla de Configuración")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex flex-column gap-3" style="max-height: 70vh; overflow-y: auto; padding: 8px;">
+            <MudTextField @bind-Value="selectedItem.NombreConfiguracion" Label="Nombre descriptivo de la regla" Variant="Variant.Outlined" Required="true" />
+            
+            <div class="d-flex gap-2">
+                <MudSelect T="int?" @bind-Value="selectedItem.OperacionId" Label="Cliente / Operación" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem T="int?" Value="null">-- Todas (Regla Global) --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="int?" Value="@op.id">#@op.id - @op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="int?" @bind-Value="selectedItem.EstructuraSalarialId" Label="Estructura Salarial" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem T="int?" Value="null">-- Todas las estructuras --</MudSelectItem>
+                    @foreach (var st in estructurasList)
+                    {
+                        <MudSelectItem T="int?" Value="@st.id">@st.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </div>
+
+            <div class="d-flex gap-2">
+                <MudSelect T="string" @bind-Value="selectedItem.CorteNominaTipo" Label="Ciclo / Corte de Nómina" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("CORTE_8_23")">Corte 8 y 23 (Inicia día 9 y 24)</MudSelectItem>
+                    <MudSelectItem Value="@("CORTE_13_28")">Corte 13 y 28 (Inicia día 14 y 29)</MudSelectItem>
+                </MudSelect>
+
+                <MudSelect T="string" @bind-Value="selectedItem.ModoCalculoLaboral" Label="Motor de Cálculo Laboral" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("SEMANAL_48H")">Semanal 48 Horas</MudSelectItem>
+                    <MudSelectItem Value="@("QUINCENAL_96H")">Quincenal 96 Horas</MudSelectItem>
+                    <MudSelectItem Value="@("JORNADA_4X12")">Turnos 4x12 (12h = 1.5 Días)</MudSelectItem>
+                    <MudSelectItem Value="@("DIARIO_ESTANDAR")">Diario Estándar (8h/7h)</MudSelectItem>
+                </MudSelect>
+            </div>
+
+            @if (selectedItem.ModoCalculoLaboral == "JORNADA_4X12")
+            {
+                <MudNumericField @bind-Value="selectedItem.FactorDiasTurno12h" Label="Factor de días por turno 12h" Variant="Variant.Outlined" Format="F2" HelperText="ej. 1.50 días laborados por cada 12h" />
+            }
+
+            <MudCheckBox T="bool" @bind-Value="selectedItem.DomingoEsDiaOrdinario" Label="Domingo es día hábil ordinario dentro de las 48h/96h" Color="Color.Primary" />
+            <MudCheckBox T="bool" @bind-Value="selectedItem.PermiteMarcaUnica8h" Label="Entrada sin salida (Marcación Única) otorga 1.00 Día (8 Horas)" Color="Color.Primary" />
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="font-bold">Regla de Viático de Alimentos / Comida Automático</MudText>
+            <MudCheckBox T="bool" @bind-Value="selectedItem.AplicaViaticoAlimentos" Label="Activar Viático Automático por Horario" Color="Color.Secondary" />
+
+            @if (selectedItem.AplicaViaticoAlimentos)
+            {
+                <div class="d-flex gap-2">
+                    <MudTextField @bind-Value="selectedItem.HoraEntradaMaxViatico" Label="Hora Máx. Entrada (ej. 06:00)" Variant="Variant.Outlined" />
+                    <MudTextField @bind-Value="selectedItem.HoraSalidaMinViatico" Label="Hora Mín. Salida (ej. 19:00)" Variant="Variant.Outlined" />
+                    <MudNumericField @bind-Value="selectedItem.MontoViaticoAlimentos" Label="Monto Viático (C$)" Variant="Variant.Outlined" Format="F2" />
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => showDialog = false">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveConfig">Guardar Configuración</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool isLoading = false;
+    private bool showDialog = false;
+    private DialogOptions dialogOptions = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private List<JornadaConfiguracion> configuraciones = new();
+    private List<Combos> operacionesList = new();
+    private List<Combos> estructurasList = new();
+    private JornadaConfiguracion selectedItem = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        isLoading = true;
+        try
+        {
+            var resOp = await _OdooService.GetAllCombosHost("Operaciones");
+            if (resOp?.Model != null) operacionesList = resOp.Model.ToList();
+
+            var resEst = await _OdooService.GetAllEstructurasSalariales();
+            if (resEst?.Model != null) estructurasList = resEst.Model.ToList();
+
+            var resCfg = await _OdooService.GetAllJornadaConfiguraciones();
+            if (resCfg?.Model != null) configuraciones = resCfg.Model.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar configuraciones: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        selectedItem = new JornadaConfiguracion
+        {
+            NombreConfiguracion = "Regla de Jornada",
+            CorteNominaTipo = "CORTE_8_23",
+            ModoCalculoLaboral = "SEMANAL_48H",
+            FactorDiasTurno12h = 1.50m,
+            DomingoEsDiaOrdinario = true,
+            PermiteMarcaUnica8h = false,
+            AplicaViaticoAlimentos = false,
+            HoraEntradaMaxViatico = "06:00",
+            HoraSalidaMinViatico = "19:00",
+            MontoViaticoAlimentos = 0.00m,
+            HorasSemanalesLimite = 48.00m,
+            HorasQuincenalesLimite = 96.00m,
+            ModoCalculoFacturable = "SEMANAL_48H",
+            Activo = true
+        };
+        showDialog = true;
+    }
+
+    private void OpenEditDialog(JornadaConfiguracion item)
+    {
+        selectedItem = new JornadaConfiguracion
+        {
+            Id = item.Id,
+            OperacionId = item.OperacionId,
+            EstructuraSalarialId = item.EstructuraSalarialId,
+            NombreConfiguracion = item.NombreConfiguracion,
+            CorteNominaTipo = item.CorteNominaTipo,
+            ModoCalculoLaboral = item.ModoCalculoLaboral,
+            FactorDiasTurno12h = item.FactorDiasTurno12h,
+            DomingoEsDiaOrdinario = item.DomingoEsDiaOrdinario,
+            PermiteMarcaUnica8h = item.PermiteMarcaUnica8h,
+            AplicaViaticoAlimentos = item.AplicaViaticoAlimentos,
+            HoraEntradaMaxViatico = item.HoraEntradaMaxViatico,
+            HoraSalidaMinViatico = item.HoraSalidaMinViatico,
+            MontoViaticoAlimentos = item.MontoViaticoAlimentos,
+            HorasSemanalesLimite = item.HorasSemanalesLimite,
+            HorasQuincenalesLimite = item.HorasQuincenalesLimite,
+            ModoCalculoFacturable = item.ModoCalculoFacturable,
+            Activo = item.Activo
+        };
+        showDialog = true;
+    }
+
+    private async Task SaveConfig()
+    {
+        if (string.IsNullOrWhiteSpace(selectedItem.NombreConfiguracion))
+        {
+            Snackbar.Add("Por favor ingrese un nombre para la configuración.", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var res = await _OdooService.SaveJornadaConfiguracion(selectedItem);
+            if (res?.Respuesta != null && !res.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Configuración de jornada guardada correctamente.", Severity.Success);
+                showDialog = false;
+                await CargarDatos();
+            }
+            else
+            {
+                Snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar la configuración.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteConfig(int id)
+    {
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Confirmación",
+            "¿Está seguro de eliminar esta regla de configuración específica?",
+            yesText: "Eliminar", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            isLoading = true;
+            try
+            {
+                var res = await _OdooService.DeleteJornadaConfiguracion(id);
+                if (res?.Respuesta != null && !res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add("Configuración eliminada correctamente.", Severity.Success);
+                    await CargarDatos();
+                }
+                else
+                {
+                    Snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+    }
+}

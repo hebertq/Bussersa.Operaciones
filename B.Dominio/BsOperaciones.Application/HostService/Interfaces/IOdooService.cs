@@ -116,5 +116,9 @@ namespace HostService.Interfaces
         Task<IResponse> DeleteProduccionDiaria(int id);
         Task<IResponse> DeleteBulkProduccionDiaria(List<int> ids);
         Task<IResponse> GenerarProformasOdoo(GenerarProformasOdooRequest request);
+        Task<IListResponse<JornadaConfiguracion>> GetAllJornadaConfiguraciones();
+        Task<IListResponse<Combos>> GetAllEstructurasSalariales();
+        Task<IResponse> SaveJornadaConfiguracion(JornadaConfiguracion model);
+        Task<IResponse> DeleteJornadaConfiguracion(int id);
     }
 }
