@@ -1,14 +1,15 @@
-
 <AuthorizeView Policy="@Policies.IsMenu" Resource="8">
     <Authorized>
         <MudNavGroup Title="Nomina" Icon="@Icons.Material.Filled.Calculate" Expanded="false">
             <MenuItem MenuId="9" Name="Dias por pagar" Url="/nomina/diasxpagar" IconName="@Icons.Material.Filled.Paid" />           
-            <MudNavLink Href="/nomina/reglas-jornadas" Icon="@Icons.Material.Filled.LibraryBooks">
-                Catálogo de Reglas de Jornada
-            </MudNavLink>
-            <MudNavLink Href="/nomina/configuracion-jornadas" Icon="@Icons.Material.Filled.SettingsSuggest">
-                Asignación de Reglas por Cliente
-            </MudNavLink>
+            <MudNavGroup Title="Reglas de horarios" Icon="@Icons.Material.Filled.LibraryBooks" Expanded="false">
+                <MudNavLink Href="/nomina/reglas-jornadas" Icon="@Icons.Material.Filled.FormatListBulleted">
+                    Catálogo de Reglas de Jornada
+                </MudNavLink>
+                <MudNavLink Href="/nomina/configuracion-jornadas" Icon="@Icons.Material.Filled.SettingsSuggest">
+                    Asignación de Reglas por Cliente
+                </MudNavLink>
+            </MudNavGroup>
             <MenuNominaNueva />
             <MenuNominaReporte />
             <MenuNominaCierre />
