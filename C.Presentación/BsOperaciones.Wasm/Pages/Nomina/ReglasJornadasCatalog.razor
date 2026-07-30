@@ -4,22 +4,22 @@
 @using Modelo.Entidades.Nomina
 @using HostService.Interfaces
 
-<div class="container-fluid p-4">
+<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh;">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
         <div>
-            <h2 class="fw-bold text-dark mb-1">
+            <h2 class="fw-bold mb-1" style="color: #0f172a;">
                 <i class="bi bi-journal-check text-primary me-2"></i>Catálogo Módulos de Reglas Atómicas (Ley 185 CT + Operativas)
             </h2>
-            <p class="text-muted small mb-0">
+            <p class="text-secondary small mb-0 fw-semibold">
                 Librería centralizada de reglas de cálculo legales según el Código del Trabajo de Nicaragua y convenios operacionales.
             </p>
         </div>
         <div class="d-flex gap-2">
-            <a href="/nomina/configuracion-jornadas" class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-semibold">
+            <a href="/nomina/configuracion-jornadas" class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-bold">
                 <i class="bi bi-building-gear me-1"></i>Asignar a Clientes
             </a>
-            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-semibold" @onclick="PrepareCreate">
+            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
                 <i class="bi bi-plus-lg me-1"></i>+ NUEVA REGLA ATÓMICA
             </button>
         </div>
@@ -28,53 +28,53 @@
     <!-- Stats summary badges -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-primary text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-primary p-3 me-3 fs-4">
-                        <i class="bi bi-cpu-fill"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-cpu-fill text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">TOTAL REGLAS ATÓMICAS</div>
-                        <div class="fs-3 fw-bold">@atomicasList.Count</div>
+                        <div class="fs-2 fw-bold text-white">@atomicasList.Count</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-success text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-success p-3 me-3 fs-4">
-                        <i class="bi bi-shield-check"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-shield-check text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">CAPACIDAD JORNADAS (ART 51)</div>
-                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "JORNADA")</div>
+                        <div class="fs-2 fw-bold text-white">@atomicasList.Count(r => r.Categoria == "JORNADA")</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-warning text-dark rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-dark p-3 me-3 fs-4">
-                        <i class="bi bi-calendar-week-fill"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-calendar-week-fill text-white"></i>
                     </div>
                     <div>
-                        <div class="text-dark-50 small fw-bold">DOMINGOS Y FERIADOS (ART 64-67)</div>
-                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "DESCANSO" || r.Categoria == "FERIADO")</div>
+                        <div class="text-white-50 small fw-bold">DOMINGOS Y FERIADOS (ART 64-67)</div>
+                        <div class="fs-2 fw-bold text-white">@atomicasList.Count(r => r.Categoria == "DESCANSO" || r.Categoria == "FERIADO")</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm bg-info text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-info p-3 me-3 fs-4">
-                        <i class="bi bi-gear-wide-connected"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-gear-wide-connected text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">TURNOS Y MARCAS OPERATIVAS</div>
-                        <div class="fs-3 fw-bold">@atomicasList.Count(r => r.Categoria == "TURNO_ESPECIAL" || r.Categoria == "MARCADAS" || r.Categoria == "EXTRAS" || r.Categoria == "BENEFICIOS")</div>
+                        <div class="fs-2 fw-bold text-white">@atomicasList.Count(r => r.Categoria == "TURNO_ESPECIAL" || r.Categoria == "MARCADAS" || r.Categoria == "EXTRAS" || r.Categoria == "BENEFICIOS")</div>
                     </div>
                 </div>
             </div>
@@ -83,38 +83,28 @@
 
     <!-- Filter Tabs & Search -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <ul class="nav nav-pills card-header-pills">
-                <li class="nav-item">
-                    <button class="nav-link @(filterCategoria == "TODAS" ? "active" : "") fw-semibold" @onclick='() => filterCategoria = "TODAS"'>
-                        Todas (@atomicasList.Count)
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link @(filterCategoria == "JORNADA" ? "active text-white bg-success" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "JORNADA"'>
-                        📜 Jornadas y Capacidad
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link @(filterCategoria == "DESCANSO" ? "active text-dark bg-warning" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "DESCANSO"'>
-                        📅 Séptimo Día y Descansos
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link @(filterCategoria == "FERIADO" ? "active text-white bg-danger" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "FERIADO"'>
-                        🎉 Feriados Nacionales
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link @(filterCategoria == "OPERATIVO" ? "active text-white bg-info" : "") fw-semibold ms-2" @onclick='() => filterCategoria = "OPERATIVO"'>
-                        ⚡ Turnos Operativos & Extras
-                    </button>
-                </li>
-            </ul>
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm @(filterCategoria == "TODAS" ? "btn-primary fw-bold" : "btn-light text-dark fw-semibold")" @onclick='() => filterCategoria = "TODAS"'>
+                    Todas (@atomicasList.Count)
+                </button>
+                <button class="btn btn-sm @(filterCategoria == "JORNADA" ? "btn-success fw-bold text-white" : "btn-light text-dark fw-semibold")" @onclick='() => filterCategoria = "JORNADA"'>
+                    📜 Jornadas y Capacidad
+                </button>
+                <button class="btn btn-sm @(filterCategoria == "DESCANSO" ? "btn-warning fw-bold text-dark" : "btn-light text-dark fw-semibold")" @onclick='() => filterCategoria = "DESCANSO"'>
+                    📅 Séptimo Día y Descansos
+                </button>
+                <button class="btn btn-sm @(filterCategoria == "FERIADO" ? "btn-danger fw-bold text-white" : "btn-light text-dark fw-semibold")" @onclick='() => filterCategoria = "FERIADO"'>
+                    🎉 Feriados Nacionales
+                </button>
+                <button class="btn btn-sm @(filterCategoria == "OPERATIVO" ? "btn-info fw-bold text-white" : "btn-light text-dark fw-semibold")" @onclick='() => filterCategoria = "OPERATIVO"'>
+                    ⚡ Turnos Operativos & Extras
+                </button>
+            </div>
 
             <div class="input-group input-group-sm" style="max-width: 280px;">
-                <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control bg-light border-0" placeholder="Buscar regla..." @bind="searchText" @bind:event="oninput" />
+                <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar regla..." @bind="searchText" @bind:event="oninput" />
             </div>
         </div>
 
@@ -123,79 +113,85 @@
             {
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status"></div>
-                    <p class="text-muted mt-2">Cargando catálogo de reglas atómicas de Ley 185...</p>
+                    <p class="text-dark fw-semibold mt-2">Cargando catálogo de reglas atómicas de Ley 185...</p>
                 </div>
             }
             else if (!FilteredReglas.Any())
             {
                 <div class="text-center py-5">
-                    <i class="bi bi-inbox text-muted display-4"></i>
-                    <p class="text-muted mt-2">No se encontraron reglas en esta categoría.</p>
+                    <i class="bi bi-inbox text-secondary display-4"></i>
+                    <p class="text-secondary fw-semibold mt-2">No se encontraron reglas en esta categoría.</p>
                 </div>
             }
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light text-secondary small text-uppercase">
+                    <table class="table table-hover align-middle mb-0" style="color: #0f172a;">
+                        <thead style="background-color: #f1f5f9; color: #334155;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
-                                <th style="width: 180px;" class="ps-3">Código Regla</th>
-                                <th style="width: 120px;">Artículo Ley</th>
-                                <th>Nombre del Módulo / Regla</th>
-                                <th>Categoría</th>
-                                <th>Descripción y Comportamiento</th>
-                                <th style="width: 140px;">Evaluador SQL</th>
-                                <th class="text-end pe-3">Acciones</th>
+                                <th style="width: 220px;" class="ps-3 py-3">Código Regla</th>
+                                <th style="width: 140px;" class="py-3">Artículo Ley</th>
+                                <th style="width: 240px;" class="py-3">Nombre del Módulo / Regla</th>
+                                <th style="width: 160px;" class="py-3">Categoría</th>
+                                <th class="py-3">Descripción y Comportamiento</th>
+                                <th style="width: 180px;" class="py-3">Evaluador SQL</th>
+                                <th style="width: 110px;" class="text-end pe-3 py-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var r in FilteredReglas)
                             {
-                                <tr>
-                                    <td class="ps-3">
-                                        <code class="fw-bold text-primary bg-primary bg-opacity-10 px-2 py-1 rounded">@r.CodigoRegla</code>
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td class="ps-3 py-3">
+                                        <span class="font-monospace fw-bold px-2 py-1 rounded" style="background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.85rem; display: inline-block;">
+                                            @r.CodigoRegla
+                                        </span>
                                     </td>
-                                    <td>
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border rounded-pill px-2 py-1 small fw-bold">
+                                    <td class="py-3">
+                                        <span class="fw-bold px-2 py-1 rounded-pill" style="background-color: #e2e8f0; color: #334155; border: 1px solid #cbd5e1; font-size: 0.78rem;">
                                             @(string.IsNullOrWhiteSpace(r.ArticuloLey) ? "OPERATIVO" : r.ArticuloLey)
                                         </span>
                                     </td>
-                                    <td>
-                                        <div class="fw-bold text-dark">@r.NombreRegla</div>
+                                    <td class="py-3">
+                                        <div class="fw-bold" style="color: #0f172a; font-size: 0.92rem;">@r.NombreRegla</div>
                                     </td>
-                                    <td>
+                                    <td class="py-3">
                                         @switch (r.Categoria)
                                         {
                                             case "JORNADA":
-                                                <span class="badge bg-success text-white rounded-pill px-2 py-1">Capacidad Jornada</span>
+                                                <span class="badge px-2 py-1 rounded-pill text-white fw-bold" style="background-color: #059669;">Capacidad Jornada</span>
                                                 break;
                                             case "DESCANSO":
-                                                <span class="badge bg-warning text-dark rounded-pill px-2 py-1">Séptimo Día / Descanso</span>
+                                                <span class="badge px-2 py-1 rounded-pill text-dark fw-bold" style="background-color: #fbbf24;">Séptimo Día / Descanso</span>
                                                 break;
                                             case "FERIADO":
-                                                <span class="badge bg-danger text-white rounded-pill px-2 py-1">Feriado Ley 185</span>
+                                                <span class="badge px-2 py-1 rounded-pill text-white fw-bold" style="background-color: #dc2626;">Feriado Ley 185</span>
                                                 break;
                                             case "TURNO_ESPECIAL":
-                                                <span class="badge bg-purple text-white rounded-pill px-2 py-1">Turno Especial 4/3</span>
+                                                <span class="badge px-2 py-1 rounded-pill text-white fw-bold" style="background-color: #7c3aed;">Turno Especial 4/3</span>
                                                 break;
                                             default:
-                                                <span class="badge bg-info text-white rounded-pill px-2 py-1">@r.Categoria</span>
+                                                <span class="badge px-2 py-1 rounded-pill text-white fw-bold" style="background-color: #0284c7;">@r.Categoria</span>
                                                 break;
                                         }
                                     </td>
-                                    <td>
-                                        <div class="text-muted small" style="max-width: 420px;">@r.Descripcion</div>
+                                    <td class="py-3">
+                                        <div style="color: #334155; font-size: 0.88rem; line-height: 1.4; max-width: 480px;">@r.Descripcion</div>
                                     </td>
-                                    <td>
-                                        <span class="small text-muted font-monospace"><i class="bi bi-code-square me-1"></i>@r.EvaluadorFunc</span>
+                                    <td class="py-3">
+                                        <span class="font-monospace fw-semibold px-2 py-1 rounded" style="background-color: #f1f5f9; color: #0284c7; border: 1px solid #e2e8f0; font-size: 0.82rem;">
+                                            <i class="bi bi-code-square me-1"></i>@r.EvaluadorFunc
+                                        </span>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <button class="btn btn-outline-primary btn-sm rounded-circle me-1" title="Editar Parámetros" @onclick="() => EditRegla(r)">
-                                            <i class="bi bi-pencil-fill"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar Regla" @onclick="() => DeleteRegla(r.CodigoRegla)">
-                                            <i class="bi bi-trash-fill"></i>
-                                        </button>
+                                    <td class="text-end pe-3 py-3">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-primary btn-sm me-1 px-2 rounded" title="Editar Parámetros" @onclick="() => EditRegla(r)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm px-2 rounded" title="Eliminar Regla" @onclick="() => DeleteRegla(r.CodigoRegla)">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -210,29 +206,29 @@
 <!-- Modal Form Regla Atómica -->
 @if (showModal)
 {
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
+            <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">
                         <i class="bi bi-sliders me-2"></i>Regla Atómica de Jornada (Ley 185 CT)
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Código Único de Regla</label>
-                            <input type="text" class="form-control" @bind="activeRegla.CodigoRegla" placeholder="Ej: REGLA_JORNADA_MIXTA" readonly="@isEditing" />
+                            <label class="form-label fw-bold small" style="color: #334155;">Código Único de Regla</label>
+                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeRegla.CodigoRegla" placeholder="Ej: REGLA_JORNADA_MIXTA" readonly="@isEditing" />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Nombre descriptivo de la Regla</label>
-                            <input type="text" class="form-control" @bind="activeRegla.NombreRegla" placeholder="Ej: Jornada Mixta (7.5h = 8h Pagadas)" />
+                            <label class="form-label fw-bold small" style="color: #334155;">Nombre descriptivo de la Regla</label>
+                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeRegla.NombreRegla" placeholder="Ej: Jornada Mixta (7.5h = 8h Pagadas)" />
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Categoría de la Regla</label>
-                            <select class="form-select" @bind="activeRegla.Categoria">
+                            <label class="form-label fw-bold small" style="color: #334155;">Categoría de la Regla</label>
+                            <select class="form-select fw-semibold" style="color: #0f172a;" @bind="activeRegla.Categoria">
                                 <option value="JORNADA">📜 JORNADA (Capacidad Diurna/Nocturna/Mixta)</option>
                                 <option value="DESCANSO">📅 DESCANSO (Séptimo Día / Domingo)</option>
                                 <option value="FERIADO">🎉 FERIADO (Días Nacionales Ley 185)</option>
@@ -244,29 +240,29 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Artículo Ley 185 / Fuente</label>
-                            <input type="text" class="form-control" @bind="activeRegla.ArticuloLey" placeholder="Ej: Art. 51 y 53 CT" />
+                            <label class="form-label fw-bold small" style="color: #334155;">Artículo Ley 185 / Fuente</label>
+                            <input type="text" class="form-control" style="color: #0f172a;" @bind="activeRegla.ArticuloLey" placeholder="Ej: Art. 51 y 53 CT" />
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-bold small text-secondary">Descripción y Marco Jurídico / Comportamiento</label>
-                            <textarea class="form-control" rows="2" @bind="activeRegla.Descripcion" placeholder="Describa el comportamiento de este módulo..."></textarea>
+                            <label class="form-label fw-bold small" style="color: #334155;">Descripción y Marco Jurídico / Comportamiento</label>
+                            <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeRegla.Descripcion" placeholder="Describa el comportamiento de este módulo..."></textarea>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Función Evaluadora SQL</label>
-                            <input type="text" class="form-control font-monospace" @bind="activeRegla.EvaluadorFunc" placeholder="Ej: fn_regla_jornada_mixta" />
+                            <label class="form-label fw-bold small" style="color: #334155;">Función Evaluadora SQL</label>
+                            <input type="text" class="form-control font-monospace" style="color: #0f172a;" @bind="activeRegla.EvaluadorFunc" placeholder="Ej: fn_regla_jornada_mixta" />
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-secondary">Parámetros JSON de Configuración</label>
-                            <input type="text" class="form-control font-monospace" @bind="activeRegla.ParametrosJson" placeholder="{}" />
+                            <label class="form-label fw-bold small" style="color: #334155;">Parámetros JSON de Configuración</label>
+                            <input type="text" class="form-control font-monospace" style="color: #0f172a;" @bind="activeRegla.ParametrosJson" placeholder="{}" />
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
+                <div class="modal-footer border-top bg-light">
                     <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" @onclick="SaveRegla" disabled="@saving">
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveRegla" disabled="@saving">
                         @if (saving)
                         {
                             <span class="spinner-border spinner-border-sm me-1"></span>

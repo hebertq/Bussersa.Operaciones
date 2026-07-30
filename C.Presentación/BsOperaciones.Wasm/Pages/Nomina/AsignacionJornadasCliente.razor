@@ -6,22 +6,22 @@
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
 
-<div class="container-fluid p-4">
+<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh;">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
         <div>
-            <h2 class="fw-bold text-dark mb-1">
+            <h2 class="fw-bold mb-1" style="color: #0f172a;">
                 <i class="bi bi-building-gear text-primary me-2"></i>Asignación de Reglas de Jornada por Cliente (Ley 185)
             </h2>
-            <p class="text-muted small mb-0">
+            <p class="text-secondary small mb-0 fw-semibold">
                 Seleccione un cliente y estructura salarial para activar las **reglas atómicas del Código del Trabajo (Ley 185)** y definir el **corte de nómina (8-23 / 13-28)**.
             </p>
         </div>
         <div class="d-flex gap-2">
-            <a href="/nomina/reglas-jornadas" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-semibold">
+            <a href="/nomina/reglas-jornadas" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-bold">
                 <i class="bi bi-journal-check me-1"></i>Ver Catálogo de Reglas Ley 185
             </a>
-            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-semibold" @onclick="PrepareCreate">
+            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
                 <i class="bi bi-plus-lg me-1"></i>+ NUEVA ASIGNACIÓN A CLIENTE
             </button>
         </div>
@@ -30,40 +30,40 @@
     <!-- Stats summary badges -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm bg-primary text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-primary p-3 me-3 fs-4">
-                        <i class="bi bi-buildings-fill"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-buildings-fill text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">ASIGNACIONES ACTIVAS</div>
-                        <div class="fs-3 fw-bold">@asignacionesList.Count</div>
+                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm bg-info text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-info p-3 me-3 fs-4">
-                        <i class="bi bi-calendar-event"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-calendar-event text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">CORTE 8 Y 23 (DÍAS 9 - 24)</div>
-                        <div class="fs-3 fw-bold">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_8_23")</div>
+                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_8_23")</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card border-0 shadow-sm bg-secondary text-white rounded-3 p-3">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #475569 0%, #64748b 100%);">
                 <div class="d-flex align-items-center">
-                    <div class="rounded-circle bg-white text-secondary p-3 me-3 fs-4">
-                        <i class="bi bi-calendar2-range"></i>
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-calendar2-range text-white"></i>
                     </div>
                     <div>
                         <div class="text-white-50 small fw-bold">CORTE 13 Y 28 (DÍAS 14 - 29)</div>
-                        <div class="fs-3 fw-bold">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_13_28")</div>
+                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_13_28")</div>
                     </div>
                 </div>
             </div>
@@ -72,13 +72,13 @@
 
     <!-- Assignments List Card -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0 text-dark">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0" style="color: #0f172a;">
                 <i class="bi bi-list-check me-2 text-primary"></i>Configuración de Reglas por Cliente y Estructura Salarial (@asignacionesList.Count)
             </h5>
             <div class="input-group input-group-sm" style="max-width: 320px;">
-                <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
-                <input type="text" class="form-control bg-light border-0" placeholder="Buscar cliente o regla..." @bind="searchText" @bind:event="oninput" />
+                <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar cliente..." @bind="searchText" @bind:event="oninput" />
             </div>
         </div>
 
@@ -87,63 +87,63 @@
             {
                 <div class="text-center py-5">
                     <div class="spinner-border text-primary" role="status"></div>
-                    <p class="text-muted mt-2">Cargando asignaciones de clientes...</p>
+                    <p class="text-dark fw-semibold mt-2">Cargando asignaciones de clientes...</p>
                 </div>
             }
             else if (!FilteredAsignaciones.Any())
             {
                 <div class="text-center py-5">
-                    <i class="bi bi-inbox text-muted display-4"></i>
-                    <p class="text-muted mt-2">No se encontraron asignaciones registradas.</p>
+                    <i class="bi bi-inbox text-secondary display-4"></i>
+                    <p class="text-secondary fw-semibold mt-2">No se encontraron asignaciones registradas.</p>
                 </div>
             }
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light text-secondary small text-uppercase">
+                    <table class="table table-hover align-middle mb-0" style="color: #0f172a;">
+                        <thead style="background-color: #f1f5f9; color: #334155;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
-                                <th style="width: 50px;" class="ps-3">ID</th>
-                                <th>Cliente / Operación</th>
-                                <th>Estructura Salarial</th>
-                                <th>Corte de Nómina</th>
-                                <th>Reglas Atómicas Activas Aplicadas</th>
-                                <th>Observaciones</th>
-                                <th class="text-end pe-3">Acciones</th>
+                                <th style="width: 60px;" class="ps-3 py-3">ID</th>
+                                <th style="width: 220px;" class="py-3">Cliente / Operación</th>
+                                <th style="width: 200px;" class="py-3">Estructura Salarial</th>
+                                <th style="width: 150px;" class="py-3">Corte de Nómina</th>
+                                <th class="py-3">Reglas Atómicas Activas Aplicadas</th>
+                                <th style="width: 180px;" class="py-3">Observaciones</th>
+                                <th style="width: 110px;" class="text-end pe-3 py-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var a in FilteredAsignaciones)
                             {
-                                <tr>
-                                    <td class="ps-3 fw-bold text-muted">#@a.Id</td>
-                                    <td>
-                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-1 fw-bold fs-6">
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td class="ps-3 py-3 fw-bold" style="color: #64748b;">#@a.Id</td>
+                                    <td class="py-3">
+                                        <span class="fw-bold px-3 py-1 rounded-pill" style="background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.9rem;">
                                             @a.OperacionNombre
                                         </span>
                                     </td>
-                                    <td>
-                                        <span class="small fw-semibold text-dark">@a.EstructuraSalarialNombre</span>
+                                    <td class="py-3">
+                                        <span class="fw-bold" style="color: #0f172a; font-size: 0.88rem;">@a.EstructuraSalarialNombre</span>
                                     </td>
-                                    <td>
+                                    <td class="py-3">
                                         @if (a.CorteNominaTipo == "CORTE_8_23")
                                         {
-                                            <span class="badge bg-info text-white rounded-pill px-3 py-1 fw-bold">
+                                            <span class="badge px-3 py-1 rounded-pill text-white fw-bold" style="background-color: #0284c7;">
                                                 Corte 8 y 23
                                             </span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-secondary text-white rounded-pill px-3 py-1 fw-bold">
+                                            <span class="badge px-3 py-1 rounded-pill text-white fw-bold" style="background-color: #475569;">
                                                 Corte 13 y 28
                                             </span>
                                         }
                                     </td>
-                                    <td>
-                                        <div class="d-flex flex-wrap gap-1" style="max-width: 480px;">
+                                    <td class="py-3">
+                                        <div class="d-flex flex-wrap gap-1" style="max-width: 520px;">
                                             @if (a.ReglasActivas == null || !a.ReglasActivas.Any())
                                             {
-                                                <span class="badge bg-light text-muted border">Sin reglas activas</span>
+                                                <span class="badge bg-light text-dark border">Sin reglas activas</span>
                                             }
                                             else
                                             {
@@ -155,19 +155,19 @@
 
                                                     @if (category == "JORNADA")
                                                     {
-                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1 small" title="@label">
+                                                        <span class="px-2 py-1 rounded-pill fw-bold" style="background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; font-size: 0.75rem;" title="@label">
                                                             <i class="bi bi-clock me-1"></i>@label
                                                         </span>
                                                     }
                                                     else if (category == "DESCANSO" || category == "FERIADO")
                                                     {
-                                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25 rounded-pill px-2 py-1 small" title="@label">
+                                                        <span class="px-2 py-1 rounded-pill fw-bold" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem;" title="@label">
                                                             <i class="bi bi-calendar-event me-1"></i>@label
                                                         </span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1 small" title="@label">
+                                                        <span class="px-2 py-1 rounded-pill fw-bold" style="background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 0.75rem;" title="@label">
                                                             <i class="bi bi-check2-circle me-1"></i>@label
                                                         </span>
                                                     }
@@ -175,16 +175,18 @@
                                             }
                                         </div>
                                     </td>
-                                    <td>
-                                        <span class="text-muted small">@(string.IsNullOrWhiteSpace(a.Observaciones) ? "-" : a.Observaciones)</span>
+                                    <td class="py-3">
+                                        <span class="small" style="color: #475569;">@(string.IsNullOrWhiteSpace(a.Observaciones) ? "-" : a.Observaciones)</span>
                                     </td>
-                                    <td class="text-end pe-3">
-                                        <button class="btn btn-outline-primary btn-sm rounded-circle me-1" title="Editar Reglas Asignadas" @onclick="() => EditAsignacion(a)">
-                                            <i class="bi bi-pencil-fill"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar Asignación" @onclick="() => DeleteAsignacion(a.Id)">
-                                            <i class="bi bi-trash-fill"></i>
-                                        </button>
+                                    <td class="text-end pe-3 py-3">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-primary btn-sm me-1 px-2 rounded" title="Editar Reglas Asignadas" @onclick="() => EditAsignacion(a)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm px-2 rounded" title="Eliminar Asignación" @onclick="() => DeleteAsignacion(a.Id)">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -199,21 +201,21 @@
 <!-- Modal Form Asignación Modular -->
 @if (showModal)
 {
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow">
+            <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">
                         <i class="bi bi-sliders me-2"></i>Configuración y Asignación de Reglas de Jornada por Cliente
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
-                <div class="modal-body p-4">
+                <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
                     <!-- General settings -->
                     <div class="row g-3 mb-4 pb-3 border-bottom">
                         <div class="col-md-5">
-                            <label class="form-label fw-bold small text-secondary">Cliente / Operación</label>
-                            <select class="form-select" @bind="activeAsignacion.OperacionId">
+                            <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.OperacionId">
                                 <option value="">🌐 GLOBAL (Todas las operaciones)</option>
                                 @foreach (var op in operacionesList)
                                 {
@@ -223,8 +225,8 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-secondary">Estructura Salarial</label>
-                            <select class="form-select" @bind="activeAsignacion.EstructuraSalarialId">
+                            <label class="form-label fw-bold small" style="color: #334155;">Estructura Salarial</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.EstructuraSalarialId">
                                 <option value="">Todas las Estructuras Salariales</option>
                                 @foreach (var est in estructurasList)
                                 {
@@ -234,8 +236,8 @@
                         </div>
 
                         <div class="col-md-3">
-                            <label class="form-label fw-bold small text-secondary">Corte de Nómina</label>
-                            <select class="form-select" @bind="activeAsignacion.CorteNominaTipo">
+                            <label class="form-label fw-bold small" style="color: #334155;">Corte de Nómina</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.CorteNominaTipo">
                                 <option value="CORTE_8_23">Corte 8 y 23 (Días 9 - 24)</option>
                                 <option value="CORTE_13_28">Corte 13 y 28 (Días 14 - 29)</option>
                             </select>
@@ -243,15 +245,15 @@
                     </div>
 
                     <!-- Multi-select atomic rules checkboxes -->
-                    <h6 class="fw-bold text-dark mb-3">
+                    <h6 class="fw-bold mb-3" style="color: #0f172a;">
                         <i class="bi bi-check2-square text-primary me-2"></i>Seleccione las Reglas Atómicas que Aplican a este Cliente:
                     </h6>
 
                     <div class="row g-3">
                         <!-- Group 1: Capacidad de Jornadas Ley 185 -->
                         <div class="col-12">
-                            <div class="card border border-success border-opacity-25 bg-success bg-opacity-10 rounded-3 p-3">
-                                <h6 class="fw-bold text-success mb-2">
+                            <div class="card border rounded-3 p-3" style="background-color: #ecfdf5; border-color: #a7f3d0 !important;">
+                                <h6 class="fw-bold mb-2" style="color: #065f46;">
                                     <i class="bi bi-clock me-1"></i>1. Capacidad de Jornadas y Conversión Nocturna (Art. 51 y 53 CT)
                                 </h6>
                                 <div class="row g-2">
@@ -262,10 +264,10 @@
                                                 <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
                                                        checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
                                                        @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold text-dark" for="@r.CodigoRegla">
+                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
                                                     @r.NombreRegla
                                                 </label>
-                                                <div class="text-muted small ps-1">@r.Descripcion</div>
+                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
                                             </div>
                                         </div>
                                     }
@@ -275,8 +277,8 @@
 
                         <!-- Group 2: Séptimo Día y Feriados -->
                         <div class="col-12">
-                            <div class="card border border-warning border-opacity-25 bg-warning bg-opacity-10 rounded-3 p-3">
-                                <h6 class="fw-bold text-dark mb-2">
+                            <div class="card border rounded-3 p-3" style="background-color: #fffbeb; border-color: #fde68a !important;">
+                                <h6 class="fw-bold mb-2" style="color: #92400e;">
                                     <i class="bi bi-calendar-event me-1"></i>2. Recargos por Séptimo Día y Feriados Ley 185 (Art. 64-67 CT)
                                 </h6>
                                 <div class="row g-2">
@@ -287,10 +289,10 @@
                                                 <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
                                                        checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
                                                        @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold text-dark" for="@r.CodigoRegla">
+                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
                                                     @r.NombreRegla
                                                 </label>
-                                                <div class="text-muted small ps-1">@r.Descripcion</div>
+                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
                                             </div>
                                         </div>
                                     }
@@ -300,8 +302,8 @@
 
                         <!-- Group 3: Turnos Operativos & Extras -->
                         <div class="col-12">
-                            <div class="card border border-info border-opacity-25 bg-info bg-opacity-10 rounded-3 p-3">
-                                <h6 class="fw-bold text-info mb-2">
+                            <div class="card border rounded-3 p-3" style="background-color: #f0f9ff; border-color: #bae6fd !important;">
+                                <h6 class="fw-bold mb-2" style="color: #0369a1;">
                                     <i class="bi bi-gear-wide-connected me-1"></i>3. Turnos Operativos Específicos & Extras (Art. 54 CT & Convenios)
                                 </h6>
                                 <div class="row g-2">
@@ -312,10 +314,10 @@
                                                 <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
                                                        checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
                                                        @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold text-dark" for="@r.CodigoRegla">
+                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
                                                     @r.NombreRegla
                                                 </label>
-                                                <div class="text-muted small ps-1">@r.Descripcion</div>
+                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
                                             </div>
                                         </div>
                                     }
@@ -324,14 +326,14 @@
                         </div>
 
                         <div class="col-12 mt-3">
-                            <label class="form-label fw-bold small text-secondary">Observaciones / Notas de la Asignación</label>
-                            <textarea class="form-control" rows="2" @bind="activeAsignacion.Observaciones" placeholder="Notas sobre esta asignación..."></textarea>
+                            <label class="form-label fw-bold small" style="color: #334155;">Observaciones / Notas de la Asignación</label>
+                            <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeAsignacion.Observaciones" placeholder="Notas sobre esta asignación..."></textarea>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
+                <div class="modal-footer border-top bg-light">
                     <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4" @onclick="SaveAsignacion" disabled="@saving">
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveAsignacion" disabled="@saving">
                         @if (saving)
                         {
                             <span class="spinner-border spinner-border-sm me-1"></span>
