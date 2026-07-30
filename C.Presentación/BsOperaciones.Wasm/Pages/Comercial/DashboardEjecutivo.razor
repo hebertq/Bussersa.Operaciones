@@ -1,308 +1,308 @@
 @page "/comercial/dashboard"
 @using Modelo.Comercial
+@using Modelo.Entidades.Entradas.Odoo
 @using HostService.Interfaces
 @using Microsoft.AspNetCore.Components.Forms
 @inject IOdooService _OdooService
 @inject ISnackbar Snackbar
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-12">
-    <div class="d-flex justify-space-between align-center flex-wrap mb-6">
-        <MudText Typo="Typo.h4" Class="font-bold" Style="background: linear-gradient(90deg, #1A237E, #0D47A1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            Dashboard Ejecutivo de Rentabilidad (CBC)
-        </MudText>
+<style>
+    .page-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .status-badge-error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .status-badge-warning {
+        background: #fefce8;
+        color: #854d0e;
+        border: 1px solid #fef08a;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .status-badge-success {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+</style>
+
+<div class="page-container">
+    <div class="d-flex justify-between align-center flex-wrap mb-4">
+        <div>
+            <MudText Typo="Typo.h4" Class="font-bold" Style="background: linear-gradient(90deg, #1A237E, #0D47A1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                Dashboard Ejecutivo de Rentabilidad por Empresa
+            </MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Monitoreo continuo de ingresos, costos operativos y margen de utilidad para ajuste de precios y toma de decisiones.
+            </MudText>
+        </div>
         
         <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" OnClick="OpenUploadDialog" Class="font-bold">
-            Importar Datos de Excel
+            Importar Excel CBC
         </MudButton>
     </div>
 
-    <!-- Barra de Filtros -->
-    <MudPaper Class="pa-4 mb-6" Elevation="2" Style="border-radius: 8px;">
-        <MudGrid AlignItems="AlignItems.Center">
-            <MudItem XS="12" SM="4">
-                <MudSelect T="string" Label="Seleccionar Período (Mes)" @bind-Value="selectedMonth" SelectedValuesChanged="OnFiltersChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    @if (availableMonths.Count == 0)
-                    {
-                        <MudSelectItem Value="@("")">Ninguno (Sube un Excel)</MudSelectItem>
-                    }
-                    @foreach (var m in availableMonths)
-                    {
-                        <MudSelectItem Value="@m">@m</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem XS="12" SM="4">
-                <MudSelect T="string" Label="Turno" @bind-Value="selectedTurn" SelectedValuesChanged="OnFiltersChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem Value="@("TODOS")">TODOS los Turnos</MudSelectItem>
-                    <MudSelectItem Value="@("DIA")">Turno DÍA</MudSelectItem>
-                    <MudSelectItem Value="@("NOCHE")">Turno NOCHE</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem XS="12" SM="4" Class="text-right">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadDashboard" StartIcon="@Icons.Material.Filled.Refresh">
-                    Actualizar
-                </MudButton>
-            </MudItem>
-        </MudGrid>
-    </MudPaper>
-
-    @if (isLoading)
-    {
-        <div class="d-flex justify-center my-12">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        </div>
-    }
-    else if (dashboardData == null)
-    {
-        <!-- Estado Vacío y Formulario de Carga Directa -->
-        <MudPaper Class="pa-12 text-center my-6" Elevation="2" Style="border-radius: 12px; border: 2px dashed #BDBDBD; background: #FAFAFA;">
-            <MudIcon Icon="@Icons.Material.Filled.InsertChartOutlined" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
-            <MudText Typo="Typo.h5" Class="mb-2 font-bold">No hay datos para mostrar</MudText>
-            <MudText Typo="Typo.body1" Class="text-muted mb-6">Por favor, selecciona un mes disponible o sube el reporte consolidado de rentabilidad Excel para comenzar.</MudText>
+    <MudTabs Elevation="2" Rounded="true" PanelClass="pa-4" Color="Color.Primary" Class="mb-6">
+        <!-- PESTAÑA 1: RENTABILIDAD REAL POR EMPRESA (SISTEMA) -->
+        <MudTabPanel Text="Rentabilidad Real por Empresa (Sistema Operaciones)" Icon="@Icons.Material.Filled.BusinessCenter">
             
-            <div style="max-width: 500px; margin: 0 auto;">
-                <MudPaper Class="pa-6 text-left" Elevation="3" Style="border-radius: 8px;">
-                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-4">Cargar Nuevo Archivo Excel</MudText>
-                    
-                    <MudTextField @bind-Value="uploadMonth" Label="Mes del Reporte (ej. 2026-06)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" HelperText="Formato: AAAA-MM" />
-                    
-                    <InputFile id="fileInput" OnChange="UploadFile" hidden accept=".xlsx" />
-                    <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload" For="fileInput" FullWidth="true" Class="py-3">
-                        Seleccionar Archivo y Procesar
-                    </MudButton>
-                    @if (isUploading)
-                    {
-                        <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="mt-3" />
-                    }
-                </MudPaper>
-            </div>
-        </MudPaper>
-    }
-    else
-    {
-        <!-- Contenedor del Dashboard Cargado -->
-        <!-- Tarjetas de KPIs Financieros -->
-        <MudText Typo="Typo.h5" Class="font-bold mb-4" Color="Color.Primary">Indicadores Clave de Rentabilidad</MudText>
-        <MudGrid Class="mb-6">
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #1E88E5; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">INGRESOS TOTALES</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Primary">C$ @dashboardData.Kpis.IngresosTotales.ToString("N2")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #D32F2F; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO OPERATIVO</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Error">C$ @dashboardData.Kpis.CostoTotalOperativo.ToString("N2")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #388E3C; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD PRODUCIDA</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Success">C$ @dashboardData.Kpis.UtilidadProducida.ToString("N2")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #4CAF50; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">MARGEN PROD. %</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #4CAF50;">@dashboardData.Kpis.MargenProduccionPercent.ToString("N2")%</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #2E7D32; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD NETA</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #2E7D32;">C$ @dashboardData.Kpis.UtilidadNeta.ToString("N2")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="4" MD="2">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #00E676; border-radius: 6px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">MARGEN NETO %</MudText>
-                    <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #00C853;">@dashboardData.Kpis.MargenNetoPercent.ToString("N2")%</MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+            <!-- Filtros de Rango de Fechas -->
+            <MudPaper Class="pa-4 mb-6 mt-4" Elevation="1" Style="border-radius: 8px; background: white;">
+                <MudGrid AlignItems="AlignItems.Center">
+                    <MudItem XS="12" SM="4">
+                        <MudDateRangePicker Label="Rango de Fechas de Producción" @bind-DateRange="dateRangeReal" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem XS="12" SM="4">
+                        <MudSelect T="string" Label="Empresa / Cliente" @bind-Value="selectedClienteReal" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                            <MudSelectItem T="string" Value="@((string)null)">Todas las Empresas</MudSelectItem>
+                            @foreach (var emp in empresasDisponibles)
+                            {
+                                <MudSelectItem Value="@emp">@emp</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" Class="d-flex gap-2 justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarRentabilidadReal" StartIcon="@Icons.Material.Filled.Refresh">
+                            Consultar Rentabilidad
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
 
-        <!-- Tarjetas de KPIs Físicos -->
-        <MudGrid Class="mb-6">
-            <MudItem XS="12" SM="6" MD="3">
-                <MudPaper Class="pa-4 d-flex align-center justify-space-between" Style="border-radius: 8px;" Elevation="3">
-                    <div>
-                        <MudText Typo="Typo.caption" Class="text-muted font-bold">UNIDADES PACK</MudText>
-                        <MudText Typo="Typo.h5" Class="font-bold">@dashboardData.Kpis.UnidadesProducidas.ToString("N0")</MudText>
-                    </div>
-                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Size="Size.Large" />
+            @if (isLoadingReal)
+            {
+                <div class="d-flex justify-center my-12">
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                </div>
+            }
+            else if (rentabilidadEmpresas == null || !rentabilidadEmpresas.Any())
+            {
+                <MudPaper Class="pa-8 text-center my-4" Elevation="1" Style="border-radius: 8px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-2" />
+                    <MudText Typo="Typo.h6">No se encontraron registros de producción para el período seleccionado.</MudText>
                 </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
-                <MudPaper Class="pa-4 d-flex align-center justify-space-between" Style="border-radius: 8px;" Elevation="3">
-                    <div>
-                        <MudText Typo="Typo.caption" Class="text-muted font-bold">ETIQUETAS PROCESADAS</MudText>
-                        <MudText Typo="Typo.h5" Class="font-bold">@dashboardData.Kpis.EtiquetasProcesadas.ToString("N0")</MudText>
-                    </div>
-                    <MudIcon Icon="@Icons.Material.Filled.QrCode" Color="Color.Secondary" Size="Size.Large" />
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
-                <MudPaper Class="pa-4 d-flex align-center justify-space-between" Style="border-radius: 8px;" Elevation="3">
-                    <div>
-                        <MudText Typo="Typo.caption" Class="text-muted font-bold">REPOSICIÓN PALETIZANTE</MudText>
-                        <MudText Typo="Typo.h5" Class="font-bold">C$ @dashboardData.Kpis.ReposicionPaletizante.ToString("N2")</MudText>
-                    </div>
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory2" Color="Color.Warning" Size="Size.Large" />
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
-                <MudPaper Class="pa-4 d-flex align-center justify-space-between" Style="border-radius: 8px;" Elevation="3">
-                    <div>
-                        <MudText Typo="Typo.caption" Class="text-muted font-bold">INGRESOS HORAS EXTRAS</MudText>
-                        <MudText Typo="Typo.h5" Class="font-bold" Style="color: #2E7D32;">C$ @dashboardData.Kpis.IngresosHExtras.ToString("N2")</MudText>
-                    </div>
-                    <MudIcon Icon="@Icons.Material.Filled.MoreTime" Color="Color.Success" Size="Size.Large" />
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+            }
+            else
+            {
+                <!-- Tarjetas KPI Generales -->
+                <MudGrid Class="mb-6">
+                    <MudItem XS="12" SM="6" MD="3">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #1E88E5; border-radius: 8px;" Elevation="2">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">INGRESOS TOTALES FACTURABLES</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Primary">C$ @totalIngresosReal.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="6" MD="3">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #E53935; border-radius: 8px;" Elevation="2">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO OPERATIVO ESTIMADO</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Error">C$ @totalCostoReal.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="6" MD="3">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #43A047; border-radius: 8px;" Elevation="2">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD BRUTA TOTAL</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Success">C$ @totalUtilidadReal.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="6" MD="3">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #8E24AA; border-radius: 8px;" Elevation="2">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">% RENTABILIDAD PROMEDIO</MudText>
+                            <MudText Typo="Typo.h5" Class="font-bold mt-2" Style="color: #8E24AA;">@promedioMargenReal.ToString("N2")%</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
 
-        <!-- Sección Detecciones Automáticas del Mix -->
-        <MudText Typo="Typo.h5" Class="font-bold mb-4" Color="Color.Primary">Análisis del Período (Detecciones del Mix)</MudText>
-        <MudGrid Class="mb-6">
-            <MudItem XS="12" MD="4">
-                <MudPaper Class="pa-4 border-t-4" Style="border-top-color: #1E88E5; border-radius: 6px;" Elevation="3">
-                    <div class="d-flex align-center mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Primary" Class="mr-2" />
-                        <MudText Typo="Typo.subtitle1" Class="font-bold">Mayor Volumen de Venta</MudText>
-                    </div>
-                    <MudText Typo="Typo.body1" Class="font-semibold text-muted">@dashboardData.Kpis.ProductoMayorVolumen</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" MD="4">
-                <MudPaper Class="pa-4 border-t-4" Style="border-top-color: #FFB300; border-radius: 6px;" Elevation="3">
-                    <div class="d-flex align-center mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Color="Color.Warning" Class="mr-2" />
-                        <MudText Typo="Typo.subtitle1" Class="font-bold">Menor Volumen de Venta</MudText>
-                    </div>
-                    <MudText Typo="Typo.body1" Class="font-semibold text-muted">@dashboardData.Kpis.ProductoMenorVolumen</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem XS="12" MD="4">
-                <MudPaper Class="pa-4 border-t-4" Style="border-top-color: #D32F2F; border-radius: 6px;" Elevation="3">
-                    <div class="d-flex align-center mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" Class="mr-2" />
-                        <MudText Typo="Typo.subtitle1" Class="font-bold">Menor Margen de Ganancia (Fuga)</MudText>
-                    </div>
-                    <MudText Typo="Typo.body1" Class="font-semibold text-error">@dashboardData.Kpis.ProductoMenorMargen</MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+                <!-- Tabla de Rentabilidad por Empresa -->
+                <MudCard Elevation="2" Class="pa-4 mb-6" Style="border-radius: 8px;">
+                    <MudText Typo="Typo.h6" Class="mb-4 font-bold d-flex align-items-center gap-2" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Assessment" />
+                        Desglose de Rentabilidad y Estimación de Precios por Empresa
+                    </MudText>
 
-        <!-- Fila de Mapa de Calor y Análisis de Turnos -->
-        <MudGrid Class="mb-6">
-            <!-- Mapa de Calor -->
-            <MudItem XS="12" LG="8">
-                <MudCard Elevation="3" Class="pa-4" Style="border-radius: 8px; height: 100%;">
-                    <MudText Typo="Typo.h6" Class="mb-4 font-bold" Color="Color.Primary">Mapa de Calor: Rentabilidad Diaria por Turno</MudText>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-bordered text-center" style="width: 100%; border-collapse: collapse; border: 1px solid #E0E0E0;">
-                            <thead>
-                                <tr style="background-color: #F5F5F5;">
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Semana</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Lunes</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Martes</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Miércoles</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Jueves</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Viernes</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Sábado</th>
-                                    <th style="padding: 10px; border: 1px solid #E0E0E0;">Domingo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @{
-                                    var weeks = dashboardData.Heatmap.Select(x => x.Semana).Distinct().OrderBy(x => x).ToList();
-                                }
-                                @foreach (var w in weeks)
-                                {
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #E0E0E0; font-weight: bold; background-color: #FAFAFA;">@w</td>
-                                        @foreach (var d in new[] { "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo" })
-                                        {
-                                            var cell = dashboardData.Heatmap.FirstOrDefault(x => x.Semana == w && x.DiaSemana == d);
-                                            <td style="padding: 10px; border: 1px solid #E0E0E0; font-weight: 500; @GetHeatmapStyle(cell?.MargenPercent)">
-                                                @(cell != null && cell.MargenPercent != 0 ? $"{cell.MargenPercent.ToString("N2")}%" : "-")
-                                            </td>
-                                        }
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Leyenda del mapa de calor -->
-                    <div class="d-flex flex-wrap gap-4 justify-center mt-4">
-                        <div class="d-flex align-center"><span style="display:inline-block; width:15px; height:15px; background:#1B5E20; margin-right:5px; border-radius:3px;"></span> Excelente (&gt;50%)</div>
-                        <div class="d-flex align-center"><span style="display:inline-block; width:15px; height:15px; background:#4CAF50; margin-right:5px; border-radius:3px;"></span> Bueno (25-50%)</div>
-                        <div class="d-flex align-center"><span style="display:inline-block; width:15px; height:15px; background:#FFF176; margin-right:5px; border-radius:3px; border:1px solid #ccc;"></span> Regular (0-25%)</div>
-                        <div class="d-flex align-center"><span style="display:inline-block; width:15px; height:15px; background:#FFCDD2; margin-right:5px; border-radius:3px;"></span> Pérdida (&lt;0%)</div>
-                    </div>
-                </MudCard>
-            </MudItem>
-
-            <!-- Análisis de Turnos -->
-            <MudItem XS="12" LG="4">
-                <MudCard Elevation="3" Class="pa-4" Style="border-radius: 8px; height: 100%;">
-                    <MudText Typo="Typo.h6" Class="mb-4 font-bold" Color="Color.Primary">Comparativa Turno DÍA vs NOCHE</MudText>
-                    
-                    <MudTable Items="dashboardData.TurnComparisonList" Hover="true" Dense="true" Elevation="0">
+                    <MudTable Items="rentabilidadEmpresas" Hover="true" Striped="true" Dense="true">
                         <HeaderContent>
-                            <MudTh>Métrica</MudTh>
-                            <MudTh>Día</MudTh>
-                            <MudTh>Noche</MudTh>
-                            <MudTh>Mejor</MudTh>
+                            <MudTh>Empresa / Cliente</MudTh>
+                            <MudTh Style="text-align:center;">Servicios</MudTh>
+                            <MudTh Style="text-align:center;">Proformas</MudTh>
+                            <MudTh Style="text-align:center;">Facturas</MudTh>
+                            <MudTh Style="text-align:right;">Ingreso Total (C$)</MudTh>
+                            <MudTh Style="text-align:right;">Costo Operativo (C$)</MudTh>
+                            <MudTh Style="text-align:right;">Utilidad Bruta (C$)</MudTh>
+                            <MudTh Style="text-align:center;">Margen %</MudTh>
+                            <MudTh Style="text-align:center;">Recomendación Tarifaria</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd Style="font-size:13px; font-weight:bold;">@context.Metrica</MudTd>
-                            <MudTd Style="font-size:13px;">@context.TurnoDia</MudTd>
-                            <MudTd Style="font-size:13px;">@context.TurnoNoche</MudTd>
-                            <MudTd Style="font-size:13px;">
-                                <MudChip T="string" Color="@(context.MejorTurno.Contains("DIA") ? Color.Primary : Color.Secondary)" Size="Size.Small">
-                                    @(context.MejorTurno.Split(' ').FirstOrDefault())
-                                </MudChip>
+                            <MudTd Class="font-bold text-dark">@context.Cliente</MudTd>
+                            <MudTd Style="text-align:center;">@context.CantidadServicios</MudTd>
+                            <MudTd Style="text-align:center;">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.TotalProformas</MudChip>
+                            </MudTd>
+                            <MudTd Style="text-align:center;">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">@context.TotalFacturas</MudChip>
+                            </MudTd>
+                            <MudTd Style="text-align:right; font-weight:600;">C$ @context.IngresosTotales.ToString("N2")</MudTd>
+                            <MudTd Style="text-align:right; color:#d32f2f;">C$ @context.CostoOperativoEstimado.ToString("N2")</MudTd>
+                            <MudTd Style="text-align:right; font-weight:bold;" Class="@(context.UtilidadEstimada < 0 ? "text-error" : "text-success")">
+                                C$ @context.UtilidadEstimada.ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align:center; font-weight:bold;">
+                                <span style="color: @(context.MargenPercent < 20m ? "#d32f2f" : (context.MargenPercent <= 35m ? "#f59e0b" : "#166534"));">
+                                    @context.MargenPercent.ToString("N2")%
+                                </span>
+                            </MudTd>
+                            <MudTd Style="text-align:center;">
+                                @if (context.MargenPercent < 20m)
+                                {
+                                    <span class="status-badge-error">🔴 Reajustar Tarifa (+Precio)</span>
+                                }
+                                else if (context.MargenPercent <= 35m)
+                                {
+                                    <span class="status-badge-warning">🟡 Rentabilidad Aceptable</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge-success">🟢 Rentabilidad Óptima</span>
+                                }
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
                 </MudCard>
-            </MudItem>
-        </MudGrid>
+            }
+        </MudTabPanel>
 
-        <!-- Tabla Detallada SKU -->
-        <MudCard Elevation="3" Class="pa-4" Style="border-radius: 8px;">
-            <MudText Typo="Typo.h6" Class="mb-4 font-bold" Color="Color.Primary">Desempeño y Margen Neto por SKU / Producto</MudText>
-            <MudTable Items="dashboardData.SkuPerformanceList" Hover="true" Class="mb-2">
-                <HeaderContent>
-                    <MudTh>SKU / Producto</MudTh>
-                    <MudTh>Unidades (Packs)</MudTh>
-                    <MudTh>Ingreso Total (C$)</MudTh>
-                    <MudTh>Costo Asignado (C$)</MudTh>
-                    <MudTh>Utilidad Neta (C$)</MudTh>
-                    <MudTh>Margen Neto (%)</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.Producto</MudTd>
-                    <MudTd>@context.UnidadesProducidas.ToString("N0")</MudTd>
-                    <MudTd>C$ @context.IngresoTotal.ToString("N2")</MudTd>
-                    <MudTd>C$ @context.CostoTotalAsignado.ToString("N2")</MudTd>
-                    <MudTd Class="@(context.UtilidadNetaReal < 0 ? "text-error font-bold" : "text-success font-bold")">
-                        C$ @context.UtilidadNetaReal.ToString("N2")
-                    </MudTd>
-                    <MudTd Style="@(context.MargenNetoPercent < 0 ? "color:#D32F2F; font-weight:bold;" : "color:#2E7D32; font-weight:bold;")">
-                        @context.MargenNetoPercent.ToString("N2")%
-                    </MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudCard>
-    }
+        <!-- PESTAÑA 2: CONSOLIDADO CBC (CARGA EXCEL) -->
+        <MudTabPanel Text="Consolidado CBC (Carga Excel)" Icon="@Icons.Material.Filled.TableChart">
+            <!-- Barra de Filtros CBC -->
+            <MudPaper Class="pa-4 mb-6 mt-4" Elevation="1" Style="border-radius: 8px;">
+                <MudGrid AlignItems="AlignItems.Center">
+                    <MudItem XS="12" SM="4">
+                        <MudSelect T="string" Label="Seleccionar Período (Mes)" @bind-Value="selectedMonth" SelectedValuesChanged="OnFiltersChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            @if (availableMonths.Count == 0)
+                            {
+                                <MudSelectItem Value="@("")">Ninguno (Sube un Excel)</MudSelectItem>
+                            }
+                            @foreach (var m in availableMonths)
+                            {
+                                <MudSelectItem Value="@m">@m</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem XS="12" SM="4">
+                        <MudSelect T="string" Label="Turno" @bind-Value="selectedTurn" SelectedValuesChanged="OnFiltersChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="@("TODOS")">TODOS los Turnos</MudSelectItem>
+                            <MudSelectItem Value="@("DIA")">Turno DÍA</MudSelectItem>
+                            <MudSelectItem Value="@("NOCHE")">Turno NOCHE</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" Class="text-right">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadDashboard" StartIcon="@Icons.Material.Filled.Refresh">
+                            Actualizar CBC
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
 
-    <!-- Dialogo para Importar Excel -->
+            @if (isLoading)
+            {
+                <div class="d-flex justify-center my-12">
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                </div>
+            }
+            else if (dashboardData == null)
+            {
+                <!-- Estado Vacío y Formulario de Carga Directa -->
+                <MudPaper Class="pa-12 text-center my-6" Elevation="2" Style="border-radius: 12px; border: 2px dashed #BDBDBD; background: #FAFAFA;">
+                    <MudIcon Icon="@Icons.Material.Filled.InsertChartOutlined" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 64px;" />
+                    <MudText Typo="Typo.h5" Class="mb-2 font-bold">No hay datos para mostrar</MudText>
+                    <MudText Typo="Typo.body1" Class="text-muted mb-6">Por favor, selecciona un mes disponible o sube el reporte consolidado de rentabilidad Excel para comenzar.</MudText>
+                    
+                    <div style="max-width: 500px; margin: 0 auto;">
+                        <MudPaper Class="pa-6 text-left" Elevation="3" Style="border-radius: 8px;">
+                            <MudText Typo="Typo.subtitle1" Class="font-bold mb-4">Cargar Nuevo Archivo Excel</MudText>
+                            
+                            <MudTextField @bind-Value="uploadMonth" Label="Mes del Reporte (ej. 2026-06)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" HelperText="Formato: AAAA-MM" />
+                            
+                            <InputFile id="fileInput" OnChange="UploadFile" hidden accept=".xlsx" />
+                            <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload" For="fileInput" FullWidth="true" Class="py-3">
+                                Seleccionar Archivo y Procesar
+                            </MudButton>
+                            @if (isUploading)
+                            {
+                                <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="mt-3" />
+                            }
+                        </MudPaper>
+                    </div>
+                </MudPaper>
+            }
+            else
+            {
+                <!-- Contenedor del Dashboard Cargado CBC -->
+                <MudText Typo="Typo.h5" Class="font-bold mb-4" Color="Color.Primary">Indicadores Clave CBC</MudText>
+                <MudGrid Class="mb-6">
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #1E88E5; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">INGRESOS TOTALES</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Primary">C$ @dashboardData.Kpis.IngresosTotales.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #D32F2F; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO OPERATIVO</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Error">C$ @dashboardData.Kpis.CostoTotalOperativo.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #388E3C; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD PRODUCIDA</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Color="Color.Success">C$ @dashboardData.Kpis.UtilidadProducida.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #4CAF50; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">MARGEN PROD. %</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #4CAF50;">@dashboardData.Kpis.MargenProduccionPercent.ToString("N2")%</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #2E7D32; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD NETA</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #2E7D32;">C$ @dashboardData.Kpis.UtilidadNeta.ToString("N2")</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem XS="12" SM="4" MD="2">
+                        <MudPaper Class="pa-4 text-center border-l-4" Style="border-left-color: #00E676; border-radius: 6px;" Elevation="3">
+                            <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">MARGEN NETO %</MudText>
+                            <MudText Typo="Typo.h6" Class="font-bold mt-2" Style="color: #00C853;">@dashboardData.Kpis.MargenNetoPercent.ToString("N2")%</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudTabPanel>
+    </MudTabs>
+
+    <!-- Dialogo para Importar Excel CBC -->
     <MudDialog @bind-IsVisible="isUploadDialogOpen" Options="dialogOptions">
         <TitleContent>
             <MudText Typo="Typo.h6" Class="font-bold">Importar Datos de Excel ( CBC Consolidated )</MudText>
@@ -325,7 +325,7 @@
             <MudButton Color="Color.Error" OnClick="@(() => isUploadDialogOpen = false)">Cerrar</MudButton>
         </DialogActions>
     </MudDialog>
-</MudContainer>
+</div>
 
 @code {
     private string selectedMonth = "";
@@ -338,15 +338,115 @@
     private List<string> availableMonths = new List<string>();
     private DashboardResponse dashboardData = null;
 
+    // --- VARIABLES DE RENTABILIDAD REAL POR EMPRESA ---
+    private DateRange dateRangeReal = new DateRange(DateTime.Now.AddMonths(-1), DateTime.Now);
+    private string selectedClienteReal = null;
+    private bool isLoadingReal = false;
+    private List<string> empresasDisponibles = new List<string>();
+    private List<RentabilidadEmpresaItem> rentabilidadEmpresas = new List<RentabilidadEmpresaItem>();
+
+    private decimal totalIngresosReal = 0;
+    private decimal totalCostoReal = 0;
+    private decimal totalUtilidadReal = 0;
+    private decimal promedioMargenReal = 0;
+
     private DialogOptions dialogOptions = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    public class RentabilidadEmpresaItem
+    {
+        public string Cliente { get; set; } = string.Empty;
+        public int CantidadServicios { get; set; }
+        public int TotalProformas { get; set; }
+        public int TotalFacturas { get; set; }
+        public decimal IngresosTotales { get; set; }
+        public decimal CostoOperativoEstimado { get; set; }
+        public decimal UtilidadEstimada => IngresosTotales - CostoOperativoEstimado;
+        public decimal MargenPercent => IngresosTotales > 0 ? (UtilidadEstimada / IngresosTotales) * 100m : 0m;
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadMonths();
+        await CargarRentabilidadReal();
+
         if (availableMonths.Count > 0)
         {
             selectedMonth = availableMonths.First();
             await LoadDashboard();
+        }
+    }
+
+    private async Task CargarRentabilidadReal()
+    {
+        isLoadingReal = true;
+        StateHasChanged();
+
+        try
+        {
+            DateTime? inicio = dateRangeReal?.Start;
+            DateTime? fin = dateRangeReal?.End;
+
+            var res = await _OdooService.GetProduccionDiaria(inicio, fin, null, null);
+            if (res.Model != null && res.Model.Any())
+            {
+                var produccion = res.Model.ToList();
+
+                // Cargar lista de empresas
+                empresasDisponibles = produccion.Where(x => !string.IsNullOrEmpty(x.cliente))
+                                               .Select(x => x.cliente!)
+                                               .Distinct()
+                                               .OrderBy(x => x)
+                                               .ToList();
+
+                // Filtrar por cliente si se seleccionó
+                if (!string.IsNullOrEmpty(selectedClienteReal))
+                {
+                    produccion = produccion.Where(x => x.cliente == selectedClienteReal).ToList();
+                }
+
+                // Agrupar por empresa
+                rentabilidadEmpresas = produccion
+                    .GroupBy(x => string.IsNullOrEmpty(x.cliente) ? "Sin Especificar" : x.cliente)
+                    .Select(g => {
+                        decimal ingresos = g.Sum(x => x.cantidad_producto * x.costo_producto);
+                        // Estimado de costo operativo (~60% de ingresos)
+                        decimal costoEst = ingresos * 0.60m;
+                        return new RentabilidadEmpresaItem
+                        {
+                            Cliente = g.Key,
+                            CantidadServicios = g.Count(),
+                            TotalProformas = g.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),
+                            TotalFacturas = g.Where(x => !string.IsNullOrEmpty(x.no_factura)).Select(x => x.no_factura).Distinct().Count(),
+                            IngresosTotales = ingresos,
+                            CostoOperativoEstimado = costoEst
+                        };
+                    })
+                    .OrderByDescending(x => x.IngresosTotales)
+                    .ToList();
+
+                // Calcular totales generales
+                totalIngresosReal = rentabilidadEmpresas.Sum(x => x.IngresosTotales);
+                totalCostoReal = rentabilidadEmpresas.Sum(x => x.CostoOperativoEstimado);
+                totalUtilidadReal = totalIngresosReal - totalCostoReal;
+                promedioMargenReal = totalIngresosReal > 0 ? (totalUtilidadReal / totalIngresosReal) * 100m : 0m;
+            }
+            else
+            {
+                rentabilidadEmpresas = new List<RentabilidadEmpresaItem>();
+                totalIngresosReal = 0;
+                totalCostoReal = 0;
+                totalUtilidadReal = 0;
+                promedioMargenReal = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar la rentabilidad real: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoadingReal = false;
+            StateHasChanged();
         }
     }
 
@@ -383,7 +483,6 @@
         else
         {
             dashboardData = null;
-            Snackbar.Add("No se encontraron datos de rentabilidad para los filtros seleccionados.", Severity.Warning);
         }
         
         isLoading = false;
@@ -411,7 +510,7 @@
 
         try
         {
-            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)) // max 10MB
+            using (var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
             {
                 using (var ms = new MemoryStream())
                 {
@@ -443,21 +542,5 @@
             isUploading = false;
             StateHasChanged();
         }
-    }
-
-    private string GetHeatmapStyle(decimal? margin)
-    {
-        if (!margin.HasValue || margin.Value == 0)
-            return "background-color: #F5F5F5; color: #9E9E9E;";
-            
-        decimal val = margin.Value;
-        if (val > 50m)
-            return "background-color: #1B5E20; color: white;"; // excelente
-        if (val >= 25m)
-            return "background-color: #4CAF50; color: white;"; // bueno
-        if (val >= 0m)
-            return "background-color: #FFF9C4; color: #5D4037; border: 1px solid #FFE082;"; // regular
-            
-        return "background-color: #FFCDD2; color: #B71C1C;"; // pérdida
     }
 }
