@@ -103,7 +103,9 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Comercial.RaciAssignment>> GetRaciAssignments();
         Task<IResponse> SaveRaciAssignments(List<Modelo.Comercial.RaciAssignment> assignments);
         Task<IResponse> ImportarVariantes(List<ImportarVarianteItem> model);
+        Task<IListResponse<Combos>> GetProductTemplates();
         Task<IListResponse<OdooVariantDto>> GetProductVariants(int templateId);
+
         Task<IResponse> ActualizarPreciosVariantes(List<OdooVariantDto> model);
 
         // --- PRODUCCIÓN DIARIA ---
