@@ -440,13 +440,9 @@
         string Normalize(string str)
         {
             return str.ToLower()
-                      .Replace("s.a.", "")
-                      .Replace("s.a", "")
-                      .Replace("sa", "")
-                      .Replace("c.a.", "")
-                      .Replace(".", "")
-                      .Replace(",", "")
-                      .Replace("-", " ")
+                      .Replace("á", "a").Replace("é", "e").Replace("í", "i").Replace("ó", "o").Replace("ú", "u")
+                      .Replace("s.a.", "").Replace("s.a", "").Replace("sa", "").Replace("c.a.", "")
+                      .Replace(".", "").Replace(",", "").Replace("-", " ")
                       .Trim();
         }
 
@@ -455,10 +451,24 @@
 
         if (cleanOp.Contains(cleanAttr) || cleanAttr.Contains(cleanOp)) return true;
 
+        if ((cleanOp.Contains("cbc") || cleanOp.Contains("pepsi")) && (cleanAttr.Contains("cbc") || cleanAttr.Contains("pepsi"))) return true;
+        if (cleanOp.Contains("cefa") && cleanAttr.Contains("cefa")) return true;
+        if (cleanOp.Contains("sinsa") && cleanAttr.Contains("sinsa")) return true;
+        if (cleanOp.Contains("aje") && cleanAttr.Contains("aje")) return true;
+        if (cleanOp.Contains("lafise") && cleanAttr.Contains("lafise")) return true;
+        if (cleanOp.Contains("alaska") && cleanAttr.Contains("alaska")) return true;
+        if (cleanOp.Contains("carnic") && cleanAttr.Contains("carnic")) return true;
+        if (cleanOp.Contains("santo domingo") && (cleanAttr.Contains("santo domingo") || cleanAttr.Contains("esd"))) return true;
+        if (cleanOp.Contains("monge") && cleanAttr.Contains("monge")) return true;
+        if (cleanOp.Contains("reyes") && cleanAttr.Contains("reyes")) return true;
+        if (cleanOp.Contains("cdi") && cleanAttr.Contains("cdi")) return true;
+        if (cleanOp.Contains("tla") && cleanAttr.Contains("tla")) return true;
+        if ((cleanOp.Contains("cafe") || cleanOp.Contains("soluble")) && (cleanAttr.Contains("cafe") || cleanAttr.Contains("soluble"))) return true;
+
         var opTokens = cleanOp.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var attrTokens = cleanAttr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        if (opTokens.Any(t => t.Length > 3 && attrTokens.Contains(t))) return true;
+        if (opTokens.Any(t => t.Length > 2 && attrTokens.Contains(t))) return true;
 
         return false;
     }
