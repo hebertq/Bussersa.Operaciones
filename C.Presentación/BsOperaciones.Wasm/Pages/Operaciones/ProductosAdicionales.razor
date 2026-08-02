@@ -1,0 +1,387 @@
+@page "/operaciones/productos-adicionales"
+@inject IOdooService OdooService
+@inject IJSRuntime JSRuntime
+@using Modelo.Entidades.Operaciones
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+
+<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #0f172a;">
+                <i class="bi bi-box-seam-fill text-primary me-2"></i>Gestión de Productos Adicionales e Insumos Automáticos
+            </h2>
+            <p class="text-secondary small mb-0 fw-semibold">
+                Configure insumos y productos adicionales (ej. *Etiquetas Tipo 1*, *Etiquetas Tipo 2*, empaques) que se agregan automáticamente al registrar la producción diaria de un servicio.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/operaciones/produccion-diaria" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-bold">
+                <i class="bi bi-journal-text me-1"></i>Ver Producción Diaria
+            </a>
+            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
+                <i class="bi bi-plus-lg me-1"></i>+ NUEVO INSUMO ADICIONAL
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Badges -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-boxes text-white"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">TOTAL REGLAS CONFIGURADAS</div>
+                        <div class="fs-2 fw-bold text-white">@itemsList.Count</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0369a1 0%, #38bdf8 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-pin-angle-fill text-white"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">CANTIDAD FIJA POR CORRIDA</div>
+                        <div class="fs-2 fw-bold text-white">@itemsList.Count(x => x.TipoCalculo == "FIJO")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #6d28d9 0%, #a855f7 100%);">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
+                        <i class="bi bi-calculator-fill text-white"></i>
+                    </div>
+                    <div>
+                        <div class="text-white-50 small fw-bold">PROPORCIONAL POR UNIDAD</div>
+                        <div class="fs-2 fw-bold text-white">@itemsList.Count(x => x.TipoCalculo == "PROPORCIONAL")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Card -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0" style="color: #0f172a;">
+                <i class="bi bi-list-check me-2 text-primary"></i>Catálogo de Insumos Automáticos por Servicio (@FilteredItems.Count())
+            </h5>
+            <div class="d-flex gap-2">
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                    <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar insumo o servicio..." @bind="searchText" @bind:event="oninput" />
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            @if (loading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-dark fw-semibold mt-2">Cargando catálogo de productos adicionales...</p>
+                </div>
+            }
+            else if (!FilteredItems.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-secondary display-4"></i>
+                    <p class="text-secondary fw-semibold mt-2">No se encontraron productos adicionales configurados.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="color: #0f172a; width: 100%;">
+                        <thead style="background-color: #f1f5f9; color: #1e293b;" class="small fw-bold text-uppercase border-bottom">
+                            <tr>
+                                <th style="width: 50px;" class="ps-3 py-3">ID</th>
+                                <th style="width: 180px;" class="py-3">Cliente / Operación</th>
+                                <th style="width: 220px;" class="py-3">Servicio / Actividad</th>
+                                <th class="py-3">Producto / Insumo Adicional</th>
+                                <th style="width: 140px;" class="py-3">Modo Cálculo</th>
+                                <th style="width: 130px;" class="py-3 text-end">Cantidad / Factor</th>
+                                <th style="width: 110px;" class="py-3 text-end">Costo Unit.</th>
+                                <th style="width: 90px;" class="py-3 text-center">Estado</th>
+                                <th style="width: 100px;" class="text-end pe-3 py-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in FilteredItems)
+                            {
+                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                                    <td class="ps-3 py-3 fw-bold" style="color: #475569; font-size: 13px;">#@item.Id</td>
+                                    <td class="py-3">
+                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; font-size: 13px;">
+                                            <i class="bi bi-building me-1"></i>@(string.IsNullOrWhiteSpace(item.OperacionNombre) ? "GLOBAL" : item.OperacionNombre)
+                                        </span>
+                                    </td>
+                                    <td class="py-3 fw-bold" style="color: #0f172a; font-size: 13px;">
+                                        <i class="bi bi-gear-fill me-1 text-secondary"></i>@item.ServicioNombre
+                                    </td>
+                                    <td class="py-3">
+                                        <div>
+                                            <span style="font-weight: 700; color: #065f46; font-size: 14px;">
+                                                <i class="bi bi-tag-fill me-1 text-success"></i>@item.NombreProductoAdicional
+                                            </span>
+                                            @if (!string.IsNullOrWhiteSpace(item.CodigoItem))
+                                            {
+                                                <span class="ms-2 badge bg-light text-dark border">@item.CodigoItem</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Observaciones))
+                                        {
+                                            <div class="small text-secondary" style="font-size: 12px;">@item.Observaciones</div>
+                                        }
+                                    </td>
+                                    <td class="py-3">
+                                        @if (item.TipoCalculo == "FIJO")
+                                        {
+                                            <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #0284c7; color: #ffffff; font-weight: 700; font-size: 12px;">
+                                                Fijo por corrida
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #7c3aed; color: #ffffff; font-weight: 700; font-size: 12px;">
+                                                Por unidad producida
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="py-3 text-end fw-bold" style="color: #0f172a; font-size: 14px;">
+                                        @item.CantidadFactor.ToString("N2")
+                                    </td>
+                                    <td class="py-3 text-end font-monospace" style="color: #334155;">
+                                        $@item.CostoUnitario.ToString("N2")
+                                    </td>
+                                    <td class="py-3 text-center">
+                                        @if (item.Activo)
+                                        {
+                                            <span class="badge bg-success">Activo</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactivo</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3 py-3">
+                                        <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                                            <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 12px;" title="Editar" @onclick="() => EditItem(item)">
+                                                <i class="bi bi-pencil-fill"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px;" title="Eliminar" @onclick="() => DeleteItem(item.Id)">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Form -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-box-seam me-2"></i>@(activeItem.Id > 0 ? "Editar Insumo Adicional" : "Nuevo Insumo Adicional")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
+                </div>
+                <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeItem.OperacionId">
+                                <option value="">🌐 GLOBAL (Todas las operaciones)</option>
+                                @foreach (var op in operacionesList)
+                                {
+                                    <option value="@op.id">@op.nombre</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">Servicio / Actividad Principal *</label>
+                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.ServicioNombre" placeholder="Ej: Servicio de Baneo / Etiquetado" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">Nombre del Producto Adicional *</label>
+                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.NombreProductoAdicional" placeholder="Ej: Etiqueta Tipo 1, Etiqueta Tipo 2" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">Código del Item (Opcional)</label>
+                            <input type="text" class="form-control" style="color: #0f172a;" @bind="activeItem.CodigoItem" placeholder="Ej: ETQ-T1-01" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">Modo de Cálculo *</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeItem.TipoCalculo">
+                                <option value="FIJO">Fijo por corrida / lote (Ej. 45 unidades fijos)</option>
+                                <option value="PROPORCIONAL">Proporcional por unidad producida (Factor x Cantidad)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small" style="color: #334155;">Cantidad / Factor *</label>
+                            <input type="number" step="0.0001" class="form-control fw-bold text-end" style="color: #0f172a;" @bind="activeItem.CantidadFactor" />
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small" style="color: #334155;">Costo Unitario ($)</label>
+                            <input type="number" step="0.01" class="form-control text-end" style="color: #0f172a;" @bind="activeItem.CostoUnitario" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold small" style="color: #334155;">Observaciones / Instrucciones Automáticas</label>
+                            <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeItem.Observaciones" placeholder="Notas sobre la aplicación de este producto adicional..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveItem" disabled="@saving">
+                        @if (saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Guardar Regla de Insumo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ProductoAdicionalConfig> itemsList = new();
+    private List<Combos> operacionesList = new();
+    private bool loading = true;
+    private bool saving = false;
+    private bool showModal = false;
+    private string searchText = "";
+    private ProductoAdicionalConfig activeItem = new();
+
+    private IEnumerable<ProductoAdicionalConfig> FilteredItems => itemsList
+        .Where(i => string.IsNullOrWhiteSpace(searchText) ||
+                    (i.NombreProductoAdicional != null && i.NombreProductoAdicional.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                    (i.ServicioNombre != null && i.ServicioNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                    (i.OperacionNombre != null && i.OperacionNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        try
+        {
+            var res = await OdooService.GetAllProductosAdicionalesConfig();
+            if (res?.Model != null) itemsList = res.Model.ToList();
+
+            var resOp = await OdooService.GetAllCombosHost("OPERACIONES");
+            if (resOp?.Model != null) operacionesList = resOp.Model.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando productos adicionales: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void PrepareCreate()
+    {
+        activeItem = new ProductoAdicionalConfig
+        {
+            TipoCalculo = "FIJO",
+            CantidadFactor = 45.0m,
+            Activo = true
+        };
+        showModal = true;
+    }
+
+    private void EditItem(ProductoAdicionalConfig item)
+    {
+        activeItem = new ProductoAdicionalConfig
+        {
+            Id = item.Id,
+            OperacionId = item.OperacionId,
+            OperacionNombre = item.OperacionNombre,
+            ServicioCodigo = item.ServicioCodigo,
+            ServicioNombre = item.ServicioNombre,
+            NombreProductoAdicional = item.NombreProductoAdicional,
+            CodigoItem = item.CodigoItem,
+            TipoCalculo = item.TipoCalculo,
+            CantidadFactor = item.CantidadFactor,
+            CostoUnitario = item.CostoUnitario,
+            Activo = item.Activo,
+            Observaciones = item.Observaciones
+        };
+        showModal = true;
+    }
+
+    private async Task SaveItem()
+    {
+        if (string.IsNullOrWhiteSpace(activeItem.ServicioNombre) || string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor complete el nombre del servicio y del producto adicional.");
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            await OdooService.SaveProductoAdicionalConfig(activeItem);
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error guardando regla de producto adicional: {ex.Message}");
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta regla de producto adicional?");
+        if (!confirm) return;
+
+        try
+        {
+            await OdooService.DeleteProductoAdicionalConfig(id);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error eliminando regla: {ex.Message}");
+        }
+    }
+}

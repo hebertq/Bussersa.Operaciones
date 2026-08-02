@@ -129,5 +129,11 @@ namespace HostService.Interfaces
         Task<IListResponse<ReglaAtomica>> GetAllReglasAtomicas();
         Task<IResponse> SaveReglaAtomica(ReglaAtomica model);
         Task<IResponse> DeleteReglaAtomica(string codigoRegla);
+
+        // --- PRODUCTOS ADICIONALES CONFIG ---
+        Task<IListResponse<Modelo.Entidades.Operaciones.ProductoAdicionalConfig>> GetAllProductosAdicionalesConfig();
+        Task<IResponse> SaveProductoAdicionalConfig(Modelo.Entidades.Operaciones.ProductoAdicionalConfig model);
+        Task<IResponse> DeleteProductoAdicionalConfig(int id);
     }
 }
+
