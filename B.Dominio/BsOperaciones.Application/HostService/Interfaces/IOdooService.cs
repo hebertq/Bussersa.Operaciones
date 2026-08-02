@@ -105,6 +105,8 @@ namespace HostService.Interfaces
         Task<IResponse> ImportarVariantes(List<ImportarVarianteItem> model);
         Task<IListResponse<Combos>> GetProductTemplates();
         Task<IListResponse<OdooVariantDto>> GetProductVariants(int templateId);
+        Task<IListResponse<OdooVariantDto>> GetAllProductVariants();
+
 
         Task<IResponse> ActualizarPreciosVariantes(List<OdooVariantDto> model);
 

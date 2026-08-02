@@ -2922,7 +2922,35 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<OdooVariantDto>> GetAllProductVariants()
+
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<OdooVariantDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("OdQuery/GetAllProductVariants");
+                var registro = await GetAsync<object>(requestUrl, null);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<OdooVariantDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<Modelo.Entidades.Operaciones.ProductoAdicionalConfig>> GetAllProductosAdicionalesConfig()
+
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             var response = new ListResponse<Modelo.Entidades.Operaciones.ProductoAdicionalConfig>();
