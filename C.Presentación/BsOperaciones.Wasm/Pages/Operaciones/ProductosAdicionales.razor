@@ -187,7 +187,7 @@
                             <div class="row g-3">
                                 <!-- Operación / Cliente -->
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación Configurada *</label>
+                                    <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación Configurada (Departamentos Odoo) *</label>
                                     <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedOperacionId" @bind:after="OnOperacionChanged">
                                         <option value="0">🌐 GLOBAL (Todas las operaciones)</option>
                                         @foreach (var op in operacionesList)
@@ -415,13 +415,51 @@
         }
     }
 
-    private bool IsClientMatch(string op, string clientAttr)
+    private string ExtractAttributeValue(string attrStr, string targetAttr)
     {
-        if (string.IsNullOrEmpty(op) || string.IsNullOrEmpty(clientAttr)) return false;
-        string cleanOp = op.ToLower().Replace(" s.a", "").Replace(" sa", "").Trim();
-        string cleanAttr = clientAttr.ToLower().Replace(" s.a", "").Replace(" sa", "").Trim();
+        if (string.IsNullOrWhiteSpace(attrStr)) return "";
+        var parts = attrStr.Split(',');
+        foreach (var part in parts)
+        {
+            var kv = part.Split(':');
+            if (kv.Length == 2 && kv[0].Trim().Equals(targetAttr, StringComparison.OrdinalIgnoreCase))
+            {
+                return kv[1].Trim();
+            }
+        }
+        return "";
+    }
+
+    private bool IsClientMatch(string opName, string variantFullName)
+    {
+        if (string.IsNullOrEmpty(opName) || string.IsNullOrEmpty(variantFullName)) return false;
+
+        string clientAttr = ExtractAttributeValue(variantFullName, "Cliente");
+        string targetToCompare = string.IsNullOrWhiteSpace(clientAttr) ? variantFullName : clientAttr;
+
+        string Normalize(string str)
+        {
+            return str.ToLower()
+                      .Replace("s.a.", "")
+                      .Replace("s.a", "")
+                      .Replace("sa", "")
+                      .Replace("c.a.", "")
+                      .Replace(".", "")
+                      .Replace(",", "")
+                      .Replace("-", " ")
+                      .Trim();
+        }
+
+        string cleanOp = Normalize(opName);
+        string cleanAttr = Normalize(targetToCompare);
+
         if (cleanOp.Contains(cleanAttr) || cleanAttr.Contains(cleanOp)) return true;
-        if (cleanOp.Contains("cerveceria") && cleanAttr.Contains("pepsi")) return true;
+
+        var opTokens = cleanOp.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var attrTokens = cleanAttr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (opTokens.Any(t => t.Length > 3 && attrTokens.Contains(t))) return true;
+
         return false;
     }
 
