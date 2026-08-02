@@ -168,15 +168,16 @@
 @if (showModal)
 {
     <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-height: 90vh;">
+            <div class="modal-content border-0 shadow-lg" style="max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header bg-primary text-white py-3">
+                    <h5 class="modal-title fw-bold mb-0">
                         <i class="bi bi-box-seam me-2"></i>Configuración de Servicio Principal e Insumos Adicionales
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
-                <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
+                
+                <div class="modal-body p-4" style="overflow-y: auto; background-color: #ffffff; color: #0f172a; flex: 1 1 auto;">
                     <!-- SECCIÓN 1: CLIENTE Y SERVICIO PRINCIPAL -->
                     <div class="card border border-primary-subtle bg-light mb-4 shadow-sm">
                         <div class="card-header bg-white border-bottom fw-bold text-primary">
@@ -350,14 +351,16 @@
                     </div>
                 </div>
 
-                <div class="modal-footer border-top bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" @onclick="() => showModal = false">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveAllDraftInsumos" disabled="@saving">
+                <div class="modal-footer border-top bg-light py-3 px-4 d-flex justify-content-end gap-2" style="flex: 0 0 auto;">
+                    <button type="button" class="btn btn-secondary btn-md rounded-pill px-4 fw-bold" @onclick="() => showModal = false">
+                        <i class="bi bi-x-lg me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary btn-md rounded-pill px-4 fw-bold shadow-sm" @onclick="SaveAllDraftInsumos" disabled="@saving">
                         @if (saving)
                         {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        Guardar Regla de Insumos (@draftInsumosList.Count)
+                        <i class="bi bi-check-circle-fill me-1"></i>Guardar Regla de Insumos (@draftInsumosList.Count)
                     </button>
                 </div>
             </div>
@@ -458,7 +461,7 @@
         }
     }
 
-    private void PrepareCreate()
+    private async Task PrepareCreate()
     {
         selectedOperacionId = 0;
         areaCliente = "";
@@ -474,6 +477,13 @@
         newCantidadFactor = 40.0m;
 
         draftInsumosList.Clear();
+
+        if (!productTemplatesList.Any())
+        {
+            var resTmpl = await OdooService.GetProductTemplates();
+            if (resTmpl?.Model != null) productTemplatesList = resTmpl.Model.ToList();
+        }
+
         showModal = true;
     }
 
@@ -577,7 +587,7 @@
             VariantId = selectedSecVariantId,
             NombreProductoAdicional = newSecNombre,
             CodigoItem = newSecCodigo,
-            TipoCalculo = "PROPORCIONAL", // 'PROPORCIONAL' por unidad producida
+            TipoCalculo = "PROPORCIONAL",
             CantidadFactor = newCantidadFactor,
             CostoUnitario = 0.0m,
             Activo = true
@@ -630,7 +640,7 @@
 
     private void EditItem(ProductoAdicionalConfig item)
     {
-        PrepareCreate();
+        _ = PrepareCreate();
         selectedOperacionId = item.OperacionId ?? 0;
         areaCliente = item.AreaCliente ?? "";
         mainServiceNombre = item.ServicioNombre;
