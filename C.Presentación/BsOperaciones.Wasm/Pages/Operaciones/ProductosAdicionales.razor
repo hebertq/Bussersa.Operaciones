@@ -3,6 +3,7 @@
 @inject IJSRuntime JSRuntime
 @using Modelo.Entidades.Operaciones
 @using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
 @using HostService.Interfaces
 
 <div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
@@ -105,12 +106,12 @@
                         <thead style="background-color: #f1f5f9; color: #1e293b;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
                                 <th style="width: 50px;" class="ps-3 py-3">ID</th>
-                                <th style="width: 180px;" class="py-3">Cliente / Operación</th>
+                                <th style="width: 180px;" class="py-3">Cliente / Área</th>
                                 <th style="width: 220px;" class="py-3">Servicio / Actividad</th>
                                 <th class="py-3">Producto / Insumo Adicional</th>
                                 <th style="width: 140px;" class="py-3">Modo Cálculo</th>
                                 <th style="width: 130px;" class="py-3 text-end">Cantidad / Factor</th>
-                                <th style="width: 110px;" class="py-3 text-end">Costo Unit.</th>
+                                <th style="width: 110px;" class="py-3 text-end">Precio Lista</th>
                                 <th style="width: 90px;" class="py-3 text-center">Estado</th>
                                 <th style="width: 100px;" class="text-end pe-3 py-3">Acciones</th>
                             </tr>
@@ -121,9 +122,15 @@
                                 <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
                                     <td class="ps-3 py-3 fw-bold" style="color: #475569; font-size: 13px;">#@item.Id</td>
                                     <td class="py-3">
-                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; font-size: 13px;">
+                                        <div style="font-weight: 700; color: #1d4ed8; font-size: 13px;">
                                             <i class="bi bi-building me-1"></i>@(string.IsNullOrWhiteSpace(item.OperacionNombre) ? "GLOBAL" : item.OperacionNombre)
-                                        </span>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(item.AreaCliente))
+                                        {
+                                            <div class="small text-secondary fw-semibold" style="font-size: 12px;">
+                                                <i class="bi bi-geo-alt me-1"></i>@item.AreaCliente
+                                            </div>
+                                        }
                                     </td>
                                     <td class="py-3 fw-bold" style="color: #0f172a; font-size: 13px;">
                                         <i class="bi bi-gear-fill me-1 text-secondary"></i>@item.ServicioNombre
@@ -160,7 +167,7 @@
                                     <td class="py-3 text-end fw-bold" style="color: #0f172a; font-size: 14px;">
                                         @item.CantidadFactor.ToString("N2")
                                     </td>
-                                    <td class="py-3 text-end font-monospace" style="color: #334155;">
+                                    <td class="py-3 text-end font-monospace" style="color: #059669; font-weight: 700;">
                                         $@item.CostoUnitario.ToString("N2")
                                     </td>
                                     <td class="py-3 text-center">
@@ -207,8 +214,9 @@
                 </div>
                 <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
                     <div class="row g-3">
+                        <!-- 1. Cliente / Operación -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
+                            <label class="form-label fw-bold small" style="color: #334155;">1. Cliente / Operación *</label>
                             <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeItem.OperacionId">
                                 <option value="">🌐 GLOBAL (Todas las operaciones)</option>
                                 @foreach (var op in operacionesList)
@@ -218,39 +226,93 @@
                             </select>
                         </div>
 
+                        <!-- 2. Área de Cliente -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">Servicio / Actividad Principal *</label>
+                            <label class="form-label fw-bold small" style="color: #334155;">2. Área de Cliente (Opcional)</label>
+                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.AreaCliente" placeholder="Ej: Bodega, Empaque, Producción, Baneo..." />
+                        </div>
+
+                        <!-- 3. Servicio / Actividad Principal -->
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small" style="color: #334155;">3. Servicio / Actividad Principal *</label>
                             <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.ServicioNombre" placeholder="Ej: Servicio de Baneo / Etiquetado" />
                         </div>
 
+                        <!-- 4. Seleccionar Plantilla de Producto Adicional -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">Nombre del Producto Adicional *</label>
-                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.NombreProductoAdicional" placeholder="Ej: Etiqueta Tipo 1, Etiqueta Tipo 2" />
+                            <label class="form-label fw-bold small" style="color: #334155;">4. Plantilla de Producto Adicional (Template) *</label>
+                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedTemplateId" @bind:after="OnTemplateChanged">
+                                <option value="">-- Seleccionar Plantilla de Odoo --</option>
+                                @foreach (var tmpl in templatesList)
+                                {
+                                    <option value="@tmpl.id">@tmpl.nombre</option>
+                                }
+                            </select>
                         </div>
 
+                        <!-- 5. Seleccionar Variante Específica -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">Código del Item (Opcional)</label>
-                            <input type="text" class="form-control" style="color: #0f172a;" @bind="activeItem.CodigoItem" placeholder="Ej: ETQ-T1-01" />
+                            <label class="form-label fw-bold small" style="color: #334155;">5. Variante Específica de Producto *</label>
+                            @if (loadingVariants)
+                            {
+                                <div class="d-flex align-items-center gap-2 py-1">
+                                    <span class="spinner-border spinner-border-sm text-primary"></span>
+                                    <span class="small text-secondary">Cargando variantes...</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedVariantId" @bind:after="OnVariantChanged" disabled="@(!selectedTemplateId.HasValue || !variantsList.Any())">
+                                    <option value="">-- Seleccionar Variante --</option>
+                                    @foreach (var v in variantsList)
+                                    {
+                                        <option value="@v.id">@v.nombre (@v.default_code) - $@v.precio.ToString("N2")</option>
+                                    }
+                                </select>
+                            }
                         </div>
 
+                        <!-- Detalle del Producto Adicional Seleccionado (Auto-completado de Odoo) -->
+                        @if (!string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
+                        {
+                            <div class="col-12">
+                                <div class="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <div class="small text-secondary fw-semibold">Producto Adicional Seleccionado:</div>
+                                        <div class="fw-bold text-success fs-6">
+                                            <i class="bi bi-check-circle-fill me-1"></i>@activeItem.NombreProductoAdicional
+                                            @if (!string.IsNullOrWhiteSpace(activeItem.CodigoItem))
+                                            {
+                                                <span class="badge bg-secondary ms-2">@activeItem.CodigoItem</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-secondary fw-semibold">Precio Pre-establecido en Odoo:</div>
+                                        <div class="fw-bold text-emerald fs-5" style="color: #059669;">
+                                            $@activeItem.CostoUnitario.ToString("N2")
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- 6. Modo de Cálculo -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">Modo de Cálculo *</label>
+                            <label class="form-label fw-bold small" style="color: #334155;">6. Modo de Cálculo *</label>
                             <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeItem.TipoCalculo">
                                 <option value="FIJO">Fijo por corrida / lote (Ej. 45 unidades fijos)</option>
                                 <option value="PROPORCIONAL">Proporcional por unidad producida (Factor x Cantidad)</option>
                             </select>
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small" style="color: #334155;">Cantidad / Factor *</label>
+                        <!-- 7. Cantidad / Factor -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small" style="color: #334155;">7. Cantidad / Factor de Insumo *</label>
                             <input type="number" step="0.0001" class="form-control fw-bold text-end" style="color: #0f172a;" @bind="activeItem.CantidadFactor" />
                         </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small" style="color: #334155;">Costo Unitario ($)</label>
-                            <input type="number" step="0.01" class="form-control text-end" style="color: #0f172a;" @bind="activeItem.CostoUnitario" />
-                        </div>
-
+                        <!-- Observaciones -->
                         <div class="col-12">
                             <label class="form-label fw-bold small" style="color: #334155;">Observaciones / Instrucciones Automáticas</label>
                             <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeItem.Observaciones" placeholder="Notas sobre la aplicación de este producto adicional..."></textarea>
@@ -275,8 +337,13 @@
 @code {
     private List<ProductoAdicionalConfig> itemsList = new();
     private List<Combos> operacionesList = new();
+    private List<Combos> templatesList = new();
+    private List<OdooVariantDto> variantsList = new();
+    private int? selectedTemplateId;
+    private int? selectedVariantId;
     private bool loading = true;
     private bool saving = false;
+    private bool loadingVariants = false;
     private bool showModal = false;
     private string searchText = "";
     private ProductoAdicionalConfig activeItem = new();
@@ -285,7 +352,8 @@
         .Where(i => string.IsNullOrWhiteSpace(searchText) ||
                     (i.NombreProductoAdicional != null && i.NombreProductoAdicional.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
                     (i.ServicioNombre != null && i.ServicioNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                    (i.OperacionNombre != null && i.OperacionNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+                    (i.OperacionNombre != null && i.OperacionNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                    (i.AreaCliente != null && i.AreaCliente.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {
@@ -302,6 +370,9 @@
 
             var resOp = await OdooService.GetAllCombosHost("OPERACIONES");
             if (resOp?.Model != null) operacionesList = resOp.Model.ToList();
+
+            var resTmpl = await OdooService.GetProductTemplates();
+            if (resTmpl?.Model != null) templatesList = resTmpl.Model.ToList();
         }
         catch (Exception ex)
         {
@@ -321,18 +392,24 @@
             CantidadFactor = 45.0m,
             Activo = true
         };
+        selectedTemplateId = null;
+        selectedVariantId = null;
+        variantsList.Clear();
         showModal = true;
     }
 
-    private void EditItem(ProductoAdicionalConfig item)
+    private async Task EditItem(ProductoAdicionalConfig item)
     {
         activeItem = new ProductoAdicionalConfig
         {
             Id = item.Id,
             OperacionId = item.OperacionId,
             OperacionNombre = item.OperacionNombre,
+            AreaCliente = item.AreaCliente,
             ServicioCodigo = item.ServicioCodigo,
             ServicioNombre = item.ServicioNombre,
+            TemplateId = item.TemplateId,
+            VariantId = item.VariantId,
             NombreProductoAdicional = item.NombreProductoAdicional,
             CodigoItem = item.CodigoItem,
             TipoCalculo = item.TipoCalculo,
@@ -341,14 +418,74 @@
             Activo = item.Activo,
             Observaciones = item.Observaciones
         };
+
+        selectedTemplateId = item.TemplateId;
+        selectedVariantId = item.VariantId;
+
+        if (selectedTemplateId.HasValue && selectedTemplateId.Value > 0)
+        {
+            await OnTemplateChanged();
+        }
+
         showModal = true;
+    }
+
+    private async Task OnTemplateChanged()
+    {
+        selectedVariantId = null;
+        variantsList.Clear();
+
+        if (!selectedTemplateId.HasValue || selectedTemplateId.Value <= 0) return;
+
+        loadingVariants = true;
+        try
+        {
+            var resVar = await OdooService.GetProductVariants(selectedTemplateId.Value);
+            if (resVar?.Model != null)
+            {
+                variantsList = resVar.Model.ToList();
+                if (selectedVariantId.HasValue && variantsList.Any(v => v.id == selectedVariantId.Value))
+                {
+                    OnVariantChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando variantes: {ex.Message}");
+        }
+        finally
+        {
+            loadingVariants = false;
+        }
+    }
+
+    private void OnVariantChanged()
+    {
+        if (!selectedVariantId.HasValue || selectedVariantId.Value <= 0) return;
+
+        var variant = variantsList.FirstOrDefault(v => v.id == selectedVariantId.Value);
+        if (variant != null)
+        {
+            activeItem.TemplateId = selectedTemplateId;
+            activeItem.VariantId = variant.id;
+            activeItem.NombreProductoAdicional = variant.nombre;
+            activeItem.CodigoItem = variant.default_code;
+            activeItem.CostoUnitario = variant.precio; // Precio pre-establecido desde Odoo!
+        }
     }
 
     private async Task SaveItem()
     {
-        if (string.IsNullOrWhiteSpace(activeItem.ServicioNombre) || string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
+        if (string.IsNullOrWhiteSpace(activeItem.ServicioNombre))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Por favor complete el nombre del servicio y del producto adicional.");
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor ingrese el Servicio o Actividad Principal.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor seleccione la Plantilla y Variante de Producto Adicional.");
             return;
         }
 

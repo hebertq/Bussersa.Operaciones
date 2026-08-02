@@ -7,8 +7,11 @@ namespace Modelo.Entidades.Operaciones
         public int Id { get; set; }
         public int? OperacionId { get; set; }
         public string? OperacionNombre { get; set; }
+        public string? AreaCliente { get; set; }
         public string? ServicioCodigo { get; set; }
         public string ServicioNombre { get; set; } = string.Empty;
+        public int? TemplateId { get; set; }
+        public int? VariantId { get; set; }
         public string NombreProductoAdicional { get; set; } = string.Empty;
         public string? CodigoItem { get; set; }
         public string TipoCalculo { get; set; } = "FIJO"; // 'FIJO' o 'PROPORCIONAL'
@@ -19,3 +22,4 @@ namespace Modelo.Entidades.Operaciones
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
     }
 }
+
