@@ -106,8 +106,8 @@
                         <thead style="background-color: #f1f5f9; color: #1e293b;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
                                 <th style="width: 50px;" class="ps-3 py-3">ID</th>
-                                <th style="width: 180px;" class="py-3">Cliente / Área</th>
-                                <th style="width: 220px;" class="py-3">Servicio / Actividad</th>
+                                <th style="width: 180px;" class="py-3">Cliente / Operación</th>
+                                <th style="width: 220px;" class="py-3">Servicio / Actividad Principal</th>
                                 <th class="py-3">Producto / Insumo Adicional</th>
                                 <th style="width: 140px;" class="py-3">Modo Cálculo</th>
                                 <th style="width: 130px;" class="py-3 text-end">Cantidad / Factor</th>
@@ -204,119 +204,222 @@
 @if (showModal)
 {
     <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-box-seam me-2"></i>@(activeItem.Id > 0 ? "Editar Insumo Adicional" : "Nuevo Insumo Adicional")
+                        <i class="bi bi-box-seam me-2"></i>Configuración de Servicio Principal e Insumos Adicionales
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
                 <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
-                    <div class="row g-3">
-                        <!-- 1. Cliente / Operación -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">1. Cliente / Operación *</label>
-                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="SelectedOperacionId" @bind:after="OnOperacionChanged">
-                                <option value="">🌐 GLOBAL (Todas las operaciones)</option>
-                                @foreach (var op in operacionesList)
-                                {
-                                    <option value="@op.id">@op.nombre</option>
-                                }
-                            </select>
+                    <!-- SECCIÓN 1: CLIENTE Y SERVICIO PRINCIPAL -->
+                    <div class="card border border-primary-subtle bg-light mb-4 shadow-sm">
+                        <div class="card-header bg-white border-bottom fw-bold text-primary">
+                            <i class="bi bi-gear-fill me-2"></i>1. Definición del Servicio Principal
                         </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <!-- Operación / Cliente -->
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación Configurada *</label>
+                                    <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedOperacionId" @bind:after="OnOperacionChanged">
+                                        <option value="0">🌐 GLOBAL (Todas las operaciones)</option>
+                                        @foreach (var op in operacionesList)
+                                        {
+                                            <option value="@op.id">@op.nombre</option>
+                                        }
+                                    </select>
+                                </div>
 
-                        <!-- 2. Área de Cliente -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">2. Área de Cliente (Opcional)</label>
-                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.AreaCliente" placeholder="Ej: Bodega, Empaque, Producción, Baneo..." />
+                                <!-- Área de Cliente -->
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Área / Departamento de Cliente (Opcional)</label>
+                                    <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="areaCliente" placeholder="Ej: Bodega, Baneo, Empaque..." />
+                                </div>
+
+                                <!-- Plantilla Principal -->
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Plantilla de Producto Principal (Odoo) *</label>
+                                    <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedMainTemplateId" @bind:after="OnMainTemplateChanged">
+                                        <option value="">-- Seleccionar Plantilla Principal --</option>
+                                        @foreach (var t in productTemplatesList)
+                                        {
+                                            <option value="@t.id">@t.nombre</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                <!-- Variante Principal (Filtrada por Cliente) -->
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Variante del Servicio Principal *</label>
+                                    @if (loadingMainVariants)
+                                    {
+                                        <div class="d-flex align-items-center gap-2 py-2">
+                                            <span class="spinner-border spinner-border-sm text-primary"></span>
+                                            <span class="small text-secondary fw-semibold">Cargando variantes principales...</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedMainVariantId" @bind:after="OnMainVariantChanged">
+                                            <option value="">-- Seleccionar Variante Principal (@FilteredMainVariants.Count() disponibles) --</option>
+                                            @foreach (var v in FilteredMainVariants)
+                                            {
+                                                <option value="@v.id">@v.nombre (@v.default_code)</option>
+                                            }
+                                        </select>
+                                    }
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        <!-- 3. Servicio / Actividad Principal -->
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold small" style="color: #334155;">3. Servicio / Actividad Principal *</label>
-                            <input type="text" class="form-control fw-bold" style="color: #0f172a;" @bind="activeItem.ServicioNombre" placeholder="Ej: Servicio de Baneo / Etiquetado" />
+                    <!-- SECCIÓN 2: FORMULARIO DE AGREGAR INSUMOS ADICIONALES (PRODUCTOS ADICIONALES) -->
+                    <div class="card border border-success-subtle bg-white mb-4 shadow-sm">
+                        <div class="card-header bg-success text-white fw-bold">
+                            <i class="bi bi-plus-circle-fill me-2"></i>2. Agregar Insumo / Producto Adicional Derivado
                         </div>
+                        <div class="card-body p-3">
+                            <div class="row g-3 align-items-end">
+                                <!-- Plantilla Secundaria -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Plantilla de Insumo Adicional *</label>
+                                    <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedSecTemplateId" @bind:after="OnSecTemplateChanged">
+                                        <option value="">-- Seleccionar Plantilla Adicional --</option>
+                                        @foreach (var t in productTemplatesList)
+                                        {
+                                            <option value="@t.id">@t.nombre</option>
+                                        }
+                                    </select>
+                                </div>
 
-                        <!-- 4. Selección del Producto / Insumo Adicional de Odoo -->
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold small" style="color: #334155;">4. Producto / Insumo Adicional (Variante de Odoo) *</label>
-                            @if (loadingVariants)
+                                <!-- Variante Secundaria -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Variante Específica de Insumo *</label>
+                                    @if (loadingSecVariants)
+                                    {
+                                        <div class="d-flex align-items-center gap-2 py-2">
+                                            <span class="spinner-border spinner-border-sm text-success"></span>
+                                            <span class="small text-secondary fw-semibold">Cargando variantes de insumo...</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedSecVariantId" @bind:after="OnSecVariantChanged">
+                                            <option value="">-- Seleccionar Variante (@secVariantsList.Count disponibles) --</option>
+                                            @foreach (var v in secVariantsList)
+                                            {
+                                                <option value="@v.id">@v.nombre (@v.default_code) - $@v.precio.ToString("N2")</option>
+                                            }
+                                        </select>
+                                    }
+                                </div>
+
+                                <!-- Modo de Cálculo -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Modo de Cálculo *</label>
+                                    <select class="form-select fw-bold" style="color: #0f172a;" @bind="newTipoCalculo">
+                                        <option value="FIJO">Fijo por corrida / lote (Ej. 45 unidades fijos)</option>
+                                        <option value="PROPORCIONAL">Proporcional por unidad producida (Factor x Cantidad)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Cantidad / Factor -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Cantidad / Factor de Insumo *</label>
+                                    <input type="number" step="0.0001" class="form-control fw-bold text-end" style="color: #0f172a;" @bind="newCantidadFactor" />
+                                </div>
+
+                                <!-- Precio Odoo Pre-establecido -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold small" style="color: #334155;">Precio Lista Odoo</label>
+                                    <input type="text" class="form-control fw-bold text-emerald bg-light" style="color: #059669;" readonly value="$@newCostoUnitario.ToString("N2")" />
+                                </div>
+
+                                <!-- Botón Agregar a Grilla -->
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-success w-100 fw-bold shadow-sm" @onclick="AddInsumoToDraft">
+                                        <i class="bi bi-plus-lg me-1"></i>+ AGREGAR A LA LISTA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECCIÓN 3: GRILLA DE INSUMOS A REGISTRAR -->
+                    <div class="card border shadow-sm">
+                        <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-table me-2 text-primary"></i>Insumos Adicionales Configurados para este Servicio (@draftInsumosList.Count)</span>
+                        </div>
+                        <div class="card-body p-0">
+                            @if (!draftInsumosList.Any())
                             {
-                                <div class="d-flex align-items-center gap-2 py-2">
-                                    <span class="spinner-border spinner-border-sm text-primary"></span>
-                                    <span class="small text-secondary fw-semibold">Cargando productos y variantes de Odoo...</span>
+                                <div class="text-center py-4 text-secondary fw-semibold">
+                                    <i class="bi bi-info-circle me-1"></i>No ha agregado productos ni insumos adicionales a la lista. Seleccione la plantilla y variante arriba y presione <b>+ AGREGAR A LA LISTA</b>.
                                 </div>
                             }
                             else
                             {
-                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="selectedVariantId" @bind:after="OnVariantChanged">
-                                    <option value="">-- Seleccionar Producto / Variante de Odoo (@AvailableVariants.Count() disponibles) --</option>
-                                    @foreach (var v in AvailableVariants)
-                                    {
-                                        <option value="@v.id">
-                                            @(string.IsNullOrWhiteSpace(v.template_name) ? "" : $"{v.template_name} - ") @v.nombre (@v.default_code) - $@v.precio.ToString("N2")
-                                        </option>
-                                    }
-                                </select>
-                            }
-                        </div>
-
-                        <!-- Detalle del Producto Adicional Seleccionado (Auto-completado de Odoo) -->
-                        @if (!string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
-                        {
-                            <div class="col-12">
-                                <div class="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
-                                    <div>
-                                        <div class="small text-secondary fw-semibold">Producto Adicional Seleccionado:</div>
-                                        <div class="fw-bold text-success fs-6">
-                                            <i class="bi bi-check-circle-fill me-1"></i>@activeItem.NombreProductoAdicional
-                                            @if (!string.IsNullOrWhiteSpace(activeItem.CodigoItem))
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0" style="font-size: 13px;">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Producto / Insumo Adicional</th>
+                                                <th>Código SKU</th>
+                                                <th>Modo Cálculo</th>
+                                                <th class="text-end">Cantidad / Factor</th>
+                                                <th class="text-end">Precio Lista</th>
+                                                <th class="text-center" style="width: 80px;">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for (int i = 0; i < draftInsumosList.Count; i++)
                                             {
-                                                <span class="badge bg-secondary ms-2">@activeItem.CodigoItem</span>
+                                                var idx = i;
+                                                var item = draftInsumosList[idx];
+                                                <tr>
+                                                    <td class="fw-bold">@(idx + 1)</td>
+                                                    <td class="fw-bold text-success">
+                                                        <i class="bi bi-tag-fill me-1"></i>@item.NombreProductoAdicional
+                                                    </td>
+                                                    <td><span class="badge bg-light text-dark border">@item.CodigoItem</span></td>
+                                                    <td>
+                                                        @if (item.TipoCalculo == "FIJO")
+                                                        {
+                                                            <span class="badge bg-info text-dark">Fijo por corrida</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-purple text-white" style="background-color: #7c3aed;">Por unidad</span>
+                                                        }
+                                                    </td>
+                                                    <td class="text-end fw-bold">@item.CantidadFactor.ToString("N2")</td>
+                                                    <td class="text-end font-monospace fw-bold text-success">$@item.CostoUnitario.ToString("N2")</td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" @onclick="() => RemoveInsumoFromDraft(idx)">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
                                             }
-                                        </div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="small text-secondary fw-semibold">Precio Pre-establecido en Odoo:</div>
-                                        <div class="fw-bold text-emerald fs-5" style="color: #059669;">
-                                            $@activeItem.CostoUnitario.ToString("N2")
-                                        </div>
-                                    </div>
+                                        </tbody>
+                                    </table>
                                 </div>
-                            </div>
-                        }
-
-                        <!-- 5. Modo de Cálculo -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">5. Modo de Cálculo *</label>
-                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeItem.TipoCalculo">
-                                <option value="FIJO">Fijo por corrida / lote (Ej. 45 unidades fijos)</option>
-                                <option value="PROPORCIONAL">Proporcional por unidad producida (Factor x Cantidad)</option>
-                            </select>
-                        </div>
-
-                        <!-- 6. Cantidad / Factor -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small" style="color: #334155;">6. Cantidad / Factor de Insumo *</label>
-                            <input type="number" step="0.0001" class="form-control fw-bold text-end" style="color: #0f172a;" @bind="activeItem.CantidadFactor" />
-                        </div>
-
-                        <!-- Observaciones -->
-                        <div class="col-12">
-                            <label class="form-label fw-bold small" style="color: #334155;">Observaciones / Instrucciones Automáticas</label>
-                            <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeItem.Observaciones" placeholder="Notas sobre la aplicación de este producto adicional..."></textarea>
+                            }
                         </div>
                     </div>
                 </div>
+
                 <div class="modal-footer border-top bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveItem" disabled="@saving">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4" @onclick="() => showModal = false">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveAllDraftInsumos" disabled="@saving">
                         @if (saving)
                         {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        Guardar Regla de Insumo
+                        Guardar Regla de Insumos (@draftInsumosList.Count)
                     </button>
                 </div>
             </div>
@@ -327,36 +430,49 @@
 @code {
     private List<ProductoAdicionalConfig> itemsList = new();
     private List<Combos> operacionesList = new();
-    private List<OdooVariantDto> allVariantsList = new();
-    private int? selectedVariantId;
+    private List<Combos> productTemplatesList = new();
+
+    private List<OdooVariantDto> mainVariantsList = new();
+    private List<OdooVariantDto> secVariantsList = new();
+    private List<ProductoAdicionalConfig> draftInsumosList = new();
+
     private bool loading = true;
     private bool saving = false;
-    private bool loadingVariants = false;
+    private bool loadingMainVariants = false;
+    private bool loadingSecVariants = false;
     private bool showModal = false;
     private string searchText = "";
-    private ProductoAdicionalConfig activeItem = new();
 
-    private int? SelectedOperacionId
-    {
-        get => activeItem.OperacionId;
-        set => activeItem.OperacionId = value;
-    }
+    // Form state
+    private int selectedOperacionId = 0;
+    private string areaCliente = "";
+    private int? selectedMainTemplateId;
+    private int? selectedMainVariantId;
+    private string mainServiceNombre = "";
+    private string mainServiceCodigo = "";
 
-    private IEnumerable<OdooVariantDto> AvailableVariants
+    // Secondary item state
+    private int? selectedSecTemplateId;
+    private int? selectedSecVariantId;
+    private string newSecNombre = "";
+    private string newSecCodigo = "";
+    private decimal newCostoUnitario = 0.0m;
+    private string newTipoCalculo = "FIJO";
+    private decimal newCantidadFactor = 45.0m;
+
+    private IEnumerable<OdooVariantDto> FilteredMainVariants
     {
         get
         {
-            if (!activeItem.OperacionId.HasValue || activeItem.OperacionId.Value <= 0)
-                return allVariantsList;
+            if (selectedOperacionId <= 0) return mainVariantsList;
 
-            var opObj = operacionesList.FirstOrDefault(o => o.id == activeItem.OperacionId.Value);
+            var opObj = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId);
             string opName = opObj?.nombre ?? "";
 
-            if (string.IsNullOrWhiteSpace(opName))
-                return allVariantsList;
+            if (string.IsNullOrWhiteSpace(opName)) return mainVariantsList;
 
-            var matched = allVariantsList.Where(v => IsClientMatch(opName, v.nombre)).ToList();
-            return matched.Any() ? matched : allVariantsList;
+            var matched = mainVariantsList.Where(v => IsClientMatch(opName, v.nombre)).ToList();
+            return matched.Any() ? matched : mainVariantsList;
         }
     }
 
@@ -390,16 +506,11 @@
             var res = await OdooService.GetAllProductosAdicionalesConfig();
             if (res?.Model != null) itemsList = res.Model.ToList();
 
-            var resOp = await OdooService.GetAllCombosHost("OPERACIONES");
+            var resOp = await OdooService.GetAllCombosHost("Operaciones");
             if (resOp?.Model != null) operacionesList = resOp.Model.ToList();
 
-            loadingVariants = true;
-            var resVar = await OdooService.GetAllProductVariants();
-            if (resVar?.Model != null && resVar.Model.Any())
-            {
-                allVariantsList = resVar.Model.ToList();
-            }
-
+            var resTmpl = await OdooService.GetProductTemplates();
+            if (resTmpl?.Model != null) productTemplatesList = resTmpl.Model.ToList();
         }
         catch (Exception ex)
         {
@@ -408,103 +519,195 @@
         finally
         {
             loading = false;
-            loadingVariants = false;
         }
     }
 
     private void PrepareCreate()
     {
-        activeItem = new ProductoAdicionalConfig
-        {
-            TipoCalculo = "FIJO",
-            CantidadFactor = 45.0m,
-            Activo = true
-        };
-        selectedVariantId = null;
+        selectedOperacionId = 0;
+        areaCliente = "";
+        selectedMainTemplateId = null;
+        selectedMainVariantId = null;
+        mainServiceNombre = "";
+        mainServiceCodigo = "";
+
+        selectedSecTemplateId = null;
+        selectedSecVariantId = null;
+        newSecNombre = "";
+        newSecCodigo = "";
+        newCostoUnitario = 0.0m;
+        newTipoCalculo = "FIJO";
+        newCantidadFactor = 45.0m;
+
+        draftInsumosList.Clear();
         showModal = true;
     }
 
-    private void EditItem(ProductoAdicionalConfig item)
+    private async Task OnOperacionChanged()
     {
-        activeItem = new ProductoAdicionalConfig
-        {
-            Id = item.Id,
-            OperacionId = item.OperacionId,
-            OperacionNombre = item.OperacionNombre,
-            AreaCliente = item.AreaCliente,
-            ServicioCodigo = item.ServicioCodigo,
-            ServicioNombre = item.ServicioNombre,
-            TemplateId = item.TemplateId,
-            VariantId = item.VariantId,
-            NombreProductoAdicional = item.NombreProductoAdicional,
-            CodigoItem = item.CodigoItem,
-            TipoCalculo = item.TipoCalculo,
-            CantidadFactor = item.CantidadFactor,
-            CostoUnitario = item.CostoUnitario,
-            Activo = item.Activo,
-            Observaciones = item.Observaciones
-        };
-
-        selectedVariantId = item.VariantId;
-        showModal = true;
+        // When operation changes, refresh filtered main variants
+        StateHasChanged();
     }
 
-    private void OnOperacionChanged()
+    private async Task OnMainTemplateChanged()
     {
-        selectedVariantId = null;
-        activeItem.NombreProductoAdicional = "";
-        activeItem.CodigoItem = "";
-        activeItem.CostoUnitario = 0.0m;
-        
-        var opObj = operacionesList.FirstOrDefault(o => o.id == activeItem.OperacionId);
-        activeItem.OperacionNombre = opObj?.nombre;
-    }
+        selectedMainVariantId = null;
+        mainServiceNombre = "";
+        mainServiceCodigo = "";
+        mainVariantsList.Clear();
 
-    private void OnVariantChanged()
-    {
-        if (!selectedVariantId.HasValue || selectedVariantId.Value <= 0) return;
+        if (!selectedMainTemplateId.HasValue || selectedMainTemplateId.Value <= 0) return;
 
-        var variant = allVariantsList.FirstOrDefault(v => v.id == selectedVariantId.Value);
-        if (variant != null)
+        loadingMainVariants = true;
+        try
         {
-            activeItem.VariantId = variant.id;
-            activeItem.NombreProductoAdicional = string.IsNullOrWhiteSpace(variant.nombre) 
-                ? (variant.template_name ?? variant.default_code) 
-                : variant.nombre;
-            activeItem.CodigoItem = variant.default_code;
-            activeItem.CostoUnitario = variant.precio; // Precio pre-establecido desde la lista de precios de Odoo!
+            var res = await OdooService.GetProductVariants(selectedMainTemplateId.Value);
+            if (res?.Model != null) mainVariantsList = res.Model.ToList();
+        }
+        finally
+        {
+            loadingMainVariants = false;
         }
     }
 
-    private async Task SaveItem()
+    private void OnMainVariantChanged()
     {
-        if (string.IsNullOrWhiteSpace(activeItem.ServicioNombre))
+        if (!selectedMainVariantId.HasValue || selectedMainVariantId.Value <= 0) return;
+
+        var variant = mainVariantsList.FirstOrDefault(v => v.id == selectedMainVariantId.Value);
+        if (variant != null)
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Por favor ingrese el Servicio o Actividad Principal.");
+            var mainTmpl = productTemplatesList.FirstOrDefault(t => t.id == selectedMainTemplateId);
+            mainServiceNombre = string.IsNullOrWhiteSpace(variant.nombre) ? (mainTmpl?.nombre ?? "") : variant.nombre;
+            mainServiceCodigo = variant.default_code ?? "";
+        }
+    }
+
+    private async Task OnSecTemplateChanged()
+    {
+        selectedSecVariantId = null;
+        newSecNombre = "";
+        newSecCodigo = "";
+        newCostoUnitario = 0.0m;
+        secVariantsList.Clear();
+
+        if (!selectedSecTemplateId.HasValue || selectedSecTemplateId.Value <= 0) return;
+
+        loadingSecVariants = true;
+        try
+        {
+            var res = await OdooService.GetProductVariants(selectedSecTemplateId.Value);
+            if (res?.Model != null) secVariantsList = res.Model.ToList();
+        }
+        finally
+        {
+            loadingSecVariants = false;
+        }
+    }
+
+    private void OnSecVariantChanged()
+    {
+        if (!selectedSecVariantId.HasValue || selectedSecVariantId.Value <= 0) return;
+
+        var variant = secVariantsList.FirstOrDefault(v => v.id == selectedSecVariantId.Value);
+        if (variant != null)
+        {
+            var secTmpl = productTemplatesList.FirstOrDefault(t => t.id == selectedSecTemplateId);
+            newSecNombre = string.IsNullOrWhiteSpace(variant.nombre) ? (secTmpl?.nombre ?? "") : variant.nombre;
+            newSecCodigo = variant.default_code ?? "";
+            newCostoUnitario = variant.precio;
+        }
+    }
+
+    private void AddInsumoToDraft()
+    {
+        if (!selectedSecVariantId.HasValue || string.IsNullOrWhiteSpace(newSecNombre))
+        {
+            JSRuntime.InvokeVoidAsync("alert", "Por favor seleccione la variante del insumo adicional.");
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(activeItem.NombreProductoAdicional))
+        if (newCantidadFactor <= 0)
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Por favor seleccione el Producto / Variante Adicional.");
+            JSRuntime.InvokeVoidAsync("alert", "Ingrese una cantidad o factor válido mayor a 0.");
+            return;
+        }
+
+        var opObj = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId);
+
+        var item = new ProductoAdicionalConfig
+        {
+            OperacionId = selectedOperacionId > 0 ? selectedOperacionId : null,
+            OperacionNombre = opObj?.nombre,
+            AreaCliente = areaCliente,
+            ServicioCodigo = mainServiceCodigo,
+            ServicioNombre = string.IsNullOrWhiteSpace(mainServiceNombre) ? "Servicio Principal" : mainServiceNombre,
+            TemplateId = selectedSecTemplateId,
+            VariantId = selectedSecVariantId,
+            NombreProductoAdicional = newSecNombre,
+            CodigoItem = newSecCodigo,
+            TipoCalculo = newTipoCalculo,
+            CantidadFactor = newCantidadFactor,
+            CostoUnitario = newCostoUnitario,
+            Activo = true
+        };
+
+        draftInsumosList.Add(item);
+
+        // Reset secondary form selection for next insumo
+        selectedSecVariantId = null;
+        newSecNombre = "";
+        newSecCodigo = "";
+        newCostoUnitario = 0.0m;
+    }
+
+    private void RemoveInsumoFromDraft(int index)
+    {
+        if (index >= 0 && index < draftInsumosList.Count)
+        {
+            draftInsumosList.RemoveAt(index);
+        }
+    }
+
+    private async Task SaveAllDraftInsumos()
+    {
+        if (!draftInsumosList.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Debe agregar al menos un insumo adicional a la lista antes de guardar.");
             return;
         }
 
         saving = true;
         try
         {
-            await OdooService.SaveProductoAdicionalConfig(activeItem);
+            foreach (var item in draftInsumosList)
+            {
+                await OdooService.SaveProductoAdicionalConfig(item);
+            }
+
             showModal = false;
             await LoadData();
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"Error guardando regla de producto adicional: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error guardando productos adicionales: {ex.Message}");
         }
         finally
         {
             saving = false;
         }
+    }
+
+    private void EditItem(ProductoAdicionalConfig item)
+    {
+        PrepareCreate();
+        selectedOperacionId = item.OperacionId ?? 0;
+        areaCliente = item.AreaCliente ?? "";
+        mainServiceNombre = item.ServicioNombre;
+        mainServiceCodigo = item.ServicioCodigo ?? "";
+
+        draftInsumosList.Add(item);
+        showModal = true;
     }
 
     private async Task DeleteItem(int id)
