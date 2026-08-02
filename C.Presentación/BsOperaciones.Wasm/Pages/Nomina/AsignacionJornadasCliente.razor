@@ -11,18 +11,18 @@
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
         <div>
             <h2 class="fw-bold mb-1" style="color: #0f172a;">
-                <i class="bi bi-building-gear text-primary me-2"></i>Asignación de Reglas de Jornada por Cliente (Ley 185)
+                <i class="bi bi-building-gear text-primary me-2"></i>Configuración de Horarios y Reglas por Cliente (Ley 185)
             </h2>
             <p class="text-secondary small mb-0 fw-semibold">
-                Seleccione un cliente y estructura salarial para activar las **reglas atómicas del Código del Trabajo (Ley 185)** y definir el **corte de nómina (8-23 / 13-28)**.
+                Las **reglas específicas por estructura salarial** tienen prioridad sobre la **configuración global del cliente** (herencia de reglas).
             </p>
         </div>
         <div class="d-flex gap-2">
             <a href="/nomina/reglas-jornadas" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-bold">
-                <i class="bi bi-journal-check me-1"></i>Ver Catálogo de Reglas Ley 185
+                <i class="bi bi-journal-check me-1"></i>Catálogo de Reglas Atómicas
             </a>
             <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
-                <i class="bi bi-plus-lg me-1"></i>+ NUEVA ASIGNACIÓN A CLIENTE
+                <i class="bi bi-plus-lg me-1"></i>+ NUEVA CONFIGURACIÓN DE CLIENTE
             </button>
         </div>
     </div>
@@ -36,8 +36,8 @@
                         <i class="bi bi-buildings-fill text-white"></i>
                     </div>
                     <div>
-                        <div class="text-white-50 small fw-bold">ASIGNACIONES ACTIVAS</div>
-                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count</div>
+                        <div class="text-white-50 small fw-bold">CLIENTES CONFIGURADOS</div>
+                        <div class="fs-2 fw-bold text-white">@ClientGroups.Count()</div>
                     </div>
                 </div>
             </div>
@@ -46,11 +46,11 @@
             <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
-                        <i class="bi bi-calendar-event text-white"></i>
+                        <i class="bi bi-diagram-3-fill text-white"></i>
                     </div>
                     <div>
-                        <div class="text-white-50 small fw-bold">CORTE 8 Y 23 (DÍAS 9 - 24)</div>
-                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_8_23")</div>
+                        <div class="text-white-50 small fw-bold">ESTRUCTURAS ESPECÍFICAS</div>
+                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => a.EstructuraSalarialId.HasValue)</div>
                     </div>
                 </div>
             </div>
@@ -59,159 +59,166 @@
             <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #475569 0%, #64748b 100%);">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
-                        <i class="bi bi-calendar2-range text-white"></i>
+                        <i class="bi bi-clock-history text-white"></i>
                     </div>
                     <div>
-                        <div class="text-white-50 small fw-bold">CORTE 13 Y 28 (DÍAS 14 - 29)</div>
-                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => a.CorteNominaTipo == "CORTE_13_28")</div>
+                        <div class="text-white-50 small fw-bold">REGLAS GLOBALES DE RESPALDO</div>
+                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => !a.EstructuraSalarialId.HasValue)</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Assignments List Card -->
+    <!-- Search bar -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <div class="card-body py-3 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0" style="color: #0f172a;">
-                <i class="bi bi-list-check me-2 text-primary"></i>Configuración de Reglas por Cliente y Estructura Salarial (@asignacionesList.Count)
+                <i class="bi bi-list-check me-2 text-primary"></i>Jerarquía de Reglas por Cliente y Estructuras Salariales
             </h5>
             <div class="input-group input-group-sm" style="max-width: 320px;">
                 <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
-                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar cliente..." @bind="searchText" @bind:event="oninput" />
+                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar cliente o estructura..." @bind="searchText" @bind:event="oninput" />
             </div>
         </div>
+    </div>
 
-        <div class="card-body p-0">
-            @if (loading)
-            {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="text-dark fw-semibold mt-2">Cargando asignaciones de clientes...</p>
+    <!-- Clients list with nested structure grid -->
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-dark fw-semibold mt-2">Cargando asignaciones de clientes...</p>
+        </div>
+    }
+    else if (!ClientGroups.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center">
+            <i class="bi bi-inbox text-secondary display-4"></i>
+            <p class="text-secondary fw-semibold mt-2">No se encontraron configuraciones registradas.</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var group in ClientGroups)
+        {
+            var opId = group.Key;
+            var clientName = group.First().OperacionNombre ?? "🌐 GLOBAL (Todas las operaciones)";
+            var globalConfig = group.FirstOrDefault(a => !a.EstructuraSalarialId.HasValue);
+            var specificConfigs = group.Where(a => a.EstructuraSalarialId.HasValue).ToList();
+
+            <div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden">
+                <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center" style="background-color: #f1f5f9;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="display: inline-block; padding: 6px 14px; border-radius: 8px; background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; font-weight: 700; font-size: 15px;">
+                            <i class="bi bi-building me-2"></i>@clientName
+                        </span>
+                        <span class="badge bg-secondary px-2 py-1" style="font-size: 12px;">
+                            @group.Count() asignación(es)
+                        </span>
+                    </div>
+
+                    <button class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-bold" @onclick="() => ManageClientModal(opId, clientName)">
+                        <i class="bi bi-sliders me-1"></i>Gestionar Reglas del Cliente
+                    </button>
                 </div>
-            }
-            else if (!FilteredAsignaciones.Any())
-            {
-                <div class="text-center py-5">
-                    <i class="bi bi-inbox text-secondary display-4"></i>
-                    <p class="text-secondary fw-semibold mt-2">No se encontraron asignaciones registradas.</p>
-                </div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" style="color: #0f172a; width: 100%;">
-                        <thead style="background-color: #f1f5f9; color: #1e293b;" class="small fw-bold text-uppercase border-bottom">
-                            <tr>
-                                <th style="width: 50px;" class="ps-3 py-3">ID</th>
-                                <th style="width: 220px;" class="py-3">Cliente / Operación</th>
-                                <th style="width: 180px;" class="py-3">Estructura Salarial</th>
-                                <th style="width: 130px;" class="py-3">Corte de Nómina</th>
-                                <th class="py-3">Reglas Atómicas Activas Aplicadas</th>
-                                <th style="width: 220px;" class="py-3">Observaciones</th>
-                                <th style="width: 100px;" class="text-end pe-3 py-3">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var a in FilteredAsignaciones)
-                            {
-                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
-                                    <td class="ps-3 py-3 fw-bold" style="color: #475569; font-size: 13px;">#@a.Id</td>
-                                    <td class="py-3">
-                                        @if (!string.IsNullOrWhiteSpace(a.OperacionNombre))
-                                        {
-                                            <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700; font-size: 13px;">
-                                                <i class="bi bi-building me-1"></i>@a.OperacionNombre
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="color: #0f172a; width: 100%;">
+                            <thead style="background-color: #f8fafc; color: #475569;" class="small fw-bold text-uppercase border-bottom">
+                                <tr>
+                                    <th style="width: 220px;" class="ps-3 py-2">Estructura Salarial</th>
+                                    <th style="width: 140px;" class="py-2">Prioridad</th>
+                                    <th style="width: 130px;" class="py-2">Corte de Nómina</th>
+                                    <th class="py-2">Reglas Atómicas Activas</th>
+                                    <th style="width: 100px;" class="text-end pe-3 py-2">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Global Baseline Row for Client -->
+                                @if (globalConfig != null)
+                                {
+                                    <tr style="background-color: #f0fdf4; border-bottom: 1px solid #bbf7d0;">
+                                        <td class="ps-3 py-3">
+                                            <span style="font-weight: 700; color: #166534; font-size: 13px;">
+                                                🌐 Configuración Base Global
                                             </span>
-                                        }
-                                        else
-                                        {
-                                            <span style="display: inline-block; padding: 4px 10px; border-radius: 6px; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: 700; font-size: 13px;">
-                                                🌐 GLOBAL (Todas las operaciones)
+                                        </td>
+                                        <td class="py-3">
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; font-weight: 700; font-size: 11px;">
+                                                Base / Respaldo
                                             </span>
-                                        }
-                                    </td>
-                                    <td class="py-3">
-                                        <span style="font-weight: 600; color: #0f172a; font-size: 13px;">
-                                            @(string.IsNullOrWhiteSpace(a.EstructuraSalarialNombre) ? "Todas las Estructuras" : a.EstructuraSalarialNombre)
-                                        </span>
-                                    </td>
-                                    <td class="py-3">
-                                        @if (a.CorteNominaTipo == "CORTE_8_23")
-                                        {
+                                        </td>
+                                        <td class="py-3">
                                             <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #0284c7; color: #ffffff; font-weight: 700; font-size: 12px;">
-                                                Corte 8 y 23
+                                                @(globalConfig.CorteNominaTipo == "CORTE_8_23" ? "Corte 8 y 23" : "Corte 13 y 28")
                                             </span>
-                                        }
-                                        else
-                                        {
-                                            <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #475569; color: #ffffff; font-weight: 700; font-size: 12px;">
-                                                Corte 13 y 28
+                                        </td>
+                                        <td class="py-3">
+                                            @RenderRulesBadges(globalConfig.ReglasActivas)
+                                        </td>
+                                        <td class="text-end pe-3 py-3">
+                                            <button type="button" class="btn btn-sm btn-outline-success" style="padding: 4px 8px; font-size: 12px;" title="Editar Reglas Base" @onclick="() => EditAsignacion(globalConfig)">
+                                                <i class="bi bi-pencil-fill me-1"></i>Editar Base
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+
+                                <!-- Specific Structure Rows for Client -->
+                                @foreach (var spec in specificConfigs)
+                                {
+                                    <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                                        <td class="ps-3 py-3">
+                                            <span style="font-weight: 700; color: #0f172a; font-size: 13px;">
+                                                <i class="bi bi-arrow-return-right me-1 text-primary"></i>@spec.EstructuraSalarialNombre
                                             </span>
-                                        }
-                                    </td>
-                                    <td class="py-3">
-                                        <div style="display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px;">
-                                            @if (a.ReglasActivas == null || !a.ReglasActivas.Any())
+                                        </td>
+                                        <td class="py-3">
+                                            <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; font-size: 11px;">
+                                                ⚡ PRIORIDAD MÁXIMA
+                                            </span>
+                                        </td>
+                                        <td class="py-3">
+                                            @if (spec.CorteNominaTipo == "CORTE_8_23")
                                             {
-                                                <span style="padding: 3px 8px; border-radius: 4px; background-color: #f1f5f9; color: #64748b; font-size: 12px; border: 1px solid #cbd5e1;">Sin reglas activas</span>
+                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #0284c7; color: #ffffff; font-weight: 700; font-size: 12px;">
+                                                    Corte 8 y 23
+                                                </span>
                                             }
                                             else
                                             {
-                                                @foreach (var cod in a.ReglasActivas)
-                                                {
-                                                    var rule = atomicasList.FirstOrDefault(r => r.CodigoRegla == cod);
-                                                    var label = rule != null ? rule.NombreRegla : cod;
-                                                    var category = rule?.Categoria ?? "";
-
-                                                    if (category == "JORNADA")
-                                                    {
-                                                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600; font-size: 12px;" title="@label">
-                                                            <i class="bi bi-clock me-1"></i>@label
-                                                        </span>
-                                                    }
-                                                    else if (category == "DESCANSO" || category == "FERIADO")
-                                                    {
-                                                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; font-size: 12px;" title="@label">
-                                                            <i class="bi bi-calendar-event me-1"></i>@label
-                                                        </span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; font-weight: 600; font-size: 12px;" title="@label">
-                                                            <i class="bi bi-check2-circle me-1"></i>@label
-                                                        </span>
-                                                    }
-                                                }
+                                                <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; background-color: #475569; color: #ffffff; font-weight: 700; font-size: 12px;">
+                                                    Corte 13 y 28
+                                                </span>
                                             }
-                                        </div>
-                                    </td>
-                                    <td class="py-3">
-                                        <span style="color: #334155; font-size: 13px; font-weight: 500;">
-                                            @(string.IsNullOrWhiteSpace(a.Observaciones) ? "-" : a.Observaciones)
-                                        </span>
-                                    </td>
-                                    <td class="text-end pe-3 py-3">
-                                        <div style="display: flex; gap: 4px; justify-content: flex-end;">
-                                            <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 12px;" title="Editar Reglas" @onclick="() => EditAsignacion(a)">
-                                                <i class="bi bi-pencil-fill"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px;" title="Eliminar" @onclick="() => DeleteAsignacion(a.Id)">
-                                                <i class="bi bi-trash-fill"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                                        </td>
+                                        <td class="py-3">
+                                            @RenderRulesBadges(spec.ReglasActivas)
+                                        </td>
+                                        <td class="text-end pe-3 py-3">
+                                            <div style="display: flex; gap: 4px; justify-content: flex-end;">
+                                                <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 12px;" title="Editar Reglas Específicas" @onclick="() => EditAsignacion(spec)">
+                                                    <i class="bi bi-pencil-fill"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px;" title="Eliminar" @onclick="() => DeleteAsignacion(spec.Id)">
+                                                    <i class="bi bi-trash-fill"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            }
-        </div>
-    </div>
+            </div>
+        }
+    }
 </div>
 
-<!-- Modal Form Asignación Modular -->
+<!-- Modal Form Asignación Modular con Grilla de Estructuras -->
 @if (showModal)
 {
     <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
@@ -219,47 +226,56 @@
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-sliders me-2"></i>Configuración y Asignación de Reglas de Jornada por Cliente
+                        <i class="bi bi-sliders me-2"></i>Configuración de Horarios y Reglas por Cliente
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
                 <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
-                    <!-- General settings -->
-                    <div class="row g-3 mb-4 pb-3 border-bottom">
-                        <div class="col-md-5">
-                            <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
-                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.OperacionId">
-                                <option value="">🌐 GLOBAL (Todas las operaciones)</option>
-                                @foreach (var op in operacionesList)
-                                {
-                                    <option value="@op.id">@op.nombre</option>
-                                }
-                            </select>
-                        </div>
+                    
+                    <!-- Form Controls: Target Client & Structure -->
+                    <div class="card border p-3 mb-4 bg-light">
+                        <h6 class="fw-bold text-primary mb-3">
+                            <i class="bi bi-building me-2"></i>1. Seleccione el Cliente y la Estructura Salarial a Configurar:
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
+                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.OperacionId">
+                                    <option value="">🌐 GLOBAL (Todas las operaciones)</option>
+                                    @foreach (var op in operacionesList)
+                                    {
+                                        <option value="@op.id">@op.nombre</option>
+                                    }
+                                </select>
+                            </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small" style="color: #334155;">Estructura Salarial</label>
-                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.EstructuraSalarialId">
-                                <option value="">Todas las Estructuras Salariales</option>
-                                @foreach (var est in estructurasList)
-                                {
-                                    <option value="@est.id">@est.nombre</option>
-                                }
-                            </select>
-                        </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small" style="color: #334155;">Estructura Salarial Destino</label>
+                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.EstructuraSalarialId">
+                                    <option value="">🌐 Configuración Base Global (Todas las Estructuras)</option>
+                                    @foreach (var est in estructurasList)
+                                    {
+                                        <option value="@est.id">⚡ @est.nombre (Específica)</option>
+                                    }
+                                </select>
+                                <div class="form-text small" style="color: #64748b;">
+                                    Si elige una estructura específica, se aplicará con <strong>prioridad sobre la base global</strong>.
+                                </div>
+                            </div>
 
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small" style="color: #334155;">Corte de Nómina</label>
-                            <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.CorteNominaTipo">
-                                <option value="CORTE_8_23">Corte 8 y 23 (Días 9 - 24)</option>
-                                <option value="CORTE_13_28">Corte 13 y 28 (Días 14 - 29)</option>
-                            </select>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small" style="color: #334155;">Corte de Nómina</label>
+                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.CorteNominaTipo">
+                                    <option value="CORTE_8_23">Corte 8 y 23 (Días 9 - 24)</option>
+                                    <option value="CORTE_13_28">Corte 13 y 28 (Días 14 - 29)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Multi-select atomic rules checkboxes -->
                     <h6 class="fw-bold mb-3" style="color: #0f172a;">
-                        <i class="bi bi-check2-square text-primary me-2"></i>Seleccione las Reglas Atómicas que Aplican a este Cliente:
+                        <i class="bi bi-check2-square text-primary me-2"></i>2. Marque las Reglas Atómicas que Aplican a esta Configuración:
                     </h6>
 
                     <div class="row g-3">
@@ -267,7 +283,7 @@
                         <div class="col-12">
                             <div class="card border rounded-3 p-3" style="background-color: #ecfdf5; border-color: #a7f3d0 !important;">
                                 <h6 class="fw-bold mb-2" style="color: #065f46;">
-                                    <i class="bi bi-clock me-1"></i>1. Capacidad de Jornadas y Conversión Nocturna (Art. 51 y 53 CT)
+                                    <i class="bi bi-clock me-1"></i>Capacidad de Jornadas y Conversión Nocturna (Art. 51 y 53 CT)
                                 </h6>
                                 <div class="row g-2">
                                     @foreach (var r in atomicasList.Where(x => x.Categoria == "JORNADA"))
@@ -292,7 +308,7 @@
                         <div class="col-12">
                             <div class="card border rounded-3 p-3" style="background-color: #fffbeb; border-color: #fde68a !important;">
                                 <h6 class="fw-bold mb-2" style="color: #92400e;">
-                                    <i class="bi bi-calendar-event me-1"></i>2. Recargos por Séptimo Día y Feriados Ley 185 (Art. 64-67 CT)
+                                    <i class="bi bi-calendar-event me-1"></i>Recargos por Séptimo Día y Feriados Ley 185 (Art. 64-67 CT)
                                 </h6>
                                 <div class="row g-2">
                                     @foreach (var r in atomicasList.Where(x => x.Categoria == "DESCANSO" || x.Categoria == "FERIADO"))
@@ -317,7 +333,7 @@
                         <div class="col-12">
                             <div class="card border rounded-3 p-3" style="background-color: #f0f9ff; border-color: #bae6fd !important;">
                                 <h6 class="fw-bold mb-2" style="color: #0369a1;">
-                                    <i class="bi bi-gear-wide-connected me-1"></i>3. Turnos Operativos Específicos & Extras (Art. 54 CT & Convenios)
+                                    <i class="bi bi-gear-wide-connected me-1"></i>Turnos Operativos Específicos & Extras (Art. 54 CT & Convenios)
                                 </h6>
                                 <div class="row g-2">
                                     @foreach (var r in atomicasList.Where(x => x.Categoria == "TURNO_ESPECIAL" || x.Categoria == "MARCADAS" || x.Categoria == "EXTRAS" || x.Categoria == "BENEFICIOS"))
@@ -371,10 +387,11 @@
     private string searchText = "";
     private AsignacionJornadaCliente activeAsignacion = new();
 
-    private IEnumerable<AsignacionJornadaCliente> FilteredAsignaciones => asignacionesList
+    private IEnumerable<IGrouping<int?, AsignacionJornadaCliente>> ClientGroups => asignacionesList
         .Where(a => string.IsNullOrWhiteSpace(searchText) ||
                     (a.OperacionNombre != null && a.OperacionNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                    (a.EstructuraSalarialNombre != null && a.EstructuraSalarialNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+                    (a.EstructuraSalarialNombre != null && a.EstructuraSalarialNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)))
+        .GroupBy(a => a.OperacionId);
 
     protected override async Task OnInitializedAsync()
     {
@@ -406,6 +423,35 @@
         {
             loading = false;
         }
+    }
+
+    private void ManageClientModal(int? opId, string clientName)
+    {
+        activeAsignacion = new AsignacionJornadaCliente
+        {
+            OperacionId = opId,
+            CorteNominaTipo = "CORTE_8_23"
+        };
+        
+        var existingGlobal = asignacionesList.FirstOrDefault(a => a.OperacionId == opId && !a.EstructuraSalarialId.HasValue);
+        if (existingGlobal != null)
+        {
+            selectedRuleCodes = new HashSet<string>(existingGlobal.ReglasActivas ?? new List<string>());
+            activeAsignacion.CorteNominaTipo = existingGlobal.CorteNominaTipo;
+        }
+        else
+        {
+            selectedRuleCodes = new HashSet<string>
+            {
+                "JORNADA_DIURNA_8H",
+                "JORNADA_NOCTURNA_7H_X_8H",
+                "JORNADA_MIXTA_NOCTURNA_CONVERSION",
+                "DOMINGO_DESCANSO_RECARGO_100",
+                "FERIADO_NACIONAL_RECARGO_100",
+                "HORAS_EXTRAS_RECARGO_100"
+            };
+        }
+        showModal = true;
     }
 
     private void PrepareCreate()
@@ -484,4 +530,42 @@
             await JSRuntime.InvokeVoidAsync("alert", $"Error eliminando asignación: {ex.Message}");
         }
     }
+
+    private RenderFragment RenderRulesBadges(List<string> rules) => __builder =>
+    {
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px;">
+            @if (rules == null || !rules.Any())
+            {
+                <span style="padding: 3px 8px; border-radius: 4px; background-color: #f1f5f9; color: #64748b; font-size: 12px; border: 1px solid #cbd5e1;">Sin reglas activas</span>
+            }
+            else
+            {
+                @foreach (var cod in rules)
+                {
+                    var rule = atomicasList.FirstOrDefault(r => r.CodigoRegla == cod);
+                    var label = rule != null ? rule.NombreRegla : cod;
+                    var category = rule?.Categoria ?? "";
+
+                    if (category == "JORNADA")
+                    {
+                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600; font-size: 12px;" title="@label">
+                            <i class="bi bi-clock me-1"></i>@label
+                        </span>
+                    }
+                    else if (category == "DESCANSO" || category == "FERIADO")
+                    {
+                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; font-size: 12px;" title="@label">
+                            <i class="bi bi-calendar-event me-1"></i>@label
+                        </span>
+                    }
+                    else
+                    {
+                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; font-weight: 600; font-size: 12px;" title="@label">
+                            <i class="bi bi-check2-circle me-1"></i>@label
+                        </span>
+                    }
+                }
+            }
+        </div>
+    };
 }
