@@ -2938,7 +2938,7 @@ namespace HostService.Clases
             try
             {
                 var requestUrl = CreateRequestUri("OdQuery/GetAllProductosAdicionalesConfig");
-                var registro = await GetAsync<object>(requestUrl, null);
+                var registro = await GetAsync(requestUrl);
 
                 if (registro.IsSuccess)
 
