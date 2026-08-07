@@ -209,17 +209,17 @@
                     <table class="table table-hover align-middle mb-0" style="color: #0f172a; font-size: 13px;">
                         <thead style="background-color: #f1f5f9; color: #475569;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
-                                <th class="ps-3 py-2">Estado Conciliación</th>
-                                <th class="py-2">Contrato / ID Empleado</th>
-                                <th class="py-2">Nombre Empleado</th>
+                                <th class="ps-3 py-2">Estado</th>
+                                <th class="py-2">Contrato / Empleado</th>
                                 <th class="py-2">No. Cédula / No. INSS</th>
-                                <th class="py-2 text-center">Días / Extras</th>
-                                <th class="py-2 text-end">Salario INSS</th>
-                                <th class="py-2 text-end">Reporte INSS (Nómina)</th>
-                                <th class="py-2 text-end">Aporte Lab. (7%)</th>
-                                <th class="py-2 text-end">INSS Real (Nómina)</th>
-                                <th class="py-2 text-end">Aporte Pat. (22.5%)</th>
-                                <th class="py-2 text-end pe-3">Diferencia Neta C$</th>
+                                <th class="py-2">Nombre Empleado</th>
+                                <th class="py-2 text-end">Salario Fijo</th>
+                                <th class="py-2 text-center">Días Lab.</th>
+                                <th class="py-2 text-end">Salario Básico</th>
+                                <th class="py-2 text-end">Reportado al INSS (Nómina)</th>
+                                <th class="py-2 text-center">Semanas INSS (Archivo)</th>
+                                <th class="py-2 text-end">Cobrado Real INSS (Archivo)</th>
+                                <th class="py-2 text-end pe-3">Diferencia C$</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -235,26 +235,23 @@
                                         <div>Contrato: @(row.Contrato > 0 ? row.Contrato.ToString() : "N/A")</div>
                                         <div class="text-secondary small">ID: @(row.EmpleadoId > 0 ? row.EmpleadoId.ToString() : "N/A")</div>
                                     </td>
-                                    <td class="py-2 fw-bold text-uppercase">
-                                        @row.NombreEmpleado
-                                        @if (!string.IsNullOrEmpty(row.ObservacionReclamo))
-                                        {
-                                            <div class="text-secondary small">@row.ObservacionReclamo</div>
-                                        }
-                                    </td>
                                     <td class="py-2 font-monospace">
                                         <div>@(string.IsNullOrEmpty(row.Cedula) ? "SIN CÉDULA" : row.Cedula)</div>
                                         <div class="text-secondary small">INSS: @(string.IsNullOrEmpty(row.Nss) ? "N/A" : row.Nss)</div>
                                     </td>
-                                    <td class="py-2 text-center">
-                                        <span class="badge bg-light text-dark border">@row.DiasLaboradosNomina.ToString("N1") d</span>
-                                        <span class="badge bg-light text-dark border">@row.HorasExtrasNomina.ToString("N2") h</span>
+                                    <td class="py-2 fw-bold text-uppercase">
+                                        @row.NombreEmpleado
+                                        @if (!string.IsNullOrEmpty(row.ObservacionReclamo))
+                                        {
+                                            <div class="text-secondary small fw-normal text-muted">@row.ObservacionReclamo</div>
+                                        }
                                     </td>
-                                    <td class="py-2 text-end fw-semibold">C$ @row.SalarioCotizadoInss.ToString("N2")</td>
-                                    <td class="py-2 text-end fw-semibold text-primary">C$ @row.SalarioCotizableNomina.ToString("N2")</td>
-                                    <td class="py-2 text-end">C$ @row.AporteLaboralInss.ToString("N2")</td>
-                                    <td class="py-2 text-end text-primary">C$ @row.InssRetenidoNomina.ToString("N2")</td>
-                                    <td class="py-2 text-end">C$ @row.AportePatronalInss.ToString("N2")</td>
+                                    <td class="py-2 text-end fw-semibold">C$ @row.SalarioFijoNomina.ToString("N2")</td>
+                                    <td class="py-2 text-center font-monospace fw-bold">@row.DiasLaboradosNomina.ToString("N1")</td>
+                                    <td class="py-2 text-end fw-semibold">C$ @row.SalarioBasicoNomina.ToString("N2")</td>
+                                    <td class="py-2 text-end fw-bold text-primary">C$ @row.SalarioCotizableNomina.ToString("N2")</td>
+                                    <td class="py-2 text-center font-monospace badge bg-light text-dark border align-self-center mt-2">@row.SemanasInssFactura</td>
+                                    <td class="py-2 text-end fw-bold text-danger">C$ @row.TotalInss.ToString("N2")</td>
                                     <td class="py-2 text-end pe-3 fw-bold @(row.DiferenciaNetaTotal > 0 ? "text-danger" : (row.DiferenciaNetaTotal < 0 ? "text-success" : "text-dark"))">
                                         C$ @row.DiferenciaNetaTotal.ToString("N2")
                                     </td>
@@ -549,6 +546,7 @@
                     nominaIdsProcesadas.Add(nomMatch.id);
                     item.EmpleadoId = nomMatch.id;
                     item.Contrato = nomMatch.contrato;
+                    item.SalarioFijoNomina = nomMatch.sal_fijo;
                     item.DiasLaboradosNomina = nomMatch.diaslab;
                     item.HorasExtrasNomina = nomMatch.no_hras_extra;
                     item.SemanasInssNomina = nomMatch.semanas_inss;
@@ -617,6 +615,7 @@
                         Cedula = ced,
                         Nss = CleanNumericNss(nom.noinss),
                         NombreEmpleado = nom.nombre,
+                        SalarioFijoNomina = nom.sal_fijo,
                         DiasLaboradosNomina = nom.diaslab,
                         HorasExtrasNomina = nom.no_hras_extra,
                         SemanasInssNomina = nom.semanas_inss,
