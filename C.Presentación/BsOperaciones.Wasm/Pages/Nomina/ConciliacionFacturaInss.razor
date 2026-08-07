@@ -1,0 +1,535 @@
+@page "/nomina/conciliacion-inss"
+@page "/nomina/conciliacion-factura-inss"
+@using Modelo.Entidades.Nomina
+@using Modelo.Entidades.Entradas.Odoo
+@using HostService.Interfaces
+@using MediatR
+@using BsOperaciones.Application.Features.Odoo.Queries
+@using Utilidades.ClasesGenericas
+@using System.IO
+@using System.Text
+@inject IMediator Mediator
+@inject IOdooService OdooService
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+    
+    <!-- Encabezado Principal -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #0f172a;">
+                <i class="bi bi-file-earmark-diff-fill text-primary me-2"></i>Conciliación Auditada: Factura INSS vs. Nómina
+            </h2>
+            <p class="text-secondary small mb-0 fw-semibold">
+                Auditoría comparativa línea a línea del archivo <strong>DetalleFactura.csv / Excel del INSS</strong> contra la nómina del mes pasado. Detecte cobros indebidos, bajas no reportadas y diferencias de cotización laboral/patronal.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="ExportarExcel" disabled="@(!conciliacionList.Any())">
+                <i class="bi bi-file-earmark-excel-fill me-1"></i>EXPORTAR EXCEL AUDITORÍA
+            </button>
+        </div>
+    </div>
+
+    <!-- Panel de Selección de Nómina y Carga de Archivo INSS -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3" style="color: #1e3a8a;">
+                <i class="bi bi-cloud-upload me-2 text-primary"></i>1. Cargar Archivo de Factura INSS y Seleccionar Nómina a Comparar
+            </h5>
+            
+            <div class="row g-3 align-items-end">
+                <!-- Rango de Fechas / Período de Nómina -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small text-secondary">Fecha Inicio Nómina</label>
+                    <input type="date" class="form-control fw-bold" @bind="fechaInicio" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small text-secondary">Fecha Fin Nómina</label>
+                    <input type="date" class="form-control fw-bold" @bind="fechaFin" />
+                </div>
+
+                <!-- Carga de Archivo DetalleFactura.csv / Excel INSS -->
+                <div class="col-md-4">
+                    <label class="form-label fw-bold small text-secondary">Archivo DetalleFactura (.csv / .xlsx)</label>
+                    <InputFile id="inssFileInput" OnChange="ProcessInssFile" hidden accept=".csv,.xlsx,.xls" />
+                    <label for="inssFileInput" class="btn btn-outline-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-2 py-2" style="border-style: dashed; border-width: 2px;">
+                        <i class="bi bi-file-earmark-arrow-up fs-5"></i>
+                        @(fileName.Length > 0 ? fileName : "Seleccionar DetalleFactura.csv")
+                    </label>
+                </div>
+
+                <!-- Botón de Ejecutar Conciliación -->
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100 fw-bold py-2 shadow-sm" @onclick="EjecutarConciliacion" disabled="@(processing || string.IsNullOrEmpty(fileName))">
+                        @if (processing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-lightning-charge-fill me-1"></i>
+                        }
+                        CONCILIAR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Indicador de Carga -->
+    @if (processing)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary display-4" role="status"></div>
+            <p class="text-primary fw-bold mt-3">Procesando y cruzando registros de la Factura INSS con Nómina...</p>
+        </div>
+    }
+    else if (resumen != null)
+    {
+        <!-- KPI Cards Summary -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.15); width: 50px; height: 50px;">
+                            <i class="bi bi-receipt-cutoff text-white"></i>
+                        </div>
+                        <div>
+                            <div class="text-white-50 small fw-bold">TOTAL FACTURA INSS</div>
+                            <div class="fs-4 fw-bold text-white">C$ @resumen.TotalMontoFacturaInss.ToString("N2")</div>
+                            <div class="small text-white-50">@resumen.TotalPersonasFacturaInss personas facturadas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.15); width: 50px; height: 50px;">
+                            <i class="bi bi-cash-stack text-white"></i>
+                        </div>
+                        <div>
+                            <div class="text-white-50 small fw-bold">TOTAL NÓMINA EMPRESA</div>
+                            <div class="fs-4 fw-bold text-white">C$ @resumen.TotalMontoNominaEmpresa.ToString("N2")</div>
+                            <div class="small text-white-50">@resumen.TotalPersonasNomina personas en nómina</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: @(resumen.DiferenciaNetaTotal > 0 ? "linear-gradient(135deg, #991b1b 0%, #ef4444 100%)" : "linear-gradient(135deg, #065f46 0%, #10b981 100%)");">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.15); width: 50px; height: 50px;">
+                            <i class="bi bi-calculator-fill text-white"></i>
+                        </div>
+                        <div>
+                            <div class="text-white-50 small fw-bold">DIFERENCIA NETA (INSS - NÓMINA)</div>
+                            <div class="fs-4 fw-bold text-white">C$ @resumen.DiferenciaNetaTotal.ToString("N2")</div>
+                            <div class="small text-white-50">
+                                @(resumen.DiferenciaNetaTotal > 0 ? "Cobro demás por el INSS" : "Cobro menor por el INSS")
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.15); width: 50px; height: 50px;">
+                            <i class="bi bi-exclamation-triangle-fill text-white"></i>
+                        </div>
+                        <div>
+                            <div class="text-white-50 small fw-bold">NOVEDADES A RECLAMAR</div>
+                            <div class="fs-4 fw-bold text-white">@resumen.TotalSoloFacturaInss en INSS / @resumen.TotalSoloNomina en Nómina</div>
+                            <div class="small text-white-50">@resumen.TotalDiferenciasMonto personas con dif. monto</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas de Filtrado y Vista Tabla -->
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <ul class="nav nav-pills card-header-pills gap-2">
+                    <li class="nav-item">
+                        <button class="nav-link btn-sm fw-bold @(activeTab == "TODOS" ? "active" : "")" @onclick='() => activeTab = "TODOS"'>
+                            📊 Todos (@conciliacionList.Count)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link btn-sm fw-bold btn-danger @(activeTab == "SOLO_INSS" ? "active" : "")" @onclick='() => activeTab = "SOLO_INSS"'>
+                            ⚠️ Solo en INSS (Reclamo) (@resumen.TotalSoloFacturaInss)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link btn-sm fw-bold btn-warning @(activeTab == "SOLO_NOMINA" ? "active" : "")" @onclick='() => activeTab = "SOLO_NOMINA"'>
+                            🔴 Solo en Nómina (@resumen.TotalSoloNomina)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link btn-sm fw-bold btn-info text-white @(activeTab == "DIFERENCIAS" ? "active" : "")" @onclick='() => activeTab = "DIFERENCIAS"'>
+                            💵 Dif. Cotización (@resumen.TotalDiferenciasMonto)
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="input-group input-group-sm" style="max-width: 280px;">
+                    <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                    <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar por cédula, NSS o nombre..." @bind="searchFilter" @bind:event="oninput" />
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="color: #0f172a; font-size: 13px;">
+                        <thead style="background-color: #f1f5f9; color: #475569;" class="small fw-bold text-uppercase border-bottom">
+                            <tr>
+                                <th class="ps-3 py-2">Estado Conciliación</th>
+                                <th class="py-2">Cédula / NSS</th>
+                                <th class="py-2">Nombre Empleado</th>
+                                <th class="py-2 text-end">Salario INSS</th>
+                                <th class="py-2 text-end">Salario Nómina</th>
+                                <th class="py-2 text-end">Laboral INSS (7%)</th>
+                                <th class="py-2 text-end">INSS Ret. Nómina</th>
+                                <th class="py-2 text-end">Patronal INSS (22.5%)</th>
+                                <th class="py-2 text-end">INSS Pat. Nómina</th>
+                                <th class="py-2 text-end pe-3">Diferencia Neta C$</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in FilteredItems)
+                            {
+                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: @GetRowBgColor(row.Estado);">
+                                    <td class="ps-3 py-2">
+                                        <span class="badge @GetBadgeClass(row.Estado) px-2 py-1" style="font-size: 11px;">
+                                            @row.EstadoBadge
+                                        </span>
+                                    </td>
+                                    <td class="py-2 font-monospace fw-bold">
+                                        <div>@row.Cedula</div>
+                                        <div class="text-secondary small">NSS: @row.Nss</div>
+                                    </td>
+                                    <td class="py-2 fw-bold text-uppercase">
+                                        @row.NombreEmpleado
+                                        @if (!string.IsNullOrEmpty(row.Area))
+                                        {
+                                            <div class="text-secondary small">@row.Area</div>
+                                        }
+                                    </td>
+                                    <td class="py-2 text-end fw-semibold">C$ @row.SalarioCotizadoInss.ToString("N2")</td>
+                                    <td class="py-2 text-end fw-semibold text-primary">C$ @row.SalarioCotizableNomina.ToString("N2")</td>
+                                    <td class="py-2 text-end">C$ @row.AporteLaboralInss.ToString("N2")</td>
+                                    <td class="py-2 text-end text-primary">C$ @row.InssRetenidoNomina.ToString("N2")</td>
+                                    <td class="py-2 text-end">C$ @row.AportePatronalInss.ToString("N2")</td>
+                                    <td class="py-2 text-end text-primary">C$ @row.InssPatronalNomina.ToString("N2")</td>
+                                    <td class="py-2 text-end pe-3 fw-bold @(row.DiferenciaNetaTotal > 0 ? "text-danger" : (row.DiferenciaNetaTotal < 0 ? "text-success" : "text-dark"))">
+                                        C$ @row.DiferenciaNetaTotal.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private DateTime fechaInicio = new DateTime(2026, 7, 24);
+    private DateTime fechaFin = new DateTime(2026, 7, 31);
+    private string fileName = "";
+    private byte[] fileBytes = Array.Empty<byte>();
+    private bool processing = false;
+
+    private List<FacturaInssLinea> facturaInssLines = new();
+    private List<ItemConciliacionInss> conciliacionList = new();
+    private ResumenConciliacionInss resumen = null;
+
+    private string activeTab = "TODOS";
+    private string searchFilter = "";
+
+    private IEnumerable<ItemConciliacionInss> FilteredItems => conciliacionList
+        .Where(x => activeTab switch
+        {
+            "SOLO_INSS" => x.Estado == EstadoConciliacionInss.SoloEnFacturaInss,
+            "SOLO_NOMINA" => x.Estado == EstadoConciliacionInss.SoloEnNomina,
+            "DIFERENCIAS" => x.Estado == EstadoConciliacionInss.DiferenciaCotizacion,
+            _ => true
+        })
+        .Where(x => string.IsNullOrWhiteSpace(searchFilter) ||
+                    x.NombreEmpleado.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                    x.Cedula.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                    x.Nss.Contains(searchFilter, StringComparison.OrdinalIgnoreCase));
+
+    private async Task ProcessInssFile(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            fileName = file.Name;
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(1024 * 1024 * 15).CopyToAsync(ms);
+            fileBytes = ms.ToArray();
+
+            // Parse file lines
+            facturaInssLines = ParseInssFile(fileBytes, fileName);
+            Snackbar.Add($"Archivo '{fileName}' cargado con {facturaInssLines.Count} registros del INSS.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al leer el archivo: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private List<FacturaInssLinea> ParseInssFile(byte[] bytes, string name)
+    {
+        var list = new List<FacturaInssLinea>();
+        string ext = Path.GetExtension(name).ToLower();
+
+        if (ext == ".csv")
+        {
+            string content = Encoding.UTF8.GetString(bytes);
+            string[] lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (lines.Length <= 1) return list;
+
+            for (int r = 1; r < lines.Length; r++)
+            {
+                var cols = ParseCsvLine(lines[r]);
+                if (cols.Count < 4) continue;
+
+                list.Add(new FacturaInssLinea
+                {
+                    Nss = cols.Count > 0 ? cols[0] : "",
+                    Nombre = cols.Count > 1 ? cols[1] : "",
+                    Cedula = cols.Count > 2 ? NormalizeCedula(cols[2]) : "",
+                    Periodo = cols.Count > 3 ? cols[3] : "",
+                    Semanas = cols.Count > 4 ? cols[4] : "",
+                    SalarioCotizado = cols.Count > 5 ? ParseDecimal(cols[5]) : 0m,
+                    SalarioReal = cols.Count > 6 ? ParseDecimal(cols[6]) : 0m,
+                    AporteLaboral = cols.Count > 7 ? ParseDecimal(cols[7]) : 0m,
+                    AportePatronal = cols.Count > 8 ? ParseDecimal(cols[8]) : 0m,
+                    Interes = cols.Count > 9 ? ParseDecimal(cols[9]) : 0m,
+                    Total = cols.Count > 10 ? ParseDecimal(cols[10]) : 0m
+                });
+            }
+        }
+        return list;
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        var fields = new List<string>();
+        bool inQuotes = false;
+        var currentField = new StringBuilder();
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if ((c == ',' || c == ';') && !inQuotes)
+            {
+                fields.Add(currentField.ToString().Trim(' ', '"', '\''));
+                currentField.Clear();
+            }
+            else
+            {
+                currentField.Append(c);
+            }
+        }
+        fields.Add(currentField.ToString().Trim(' ', '"', '\''));
+        return fields;
+    }
+
+    private static string NormalizeCedula(string ced)
+    {
+        if (string.IsNullOrWhiteSpace(ced)) return "";
+        return ced.Replace("-", "").Replace(" ", "").Trim().ToUpper();
+    }
+
+    private static decimal ParseDecimal(string val)
+    {
+        if (string.IsNullOrWhiteSpace(val)) return 0m;
+        val = val.Replace("$", "").Replace("C$", "").Replace(",", "").Trim();
+        if (decimal.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal res))
+        {
+            return res;
+        }
+        return 0m;
+    }
+
+    private async Task EjecutarConciliacion()
+    {
+        if (!facturaInssLines.Any())
+        {
+            Snackbar.Add("Cargue primero el archivo DetalleFactura de INSS.", Severity.Warning);
+            return;
+        }
+
+        processing = true;
+        StateHasChanged();
+        await Task.Delay(100);
+
+        try
+        {
+            // 1. Obtener empleados activos y resumen de nómina para el rango de fechas
+            var respEmp = await Mediator.Send(new GetAllEmpleadosQuery());
+            var empList = respEmp.Model ?? new List<EmpleadosActivos>();
+
+            var rangoParam = new typeeinout { entrada = fechaInicio, salida = fechaFin };
+            var respNomina = await Mediator.Send(new GetAllDiasxPagarQuery(rangoParam));
+            var nominaList = respNomina.Model ?? new List<diasxpagarperiodo>();
+
+            var dictNomina = nominaList.Where(n => !string.IsNullOrEmpty(n.nombre))
+                                       .GroupBy(n => n.id)
+                                       .ToDictionary(g => g.Key, g => g.First());
+
+            conciliacionList = new List<ItemConciliacionInss>();
+            var inssCedulasProcesadas = new HashSet<string>();
+
+            // 2. Conciliar cada línea de la factura INSS
+            foreach (var inss in facturaInssLines)
+            {
+                string normCed = NormalizeCedula(inss.Cedula);
+                inssCedulasProcesadas.Add(normCed);
+
+                var empMatch = empList.FirstOrDefault(e => 
+                    NormalizeCedula(e.NoCedula) == normCed || 
+                    (e.NoInss > 0 && e.NoInss.ToString("0") == inss.Nss)
+                );
+
+                var item = new ItemConciliacionInss
+                {
+                    Cedula = inss.Cedula,
+                    Nss = inss.Nss,
+                    NombreEmpleado = inss.Nombre,
+                    SalarioCotizadoInss = inss.SalarioCotizado,
+                    AporteLaboralInss = inss.AporteLaboral,
+                    AportePatronalInss = inss.AportePatronal,
+                    TotalInss = inss.Total
+                };
+
+                if (empMatch != null)
+                {
+                    item.EmpleadoId = empMatch.IdNomina;
+
+                    dictNomina.TryGetValue(empMatch.IdNomina, out var nomData);
+
+                    item.Area = nomData?.area ?? "";
+                    item.SalarioCotizableNomina = inss.SalarioReal; // Salario devengado real
+                    item.InssRetenidoNomina = Math.Round(item.SalarioCotizableNomina * 0.07m, 2);
+                    item.InssPatronalNomina = Math.Round(item.SalarioCotizableNomina * 0.225m, 2);
+
+                    if (Math.Abs(item.DiferenciaNetaTotal) <= 1.00m)
+                    {
+                        item.Estado = EstadoConciliacionInss.CoincideCorrecto;
+                        item.ObservacionReclamo = "Conforme";
+                    }
+                    else
+                    {
+                        item.Estado = EstadoConciliacionInss.DiferenciaCotizacion;
+                        item.ObservacionReclamo = $"Diferencia de C$ {item.DiferenciaNetaTotal:N2} en cotización";
+                    }
+                }
+                else
+                {
+                    item.Estado = EstadoConciliacionInss.SoloEnFacturaInss;
+                    item.ObservacionReclamo = "Cobro indebido INSS / Empleado no activo en empresa (Reclamar)";
+                }
+
+                conciliacionList.Add(item);
+            }
+
+            // 3. Identificar empleados en Nómina pero NO en Factura INSS
+            foreach (var emp in empList)
+            {
+                string normCed = NormalizeCedula(emp.NoCedula);
+                if (!inssCedulasProcesadas.Contains(normCed))
+                {
+                    dictNomina.TryGetValue(emp.IdNomina, out var nomData);
+
+                    conciliacionList.Add(new ItemConciliacionInss
+                    {
+                        EmpleadoId = emp.IdNomina,
+                        Cedula = emp.NoCedula,
+                        Nss = emp.NoInss > 0 ? emp.NoInss.ToString("0") : "",
+                        NombreEmpleado = emp.NombreCompleto,
+                        Area = nomData?.area ?? "",
+                        Estado = EstadoConciliacionInss.SoloEnNomina,
+                        SalarioCotizableNomina = 8500m,
+                        InssRetenidoNomina = Math.Round(8500m * 0.07m, 2),
+                        InssPatronalNomina = Math.Round(8500m * 0.225m, 2),
+                        ObservacionReclamo = "No incluido en Factura INSS del mes"
+                    });
+                }
+            }
+
+            // 4. Calcular Resumen KPIs
+            resumen = new ResumenConciliacionInss
+            {
+                TotalPersonasFacturaInss = facturaInssLines.Count,
+                TotalPersonasNomina = empList.Count,
+                TotalCoincidentesExactos = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.CoincideCorrecto),
+                TotalDiferenciasMonto = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.DiferenciaCotizacion),
+                TotalSoloFacturaInss = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.SoloEnFacturaInss),
+                TotalSoloNomina = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.SoloEnNomina),
+                TotalMontoFacturaInss = conciliacionList.Sum(x => x.TotalInss),
+                TotalMontoNominaEmpresa = conciliacionList.Sum(x => x.TotalNomina)
+            };
+
+            Snackbar.Add("Conciliación finalizada exitosamente.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error durante la conciliación: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            processing = false;
+        }
+    }
+
+    private string GetRowBgColor(EstadoConciliacionInss est) => est switch
+    {
+        EstadoConciliacionInss.CoincideCorrecto => "#ffffff",
+        EstadoConciliacionInss.DiferenciaCotizacion => "#eff6ff",
+        EstadoConciliacionInss.SoloEnFacturaInss => "#fef2f2",
+        EstadoConciliacionInss.SoloEnNomina => "#fffbeb",
+        _ => "#ffffff"
+    };
+
+    private string GetBadgeClass(EstadoConciliacionInss est) => est switch
+    {
+        EstadoConciliacionInss.CoincideCorrecto => "bg-success text-white",
+        EstadoConciliacionInss.DiferenciaCotizacion => "bg-primary text-white",
+        EstadoConciliacionInss.SoloEnFacturaInss => "bg-danger text-white",
+        EstadoConciliacionInss.SoloEnNomina => "bg-warning text-dark",
+        _ => "bg-secondary text-white"
+    };
+
+    private async Task ExportarExcel()
+    {
+        if (!conciliacionList.Any()) return;
+        try
+        {
+            var excelData = DataExcel.CreateExcel(conciliacionList, "Conciliacion_INSS_VS_Nomina");
+            string base64 = Convert.ToBase64String(excelData.Data);
+            await JSRuntime.InvokeVoidAsync("downloadFile", "application/xlsx", base64, $"Conciliacion_INSS_{DateTime.Now:yyyyMMdd}.xlsx");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar Excel: {ex.Message}", Severity.Error);
+        }
+    }
+}
