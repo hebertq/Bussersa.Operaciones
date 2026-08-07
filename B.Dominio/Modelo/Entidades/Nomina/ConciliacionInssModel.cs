@@ -69,14 +69,17 @@ namespace Modelo.Entidades.Nomina
         [Display(Name = "Reportado al INSS (Nómina)")]
         public decimal SalarioCotizableNomina { get; set; }
 
+        [Display(Name = "Salario Cotizado (INSS Archivo)")]
+        public decimal SalarioCotizadoInss { get; set; }
+
+        [Display(Name = "Diferencia Cotizable (C$)")]
+        public decimal DiferenciaSalario => SalarioCotizadoInss - SalarioCotizableNomina;
+
         [Display(Name = "Semanas INSS (Archivo)")]
         public string SemanasInssFactura { get; set; } = "";
 
         [Display(Name = "Semanas INSS (Nómina)")]
         public int SemanasInssNomina { get; set; }
-
-        [Display(Name = "Salario Cotizado (INSS Archivo)")]
-        public decimal SalarioCotizadoInss { get; set; }
 
         [Display(Name = "Aporte Laboral (INSS)")]
         public decimal AporteLaboralInss { get; set; }
@@ -96,7 +99,7 @@ namespace Modelo.Entidades.Nomina
         [Display(Name = "Total Retenido/Patronal (Nómina)")]
         public decimal TotalNomina => InssRetenidoNomina + InssPatronalNomina;
 
-        [Display(Name = "Diferencia C$")]
+        [Display(Name = "Diferencia Cobro C$")]
         public decimal DiferenciaNetaTotal => TotalInss - TotalNomina;
 
         [Display(Name = "Detalle de Auditoría / Reclamo")]

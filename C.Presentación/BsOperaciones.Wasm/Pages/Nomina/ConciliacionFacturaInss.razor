@@ -216,10 +216,12 @@
                                 <th class="py-2 text-end">Salario Fijo</th>
                                 <th class="py-2 text-center">Días Lab.</th>
                                 <th class="py-2 text-end">Salario Básico</th>
-                                <th class="py-2 text-end">Reportado al INSS (Nómina)</th>
+                                <th class="py-2 text-end text-primary">Reportado al INSS (Nómina)</th>
+                                <th class="py-2 text-end text-dark">Salario Cotizado (INSS Archivo)</th>
+                                <th class="py-2 text-end">Dif. Cotización C$</th>
                                 <th class="py-2 text-center">Semanas INSS (Archivo)</th>
-                                <th class="py-2 text-end">Cobrado Real INSS (Archivo)</th>
-                                <th class="py-2 text-end pe-3">Diferencia C$</th>
+                                <th class="py-2 text-end text-danger">Cobrado Real INSS (Archivo)</th>
+                                <th class="py-2 text-end pe-3">Diferencia Neta C$</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -250,6 +252,10 @@
                                     <td class="py-2 text-center font-monospace fw-bold">@row.DiasLaboradosNomina.ToString("N1")</td>
                                     <td class="py-2 text-end fw-semibold">C$ @row.SalarioBasicoNomina.ToString("N2")</td>
                                     <td class="py-2 text-end fw-bold text-primary">C$ @row.SalarioCotizableNomina.ToString("N2")</td>
+                                    <td class="py-2 text-end fw-bold text-dark">C$ @row.SalarioCotizadoInss.ToString("N2")</td>
+                                    <td class="py-2 text-end fw-bold @(row.DiferenciaSalario != 0 ? "text-danger" : "text-success")">
+                                        C$ @row.DiferenciaSalario.ToString("N2")
+                                    </td>
                                     <td class="py-2 text-center font-monospace badge bg-light text-dark border align-self-center mt-2">@row.SemanasInssFactura</td>
                                     <td class="py-2 text-end fw-bold text-danger">C$ @row.TotalInss.ToString("N2")</td>
                                     <td class="py-2 text-end pe-3 fw-bold @(row.DiferenciaNetaTotal > 0 ? "text-danger" : (row.DiferenciaNetaTotal < 0 ? "text-success" : "text-dark"))">
