@@ -20,10 +20,10 @@
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
         <div>
             <h2 class="fw-bold mb-1" style="color: #0f172a;">
-                <i class="bi bi-file-earmark-diff-fill text-primary me-2"></i>Conciliación Auditada: Factura INSS vs. Nómina
+                <i class="bi bi-file-earmark-diff-fill text-primary me-2"></i>Conciliación: Factura INSS vs. Reporte Mensual de Nómina
             </h2>
             <p class="text-secondary small mb-0 fw-semibold">
-                Auditoría comparativa línea a línea del archivo <strong>DetalleFactura.csv / Excel del INSS</strong> contra la nómina del mes pasado. Detecte cobros indebidos, bajas no reportadas y diferencias de cotización laboral/patronal.
+                Auditoría comparativa del archivo <strong>DetalleFactura.csv del INSS</strong> contra la <strong>Nómina Mensual Cerrada (/nomina/reportes/cierremensual)</strong>. Identifique cobros indebidos, bajas no tramitadas y diferencias en cotización laboral/patronal.
             </p>
         </div>
         <div class="d-flex gap-2">
@@ -33,22 +33,40 @@
         </div>
     </div>
 
-    <!-- Panel de Selección de Nómina y Carga de Archivo INSS -->
+    <!-- Panel de Selección de Período Mensual y Carga de Archivo INSS -->
     <div class="card border-0 shadow-sm rounded-3 mb-4">
         <div class="card-body p-4">
             <h5 class="fw-bold mb-3" style="color: #1e3a8a;">
-                <i class="bi bi-cloud-upload me-2 text-primary"></i>1. Cargar Archivo de Factura INSS y Seleccionar Nómina a Comparar
+                <i class="bi bi-cloud-upload me-2 text-primary"></i>1. Seleccionar Período de Nómina Mensual y Cargar Factura INSS
             </h5>
             
             <div class="row g-3 align-items-end">
-                <!-- Rango de Fechas / Período de Nómina -->
-                <div class="col-md-3">
-                    <label class="form-label fw-bold small text-secondary">Fecha Inicio Nómina</label>
-                    <input type="date" class="form-control fw-bold" @bind="fechaInicio" />
+                <!-- Selector Año -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small text-secondary">Año Nómina</label>
+                    <select class="form-select fw-bold" @bind="anio">
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                    </select>
                 </div>
+
+                <!-- Selector Mes -->
                 <div class="col-md-3">
-                    <label class="form-label fw-bold small text-secondary">Fecha Fin Nómina</label>
-                    <input type="date" class="form-control fw-bold" @bind="fechaFin" />
+                    <label class="form-label fw-bold small text-secondary">Mes de Nómina Mensual</label>
+                    <select class="form-select fw-bold" @bind="mes">
+                        <option value="1">ENERO (01)</option>
+                        <option value="2">FEBRERO (02)</option>
+                        <option value="3">MARZO (03)</option>
+                        <option value="4">ABRIL (04)</option>
+                        <option value="5">MAYO (05)</option>
+                        <option value="6">JUNIO (06)</option>
+                        <option value="7">JULIO (07)</option>
+                        <option value="8">AGOSTO (08)</option>
+                        <option value="9">SEPTIEMBRE (09)</option>
+                        <option value="10">OCTUBRE (10)</option>
+                        <option value="11">NOVIEMBRE (11)</option>
+                        <option value="12">DICIEMBRE (12)</option>
+                    </select>
                 </div>
 
                 <!-- Carga de Archivo DetalleFactura.csv / Excel INSS -->
@@ -62,7 +80,7 @@
                 </div>
 
                 <!-- Botón de Ejecutar Conciliación -->
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <button class="btn btn-primary w-100 fw-bold py-2 shadow-sm" @onclick="EjecutarConciliacion" disabled="@(processing || string.IsNullOrEmpty(fileName))">
                         @if (processing)
                         {
@@ -72,7 +90,7 @@
                         {
                             <i class="bi bi-lightning-charge-fill me-1"></i>
                         }
-                        CONCILIAR
+                        CONCILIAR CON NÓMINA MENSUAL
                     </button>
                 </div>
             </div>
@@ -84,7 +102,7 @@
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary display-4" role="status"></div>
-            <p class="text-primary fw-bold mt-3">Procesando y cruzando registros de la Factura INSS con Nómina...</p>
+            <p class="text-primary fw-bold mt-3">Obteniendo reporte de Cierre Mensual (@AnioMes()) y cruzando contra Factura INSS...</p>
         </div>
     }
     else if (resumen != null)
@@ -113,9 +131,9 @@
                             <i class="bi bi-cash-stack text-white"></i>
                         </div>
                         <div>
-                            <div class="text-white-50 small fw-bold">TOTAL NÓMINA EMPRESA</div>
+                            <div class="text-white-50 small fw-bold">TOTAL NÓMINA MENSUAL</div>
                             <div class="fs-4 fw-bold text-white">C$ @resumen.TotalMontoNominaEmpresa.ToString("N2")</div>
-                            <div class="small text-white-50">@resumen.TotalPersonasNomina personas en nómina</div>
+                            <div class="small text-white-50">@resumen.TotalPersonasNomina personas en reporte</div>
                         </div>
                     </div>
                 </div>
@@ -170,7 +188,7 @@
                     </li>
                     <li class="nav-item">
                         <button class="nav-link btn-sm fw-bold btn-warning @(activeTab == "SOLO_NOMINA" ? "active" : "")" @onclick='() => activeTab = "SOLO_NOMINA"'>
-                            🔴 Solo en Nómina (@resumen.TotalSoloNomina)
+                            🔴 Solo en Nómina Mensual (@resumen.TotalSoloNomina)
                         </button>
                     </li>
                     <li class="nav-item">
@@ -182,7 +200,7 @@
 
                 <div class="input-group input-group-sm" style="max-width: 280px;">
                     <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
-                    <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar por cédula, NSS o nombre..." @bind="searchFilter" @bind:event="oninput" />
+                    <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar por nombre, cédula o NSS..." @bind="searchFilter" @bind:event="oninput" />
                 </div>
             </div>
 
@@ -192,14 +210,15 @@
                         <thead style="background-color: #f1f5f9; color: #475569;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
                                 <th class="ps-3 py-2">Estado Conciliación</th>
-                                <th class="py-2">Cédula / NSS</th>
+                                <th class="py-2">Contrato / Empleado</th>
                                 <th class="py-2">Nombre Empleado</th>
+                                <th class="py-2">Cédula / NSS</th>
+                                <th class="py-2 text-center">Días / Extras</th>
                                 <th class="py-2 text-end">Salario INSS</th>
-                                <th class="py-2 text-end">Salario Nómina</th>
-                                <th class="py-2 text-end">Laboral INSS (7%)</th>
-                                <th class="py-2 text-end">INSS Ret. Nómina</th>
-                                <th class="py-2 text-end">Patronal INSS (22.5%)</th>
-                                <th class="py-2 text-end">INSS Pat. Nómina</th>
+                                <th class="py-2 text-end">Reporte INSS (Nómina)</th>
+                                <th class="py-2 text-end">Aporte Lab. (7%)</th>
+                                <th class="py-2 text-end">INSS Real (Nómina)</th>
+                                <th class="py-2 text-end">Aporte Pat. (22.5%)</th>
                                 <th class="py-2 text-end pe-3">Diferencia Neta C$</th>
                             </tr>
                         </thead>
@@ -213,22 +232,29 @@
                                         </span>
                                     </td>
                                     <td class="py-2 font-monospace fw-bold">
-                                        <div>@row.Cedula</div>
-                                        <div class="text-secondary small">NSS: @row.Nss</div>
+                                        <div>Contrato: @(row.Contrato > 0 ? row.Contrato.ToString() : "N/A")</div>
+                                        <div class="text-secondary small">ID: @(row.EmpleadoId > 0 ? row.EmpleadoId.ToString() : "N/A")</div>
                                     </td>
                                     <td class="py-2 fw-bold text-uppercase">
                                         @row.NombreEmpleado
-                                        @if (!string.IsNullOrEmpty(row.Area))
+                                        @if (!string.IsNullOrEmpty(row.ObservacionReclamo))
                                         {
-                                            <div class="text-secondary small">@row.Area</div>
+                                            <div class="text-secondary small">@row.ObservacionReclamo</div>
                                         }
+                                    </td>
+                                    <td class="py-2 font-monospace">
+                                        <div>@row.Cedula</div>
+                                        <div class="text-secondary small">NSS: @row.Nss</div>
+                                    </td>
+                                    <td class="py-2 text-center">
+                                        <span class="badge bg-light text-dark border">@row.DiasLaboradosNomina.ToString("N1") d</span>
+                                        <span class="badge bg-light text-dark border">@row.HorasExtrasNomina.ToString("N2") h</span>
                                     </td>
                                     <td class="py-2 text-end fw-semibold">C$ @row.SalarioCotizadoInss.ToString("N2")</td>
                                     <td class="py-2 text-end fw-semibold text-primary">C$ @row.SalarioCotizableNomina.ToString("N2")</td>
                                     <td class="py-2 text-end">C$ @row.AporteLaboralInss.ToString("N2")</td>
                                     <td class="py-2 text-end text-primary">C$ @row.InssRetenidoNomina.ToString("N2")</td>
                                     <td class="py-2 text-end">C$ @row.AportePatronalInss.ToString("N2")</td>
-                                    <td class="py-2 text-end text-primary">C$ @row.InssPatronalNomina.ToString("N2")</td>
                                     <td class="py-2 text-end pe-3 fw-bold @(row.DiferenciaNetaTotal > 0 ? "text-danger" : (row.DiferenciaNetaTotal < 0 ? "text-success" : "text-dark"))">
                                         C$ @row.DiferenciaNetaTotal.ToString("N2")
                                     </td>
@@ -243,8 +269,8 @@
 </div>
 
 @code {
-    private DateTime fechaInicio = new DateTime(2026, 7, 24);
-    private DateTime fechaFin = new DateTime(2026, 7, 31);
+    private int anio = DateTime.Now.Year;
+    private int mes = DateTime.Now.Month;
     private string fileName = "";
     private byte[] fileBytes = Array.Empty<byte>();
     private bool processing = false;
@@ -255,6 +281,8 @@
 
     private string activeTab = "TODOS";
     private string searchFilter = "";
+
+    private int AnioMes() => int.Parse($"{anio}{mes:00}");
 
     private IEnumerable<ItemConciliacionInss> FilteredItems => conciliacionList
         .Where(x => activeTab switch
@@ -267,7 +295,9 @@
         .Where(x => string.IsNullOrWhiteSpace(searchFilter) ||
                     x.NombreEmpleado.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
                     x.Cedula.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
-                    x.Nss.Contains(searchFilter, StringComparison.OrdinalIgnoreCase));
+                    x.Nss.Contains(searchFilter, StringComparison.OrdinalIgnoreCase) ||
+                    x.EmpleadoId.ToString().Contains(searchFilter) ||
+                    x.Contrato.ToString().Contains(searchFilter));
 
     private async Task ProcessInssFile(InputFileChangeEventArgs e)
     {
@@ -383,53 +413,71 @@
 
         try
         {
-            // 1. Obtener empleados activos y resumen de nómina para el rango de fechas
+            // 1. Obtener la Nómina Mensual Cerrada para el período anioMes seleccionados
+            var respNomina = await Mediator.Send(new GetAllNominaMensualCierreQuery(AnioMes()));
+            var nominaList = respNomina.Model ?? new List<PayrollMonthRecord>();
+
+            // 2. Obtener lista de Empleados para obtener cédulas oficiales
             var respEmp = await Mediator.Send(new GetAllEmpleadosQuery());
             var empList = respEmp.Model ?? new List<EmpleadosActivos>();
 
-            var rangoParam = new typeeinout { entrada = fechaInicio, salida = fechaFin };
-            var respNomina = await Mediator.Send(new GetAllDiasxPagarQuery(rangoParam));
-            var nominaList = respNomina.Model ?? new List<diasxpagarperiodo>();
+            var dictEmpById = empList.GroupBy(e => e.IdNomina).ToDictionary(g => g.Key, g => g.First());
 
-            var dictNomina = nominaList.Where(n => !string.IsNullOrEmpty(n.nombre))
-                                       .GroupBy(n => n.id)
-                                       .ToDictionary(g => g.Key, g => g.First());
+            // Index Nómina por NSS y por Empleado ID
+            var dictNominaByNss = nominaList.Where(n => !string.IsNullOrEmpty(n.noinss))
+                                           .GroupBy(n => n.noinss.Trim())
+                                           .ToDictionary(g => g.Key, g => g.First());
+
+            var dictNominaById = nominaList.GroupBy(n => n.id).ToDictionary(g => g.Key, g => g.First());
 
             conciliacionList = new List<ItemConciliacionInss>();
-            var inssCedulasProcesadas = new HashSet<string>();
+            var nominaIdsProcesadas = new HashSet<int>();
 
-            // 2. Conciliar cada línea de la factura INSS
+            // 3. Conciliar cada línea de la Factura INSS
             foreach (var inss in facturaInssLines)
             {
-                string normCed = NormalizeCedula(inss.Cedula);
-                inssCedulasProcesadas.Add(normCed);
-
-                var empMatch = empList.FirstOrDefault(e => 
-                    NormalizeCedula(e.NoCedula) == normCed || 
-                    (e.NoInss > 0 && e.NoInss.ToString("0") == inss.Nss)
-                );
+                // Buscar coincidencia en la Nómina Mensual por NSS o por Nombre
+                PayrollMonthRecord nomMatch = null;
+                if (!string.IsNullOrEmpty(inss.Nss) && dictNominaByNss.TryGetValue(inss.Nss.Trim(), out var matchNss))
+                {
+                    nomMatch = matchNss;
+                }
+                else
+                {
+                    nomMatch = nominaList.FirstOrDefault(n => n.nombre.Trim().Equals(inss.Nombre.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
 
                 var item = new ItemConciliacionInss
                 {
                     Cedula = inss.Cedula,
                     Nss = inss.Nss,
                     NombreEmpleado = inss.Nombre,
+                    SemanasInssFactura = inss.Semanas,
                     SalarioCotizadoInss = inss.SalarioCotizado,
                     AporteLaboralInss = inss.AporteLaboral,
                     AportePatronalInss = inss.AportePatronal,
                     TotalInss = inss.Total
                 };
 
-                if (empMatch != null)
+                if (nomMatch != null)
                 {
-                    item.EmpleadoId = empMatch.IdNomina;
+                    nominaIdsProcesadas.Add(nomMatch.id);
+                    item.EmpleadoId = nomMatch.id;
+                    item.Contrato = nomMatch.contrato;
+                    item.DiasLaboradosNomina = nomMatch.diaslab;
+                    item.HorasExtrasNomina = nomMatch.no_hras_extra;
+                    item.SemanasInssNomina = nomMatch.semanas_inss;
 
-                    dictNomina.TryGetValue(empMatch.IdNomina, out var nomData);
+                    if (dictEmpById.TryGetValue(nomMatch.id, out var empInfo) && !string.IsNullOrEmpty(empInfo.NoCedula))
+                    {
+                        item.Cedula = empInfo.NoCedula;
+                    }
 
-                    item.Area = nomData?.area ?? "";
-                    item.SalarioCotizableNomina = inss.SalarioReal; // Salario devengado real
-                    item.InssRetenidoNomina = Math.Round(item.SalarioCotizableNomina * 0.07m, 2);
-                    item.InssPatronalNomina = Math.Round(item.SalarioCotizableNomina * 0.225m, 2);
+                    // Valores de la Nómina Mensual
+                    item.SalarioBasicoNomina = nomMatch.sal_basico;
+                    item.SalarioCotizableNomina = nomMatch.reporte_inss;
+                    item.InssRetenidoNomina = nomMatch.reporte_inss_real > 0 ? nomMatch.reporte_inss_real : nomMatch.deduc_inss;
+                    item.InssPatronalNomina = Math.Round(nomMatch.reporte_inss * 0.225m, 2);
 
                     if (Math.Abs(item.DiferenciaNetaTotal) <= 1.00m)
                     {
@@ -439,47 +487,57 @@
                     else
                     {
                         item.Estado = EstadoConciliacionInss.DiferenciaCotizacion;
-                        item.ObservacionReclamo = $"Diferencia de C$ {item.DiferenciaNetaTotal:N2} en cotización";
+                        item.ObservacionReclamo = $"Diferencia de C$ {item.DiferenciaNetaTotal:N2} (INSS cobró sobre C$ {inss.SalarioCotizado:N2} vs Nómina C$ {nomMatch.reporte_inss:N2})";
                     }
                 }
                 else
                 {
                     item.Estado = EstadoConciliacionInss.SoloEnFacturaInss;
-                    item.ObservacionReclamo = "Cobro indebido INSS / Empleado no activo en empresa (Reclamar)";
+                    item.ObservacionReclamo = "Cobro indebido INSS / Empleado no figura en Nómina Mensual de la Empresa";
                 }
 
                 conciliacionList.Add(item);
             }
 
-            // 3. Identificar empleados en Nómina pero NO en Factura INSS
-            foreach (var emp in empList)
+            // 4. Identificar empleados en Nómina Mensual pero NO en Factura INSS
+            foreach (var nom in nominaList)
             {
-                string normCed = NormalizeCedula(emp.NoCedula);
-                if (!inssCedulasProcesadas.Contains(normCed))
+                if (!nominaIdsProcesadas.Contains(nom.id))
                 {
-                    dictNomina.TryGetValue(emp.IdNomina, out var nomData);
+                    string ced = "";
+                    if (dictEmpById.TryGetValue(nom.id, out var empInfo))
+                    {
+                        ced = empInfo.NoCedula;
+                    }
+
+                    decimal inssLab = nom.reporte_inss_real > 0 ? nom.reporte_inss_real : nom.deduc_inss;
+                    decimal inssPat = Math.Round(nom.reporte_inss * 0.225m, 2);
 
                     conciliacionList.Add(new ItemConciliacionInss
                     {
-                        EmpleadoId = emp.IdNomina,
-                        Cedula = emp.NoCedula,
-                        Nss = emp.NoInss > 0 ? emp.NoInss.ToString("0") : "",
-                        NombreEmpleado = emp.NombreCompleto,
-                        Area = nomData?.area ?? "",
+                        EmpleadoId = nom.id,
+                        Contrato = nom.contrato,
+                        Cedula = ced,
+                        Nss = nom.noinss,
+                        NombreEmpleado = nom.nombre,
+                        DiasLaboradosNomina = nom.diaslab,
+                        HorasExtrasNomina = nom.no_hras_extra,
+                        SemanasInssNomina = nom.semanas_inss,
                         Estado = EstadoConciliacionInss.SoloEnNomina,
-                        SalarioCotizableNomina = 8500m,
-                        InssRetenidoNomina = Math.Round(8500m * 0.07m, 2),
-                        InssPatronalNomina = Math.Round(8500m * 0.225m, 2),
-                        ObservacionReclamo = "No incluido en Factura INSS del mes"
+                        SalarioBasicoNomina = nom.sal_basico,
+                        SalarioCotizableNomina = nom.reporte_inss,
+                        InssRetenidoNomina = inssLab,
+                        InssPatronalNomina = inssPat,
+                        ObservacionReclamo = "Empleado activo en Nómina Mensual pero no cobrado en Factura INSS"
                     });
                 }
             }
 
-            // 4. Calcular Resumen KPIs
+            // 5. Calcular Resumen KPIs
             resumen = new ResumenConciliacionInss
             {
                 TotalPersonasFacturaInss = facturaInssLines.Count,
-                TotalPersonasNomina = empList.Count,
+                TotalPersonasNomina = nominaList.Count,
                 TotalCoincidentesExactos = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.CoincideCorrecto),
                 TotalDiferenciasMonto = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.DiferenciaCotizacion),
                 TotalSoloFacturaInss = conciliacionList.Count(x => x.Estado == EstadoConciliacionInss.SoloEnFacturaInss),
@@ -488,7 +546,7 @@
                 TotalMontoNominaEmpresa = conciliacionList.Sum(x => x.TotalNomina)
             };
 
-            Snackbar.Add("Conciliación finalizada exitosamente.", Severity.Success);
+            Snackbar.Add($"Conciliación finalizada: {conciliacionList.Count} registros comparados contra Nómina {AnioMes()}.", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -523,9 +581,9 @@
         if (!conciliacionList.Any()) return;
         try
         {
-            var excelData = DataExcel.CreateExcel(conciliacionList, "Conciliacion_INSS_VS_Nomina");
+            var excelData = DataExcel.CreateExcel(conciliacionList, $"Conciliacion_INSS_Nomina_{AnioMes()}");
             string base64 = Convert.ToBase64String(excelData.Data);
-            await JSRuntime.InvokeVoidAsync("downloadFile", "application/xlsx", base64, $"Conciliacion_INSS_{DateTime.Now:yyyyMMdd}.xlsx");
+            await JSRuntime.InvokeVoidAsync("downloadFile", "application/xlsx", base64, $"Conciliacion_INSS_{AnioMes()}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
         catch (Exception ex)
         {

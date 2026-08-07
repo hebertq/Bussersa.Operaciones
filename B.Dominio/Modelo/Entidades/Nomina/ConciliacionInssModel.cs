@@ -29,10 +29,16 @@ namespace Modelo.Entidades.Nomina
     public class ItemConciliacionInss
     {
         public int EmpleadoId { get; set; }
+        public int Contrato { get; set; }
         public string Cedula { get; set; } = "";
         public string Nss { get; set; } = "";
         public string NombreEmpleado { get; set; } = "";
         public string Area { get; set; } = "";
+
+        public decimal DiasLaboradosNomina { get; set; }
+        public decimal HorasExtrasNomina { get; set; }
+        public string SemanasInssFactura { get; set; } = "";
+        public int SemanasInssNomina { get; set; }
         
         public EstadoConciliacionInss Estado { get; set; }
         public string EstadoBadge => Estado switch
@@ -44,13 +50,14 @@ namespace Modelo.Entidades.Nomina
             _ => "DESCONOCIDO"
         };
 
-        // Valores de Factura INSS
+        // Valores de Factura INSS (DetalleFactura.csv)
         public decimal SalarioCotizadoInss { get; set; }
         public decimal AporteLaboralInss { get; set; }
         public decimal AportePatronalInss { get; set; }
         public decimal TotalInss { get; set; }
 
-        // Valores de Nómina Empresa
+        // Valores de Nómina Mensual Empresa (PayrollMonthRecord)
+        public decimal SalarioBasicoNomina { get; set; }
         public decimal SalarioCotizableNomina { get; set; }
         public decimal InssRetenidoNomina { get; set; }
         public decimal InssPatronalNomina { get; set; }
