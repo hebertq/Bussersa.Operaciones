@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace Modelo.Entidades.Nomina
 {
@@ -28,19 +29,7 @@ namespace Modelo.Entidades.Nomina
 
     public class ItemConciliacionInss
     {
-        public int EmpleadoId { get; set; }
-        public int Contrato { get; set; }
-        public string Cedula { get; set; } = "";
-        public string Nss { get; set; } = "";
-        public string NombreEmpleado { get; set; } = "";
-        public string Area { get; set; } = "";
-
-        public decimal DiasLaboradosNomina { get; set; }
-        public decimal HorasExtrasNomina { get; set; }
-        public string SemanasInssFactura { get; set; } = "";
-        public int SemanasInssNomina { get; set; }
-        
-        public EstadoConciliacionInss Estado { get; set; }
+        [Display(Name = "Estado de Conciliación")]
         public string EstadoBadge => Estado switch
         {
             EstadoConciliacionInss.CoincideCorrecto => "COINCIDE EXACTO",
@@ -50,26 +39,82 @@ namespace Modelo.Entidades.Nomina
             _ => "DESCONOCIDO"
         };
 
+        [Display(Name = "ID Empleado")]
+        public int EmpleadoId { get; set; }
+
+        [Display(Name = "No. Contrato")]
+        public int Contrato { get; set; }
+
+        [Display(Name = "No. Cédula")]
+        public string Cedula { get; set; } = "";
+
+        [Display(Name = "No. INSS")]
+        public string Nss { get; set; } = "";
+
+        [Display(Name = "Nombre Completo del Empleado")]
+        public string NombreEmpleado { get; set; } = "";
+
+        [Display(Name = "Área / Departamento")]
+        public string Area { get; set; } = "";
+
+        [Display(Name = "Días Laborados (Nómina)")]
+        public decimal DiasLaboradosNomina { get; set; }
+
+        [Display(Name = "Horas Extras (Nómina)")]
+        public decimal HorasExtrasNomina { get; set; }
+
+        [Display(Name = "Semanas (Factura INSS)")]
+        public string SemanasInssFactura { get; set; } = "";
+
+        [Display(Name = "Semanas (Nómina)")]
+        public int SemanasInssNomina { get; set; }
+
         // Valores de Factura INSS (DetalleFactura.csv)
+        [Display(Name = "Salario Cotizado (INSS)")]
         public decimal SalarioCotizadoInss { get; set; }
+
+        [Display(Name = "Aporte Laboral 7% (INSS)")]
         public decimal AporteLaboralInss { get; set; }
+
+        [Display(Name = "Aporte Patronal 22.5% (INSS)")]
         public decimal AportePatronalInss { get; set; }
+
+        [Display(Name = "Total Cobrado (INSS)")]
         public decimal TotalInss { get; set; }
 
         // Valores de Nómina Mensual Empresa (PayrollMonthRecord)
+        [Display(Name = "Salario Básico (Nómina)")]
         public decimal SalarioBasicoNomina { get; set; }
+
+        [Display(Name = "Reporte INSS (Nómina)")]
         public decimal SalarioCotizableNomina { get; set; }
+
+        [Display(Name = "INSS Retenido 7% (Nómina)")]
         public decimal InssRetenidoNomina { get; set; }
+
+        [Display(Name = "INSS Patronal 22.5% (Nómina)")]
         public decimal InssPatronalNomina { get; set; }
+
+        [Display(Name = "Total Retenido/Aportado (Nómina)")]
         public decimal TotalNomina => InssRetenidoNomina + InssPatronalNomina;
 
         // Diferencias (INSS - Nómina)
+        [Display(Name = "Diferencia Salario (C$)")]
         public decimal DiferenciaSalario => SalarioCotizadoInss - SalarioCotizableNomina;
+
+        [Display(Name = "Diferencia INSS Laboral (C$)")]
         public decimal DiferenciaLaboral => AporteLaboralInss - InssRetenidoNomina;
+
+        [Display(Name = "Diferencia INSS Patronal (C$)")]
         public decimal DiferenciaPatronal => AportePatronalInss - InssPatronalNomina;
+
+        [Display(Name = "Diferencia Neta (C$)")]
         public decimal DiferenciaNetaTotal => TotalInss - TotalNomina;
 
+        [Display(Name = "Detalle de Auditoría / Reclamo INSS")]
         public string ObservacionReclamo { get; set; } = "";
+
+        public EstadoConciliacionInss Estado { get; set; }
     }
 
     public class ResumenConciliacionInss

@@ -210,9 +210,9 @@
                         <thead style="background-color: #f1f5f9; color: #475569;" class="small fw-bold text-uppercase border-bottom">
                             <tr>
                                 <th class="ps-3 py-2">Estado Conciliación</th>
-                                <th class="py-2">Contrato / Empleado</th>
+                                <th class="py-2">Contrato / ID Empleado</th>
                                 <th class="py-2">Nombre Empleado</th>
-                                <th class="py-2">Cédula / NSS</th>
+                                <th class="py-2">No. Cédula / No. INSS</th>
                                 <th class="py-2 text-center">Días / Extras</th>
                                 <th class="py-2 text-end">Salario INSS</th>
                                 <th class="py-2 text-end">Reporte INSS (Nómina)</th>
@@ -243,8 +243,8 @@
                                         }
                                     </td>
                                     <td class="py-2 font-monospace">
-                                        <div>@row.Cedula</div>
-                                        <div class="text-secondary small">NSS: @row.Nss</div>
+                                        <div>@(string.IsNullOrEmpty(row.Cedula) ? "SIN CÉDULA" : row.Cedula)</div>
+                                        <div class="text-secondary small">INSS: @(string.IsNullOrEmpty(row.Nss) ? "N/A" : row.Nss)</div>
                                     </td>
                                     <td class="py-2 text-center">
                                         <span class="badge bg-light text-dark border">@row.DiasLaboradosNomina.ToString("N1") d</span>
@@ -309,7 +309,7 @@
             await file.OpenReadStream(1024 * 1024 * 15).CopyToAsync(ms);
             fileBytes = ms.ToArray();
 
-            // Parse file lines
+            // Parse file lines with robust encoding detection
             facturaInssLines = ParseInssFile(fileBytes, fileName);
             Snackbar.Add($"Archivo '{fileName}' cargado con {facturaInssLines.Count} registros del INSS.", Severity.Info);
         }
@@ -326,7 +326,7 @@
 
         if (ext == ".csv")
         {
-            string content = Encoding.UTF8.GetString(bytes);
+            string content = DecodeFileBytes(bytes);
             string[] lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
             if (lines.Length <= 1) return list;
@@ -338,11 +338,11 @@
 
                 list.Add(new FacturaInssLinea
                 {
-                    Nss = cols.Count > 0 ? cols[0] : "",
-                    Nombre = cols.Count > 1 ? cols[1] : "",
+                    Nss = cols.Count > 0 ? CleanNumericNss(cols[0]) : "",
+                    Nombre = cols.Count > 1 ? cols[1].Trim() : "",
                     Cedula = cols.Count > 2 ? NormalizeCedula(cols[2]) : "",
-                    Periodo = cols.Count > 3 ? cols[3] : "",
-                    Semanas = cols.Count > 4 ? cols[4] : "",
+                    Periodo = cols.Count > 3 ? cols[3].Trim('\'', ' ') : "",
+                    Semanas = cols.Count > 4 ? cols[4].Trim('\'', ' ') : "",
                     SalarioCotizado = cols.Count > 5 ? ParseDecimal(cols[5]) : 0m,
                     SalarioReal = cols.Count > 6 ? ParseDecimal(cols[6]) : 0m,
                     AporteLaboral = cols.Count > 7 ? ParseDecimal(cols[7]) : 0m,
@@ -353,6 +353,33 @@
             }
         }
         return list;
+    }
+
+    private static string DecodeFileBytes(byte[] bytes)
+    {
+        try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); } catch {}
+        
+        string utf8Str = Encoding.UTF8.GetString(bytes);
+        if (!utf8Str.Contains('\uFFFD'))
+        {
+            return utf8Str;
+        }
+
+        try
+        {
+            return Encoding.GetEncoding(1252).GetString(bytes);
+        }
+        catch
+        {
+            try
+            {
+                return Encoding.GetEncoding("iso-8859-1").GetString(bytes);
+            }
+            catch
+            {
+                return utf8Str;
+            }
+        }
     }
 
     private static List<string> ParseCsvLine(string line)
@@ -386,6 +413,32 @@
     {
         if (string.IsNullOrWhiteSpace(ced)) return "";
         return ced.Replace("-", "").Replace(" ", "").Trim().ToUpper();
+    }
+
+    private static string CleanNumericNss(string ssn)
+    {
+        if (string.IsNullOrWhiteSpace(ssn)) return "";
+        string clean = ssn.Split('.')[0].Split(',')[0].Trim();
+        var sb = new StringBuilder();
+        foreach (char c in clean)
+        {
+            if (char.IsDigit(c)) sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    private static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        string upper = name.Trim().ToUpper();
+        upper = upper.Replace('Á', 'A').Replace('É', 'E').Replace('Í', 'I').Replace('Ó', 'O').Replace('Ú', 'U')
+                     .Replace('Ñ', 'N').Replace('Ü', 'U');
+        var sb = new StringBuilder();
+        foreach (char c in upper)
+        {
+            if (char.IsLetterOrDigit(c) || c == ' ') sb.Append(c);
+        }
+        return string.Join(" ", sb.ToString().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static decimal ParseDecimal(string val)
@@ -423,9 +476,17 @@
 
             var dictEmpById = empList.GroupBy(e => e.IdNomina).ToDictionary(g => g.Key, g => g.First());
 
-            // Index Nómina por NSS y por Empleado ID
-            var dictNominaByNss = nominaList.Where(n => !string.IsNullOrEmpty(n.noinss))
-                                           .GroupBy(n => n.noinss.Trim())
+            // Indexes for fast lookup
+            var dictEmpByCed = empList.Where(e => !string.IsNullOrWhiteSpace(e.NoCedula))
+                                      .GroupBy(e => NormalizeCedula(e.NoCedula))
+                                      .ToDictionary(g => g.Key, g => g.First());
+
+            var dictEmpByNss = empList.Where(e => e.NoInss > 0)
+                                      .GroupBy(e => CleanNumericNss(e.NoInss.ToString("0")))
+                                      .ToDictionary(g => g.Key, g => g.First());
+
+            var dictNominaByNss = nominaList.Where(n => !string.IsNullOrWhiteSpace(n.noinss))
+                                           .GroupBy(n => CleanNumericNss(n.noinss))
                                            .ToDictionary(g => g.Key, g => g.First());
 
             var dictNominaById = nominaList.GroupBy(n => n.id).ToDictionary(g => g.Key, g => g.First());
@@ -433,18 +494,42 @@
             conciliacionList = new List<ItemConciliacionInss>();
             var nominaIdsProcesadas = new HashSet<int>();
 
-            // 3. Conciliar cada línea de la Factura INSS
+            // 3. Conciliar cada línea de la Factura INSS usando algoritmo multinivel (Cédula -> NSS numérico -> Nombre)
             foreach (var inss in facturaInssLines)
             {
-                // Buscar coincidencia en la Nómina Mensual por NSS o por Nombre
+                string normCedInss = NormalizeCedula(inss.Cedula);
+                string cleanNssInss = CleanNumericNss(inss.Nss);
+                string normNameInss = NormalizeName(inss.Nombre);
+
                 PayrollMonthRecord nomMatch = null;
-                if (!string.IsNullOrEmpty(inss.Nss) && dictNominaByNss.TryGetValue(inss.Nss.Trim(), out var matchNss))
+                EmpleadosActivos empInfoMatch = null;
+
+                // Nivel 1: Búsqueda en EmpleadosActivos por Cédula o NSS limpia
+                if (!string.IsNullOrEmpty(normCedInss) && dictEmpByCed.TryGetValue(normCedInss, out var matchCedEmp))
                 {
-                    nomMatch = matchNss;
+                    empInfoMatch = matchCedEmp;
+                }
+                else if (!string.IsNullOrEmpty(cleanNssInss) && dictEmpByNss.TryGetValue(cleanNssInss, out var matchNssEmp))
+                {
+                    empInfoMatch = matchNssEmp;
                 }
                 else
                 {
-                    nomMatch = nominaList.FirstOrDefault(n => n.nombre.Trim().Equals(inss.Nombre.Trim(), StringComparison.OrdinalIgnoreCase));
+                    empInfoMatch = empList.FirstOrDefault(e => NormalizeName(e.NombreCompleto) == normNameInss);
+                }
+
+                // Nivel 2: Obtener registro de Nómina Mensual
+                if (empInfoMatch != null && dictNominaById.TryGetValue(empInfoMatch.IdNomina, out var nomById))
+                {
+                    nomMatch = nomById;
+                }
+                else if (!string.IsNullOrEmpty(cleanNssInss) && dictNominaByNss.TryGetValue(cleanNssInss, out var nomByNss))
+                {
+                    nomMatch = nomByNss;
+                }
+                else
+                {
+                    nomMatch = nominaList.FirstOrDefault(n => NormalizeName(n.nombre) == normNameInss);
                 }
 
                 var item = new ItemConciliacionInss
@@ -468,9 +553,13 @@
                     item.HorasExtrasNomina = nomMatch.no_hras_extra;
                     item.SemanasInssNomina = nomMatch.semanas_inss;
 
-                    if (dictEmpById.TryGetValue(nomMatch.id, out var empInfo) && !string.IsNullOrEmpty(empInfo.NoCedula))
+                    if (empInfoMatch != null && !string.IsNullOrEmpty(empInfoMatch.NoCedula))
                     {
-                        item.Cedula = empInfo.NoCedula;
+                        item.Cedula = empInfoMatch.NoCedula;
+                    }
+                    else if (dictEmpById.TryGetValue(nomMatch.id, out var empByIdInfo) && !string.IsNullOrEmpty(empByIdInfo.NoCedula))
+                    {
+                        item.Cedula = empByIdInfo.NoCedula;
                     }
 
                     // Valores de la Nómina Mensual
@@ -490,10 +579,17 @@
                         item.ObservacionReclamo = $"Diferencia de C$ {item.DiferenciaNetaTotal:N2} (INSS cobró sobre C$ {inss.SalarioCotizado:N2} vs Nómina C$ {nomMatch.reporte_inss:N2})";
                     }
                 }
+                else if (empInfoMatch != null)
+                {
+                    item.EmpleadoId = empInfoMatch.IdNomina;
+                    item.Cedula = empInfoMatch.NoCedula;
+                    item.Estado = EstadoConciliacionInss.SoloEnFacturaInss;
+                    item.ObservacionReclamo = "Empleado registrado en la empresa pero no fue liquidado en este período de Cierre Mensual";
+                }
                 else
                 {
                     item.Estado = EstadoConciliacionInss.SoloEnFacturaInss;
-                    item.ObservacionReclamo = "Cobro indebido INSS / Empleado no figura en Nómina Mensual de la Empresa";
+                    item.ObservacionReclamo = "Cobro indebido INSS / Empleado no figura en la nómina ni base de la empresa (Reclamar al INSS)";
                 }
 
                 conciliacionList.Add(item);
@@ -518,7 +614,7 @@
                         EmpleadoId = nom.id,
                         Contrato = nom.contrato,
                         Cedula = ced,
-                        Nss = nom.noinss,
+                        Nss = CleanNumericNss(nom.noinss),
                         NombreEmpleado = nom.nombre,
                         DiasLaboradosNomina = nom.diaslab,
                         HorasExtrasNomina = nom.no_hras_extra,
@@ -581,9 +677,9 @@
         if (!conciliacionList.Any()) return;
         try
         {
-            var excelData = DataExcel.CreateExcel(conciliacionList, $"Conciliacion_INSS_Nomina_{AnioMes()}");
+            var excelData = DataExcel.CreateExcel(conciliacionList, $"Conciliacion_INSS_{AnioMes()}");
             string base64 = Convert.ToBase64String(excelData.Data);
-            await JSRuntime.InvokeVoidAsync("downloadFile", "application/xlsx", base64, $"Conciliacion_INSS_{AnioMes()}_{DateTime.Now:yyyyMMdd}.xlsx");
+            await JSRuntime.InvokeVoidAsync("downloadFile", "application/xlsx", base64, $"Conciliacion_INSS_VS_Nomina_{AnioMes()}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
         catch (Exception ex)
         {
