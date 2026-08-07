@@ -568,7 +568,8 @@
                     item.InssRetenidoNomina = nomMatch.reporte_inss_real > 0 ? nomMatch.reporte_inss_real : nomMatch.deduc_inss;
                     item.InssPatronalNomina = Math.Round(nomMatch.reporte_inss * 0.225m, 2);
 
-                    if (Math.Abs(item.DiferenciaNetaTotal) <= 1.00m)
+                    decimal difSalario = Math.Abs(inss.SalarioCotizado - nomMatch.reporte_inss);
+                    if (difSalario <= 2.00m)
                     {
                         item.Estado = EstadoConciliacionInss.CoincideCorrecto;
                         item.ObservacionReclamo = "Conforme";
@@ -576,7 +577,7 @@
                     else
                     {
                         item.Estado = EstadoConciliacionInss.DiferenciaCotizacion;
-                        item.ObservacionReclamo = $"Diferencia de C$ {item.DiferenciaNetaTotal:N2} (INSS cobró sobre C$ {inss.SalarioCotizado:N2} vs Nómina C$ {nomMatch.reporte_inss:N2})";
+                        item.ObservacionReclamo = $"Diferencia en Salario Cotizable: INSS C$ {inss.SalarioCotizado:N2} vs Nómina C$ {nomMatch.reporte_inss:N2}";
                     }
                 }
                 else if (empInfoMatch != null)
