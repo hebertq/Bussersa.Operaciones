@@ -20,6 +20,10 @@ namespace BsOperaciones.Pages.Comercial
 
         private DialogOptions sendDialogOptions = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
+        private int activeTabIndex = 0;
+        private Guid? editingQuoteId;
+        private string? editingNumeroCotizacion;
+
         private bool isPrinting = false;
         private bool isSendDialogOpen = false;
         private Cotizacion? sendTargetQuote;
@@ -103,6 +107,39 @@ namespace BsOperaciones.Pages.Comercial
             {
                 Snackbar.Add("Error al cargar cotizaciones: " + ex.Message, Severity.Error);
             }
+        }
+
+        private void LoadQuoteForEdit(Cotizacion quote)
+        {
+            editingQuoteId = quote.Id;
+            editingNumeroCotizacion = quote.NumeroCotizacion;
+            cliente = quote.ClienteNombre;
+            utilidadPorcentaje = quote.UtilidadPorcentaje;
+            tarifaAcordada = quote.TarifaAcordada;
+            currentMateriales = quote.MaterialDetalles != null ? quote.MaterialDetalles.ToList() : new List<CotizacionMaterialDetalle>();
+            activeTabIndex = 0; // Cambiar a pestaña de cotizador
+            StateHasChanged();
+            Snackbar.Add($"Cotización N° {quote.NumeroCotizacion} cargada en pantalla para edición.", Severity.Info);
+        }
+
+        private void CancelEditingQuote()
+        {
+            editingQuoteId = null;
+            editingNumeroCotizacion = null;
+            cliente = "";
+            currentMateriales.Clear();
+            tarifaAcordada = 0m;
+            StateHasChanged();
+            Snackbar.Add("Edición cancelada.", Severity.Normal);
+        }
+
+        private void OnMaterialItemUpdated()
+        {
+            if (tarifaAcordada == 0m || tarifaAcordada == CalculatedTarifaSugerida)
+            {
+                tarifaAcordada = CalculatedTarifaSugerida;
+            }
+            StateHasChanged();
         }
 
         private void OnMaterialSelected(int? id)
@@ -192,8 +229,8 @@ namespace BsOperaciones.Pages.Comercial
 
             var quote = new Cotizacion
             {
-                Id = Guid.NewGuid(),
-                NumeroCotizacion = $"COT-MAT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}",
+                Id = editingQuoteId ?? Guid.NewGuid(),
+                NumeroCotizacion = editingNumeroCotizacion ?? $"COT-MAT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}",
                 ClienteNombre = cliente,
                 FechaCreacion = DateTime.Now,
                 TipoCosteo = "MATERIALES",
@@ -209,6 +246,8 @@ namespace BsOperaciones.Pages.Comercial
             if (!res.Respuesta.ExisteError)
             {
                 Snackbar.Add($"Cotización de materiales {quote.NumeroCotizacion} guardada exitosamente.", Severity.Success);
+                editingQuoteId = null;
+                editingNumeroCotizacion = null;
                 cliente = "";
                 observaciones = "";
                 currentMateriales.Clear();
