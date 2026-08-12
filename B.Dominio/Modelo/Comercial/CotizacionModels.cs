@@ -100,8 +100,17 @@ namespace Modelo.Comercial
         public decimal CostoUnitario { get; set; }
         public string? SkuNombre { get; set; }
         public decimal MesesProrrateo { get; set; } = 1.0m;
+        public decimal PorcentajeDesembolso { get; set; } = 0.0m;
+        public string TipoFinanciamiento { get; set; } = "PRORRATEO"; // "PRORRATEO" o "DESEMBOLSO"
+
         public decimal CostoTotalItem => Cantidad * CostoUnitario;
-        public decimal CostoMensual => MesesProrrateo > 0 ? (Cantidad * CostoUnitario) / MesesProrrateo : (Cantidad * CostoUnitario);
+        public decimal MontoDesembolso => PorcentajeDesembolso > 0 ? CostoTotalItem * (PorcentajeDesembolso / 100.0m) : 0.0m;
+        
+        public decimal CostoCalculado => TipoFinanciamiento == "DESEMBOLSO"
+            ? (CostoTotalItem + MontoDesembolso)
+            : (MesesProrrateo > 0 ? CostoTotalItem / MesesProrrateo : CostoTotalItem);
+
+        public decimal CostoMensual => CostoCalculado;
     }
 
     public class CotizacionMaquinariaDetalle

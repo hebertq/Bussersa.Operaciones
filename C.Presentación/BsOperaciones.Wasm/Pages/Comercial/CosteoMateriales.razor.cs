@@ -37,7 +37,9 @@ namespace BsOperaciones.Pages.Comercial
         private decimal newMaterialCantidad = 1.00m;
         private string newMaterialUnidad = "Ud";
         private decimal newMaterialCostoUnitario = 0.00m;
+        private string newMaterialTipoFinanciamiento = "PRORRATEO"; // "PRORRATEO" o "DESEMBOLSO"
         private decimal newMaterialMesesProrrateo = 1.00m;
+        private decimal newMaterialPorcentajeDesembolso = 10.00m;
 
         // Modal Envío
         private string sendEmailAddress = "";
@@ -52,9 +54,9 @@ namespace BsOperaciones.Pages.Comercial
 
         private CatalogoMaterial editingMaterial = new CatalogoMaterial();
 
-        // Cálculos dinámicos con prorrateo por meses
+        // Cálculos dinámicos con soporte para Prorrateo por Meses y Cargo por Desembolso (%)
         private decimal CalculatedCostoTotalCompra => currentMateriales.Sum(x => x.CostoTotalItem);
-        private decimal CalculatedCostoBase => currentMateriales.Sum(x => x.CostoMensual);
+        private decimal CalculatedCostoBase => currentMateriales.Sum(x => x.CostoCalculado);
         private decimal CalculatedUtilidad => CalculatedCostoBase * (utilidadPorcentaje / 100.0m);
         private decimal CalculatedSubtotalConUtilidad => CalculatedCostoBase + CalculatedUtilidad;
         private decimal CalculatedIva => aplicaIva ? (CalculatedSubtotalConUtilidad * 0.15m) : 0.00m;
@@ -138,7 +140,9 @@ namespace BsOperaciones.Pages.Comercial
                 Cantidad = newMaterialCantidad,
                 CostoUnitario = newMaterialCostoUnitario,
                 SkuNombre = string.IsNullOrWhiteSpace(newMaterialUnidad) ? "Ud" : newMaterialUnidad,
-                MesesProrrateo = newMaterialMesesProrrateo > 0m ? newMaterialMesesProrrateo : 1.00m
+                TipoFinanciamiento = newMaterialTipoFinanciamiento,
+                MesesProrrateo = newMaterialMesesProrrateo > 0m ? newMaterialMesesProrrateo : 1.00m,
+                PorcentajeDesembolso = newMaterialPorcentajeDesembolso
             };
 
             currentMateriales.Add(item);
@@ -156,6 +160,7 @@ namespace BsOperaciones.Pages.Comercial
             newMaterialUnidad = "Ud";
             newMaterialCostoUnitario = 0.00m;
             newMaterialMesesProrrateo = 1.00m;
+            newMaterialPorcentajeDesembolso = 10.00m;
 
             Snackbar.Add("Material agregado a la cotización.", Severity.Success);
         }
@@ -290,12 +295,19 @@ namespace BsOperaciones.Pages.Comercial
 
             foreach (var item in items)
             {
-                summary += $"• {item.Nombre} - Cant: {item.Cantidad:N2} {item.SkuNombre} | Prorrateo: {item.MesesProrrateo:N0} mes(es) | Total Compra: C$ {item.CostoTotalItem:N2} | Mensual: C$ {item.CostoMensual:N2}\n";
+                if (item.TipoFinanciamiento == "DESEMBOLSO")
+                {
+                    summary += $"• {item.Nombre} - Cant: {item.Cantidad:N2} {item.SkuNombre} | Inversión: C$ {item.CostoTotalItem:N2} | Desembolso: +{item.PorcentajeDesembolso:N2}% (+C$ {item.MontoDesembolso:N2}) | Total Cotizado: C$ {item.CostoCalculado:N2}\n";
+                }
+                else
+                {
+                    summary += $"• {item.Nombre} - Cant: {item.Cantidad:N2} {item.SkuNombre} | Inversión: C$ {item.CostoTotalItem:N2} | Prorrateo: {item.MesesProrrateo:N0} mes(es) | Mensual: C$ {item.CostoCalculado:N2}\n";
+                }
             }
 
             summary += $"\n----------------------------------------\n" +
-                       $"Precio Sugerido Mensual: C$ {sugerida:N2}\n" +
-                       $"Precio Acordado Mensual: C$ {acordada:N2}\n" +
+                       $"Precio Sugerido Total: C$ {sugerida:N2}\n" +
+                       $"Precio Acordado Total: C$ {acordada:N2}\n" +
                        $"----------------------------------------\n\n" +
                        $"Quedamos a su disposición para cualquier duda o consulta.\n\n" +
                        $"Atentamente,\n" +
