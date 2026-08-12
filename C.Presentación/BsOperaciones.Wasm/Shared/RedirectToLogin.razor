@@ -1,4 +1,4 @@
-﻿@inject NavigationManager NavigationManager
+@inject NavigationManager NavigationManager
 
 @code {
     [Parameter]
@@ -9,13 +9,15 @@
         if (!IsAuthenticated)
         {
             var redirectUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-            if (!string.IsNullOrEmpty(redirectUrl))
+            if (!string.IsNullOrEmpty(redirectUrl) && 
+                !redirectUrl.Equals("login", StringComparison.OrdinalIgnoreCase) && 
+                !redirectUrl.Equals("Login", StringComparison.OrdinalIgnoreCase))
             {
-                NavigationManager.NavigateTo($"Login?redirectUrl={Uri.EscapeDataString(redirectUrl)}", true);
+                NavigationManager.NavigateTo($"login?redirectUrl={Uri.EscapeDataString(redirectUrl)}", true);
             }
             else
             {
-                NavigationManager.NavigateTo("Login", true);
+                NavigationManager.NavigateTo("login", true);
             }
         }
         else

@@ -99,7 +99,19 @@ namespace BsOperaciones.Pages.LoginPages
             {
                 await ((CustomAuthenticationStateProvider)AuthenticationStateProvider).MarkUserAsAuthenticated(response.Model);
                 _Iuser.SetUserInfo(response.Model);
-                NavigationManager.NavigateTo("/index");
+
+                var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+                if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("redirectUrl", out var redirectUrl) &&
+                    !string.IsNullOrWhiteSpace(redirectUrl) &&
+                    !redirectUrl.ToString().Equals("login", StringComparison.OrdinalIgnoreCase) &&
+                    !redirectUrl.ToString().Equals("Login", StringComparison.OrdinalIgnoreCase))
+                {
+                    NavigationManager.NavigateTo("/" + redirectUrl.ToString().TrimStart('/'));
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("/index");
+                }
                 return true;
             }
 
