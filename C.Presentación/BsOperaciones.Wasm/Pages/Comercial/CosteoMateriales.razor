@@ -1,0 +1,313 @@
+@page "/comercial/costeo-materiales"
+@using Modelo.Comercial
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6" Style="position: relative;">
+    @if (isPrinting)
+    {
+        <MudOverlay Visible="true" LightBackground="true" Absolute="false" ZIndex="9999">
+            <div class="d-flex flex-column align-center justify-center">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Class="mt-4 font-bold" Color="Color.Secondary">Generando Documento de Cotización... Por favor, espere.</MudText>
+            </div>
+        </MudOverlay>
+    }
+
+    <MudText Typo="Typo.h4" Class="mb-6 font-bold" Style="background: linear-gradient(90deg, #E65100, #F57C00); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Cotizador de Materiales e Insumos
+    </MudText>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Warning" Class="mb-6">
+        <!-- Pestaña 1: Cotizador de Materiales -->
+        <MudTabPanel Text="🧮 Cotizador de Materiales" Icon="@Icons.Material.Filled.Calculate">
+            <div class="pa-4">
+                <MudGrid>
+                    <!-- Formulario de Datos y Selección de Materiales (Izquierda) -->
+                    <MudItem XS="12" MD="7">
+                        <MudCard Elevation="4" Class="pa-6 mb-6" Style="border-radius: 12px; border-top: 4px solid #E65100;">
+                            <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Warning">Encabezado de la Cotización</MudText>
+                            
+                            <MudTextField @bind-Value="cliente" Label="Nombre del Cliente / Proyecto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" Placeholder="Ej. Cervecería Compañía Nacional" />
+                            
+                            <MudGrid>
+                                <MudItem XS="12" SM="6">
+                                    <MudNumericField T="decimal" @bind-Value="utilidadPorcentaje" Label="Margen de Utilidad (%)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Format="N2" Min="0m" Max="100m" />
+                                </MudItem>
+                                <MudItem XS="12" SM="6">
+                                    <MudSwitch T="bool" @bind-Value="aplicaIva" Label="Aplicar IVA (15%)" Color="Color.Warning" Class="mt-2" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudTextField @bind-Value="observaciones" Label="Observaciones / Notas para la Cotización" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" Class="mb-4" Placeholder="Ej. Precios sujetos a cambios sin previo aviso. Tiempo de entrega: 3 días hábiles." />
+
+                            <MudDivider Class="my-4" />
+
+                            <!-- Agregar Material a la Lista -->
+                            <MudText Typo="Typo.subtitle1" Class="font-bold mb-2" Color="Color.Warning">Agregar Material o Insumo</MudText>
+                            
+                            <MudGrid AlignItems="AlignItems.Center">
+                                <MudItem XS="12" SM="6">
+                                    <MudSelect T="int?" Value="selectedMaterialId" ValueChanged="OnMaterialSelected" Label="Seleccionar del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                                        <MudSelectItem T="int?" Value="null">-- Seleccione Material del Catálogo --</MudSelectItem>
+                                        @foreach (var mat in materialesList)
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)mat.Id)">@mat.Nombre (C$ @mat.CostoUnitario.ToString("N2"))</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem XS="12" SM="6">
+                                    <MudTextField @bind-Value="newMaterialNombre" Label="Nombre / Descripción Material" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Ej. Cinta de Empaque 2 pulgadas" />
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
+                                    <MudNumericField T="decimal" @bind-Value="newMaterialCantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.01m" Format="N2" />
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
+                                    <MudTextField @bind-Value="newMaterialUnidad" Label="Unidad de Medida" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="Ej. Caja, Ud, Rollo" />
+                                </MudItem>
+                                <MudItem XS="12" SM="4">
+                                    <MudNumericField T="decimal" @bind-Value="newMaterialCostoUnitario" Label="Costo Unitario (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.00m" Format="N2" />
+                                </MudItem>
+                                <MudItem XS="12">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.AddCircle" FullWidth="true" OnClick="AddMaterialToQuote" Class="font-bold">
+                                        Agregar Material a la Lista
+                                    </MudButton>
+                                </MudItem>
+                            </MudGrid>
+
+                            <!-- Tabla de Materiales Agregados -->
+                            @if (currentMateriales.Any())
+                            {
+                                <MudText Typo="Typo.subtitle1" Class="font-bold mt-6 mb-2">Detalle de Materiales en la Cotización</MudText>
+                                <MudTable Items="currentMateriales" Hover="true" Elevation="1" Dense="true" Class="mb-4">
+                                    <HeaderContent>
+                                        <MudTh>Material</MudTh>
+                                        <MudTh Style="text-align: right;">Cant.</MudTh>
+                                        <MudTh>Unidad</MudTh>
+                                        <MudTh Style="text-align: right;">Costo U. (C$)</MudTh>
+                                        <MudTh Style="text-align: right;">Subtotal (C$)</MudTh>
+                                        <MudTh Style="width: 60px; text-align: center;">Quitar</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Material">@context.Nombre</MudTd>
+                                        <MudTd DataLabel="Cant." Style="text-align: right;">@context.Cantidad.ToString("N2")</MudTd>
+                                        <MudTd DataLabel="Unidad">@(context.SkuNombre ?? "Ud")</MudTd>
+                                        <MudTd DataLabel="Costo U." Style="text-align: right;">C$ @context.CostoUnitario.ToString("N2")</MudTd>
+                                        <MudTd DataLabel="Subtotal" Style="text-align: right;" Class="font-bold">C$ @((context.Cantidad * context.CostoUnitario).ToString("N2"))</MudTd>
+                                        <MudTd DataLabel="Quitar" Style="text-align: center;">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveMaterialFromQuote(context))" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-4 mb-4">No se han agregado materiales a esta cotización.</MudAlert>
+                            }
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Resumen de Costos y Acciones (Derecha) -->
+                    <MudItem XS="12" MD="5">
+                        <MudCard Elevation="4" Class="pa-6 text-white mb-6" Style="background: linear-gradient(135deg, #E65100, #F57C00); border-radius: 12px;">
+                            <MudText Typo="Typo.h6" Class="mb-6">Resumen de Cotización de Materiales</MudText>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Costo Total Materiales:</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedCostoBase.ToString("N2")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Margen de Utilidad (@utilidadPorcentaje%):</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedUtilidad.ToString("N2")</MudText>
+                            </div>
+
+                            <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                <MudText Typo="Typo.body1" Class="opacity-75">Subtotal sin IVA:</MudText>
+                                <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedSubtotalConUtilidad.ToString("N2")</MudText>
+                            </div>
+
+                            @if (aplicaIva)
+                            {
+                                <div class="d-flex justify-space-between mb-3 border-b pb-2" style="border-color: rgba(255,255,255,0.15) !important;">
+                                    <MudText Typo="Typo.body1" Class="opacity-75">IVA (15%):</MudText>
+                                    <MudText Typo="Typo.body1" Class="font-bold">C$ @CalculatedIva.ToString("N2")</MudText>
+                                </div>
+                            }
+
+                            <!-- Tarifa Sugerida Total -->
+                            <div class="text-center mb-6 pa-4" style="background: rgba(255, 255, 255, 0.15); border-radius: 8px; border-left: 5px solid #FFD54F;">
+                                <MudText Typo="Typo.caption" Class="opacity-75 d-block">PRECIO TOTAL SUGERIDO</MudText>
+                                <MudText Typo="Typo.h4" Class="font-bold" Style="color: #FFD54F;">C$ @CalculatedTarifaSugerida.ToString("N2")</MudText>
+                            </div>
+
+                            <!-- Tarifa Acordada -->
+                            <div class="mb-6 font-bold" style="background: rgba(255, 255, 255, 0.1); padding: 8px; border-radius: 8px;">
+                                <MudNumericField T="decimal" @bind-Value="tarifaAcordada" Label="Tarifa Acordada Final (C$)" Format="N2" Variant="Variant.Outlined" Class="mud-theme-warning" Style="color: white; font-weight: bold;" />
+                            </div>
+
+                            <div class="d-flex flex-column gap-3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" FullWidth="true" OnClick="SaveQuote" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                    Guardar Cotización
+                                </MudButton>
+                                
+                                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Send" FullWidth="true" OnClick="OpenSendDialog" Disabled="@(!currentMateriales.Any())" Size="Size.Large" Class="font-bold py-3" Style="border-radius: 8px;">
+                                    Enviar Cotización al Cliente
+                                </MudButton>
+                            </div>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </div>
+        </MudTabPanel>
+
+        <!-- Pestaña 2: Historial de Cotizaciones de Materiales -->
+        <MudTabPanel Text="📚 Historial de Cotizaciones" Icon="@Icons.Material.Filled.History">
+            <div class="pa-4">
+                <MudCard Elevation="3" Class="pa-4 mb-4">
+                    <MudGrid AlignItems="AlignItems.Center">
+                        <MudItem XS="12" SM="6">
+                            <MudTextField @bind-Value="searchFilter" Label="Buscar por Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Clearable="true" />
+                        </MudItem>
+                        <MudItem XS="12" SM="6" Class="d-flex justify-end">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadQuotes">
+                                Actualizar Lista
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudCard>
+
+                @if (FilteredQuotes.Any())
+                {
+                    <MudTable Items="FilteredQuotes" Hover="true" Elevation="4" Dense="true" Class="mt-4">
+                        <HeaderContent>
+                            <MudTh>N° Cotización</MudTh>
+                            <MudTh>Cliente / Proyecto</MudTh>
+                            <MudTh>Fecha</MudTh>
+                            <MudTh Style="text-align: right;">Costo Base</MudTh>
+                            <MudTh Style="text-align: right;">Precio Sugerido</MudTh>
+                            <MudTh Style="text-align: right;">Precio Acordado</MudTh>
+                            <MudTh Style="text-align: center;">Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="N° Cotización" Class="font-bold text-primary">@(context.NumeroCotizacion ?? "N/A")</MudTd>
+                            <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
+                            <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd DataLabel="Costo Base" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Precio Sugerido" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Precio Acordado" Style="text-align: right;" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Acciones" Style="text-align: center;">
+                                <MudTooltip Text="Enviar por Correo / WhatsApp">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenSendDialogForSavedQuote(context))" />
+                                </MudTooltip>
+                                <MudTooltip Text="Descargar PDF">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Secondary" Size="Size.Small" OnClick="@(() => PrintPdf(context))" />
+                                </MudTooltip>
+                                <MudTooltip Text="Eliminar">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+                                </MudTooltip>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-4">No se encontraron cotizaciones de materiales guardadas.</MudAlert>
+                }
+            </div>
+        </MudTabPanel>
+
+        <!-- Pestaña 3: Catálogo de Materiales e Insumos -->
+        <MudTabPanel Text="📦 Catálogo de Materiales" Icon="@Icons.Material.Filled.Inventory">
+            <div class="pa-4">
+                <MudCard Elevation="3" Class="pa-6 mb-6" Style="border-radius: 12px; border-left: 5px solid #F57C00;">
+                    <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Warning">Gestión del Catálogo de Materiales</MudText>
+                    <MudGrid AlignItems="AlignItems.Center">
+                        <MudItem XS="12" SM="6">
+                            <MudTextField @bind-Value="editingMaterial.Nombre" Label="Nombre del Material" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
+                        </MudItem>
+                        <MudItem XS="12" SM="4">
+                            <MudNumericField T="decimal" @bind-Value="editingMaterial.CostoUnitario" Label="Costo Unitario (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2" />
+                        </MudItem>
+                        <MudItem XS="12" SM="2" Class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveCatalogMaterial">
+                                Guardar
+                            </MudButton>
+                            @if (editingMaterial.Id > 0)
+                            {
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CancelEditCatalogMaterial">
+                                    Cancelar
+                                </MudButton>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudCard>
+
+                <MudTable Items="materialesList" Hover="true" Elevation="3" Dense="true">
+                    <HeaderContent>
+                        <MudTh>ID</MudTh>
+                        <MudTh>Nombre del Material</MudTh>
+                        <MudTh Style="text-align: right;">Costo Unitario (C$)</MudTh>
+                        <MudTh Style="text-align: center;">Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="ID">@context.Id</MudTd>
+                        <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+                        <MudTd DataLabel="Costo Unitario" Style="text-align: right;">C$ @context.CostoUnitario.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Acciones" Style="text-align: center;">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="@(() => EditCatalogMaterial(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteCatalogMaterial(context.Id))" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </div>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+<!-- MODAL DIÁLOGO PARA ENVIAR COTIZACIÓN -->
+<MudDialog @bind-IsVisible="isSendDialogOpen" Options="sendDialogOptions">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Info" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Class="font-bold">Enviar Cotización de Materiales</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4 text-muted">
+            Seleccione el medio para enviar la cotización al cliente <strong>@(sendTargetQuote?.ClienteNombre ?? cliente)</strong>.
+        </MudText>
+
+        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Info" Class="mb-4">
+            <!-- Pestaña Enviar por Correo Electrónico -->
+            <MudTabPanel Text="✉️ Correo Electrónico" Icon="@Icons.Material.Filled.Email">
+                <div class="pa-4">
+                    <MudTextField @bind-Value="sendEmailAddress" Label="Correo Electrónico del Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Required="true" Placeholder="ejemplo@cliente.com" />
+                    <MudTextField @bind-Value="sendEmailSubject" Label="Asunto del Mensaje" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Required="true" />
+                    <MudTextField @bind-Value="sendEmailBody" Label="Mensaje / Detalle de la Cotización" Variant="Variant.Outlined" Margin="Margin.Dense" Lines="5" Class="mb-4" />
+                    
+                    <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Send" FullWidth="true" OnClick="SendEmailAction">
+                        Enviar por Correo Electrónico
+                    </MudButton>
+                </div>
+            </MudTabPanel>
+
+            <!-- Pestaña Enviar por WhatsApp -->
+            <MudTabPanel Text="💬 WhatsApp" Icon="@Icons.Material.Filled.Chat">
+                <div class="pa-4 text-center">
+                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">Compartir Cotización vía WhatsApp</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-4 text-muted">
+                        Haga clic en el botón a continuación para abrir WhatsApp con el resumen de la cotización preformateado.
+                    </MudText>
+                    <MudTextField @bind-Value="sendPhoneWhatsapp" Label="Número de WhatsApp del Cliente (Opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Placeholder="Ej. 50588888888" />
+                    
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Share" Size="Size.Large" OnClick="SendWhatsappAction" FullWidth="true" Class="font-bold">
+                        Abrir y Enviar por WhatsApp
+                    </MudButton>
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseSendDialog" Color="Color.Default" Variant="Variant.Outlined">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
