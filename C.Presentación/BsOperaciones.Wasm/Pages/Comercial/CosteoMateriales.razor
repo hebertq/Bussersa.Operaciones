@@ -229,7 +229,7 @@
             </div>
         </MudTabPanel>
 
-        <!-- Pestaña 2: Historial de Cotizaciones de Materiales -->
+        <!-- Pestaña 2: Historial Maestro-Detalle de Cotizaciones de Materiales -->
         <MudTabPanel Text="📚 Historial de Cotizaciones" Icon="@Icons.Material.Filled.History">
             <div class="pa-4">
                 <MudCard Elevation="3" Class="pa-4 mb-4">
@@ -249,36 +249,93 @@
                 {
                     <MudTable Items="FilteredQuotes" Hover="true" Elevation="4" Dense="true" Class="mt-4">
                         <HeaderContent>
+                            <MudTh Style="width: 40px;"></MudTh>
                             <MudTh>N° Cotización</MudTh>
                             <MudTh>Cliente / Proyecto</MudTh>
                             <MudTh>Fecha</MudTh>
+                            <MudTh Style="text-align: center;">Ítems</MudTh>
                             <MudTh Style="text-align: right;">Costo Base</MudTh>
                             <MudTh Style="text-align: right;">Precio Sugerido</MudTh>
                             <MudTh Style="text-align: right;">Precio Acordado</MudTh>
-                            <MudTh Style="text-align: center;">Acciones</MudTh>
+                            <MudTh Style="text-align: center; width: 140px;">Acciones</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="N° Cotización" Class="font-bold text-primary">@(context.NumeroCotizacion ?? "N/A")</MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@(expandedQuotes.Contains(context) ? Icons.Material.Filled.KeyboardArrowUp : Icons.Material.Filled.KeyboardArrowDown)"
+                                               OnClick="@(() => ToggleRow(context))" Size="Size.Small" Color="Color.Warning" />
+                            </MudTd>
+                            <MudTd DataLabel="N° Cotización" Class="font-bold text-warning">@(context.NumeroCotizacion ?? "N/A")</MudTd>
                             <MudTd DataLabel="Cliente">@context.ClienteNombre</MudTd>
                             <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd DataLabel="Ítems" Style="text-align: center;">
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small">@(context.MaterialDetalles?.Count ?? 0) Materiales</MudChip>
+                            </MudTd>
                             <MudTd DataLabel="Costo Base" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
                             <MudTd DataLabel="Precio Sugerido" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
                             <MudTd DataLabel="Precio Acordado" Style="text-align: right;" Class="font-bold text-success">C$ @context.TarifaAcordada.ToString("N2")</MudTd>
                             <MudTd DataLabel="Acciones" Style="text-align: center;">
-                                <MudTooltip Text="Cargar / Editar en Pantalla">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="@(() => LoadQuoteForEdit(context))" />
-                                </MudTooltip>
-                                <MudTooltip Text="Enviar por Correo / WhatsApp">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenSendDialogForSavedQuote(context))" />
-                                </MudTooltip>
-                                <MudTooltip Text="Descargar PDF">
-                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Secondary" Size="Size.Small" OnClick="@(() => PrintPdf(context))" />
-                                </MudTooltip>
-                                <MudTooltip Text="Eliminar">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
-                                </MudTooltip>
+                                <div class="d-flex justify-center gap-1">
+                                    <MudTooltip Text="Cargar en el Cotizador">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PlayForWork" Color="Color.Success" Size="Size.Small" OnClick="@(() => LoadQuoteForEdit(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Enviar por Correo / WhatsApp">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Info" Size="Size.Small" OnClick="@(() => OpenSendDialogForSavedQuote(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Descargar PDF">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Secondary" Size="Size.Small" OnClick="@(() => PrintPdf(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Eliminar">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteQuote(context.Id))" />
+                                    </MudTooltip>
+                                </div>
                             </MudTd>
                         </RowTemplate>
+                        <ChildRowContent>
+                            @if (expandedQuotes.Contains(context))
+                            {
+                                <MudTr>
+                                    <td colspan="9" class="pa-4" style="background-color: rgba(230, 81, 0, 0.03);">
+                                        <MudCard Elevation="2" Outlined="true" Class="pa-4" Style="border-radius: 8px; border-left: 5px solid #E65100;">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-3 font-bold" Color="Color.Warning">
+                                                📦 Detalle de Materiales Cotizados: @context.ClienteNombre (@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm"))
+                                            </MudText>
+                                            <MudTable Items="@(context.MaterialDetalles ?? new List<CotizacionMaterialDetalle>())" Context="detailContext" Hover="true" Dense="true" Elevation="0">
+                                                <HeaderContent>
+                                                    <MudTh>Material / Descripción</MudTh>
+                                                    <MudTh Style="text-align: right;">Cantidad</MudTh>
+                                                    <MudTh>Unidad</MudTh>
+                                                    <MudTh Style="text-align: right;">Costo Unitario</MudTh>
+                                                    <MudTh Style="text-align: center;">Modalidad / Cargo</MudTh>
+                                                    <MudTh Style="text-align: right;">Total Base (Compra)</MudTh>
+                                                    <MudTh Style="text-align: right;">Costo Cotizado</MudTh>
+                                                </HeaderContent>
+                                                <RowTemplate>
+                                                    <MudTd DataLabel="Material">@detailContext.Nombre</MudTd>
+                                                    <MudTd DataLabel="Cantidad" Style="text-align: right;">@detailContext.Cantidad.ToString("N2")</MudTd>
+                                                    <MudTd DataLabel="Unidad">@(detailContext.SkuNombre ?? "Ud")</MudTd>
+                                                    <MudTd DataLabel="Costo Unitario" Style="text-align: right;">C$ @detailContext.CostoUnitario.ToString("N2")</MudTd>
+                                                    <MudTd DataLabel="Modalidad / Cargo" Style="text-align: center;">
+                                                        @if (detailContext.TipoFinanciamiento == "DESEMBOLSO")
+                                                        {
+                                                            <MudChip T="string" Color="Color.Info" Size="Size.Small">💸 Desembolso +@detailContext.PorcentajeDesembolso.ToString("N2")%</MudChip>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small">📅 Prorrateo @detailContext.MesesProrrateo.ToString("N0") meses</MudChip>
+                                                        }
+                                                    </MudTd>
+                                                    <MudTd DataLabel="Total Base" Style="text-align: right;">C$ @detailContext.CostoTotalItem.ToString("N2")</MudTd>
+                                                    <MudTd DataLabel="Costo Cotizado" Style="text-align: right;" Class="font-bold text-warning">C$ @detailContext.CostoCalculado.ToString("N2")</MudTd>
+                                                </RowTemplate>
+                                            </MudTable>
+                                        </MudCard>
+                                    </td>
+                                </MudTr>
+                            }
+                        </ChildRowContent>
+                        <NoRecordsContent>
+                            <div class="pa-4 text-center text-muted">No hay cotizaciones de materiales registradas.</div>
+                        </NoRecordsContent>
                     </MudTable>
                 }
                 else

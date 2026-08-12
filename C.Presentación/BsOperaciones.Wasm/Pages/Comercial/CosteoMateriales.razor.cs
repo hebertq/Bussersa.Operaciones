@@ -23,6 +23,7 @@ namespace BsOperaciones.Pages.Comercial
         private int activeTabIndex = 0;
         private Guid? editingQuoteId;
         private string? editingNumeroCotizacion;
+        private HashSet<Cotizacion> expandedQuotes = new HashSet<Cotizacion>();
 
         private bool isPrinting = false;
         private bool isSendDialogOpen = false;
@@ -67,7 +68,7 @@ namespace BsOperaciones.Pages.Comercial
         private decimal CalculatedTarifaSugerida => CalculatedSubtotalConUtilidad + CalculatedIva;
 
         private IEnumerable<Cotizacion> FilteredQuotes => savedQuotes
-            .Where(q => q.TipoCosteo == "MATERIALES" || q.MaterialDetalles != null && q.MaterialDetalles.Any())
+            .Where(q => q.TipoCosteo == "MATERIALES" || (q.MaterialDetalles != null && q.MaterialDetalles.Any() && q.TipoCosteo != "Produccion" && q.TipoCosteo != "Personal"))
             .Where(q => string.IsNullOrWhiteSpace(searchFilter) || q.ClienteNombre.Contains(searchFilter, StringComparison.OrdinalIgnoreCase));
 
         protected override async Task OnInitializedAsync()
@@ -100,13 +101,21 @@ namespace BsOperaciones.Pages.Comercial
                 var res = await Mediator.Send(new GetCotizacionesQuery());
                 if (!res.Respuesta.ExisteError && res.Model != null)
                 {
-                    savedQuotes = res.Model.Where(q => q.TipoCosteo == "MATERIALES" || (q.MaterialDetalles != null && q.MaterialDetalles.Any())).ToList();
+                    savedQuotes = res.Model.Where(q => q.TipoCosteo == "MATERIALES" || (q.MaterialDetalles != null && q.MaterialDetalles.Any() && q.TipoCosteo != "Produccion" && q.TipoCosteo != "Personal")).ToList();
                 }
             }
             catch (Exception ex)
             {
                 Snackbar.Add("Error al cargar cotizaciones: " + ex.Message, Severity.Error);
             }
+        }
+
+        private void ToggleRow(Cotizacion quote)
+        {
+            if (expandedQuotes.Contains(quote))
+                expandedQuotes.Remove(quote);
+            else
+                expandedQuotes.Add(quote);
         }
 
         private void LoadQuoteForEdit(Cotizacion quote)
@@ -116,10 +125,21 @@ namespace BsOperaciones.Pages.Comercial
             cliente = quote.ClienteNombre;
             utilidadPorcentaje = quote.UtilidadPorcentaje;
             tarifaAcordada = quote.TarifaAcordada;
-            currentMateriales = quote.MaterialDetalles != null ? quote.MaterialDetalles.ToList() : new List<CotizacionMaterialDetalle>();
+            currentMateriales = quote.MaterialDetalles != null ? quote.MaterialDetalles.Select(m => new CotizacionMaterialDetalle
+            {
+                MaterialId = m.MaterialId,
+                Nombre = m.Nombre,
+                Cantidad = m.Cantidad,
+                CostoUnitario = m.CostoUnitario,
+                SkuNombre = m.SkuNombre,
+                TipoFinanciamiento = string.IsNullOrEmpty(m.TipoFinanciamiento) ? "PRORRATEO" : m.TipoFinanciamiento,
+                MesesProrrateo = m.MesesProrrateo > 0 ? m.MesesProrrateo : 1.00m,
+                PorcentajeDesembolso = m.PorcentajeDesembolso
+            }).ToList() : new List<CotizacionMaterialDetalle>();
+            
             activeTabIndex = 0; // Cambiar a pestaña de cotizador
             StateHasChanged();
-            Snackbar.Add($"Cotización N° {quote.NumeroCotizacion} cargada en pantalla para edición.", Severity.Info);
+            Snackbar.Add($"Cotización N° {quote.NumeroCotizacion} ({currentMateriales.Count} materiales) cargada en pantalla.", Severity.Info);
         }
 
         private void CancelEditingQuote()
