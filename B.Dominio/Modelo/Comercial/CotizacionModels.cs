@@ -99,6 +99,9 @@ namespace Modelo.Comercial
         public decimal Cantidad { get; set; } = 1.0m;
         public decimal CostoUnitario { get; set; }
         public string? SkuNombre { get; set; }
+        public decimal MesesProrrateo { get; set; } = 1.0m;
+        public decimal CostoTotalItem => Cantidad * CostoUnitario;
+        public decimal CostoMensual => MesesProrrateo > 0 ? (Cantidad * CostoUnitario) / MesesProrrateo : (Cantidad * CostoUnitario);
     }
 
     public class CotizacionMaquinariaDetalle
