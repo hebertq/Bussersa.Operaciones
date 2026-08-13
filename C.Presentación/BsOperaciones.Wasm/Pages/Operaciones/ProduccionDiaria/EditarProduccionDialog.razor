@@ -56,6 +56,12 @@
                 <MudItem xs="12" sm="4">
                     <MudTextField Label="Marchamo" @bind-Value="item.no_marchamo" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Nº Proforma" @bind-Value="item.no_proforma" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Dejar en blanco para desasociar" Clearable="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Nº Factura" @bind-Value="item.no_factura" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Dejar en blanco para desasociar" Clearable="true" />
+                </MudItem>
             </MudGrid>
         </MudForm>
     </DialogContent>

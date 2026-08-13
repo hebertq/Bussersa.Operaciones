@@ -188,16 +188,20 @@
             <div class="d-flex align-center gap-3">
                 <MudIcon Icon="@Icons.Material.Filled.LibraryAddCheck" Color="Color.Success" Size="Size.Large" />
                 <div>
-                    <MudText Typo="Typo.subtitle1" Class="font-bold text-success">@selectedItems.Count ítems seleccionados para consolidar</MudText>
-                    <MudText Typo="Typo.body2" Class="text-secondary">Asigna proforma y factura para agrupar y asegurar los servicios.</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="font-bold text-success">@selectedItems.Count ítems seleccionados para consolidar / asociar</MudText>
+                    <MudText Typo="Typo.body2" Class="text-secondary">Asigna o actualiza la Proforma y Factura para agrupar los servicios seleccionados.</MudText>
                 </div>
             </div>
             <div class="d-flex align-center gap-2 flex-wrap">
-                <MudTextField @bind-Value="noProformaConsolidada" Label="Nº Proforma" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white; width: 180px;" />
-                <MudTextField @bind-Value="noFacturaConsolidada" Label="Nº Factura (Opcional)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white; width: 180px;" />
+                <MudTextField @bind-Value="noProformaConsolidada" Label="Nº Proforma" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white; width: 170px;" Placeholder="Ej. COT-1234" Clearable="true" />
+                <MudTextField @bind-Value="noFacturaConsolidada" Label="Nº Factura" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white; width: 170px;" Placeholder="Ej. FAC-5678" Clearable="true" />
                 <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="ConsolidarSeleccion"
-                           Disabled="@(string.IsNullOrEmpty(noProformaConsolidada) || estaConsolidando)">
-                    @(estaConsolidando ? "Guardando..." : "Asociar Proforma")
+                           Disabled="@((string.IsNullOrEmpty(noProformaConsolidada) && string.IsNullOrEmpty(noFacturaConsolidada)) || estaConsolidando)">
+                    @(estaConsolidando ? "Guardando..." : "Asociar Proforma / Factura")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.LinkOff" OnClick="DesasociarSeleccionados"
+                           Disabled="@estaConsolidando">
+                    Quitar Proforma/Factura
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="EliminarSeleccionados"
                            Disabled="@estaConsolidando">
@@ -208,7 +212,7 @@
     }
 
     <!-- Tabla de Resultados -->
-    <MudTable T="ProduccionDiariaDto" Items="@produccionDiariaList" MultiSelection="true" @bind-SelectedItems="selectedItems"
+    <MudTable T="ProduccionDiariaDto" Items="@produccionDiariaList" MultiSelection="true" SelectedItems="selectedItems" SelectedItemsChanged="OnSelectedItemsChanged"
               Hover="true" Striped="true" Bordered="true" Dense="true" Class="panel-card" Loading="@estaCargando" LoadingProgressColor="Color.Info">
         <HeaderContent>
             <MudTh>Fecha</MudTh>
@@ -217,7 +221,10 @@
             <MudTh>SKU / Servicio / Producto</MudTh>
             <MudTh>Peso / Cantidad</MudTh>
             <MudTh>Tarifa / Costo</MudTh>
-            <MudTh>Acciones</MudTh>
+            <MudTh Style="text-align: center;">Nº Proforma</MudTh>
+            <MudTh Style="text-align: center;">Nº Factura</MudTh>
+            <MudTh Style="text-align: center;">Estado</MudTh>
+            <MudTh Style="text-align: center;">Acciones</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Fecha">@context.fecha_inicio?.ToString("yyyy-MM-dd")</MudTd>
@@ -253,12 +260,49 @@
                 <div>@context.cantidad_producto.ToString("N0") uds</div>
             </MudTd>
             <MudTd DataLabel="Tarifa / Costo">C$ @context.costo_producto.ToString("N2")</MudTd>
-            <MudTd DataLabel="Acciones">
-                @if (string.IsNullOrEmpty(context.no_proforma) && string.IsNullOrEmpty(context.no_factura) && !context.facturada)
+            <MudTd DataLabel="Nº Proforma" Style="text-align: center;">
+                @if (!string.IsNullOrEmpty(context.no_proforma))
                 {
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => EditarRegistro(context))" Class="mr-1" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarRegistro(context))" />
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">@context.no_proforma</MudChip>
                 }
+                else
+                {
+                    <span class="text-muted" style="font-size: 0.8rem;">-</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Nº Factura" Style="text-align: center;">
+                @if (!string.IsNullOrEmpty(context.no_factura))
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">@context.no_factura</MudChip>
+                }
+                else
+                {
+                    <span class="text-muted" style="font-size: 0.8rem;">-</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Estado" Style="text-align: center;">
+                @if (context.facturada)
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined">Facturada</MudChip>
+                }
+                else if (!string.IsNullOrEmpty(context.no_proforma))
+                {
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">Con Proforma</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">Sin Proforma</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Acciones" Style="text-align: center;">
+                <div class="d-flex justify-center gap-1">
+                    <MudTooltip Text="Editar registro">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => EditarRegistro(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Eliminar registro">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarRegistro(context))" />
+                    </MudTooltip>
+                </div>
             </MudTd>
         </RowTemplate>
 

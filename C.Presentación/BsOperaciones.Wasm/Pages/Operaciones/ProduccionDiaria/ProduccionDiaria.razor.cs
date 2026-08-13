@@ -408,11 +408,30 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
         }
 
+        protected void OnSelectedItemsChanged(HashSet<ProduccionDiariaDto> items)
+        {
+            selectedItems = items;
+            if (selectedItems != null && selectedItems.Any())
+            {
+                var firstWithProforma = selectedItems.FirstOrDefault(x => !string.IsNullOrEmpty(x.no_proforma));
+                if (firstWithProforma != null && string.IsNullOrEmpty(noProformaConsolidada))
+                {
+                    noProformaConsolidada = firstWithProforma.no_proforma ?? string.Empty;
+                }
+
+                var firstWithFactura = selectedItems.FirstOrDefault(x => !string.IsNullOrEmpty(x.no_factura));
+                if (firstWithFactura != null && string.IsNullOrEmpty(noFacturaConsolidada))
+                {
+                    noFacturaConsolidada = firstWithFactura.no_factura ?? string.Empty;
+                }
+            }
+        }
+
         protected async Task ConsolidarSeleccion()
         {
-            if (selectedItems == null || !selectedItems.Any() || string.IsNullOrEmpty(noProformaConsolidada))
+            if (selectedItems == null || !selectedItems.Any() || (string.IsNullOrEmpty(noProformaConsolidada) && string.IsNullOrEmpty(noFacturaConsolidada)))
             {
-                _snackbar.Add("Seleccione ítems e ingrese el número de proforma.", Severity.Warning);
+                _snackbar.Add("Seleccione ítems e ingrese el número de proforma o factura.", Severity.Warning);
                 return;
             }
 
@@ -424,17 +443,17 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 {
                     ids = selectedItems.Select(x => x.id).ToList(),
                     no_proforma = noProformaConsolidada,
-                    no_factura = string.IsNullOrEmpty(noFacturaConsolidada) ? null : noFacturaConsolidada
+                    no_factura = noFacturaConsolidada
                 };
 
                 var response = await _mediator.Send(new ConsolidarProformaCommand(req));
                 if (response.Respuesta.ExisteError)
                 {
-                    _snackbar.Add($"Error al consolidar: {response.Respuesta.MensajeError}", Severity.Error);
+                    _snackbar.Add($"Error al consolidar / asociar: {response.Respuesta.MensajeError}", Severity.Error);
                 }
                 else
                 {
-                    _snackbar.Add($"Se asociaron {req.ids.Count} registros a la proforma {noProformaConsolidada} correctamente.", Severity.Success);
+                    _snackbar.Add($"Se asociaron {req.ids.Count} registros correctamente.", Severity.Success);
                     selectedItems.Clear();
                     noProformaConsolidada = string.Empty;
                     noFacturaConsolidada = string.Empty;
@@ -443,12 +462,60 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error al consolidar: {ex.Message}", Severity.Error);
+                _snackbar.Add($"Error al asociar: {ex.Message}", Severity.Error);
             }
             finally
             {
                 estaConsolidando = false;
                 StateHasChanged();
+            }
+        }
+
+        protected async Task DesasociarSeleccionados()
+        {
+            if (selectedItems == null || !selectedItems.Any()) return;
+
+            bool? result = await _dialogService.ShowMessageBox(
+                "Confirmar Desasociación",
+                $"¿Está seguro de quitar el número de proforma y factura asignado a los {selectedItems.Count} registros seleccionados?",
+                yesText: "Quitar Proforma / Factura", cancelText: "Cancelar");
+
+            if (result == true)
+            {
+                estaConsolidando = true;
+                StateHasChanged();
+                try
+                {
+                    var req = new ConsolidarProformaRequest
+                    {
+                        ids = selectedItems.Select(x => x.id).ToList(),
+                        no_proforma = "__CLEAR__",
+                        no_factura = "__CLEAR__"
+                    };
+
+                    var response = await _mediator.Send(new ConsolidarProformaCommand(req));
+                    if (response.Respuesta.ExisteError)
+                    {
+                        _snackbar.Add($"Error al desasociar: {response.Respuesta.MensajeError}", Severity.Error);
+                    }
+                    else
+                    {
+                        _snackbar.Add($"Se desasociaron {req.ids.Count} registros correctamente.", Severity.Success);
+                        selectedItems.Clear();
+                        noProformaConsolidada = string.Empty;
+                        noFacturaConsolidada = string.Empty;
+                        await CargarProduccion();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al desasociar: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaConsolidando = false;
+                    StateHasChanged();
+                }
             }
         }
 
