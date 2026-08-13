@@ -216,7 +216,6 @@
               Hover="true" Striped="true" Bordered="true" Dense="true" Class="panel-card" Loading="@estaCargando" LoadingProgressColor="Color.Info">
         <HeaderContent>
             <MudTh>Fecha</MudTh>
-            <MudTh>Herencia / Dependencia</MudTh>
             <MudTh>Cliente / Área</MudTh>
             <MudTh>SKU / Servicio / Producto</MudTh>
             <MudTh>Peso / Cantidad</MudTh>
@@ -228,20 +227,6 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Fecha">@context.fecha_inicio?.ToString("yyyy-MM-dd")</MudTd>
-            <MudTd DataLabel="Herencia / Dependencia">
-                @if (context.parent_id.HasValue && context.parent_id.Value > 0)
-                {
-                    <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; font-size: 11px;" title="Derivado de ID #@context.parent_id: @context.parent_producto_nombre">
-                        <i class="bi bi-arrow-return-right me-1"></i>↳ Insumo de #@context.parent_id
-                    </span>
-                }
-                else
-                {
-                    <span style="display: inline-block; padding: 3px 8px; border-radius: 6px; background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; font-weight: 700; font-size: 11px;">
-                        <i class="bi bi-check-circle-fill me-1"></i>Principal (#@context.id)
-                    </span>
-                }
-            </MudTd>
             <MudTd DataLabel="Cliente / Área">
                 <div class="font-bold">@context.cliente</div>
                 <div class="text-secondary" style="font-size: 0.8rem;">@context.area_cliente</div>
