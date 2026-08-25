@@ -53,6 +53,32 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
             await GetAllMarcadas();
         }
 
+        protected IEnumerable<Combos> GetOperacionesSeleccionadas()
+        {
+            if (_selectedOperaciones == null || !_selectedOperaciones.Any())
+                return Enumerable.Empty<Combos>();
+
+            return PayLoadOper.Where(x => _selectedOperaciones.Contains(x.id));
+        }
+
+        protected async Task QuitarOperacion(int operacionId)
+        {
+            if (_selectedOperaciones != null && _selectedOperaciones.Contains(operacionId))
+            {
+                var nuevaSeleccion = _selectedOperaciones.Where(id => id != operacionId).ToHashSet();
+                _selectedOperaciones = nuevaSeleccion;
+
+                string nombreQuitar = PayLoadOper.FirstOrDefault(x => x.id == operacionId)?.nombre;
+
+                if (!string.IsNullOrEmpty(nombreQuitar))
+                {
+                    PayLoadList = PayLoadList.Where(x => !string.Equals(x.area?.Trim(), nombreQuitar.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+
+                StateHasChanged();
+            }
+        }
+
         protected async Task OnChangeCliente(int value)
         {
             if (value > 0)

@@ -64,24 +64,43 @@
                  Striped="true"
                  Elevation="1">
         <ToolBarContent>
-            @if (PayLoadList.Any())
-            {
-                <MudButton Variant="MudBlazor.Variant.Filled"
-                           Color="MudBlazor.Color.Success"
-                           StartIcon="@Icons.Material.Outlined.FileDownload"
-                           OnClick="@DownloadFile"
-                           Class="mr-4">
-                    EXPORTAR EXCEL
-                </MudButton>
-            }
-            <MudSpacer />
-            <MudTextField @bind-Value="_searchString"
-                          Placeholder="Buscar empleado, área o tipo..."
-                          Adornment="MudBlazor.Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          IconSize="MudBlazor.Size.Medium"
-                          Class="mt-0"
-                          Immediate="true" />
+            <div class="d-flex flex-column w-100">
+                <div class="d-flex align-center justify-space-between w-100">
+                    @if (PayLoadList.Any())
+                    {
+                        <MudButton Variant="MudBlazor.Variant.Filled"
+                                   Color="MudBlazor.Color.Success"
+                                   StartIcon="@Icons.Material.Outlined.FileDownload"
+                                   OnClick="@DownloadFile"
+                                   Class="mr-4">
+                            EXPORTAR EXCEL
+                        </MudButton>
+                    }
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_searchString"
+                                  Placeholder="Buscar empleado, área o tipo..."
+                                  Adornment="MudBlazor.Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  IconSize="MudBlazor.Size.Medium"
+                                  Class="mt-0"
+                                  Immediate="true" />
+                </div>
+                @if (GetOperacionesSeleccionadas().Any())
+                {
+                    <div class="d-flex flex-wrap align-center gap-1 mt-2 pt-2 border-top border-solid mud-border-default">
+                        <MudText Typo="MudBlazor.Typo.caption" Class="mr-2 font-bold mud-text-secondary">Operaciones Seleccionadas:</MudText>
+                        @foreach (var op in GetOperacionesSeleccionadas())
+                        {
+                            <MudChip T="string"
+                                     Text="@op.nombre"
+                                     Color="MudBlazor.Color.Primary"
+                                     Variant="MudBlazor.Variant.Outlined"
+                                     Size="MudBlazor.Size.Small"
+                                     OnClose="@(() => QuitarOperacion(op.id))" />
+                        }
+                    </div>
+                }
+            </div>
         </ToolBarContent>
         <Columns>
             <PropertyColumn Property="x => x.id" Title="Empleado" StickyLeft="true" />
