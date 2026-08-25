@@ -243,11 +243,13 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
                 }
                 else
                 {
-                    Snackbar.Add(response.Respuesta.MensajeError ?? "¡Éxito! Nóminas creadas correctamente en Odoo.", Severity.Success);
-                    PayLoadList.Clear();
-                    GruposPorCliente.Clear();
+                    Snackbar.Add(string.IsNullOrWhiteSpace(response.Respuesta.MensajeError) ? "¡Éxito! Nóminas registradas correctamente en Odoo." : response.Respuesta.MensajeError, Severity.Success);
+                    PayLoadList = new List<diasxpagarperiodo>();
+                    GruposPorCliente = new List<ResumenClienteGroup>();
                     isLoading = false;
                     fileLoaded = false;
+                    empresa = 0;
+                    _searchString = "";
                 }
             }
             catch (Exception ex) { Snackbar.Add("Fallo en procesamiento masivo: " + ex.Message, Severity.Error); }
