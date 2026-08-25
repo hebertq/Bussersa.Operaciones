@@ -21,6 +21,7 @@ namespace HostService.Interfaces
         Task<ISingleResponse<DiasTrabajados>> GetMarcadaId(int idmarcada);
         Task<IResponse> CerrarNominaActivas(int model);
         Task<IResponse> CrearNomina(SolicitarNomina model);
+        Task<IResponse> CrearNominaMasiva(List<SolicitarNomina> model);
         Task<IListResponse<DiasTrabajados>> GetAllDiasTrabajados(typeeinout rango);
         Task<IListResponse<DiasxempleadosOpera>> GetAllDiasTrabajadosOperacion(typeeinout rango);
         Task<IListResponse<DiasTrabajadosAreas>> GetAllMarcadasFacturar(typeeinout rango);

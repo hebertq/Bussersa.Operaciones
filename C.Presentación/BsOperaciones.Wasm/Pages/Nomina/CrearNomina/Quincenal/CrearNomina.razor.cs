@@ -204,16 +204,15 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
                 return;
             }
 
-            loadingText = "Procesando nóminas masivas en Odoo...";
+            loadingText = "Procesando nóminas masivas en API / Odoo...";
             isloaddata = true;
             StateHasChanged();
             await Task.Delay(50);
 
-            int exitosos = 0;
-            var errores = new List<string>();
-
             try
             {
+                var listaNominas = new List<SolicitarNomina>();
+
                 foreach (var grupo in GruposPorCliente)
                 {
                     int empId = grupo.EmpresaId;
@@ -228,37 +227,27 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
                     string clientenomina = grupo.NombreCliente;
                     string nominanombre = (FchaHasta.Day <= 20 ? "1ra " : "2da ") + "Nómina de " + clientenomina + " " + _Util.AnyoMesLetras(FchaHasta);
 
-                    var nomina = new SolicitarNomina
+                    listaNominas.Add(new SolicitarNomina
                     {
                         nombre = nominanombre,
                         cliente = clientenomina,
                         perido = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = empId },
                         detalle = grupo.Empleados
-                    };
-
-                    var response = await _mediator.Send(new CrearNominaComnnad(nomina));
-                    if (response.Respuesta.ExisteError)
-                    {
-                        errores.Add($"{clientenomina}: {response.Respuesta.MensajeError}");
-                    }
-                    else
-                    {
-                        exitosos++;
-                    }
+                    });
                 }
 
-                if (exitosos > 0)
+                var response = await _mediator.Send(new CrearNominaMasivaCommand(listaNominas));
+                if (response.Respuesta.ExisteError)
                 {
-                    Snackbar.Add($"¡Éxito! Se crearon {exitosos} nómina(s) correctamente en Odoo.", Severity.Success);
+                    Snackbar.Add("Error al registrar nóminas: " + response.Respuesta.MensajeError, Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add(response.Respuesta.MensajeError ?? "¡Éxito! Nóminas creadas correctamente en Odoo.", Severity.Success);
                     PayLoadList.Clear();
                     GruposPorCliente.Clear();
                     isLoading = false;
                     fileLoaded = false;
-                }
-
-                if (errores.Any())
-                {
-                    foreach (var err in errores) Snackbar.Add(err, Severity.Error);
                 }
             }
             catch (Exception ex) { Snackbar.Add("Fallo en procesamiento masivo: " + ex.Message, Severity.Error); }

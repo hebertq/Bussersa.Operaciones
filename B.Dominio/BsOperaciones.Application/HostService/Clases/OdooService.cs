@@ -474,6 +474,33 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IResponse> CrearNominaMasiva(List<SolicitarNomina> model)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("OCommand/CrearNominaMasiva");
+                var registro = await PostAsync(requestUrl, model);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+
+            return response;
+        }
+
         public async Task<IResponse> ActualizarEmpleadosInss(List<EmpleadosActivos> model)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
