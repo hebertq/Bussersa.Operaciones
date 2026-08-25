@@ -36,11 +36,13 @@
             @* Selección de Operación *@
             <MudItem xs="12" sm="4">
                 <MudSelect T="int" Label="Operación / Cliente"
-                           Value="operacion"
-                           ValueChanged="OnChangeCliente"
+                           MultiSelection="true"
+                           SelectAll="true"
+                           SelectAllText="Seleccionar Todos"
+                           SelectedValues="_selectedOperaciones"
+                           SelectedValuesChanged="OnSelectedOperacionesChanged"
                            Variant="MudBlazor.Variant.Outlined"
                            AnchorOrigin="MudBlazor.Origin.BottomCenter">
-                    <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
                     @foreach (var item in PayLoadOper)
                     {
                         <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
@@ -84,6 +86,7 @@
         <Columns>
             <PropertyColumn Property="x => x.id" Title="Empleado" StickyLeft="true" />
             <PropertyColumn Property="x => x.nombre" Title="Nombre Completo" />
+            <PropertyColumn Property="x => x.area" Title="Cliente / Operación" />
             <PropertyColumn Property="x => x.tipoempleado" Title="Tipo" />
             <PropertyColumn Property="x => x.totaldias" Title="Días Totales" />
             <PropertyColumn Property="x => x.hexpagar" Title="Hrs Extras" />

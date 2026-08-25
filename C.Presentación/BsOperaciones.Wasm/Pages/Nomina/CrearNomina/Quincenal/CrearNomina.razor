@@ -43,33 +43,43 @@
                 </div>
             </MudItem>
 
-            @if (isLoading)
+            @if (fileLoaded && GruposPorCliente.Any())
             {
-                <MudItem xs="12" md="3">
+                <MudItem xs="12">
+                    <MudText Typo="MudBlazor.Typo.subtitle1" Color="MudBlazor.Color.Primary" Style="font-weight: 700;" Class="mb-2">
+                        Resumen de Nóminas Detectadas en el Archivo Excel (@GruposPorCliente.Count cliente(s))
+                    </MudText>
+                    <MudGrid Spacing="2" Class="mb-3">
+                        @foreach (var grupo in GruposPorCliente)
+                        {
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudCard Elevation="1" Class="pa-3 border-solid border-1 mud-border-primary rounded-lg">
+                                    <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: bold; line-height: 1.2;">@grupo.NombreCliente</MudText>
+                                    <MudText Typo="MudBlazor.Typo.body2" Class="mt-1">Empleados: <b>@grupo.CantidadEmpleados</b></MudText>
+                                    <MudText Typo="MudBlazor.Typo.body2">Días Totales: <b>@grupo.TotalDias</b></MudText>
+                                    <MudText Typo="MudBlazor.Typo.body2">Hrs Extras: <b>@grupo.TotalHorasExtras</b></MudText>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
                     <MudDatePicker Label="Desde" @bind-Date="_fchaDesdeWrapper" Variant="MudBlazor.Variant.Outlined" DateFormat="dd/MM/yyyy" />
                 </MudItem>
-                <MudItem xs="12" md="3">
+                <MudItem xs="12" md="6">
                     <MudDatePicker Label="Hasta" @bind-Date="_fchaHastaWrapper" Variant="MudBlazor.Variant.Outlined" DateFormat="dd/MM/yyyy" />
                 </MudItem>
 
-                <MudItem xs="12" md="8">
-                    <MudSelect T="int" Label="Operación / Cliente" Value="empresa" ValueChanged="OnChangeCliente" Variant="MudBlazor.Variant.Outlined">
-                        <MudSelectItem Value="0">Seleccione la operación...</MudSelectItem>
-                        @foreach (var item in PayLoadOper)
-                        {
-                            <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-
-                <MudItem xs="12" md="4">
+                <MudItem xs="12" Class="mt-2">
                     <MudButton Variant="MudBlazor.Variant.Filled"
                                Color="MudBlazor.Color.Secondary"
                                FullWidth="true"
-                               OnClick="AgregarNomina"
+                               OnClick="AgregarNominaMasiva"
                                StartIcon="@Icons.Material.Filled.Save"
+                               Size="MudBlazor.Size.Large"
                                Style="height: 56px; border-radius: 12px; font-weight: 700;">
-                        REGISTRAR NOMINA
+                        REGISTRAR TODAS LAS NÓMINAS MULTICLIENTE (@GruposPorCliente.Count)
                     </MudButton>
                 </MudItem>
             }

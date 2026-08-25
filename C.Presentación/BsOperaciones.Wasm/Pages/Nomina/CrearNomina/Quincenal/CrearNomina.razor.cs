@@ -134,7 +134,10 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
 
                     isLoading = PayLoadList.Any();
                     fileLoaded = true;
-                    Snackbar.Add($"{PayLoadList.Count} registros mapeados con éxito.", Severity.Success);
+
+                    ActualizarGruposCliente();
+
+                    Snackbar.Add($"{PayLoadList.Count} registros mapeados en {GruposPorCliente.Count} cliente(s) con éxito.", Severity.Success);
                 }
             }
             catch (Exception ex)
@@ -148,44 +151,123 @@ namespace BsOperaciones.Pages.Nomina.CrearNomina.Quincenal
             }
         }
 
-        protected void OnChangeCliente(int value) => empresa = value;
-
-        protected async Task AgregarNomina()
+        public class ResumenClienteGroup
         {
-            if (empresa == 0)
+            public string NombreCliente { get; set; } = "";
+            public int EmpresaId { get; set; }
+            public int CantidadEmpleados { get; set; }
+            public decimal TotalDias { get; set; }
+            public decimal TotalHorasExtras { get; set; }
+            public List<diasxpagarperiodo> Empleados { get; set; } = new();
+        }
+
+        public List<ResumenClienteGroup> GruposPorCliente { get; set; } = new();
+
+        private void ActualizarGruposCliente()
+        {
+            if (PayLoadList == null || !PayLoadList.Any())
             {
-                Snackbar.Add("Seleccione la operación antes de registrar.", Severity.Warning);
+                GruposPorCliente.Clear();
                 return;
             }
 
-            loadingText = "Enviando a Odoo...";
+            GruposPorCliente = PayLoadList
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.area) ? "General" : x.area.Trim())
+                .Select(g =>
+                {
+                    string clienteNombre = g.Key;
+                    var matchOper = PayLoadOper?.FirstOrDefault(o =>
+                        string.Equals(o.nombre?.Trim(), clienteNombre, StringComparison.OrdinalIgnoreCase) ||
+                        (o.nombre != null && o.nombre.Contains(clienteNombre, StringComparison.OrdinalIgnoreCase)));
+
+                    int operId = matchOper?.id ?? 0;
+
+                    return new ResumenClienteGroup
+                    {
+                        NombreCliente = clienteNombre,
+                        EmpresaId = operId,
+                        CantidadEmpleados = g.Count(),
+                        TotalDias = g.Sum(x => x.totaldias),
+                        TotalHorasExtras = g.Sum(x => x.hexpagar),
+                        Empleados = g.ToList()
+                    };
+                }).ToList();
+        }
+
+        protected void OnChangeCliente(int value) => empresa = value;
+
+        protected async Task AgregarNominaMasiva()
+        {
+            if (!GruposPorCliente.Any())
+            {
+                Snackbar.Add("No hay datos de nómina cargados.", Severity.Warning);
+                return;
+            }
+
+            loadingText = "Procesando nóminas masivas en Odoo...";
             isloaddata = true;
+            StateHasChanged();
+            await Task.Delay(50);
+
+            int exitosos = 0;
+            var errores = new List<string>();
+
             try
             {
-                var oper = PayLoadOper.FirstOrDefault(x => x.id == empresa);
-                string clientenomina = oper?.nombre ?? "";
-                string nominanombre = (FchaHasta.Day <= 20 ? "1ra " : "2da ") + "Nómina de " + clientenomina + " " + _Util.AnyoMesLetras(FchaHasta);
-
-                var nomina = new SolicitarNomina
+                foreach (var grupo in GruposPorCliente)
                 {
-                    nombre = nominanombre,
-                    cliente = clientenomina,
-                    perido = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = empresa },
-                    detalle = PayLoadList
-                };
+                    int empId = grupo.EmpresaId;
+                    if (empId == 0)
+                    {
+                        var match = PayLoadOper?.FirstOrDefault(x => x.nombre.Contains(grupo.NombreCliente, StringComparison.OrdinalIgnoreCase));
+                        if (match != null) empId = match.id;
+                    }
 
-                var registros = await _mediator.Send(new CrearNominaComnnad(nomina));
-                if (registros.Respuesta.ExisteError) Snackbar.Add(registros.Respuesta.MensajeError, Severity.Error);
-                else
+                    if (empId == 0 && empresa > 0) empId = empresa;
+
+                    string clientenomina = grupo.NombreCliente;
+                    string nominanombre = (FchaHasta.Day <= 20 ? "1ra " : "2da ") + "Nómina de " + clientenomina + " " + _Util.AnyoMesLetras(FchaHasta);
+
+                    var nomina = new SolicitarNomina
+                    {
+                        nombre = nominanombre,
+                        cliente = clientenomina,
+                        perido = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = empId },
+                        detalle = grupo.Empleados
+                    };
+
+                    var response = await _mediator.Send(new CrearNominaComnnad(nomina));
+                    if (response.Respuesta.ExisteError)
+                    {
+                        errores.Add($"{clientenomina}: {response.Respuesta.MensajeError}");
+                    }
+                    else
+                    {
+                        exitosos++;
+                    }
+                }
+
+                if (exitosos > 0)
                 {
-                    Snackbar.Add("Nómina enviada correctamente.", Severity.Success);
+                    Snackbar.Add($"¡Éxito! Se crearon {exitosos} nómina(s) correctamente en Odoo.", Severity.Success);
                     PayLoadList.Clear();
+                    GruposPorCliente.Clear();
                     isLoading = false;
                     fileLoaded = false;
                 }
+
+                if (errores.Any())
+                {
+                    foreach (var err in errores) Snackbar.Add(err, Severity.Error);
+                }
             }
-            catch (Exception ex) { Snackbar.Add("Fallo: " + ex.Message, Severity.Error); }
-            finally { isloaddata = false; }
+            catch (Exception ex) { Snackbar.Add("Fallo en procesamiento masivo: " + ex.Message, Severity.Error); }
+            finally { isloaddata = false; StateHasChanged(); }
+        }
+
+        protected async Task AgregarNomina()
+        {
+            await AgregarNominaMasiva();
         }
 
         protected Func<diasxpagarperiodo, bool> _quickFilter => x =>

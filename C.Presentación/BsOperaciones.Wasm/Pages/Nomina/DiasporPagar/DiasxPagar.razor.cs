@@ -30,6 +30,7 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
         protected DateTime? _fchaDesdeWrapper { get => FchaDesde; set => FchaDesde = value ?? DateTime.Now.AddDays(-15); }
         protected DateTime? _fchaHastaWrapper { get => FchaHasta; set => FchaHasta = value ?? DateTime.Now; }
 
+        public IEnumerable<int> _selectedOperaciones { set; get; } = new HashSet<int>();
         public int operacion { set; get; } = 0;
         public bool isloaddata { set; get; } = false;
         protected string _searchString = "";
@@ -46,35 +47,58 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
             finally { isloaddata = false; }
         }
 
+        protected async Task OnSelectedOperacionesChanged(IEnumerable<int> values)
+        {
+            _selectedOperaciones = values ?? new HashSet<int>();
+            await GetAllMarcadas();
+        }
+
         protected async Task OnChangeCliente(int value)
         {
-            operacion = value;
-            if (operacion > 0)
+            if (value > 0)
             {
+                _selectedOperaciones = new HashSet<int> { value };
                 await GetAllMarcadas();
             }
         }
 
         private async Task GetAllMarcadas()
         {
-            if (operacion == 0)
+            if (!_selectedOperaciones.Any())
             {
-                Snackbar.Add("Seleccione una operación primero.", Severity.Warning);
+                PayLoadList.Clear();
+                StateHasChanged();
                 return;
             }
 
             isloaddata = true;
             try
             {
-                typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = operacion };
-                var registros = await _mediator.Send(new GetAllDiasxPagarQuery(rango));
+                var masterList = new List<diasxpagarperiodo>();
+                var opList = _selectedOperaciones.Where(x => x > 0).ToList();
 
-                PayLoadList = registros.Model;
+                foreach (var opId in opList)
+                {
+                    typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = opId };
+                    var registros = await _mediator.Send(new GetAllDiasxPagarQuery(rango));
+
+                    if (registros?.Model != null && registros.Model.Any())
+                    {
+                        string opNombre = PayLoadOper.FirstOrDefault(x => x.id == opId)?.nombre ?? "";
+                        foreach (var item in registros.Model)
+                        {
+                            if (string.IsNullOrEmpty(item.area)) item.area = opNombre;
+                            masterList.Add(item);
+                        }
+                    }
+                }
+
+                PayLoadList = masterList;
 
                 if (!PayLoadList.Any())
                     Snackbar.Add("No se encontraron registros en este rango de fechas.", Severity.Info);
                 else
-                    Snackbar.Add($"{PayLoadList.Count} registros cargados correctamente.", Severity.Success);
+                    Snackbar.Add($"{PayLoadList.Count} registros cargados de {opList.Count} cliente(s).", Severity.Success);
             }
             catch (Exception ex) { Snackbar.Add("Error al consultar datos: " + ex.Message, Severity.Error); }
             finally { isloaddata = false; StateHasChanged(); }
@@ -114,29 +138,40 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
                     x.otras_deducciones
                 }).ToList();
 
-                typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = operacion };
-                var detailsResult = await _mediator.Send(new GetAllDiasTrabajadosOperacionQuery(rango));
                 var detailsList = new List<object>();
-
-                if (detailsResult?.Model != null)
+                var opList = _selectedOperaciones.Where(x => x > 0).ToList();
+                if (!opList.Any())
                 {
-                    foreach (var emp in detailsResult.Model)
+                    opList = PayLoadOper.Where(o => PayLoadList.Any(p => p.area == o.nombre)).Select(o => o.id).ToList();
+                }
+
+                foreach (var opId in opList)
+                {
+                    typeeinout rango = new typeeinout { entrada = FchaDesde, salida = FchaHasta, id = opId };
+                    var detailsResult = await _mediator.Send(new GetAllDiasTrabajadosOperacionQuery(rango));
+
+                    if (detailsResult?.Model != null)
                     {
-                        if (emp?.detalleall == null) continue;
-                        foreach (var mark in emp.detalleall)
+                        string opNombre = PayLoadOper.FirstOrDefault(x => x.id == opId)?.nombre ?? "";
+                        foreach (var emp in detailsResult.Model)
                         {
-                            detailsList.Add(new
+                            if (emp?.detalleall == null) continue;
+                            foreach (var mark in emp.detalleall)
                             {
-                                Empleado_ID = emp.id,
-                                Nombre = emp.nombre,
-                                Fecha = mark.fecha.ToString("yyyy-MM-dd"),
-                                Entrada = mark.entrada,
-                                Salida = mark.salida,
-                                Comida = mark.comida,
-                                Dias = mark.dias,
-                                HorasExtras = mark.horasextras,
-                                Bono = mark.bono
-                            });
+                                detailsList.Add(new
+                                {
+                                    Cliente = opNombre,
+                                    Empleado_ID = emp.id,
+                                    Nombre = emp.nombre,
+                                    Fecha = mark.fecha.ToString("yyyy-MM-dd"),
+                                    Entrada = mark.entrada,
+                                    Salida = mark.salida,
+                                    Comida = mark.comida,
+                                    Dias = mark.dias,
+                                    HorasExtras = mark.horasextras,
+                                    Bono = mark.bono
+                                });
+                            }
                         }
                     }
                 }
@@ -154,11 +189,10 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
                 if (!response.Respuesta.ExisteError && response.Model != null)
                 {
                     string base64Data = response.Model.File;
-                    string cliente = PayLoadOper.FirstOrDefault(x => x.id == operacion)?.nombre.Replace(" ", "_") ?? "General";
-                    string nombreArchivo = $"Nomina_{cliente}_{DateTime.Now:ddMMyy}.xlsx";
+                    string nombreArchivo = $"Nomina_Consolidada_{DateTime.Now:ddMMyy}.xlsx";
 
                     await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, nombreArchivo);
-                    Snackbar.Add("Excel generado exitosamente.", Severity.Success);
+                    Snackbar.Add("Excel consolidado generado exitosamente.", Severity.Success);
                 }
                 else
                 {
