@@ -491,7 +491,35 @@ namespace HostService.Clases
                         response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
                 }
                 else
-                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                {
+                    // Fallback para entornos donde el endpoint masivo de la API aún no está en IIS/AWS
+                    int exitosos = 0;
+                    var errores = new List<string>();
+
+                    foreach (var nom in model)
+                    {
+                        var resSingle = await CrearNomina(nom);
+                        if (resSingle.Respuesta.ExisteError)
+                        {
+                            errores.Add($"{nom.cliente}: {resSingle.Respuesta.MensajeError}");
+                        }
+                        else
+                        {
+                            exitosos++;
+                        }
+                    }
+
+                    if (errores.Count > 0 && exitosos == 0)
+                    {
+                        response.Respuesta.ExisteError = true;
+                        response.Respuesta.MensajeError = string.Join(" | ", errores);
+                    }
+                    else
+                    {
+                        response.Respuesta.ExisteError = false;
+                        response.Respuesta.MensajeError = $"¡Éxito! Se crearon {exitosos} de {model.Count} nómina(s) correctamente en Odoo." + (errores.Count > 0 ? " (Errores: " + string.Join(" | ", errores) + ")" : "");
+                    }
+                }
             }
             catch (CoreException ex)
             {
