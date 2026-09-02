@@ -88,7 +88,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                     Inicio = x.fec_inicio?.ToString("yyyy-MM-dd"),
                     Fin = x.fec_fin?.ToString("yyyy-MM-dd"),
                     EmpId = x.emp_nomina,
-                    No_Inss = string.IsNullOrEmpty(x.emp_noinss) ? 0 : Convert.ToInt64(decimal.Parse(x.emp_noinss)),
+                    No_Inss = decimal.TryParse(x.emp_noinss, out decimal vInss) ? Convert.ToInt64(vInss) : 0,
                     Nombre = x.emp_nombre,
                     Novedad = x.emp_novedad,
                     Semanas = x.emp_semanas_labs,
