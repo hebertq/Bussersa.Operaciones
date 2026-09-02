@@ -28,8 +28,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         public bool BotonEnabledActivosInss { get; set; } = true;
         protected int _activeIndex = 0;
         protected bool isloaddata = false;
-        protected int _anioGlobal = DateTime.Now.Year;
-        protected int _mesGlobal = DateTime.Now.Month;
+        protected int _anioGlobal = DateTime.Now.AddMonths(-1).Year;
+        protected int _mesGlobal = DateTime.Now.AddMonths(-1).Month;
         private List<EmpleadosActivos?> _PayLoadListLocal = new();
         protected List<EmpleadosActivos?> _PayLoadListInss = new();
         protected List<NominaMensualReportar> _nominaFinalGlobal = new();

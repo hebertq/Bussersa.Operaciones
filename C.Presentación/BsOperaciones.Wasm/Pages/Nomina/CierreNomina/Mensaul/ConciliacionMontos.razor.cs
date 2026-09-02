@@ -47,11 +47,11 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         protected async Task ConfirmarEjecucionCierre()
         {
-            string mes = new DateTime(2000, _mesSeleccionado, 1).ToString("MMMM").ToUpper();
+            string nombreMes = new DateTime(2000, _mesSeleccionado, 1).ToString("MMMM", new System.Globalization.CultureInfo("es-ES")).ToUpper();
             bool? result = await DialogService.ShowMessageBox(
-                "Confirmar Cierre",
-                (MarkupString)$"¿Ejecutar el cierre para <b>{_anioSeleccionado} - {mes}</b>?",
-                yesText: "Ejecutar", cancelText: "Cancelar");
+                "Confirmar Cierre Mensual",
+                (MarkupString)$"¿Ejecutar el cierre definitivo de nómina para el período: <b>{nombreMes} {_anioSeleccionado}</b>?<br/><br/><span class='text-muted'>Parámetros enviados al API: Año={_anioSeleccionado}, Mes={_mesSeleccionado}</span>",
+                yesText: "Ejecutar Cierre", cancelText: "Cancelar");
 
             if (result == true) await EjecutarCierreMensual();
         }
