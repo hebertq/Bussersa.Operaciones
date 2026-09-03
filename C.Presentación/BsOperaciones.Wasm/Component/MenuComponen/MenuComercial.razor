@@ -6,7 +6,10 @@
             <MenuItem MenuId="27" Name="Costeo Personal" Url="/comercial/costeo-personal" IconName="@Icons.Material.Filled.People" />
             <MenuItem MenuId="28" Name="Costeo Producción" Url="/comercial/costeo-produccion" IconName="@Icons.Material.Filled.Build" />
             <MenuItem MenuId="27" Name="Costeo Materiales" Url="/comercial/costeo-materiales" IconName="@Icons.Material.Filled.Inventory" />
-            <MenuItem MenuId="29" Name="Indicadores" Url="/comercial/dashboard" IconName="@Icons.Material.Filled.TrendingUp" />
+            <MudNavGroup Title="Indicadores" Icon="@Icons.Material.Filled.TrendingUp" Expanded="false">
+                <MenuItem MenuId="29" Name="Mensual" Url="/comercial/dashboard-mensual" IconName="@Icons.Material.Filled.CalendarMonth" />
+                <MenuItem MenuId="29" Name="Por Rango" Url="/comercial/dashboard" IconName="@Icons.Material.Filled.DateRange" />
+            </MudNavGroup>
             <AuthorizeView Policy="@Policies.IsMenu" Resource="33" Context="innerContext">
                 <Authorized>
                     <MudNavGroup Title="Servicios" Icon="@Icons.Material.Filled.Settings" Expanded="false">

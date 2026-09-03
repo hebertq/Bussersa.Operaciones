@@ -1,0 +1,369 @@
+@page "/comercial/dashboard-mensual"
+@using Modelo.Comercial
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Nomina
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<style>
+    .page-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .status-badge-error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .status-badge-warning {
+        background: #fefce8;
+        color: #854d0e;
+        border: 1px solid #fef08a;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .status-badge-success {
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+</style>
+
+<div class="page-container">
+    <div class="d-flex justify-between align-center flex-wrap mb-6">
+        <div>
+            <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" Size="Size.Large" />
+                Dashboard Mensual de Rentabilidad y Costos por Operación
+            </h3>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Cruzamiento automático de Ingresos de Producción Diaria vs Costos Reales de Nómina por Operación/Cliente (tabla tbl_bs_mst_costo_nomina_mensual).
+            </MudText>
+        </div>
+        
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarRentabilidadMensual" Class="font-bold">
+            Actualizar Datos
+        </MudButton>
+    </div>
+
+    <!-- Filtros de Período Mensual (Año / Mes) y Cliente -->
+    <MudPaper Class="pa-4 mb-6" Elevation="2" Style="border-radius: 12px; background: white;">
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem XS="12" SM="3">
+                <MudSelect T="int" Label="Año de Cierre" @bind-Value="anioSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var a in aniosDisponibles)
+                    {
+                        <MudSelectItem T="int" Value="@a">@a</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="3">
+                <MudSelect T="int" Label="Mes de Cierre" @bind-Value="mesSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="int" Value="1">Enero</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">Febrero</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">Marzo</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
+                    <MudSelectItem T="int" Value="5">Mayo</MudSelectItem>
+                    <MudSelectItem T="int" Value="6">Junio</MudSelectItem>
+                    <MudSelectItem T="int" Value="7">Julio</MudSelectItem>
+                    <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
+                    <MudSelectItem T="int" Value="9">Septiembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="10">Octubre</MudSelectItem>
+                    <MudSelectItem T="int" Value="11">Noviembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="12">Diciembre</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="3">
+                <MudSelect T="int?" Label="Operación / Cliente" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todas las Operaciones</MudSelectItem>
+                    @if (operacionesList != null)
+                    {
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="3" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarRentabilidadMensual" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2">
+                    Consultar Rentabilidad
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (rentabilidadEmpresas == null || !rentabilidadEmpresas.Any())
+    {
+        <MudPaper Class="pa-12 text-center my-6" Elevation="2" Style="border-radius: 12px; background: white;">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-3" Style="font-size: 48px;" />
+            <MudText Typo="Typo.h6" Class="font-bold">No se encontraron datos para el mes de @ObtenerNombreMes(mesSeleccionado) @anioSeleccionado</MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Verifica que existan registros de producción diaria y cierre mensual de nómina en este período.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <!-- Tarjetas KPI Generales -->
+        <MudGrid Class="mb-6">
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #1E88E5; border-radius: 10px;" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">INGRESOS TOTALES FACTURABLES</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Primary">C$ @totalIngresos.ToString("N2")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #E53935; border-radius: 10px;" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO NÓMINA OPERATIVO REAL</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Error">C$ @totalCostoNomina.ToString("N2")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #43A047; border-radius: 10px;" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD BRUTA REAL</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Success">C$ @totalUtilidad.ToString("N2")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #8E24AA; border-radius: 10px;" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">% RENTABILIDAD PROMEDIO</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Style="color: #8E24AA;">@promedioMargen.ToString("N2")%</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Tabla Desglose por Operación / Empresa -->
+        <MudCard Elevation="3" Class="pa-4 mb-6" Style="border-radius: 12px;">
+            <div class="d-flex justify-between align-center mb-4">
+                <MudText Typo="Typo.h6" Class="font-bold d-flex align-center gap-2" Color="Color.Primary">
+                    <MudIcon Icon="@Icons.Material.Filled.Assessment" />
+                    Desglose de Rentabilidad Mensual por Operación (@ObtenerNombreMes(mesSeleccionado) @anioSeleccionado)
+                </MudText>
+                <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                    @rentabilidadEmpresas.Count Operaciones Analizadas
+                </MudChip>
+            </div>
+
+            <MudTable Items="rentabilidadEmpresas" Hover="true" Striped="true" Dense="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh Style="text-align:center;">ID Operación</MudTh>
+                    <MudTh>Empresa / Operación</MudTh>
+                    <MudTh Style="text-align:center;">Personal Nómina</MudTh>
+                    <MudTh Style="text-align:center;">Servicios</MudTh>
+                    <MudTh Style="text-align:center;">Proformas / Facturas</MudTh>
+                    <MudTh Style="text-align:right;">Ingreso Total (C$)</MudTh>
+                    <MudTh Style="text-align:right;">Costo Nómina Real (C$)</MudTh>
+                    <MudTh Style="text-align:right;">Utilidad Bruta (C$)</MudTh>
+                    <MudTh Style="text-align:center;">Margen %</MudTh>
+                    <MudTh Style="text-align:center;">Recomendación Tarifaria</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd Style="text-align:center; font-weight:bold;">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">#@context.OperacionId</MudChip>
+                    </MudTd>
+                    <MudTd Class="font-bold text-dark" Style="font-size: 14px;">@context.Cliente</MudTd>
+                    <MudTd Style="text-align:center;">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.TotalEmpleadosNomina emp.</MudChip>
+                    </MudTd>
+                    <MudTd Style="text-align:center;">@context.CantidadServicios</MudTd>
+                    <MudTd Style="text-align:center;">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">P: @context.TotalProformas</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success">F: @context.TotalFacturas</MudChip>
+                    </MudTd>
+                    <MudTd Style="text-align:right; font-weight:600;">C$ @context.IngresosTotales.ToString("N2")</MudTd>
+                    <MudTd Style="text-align:right; color:#d32f2f; font-weight:600;">
+                        C$ @context.CostoNominaReal.ToString("N2")
+                        @if (!context.EsCostoRealNomina)
+                        {
+                            <span class="d-block text-caption text-secondary" style="font-size:10px;">(Estimado 60%)</span>
+                        }
+                    </MudTd>
+                    <MudTd Style="text-align:right; font-weight:bold;" Class="@(context.UtilidadReal < 0 ? "text-error" : "text-success")">
+                        C$ @context.UtilidadReal.ToString("N2")
+                    </MudTd>
+                    <MudTd Style="text-align:center; font-weight:bold;">
+                        <span style="color: @(context.MargenPercent < 20m ? "#d32f2f" : (context.MargenPercent <= 35m ? "#d97706" : "#166534")); font-size: 14px;">
+                            @context.MargenPercent.ToString("N2")%
+                        </span>
+                    </MudTd>
+                    <MudTd Style="text-align:center;">
+                        @if (context.MargenPercent < 20m)
+                        {
+                            <span class="status-badge-error">🔴 Reajustar Tarifa (+Precio)</span>
+                        }
+                        else if (context.MargenPercent <= 35m)
+                        {
+                            <span class="status-badge-warning">🟡 Rentabilidad Aceptable</span>
+                        }
+                        else
+                        {
+                            <span class="status-badge-success">🟢 Rentabilidad Óptima</span>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCard>
+    }
+</div>
+
+@code {
+    private int anioSeleccionado = DateTime.Now.Year;
+    private int mesSeleccionado = DateTime.Now.AddMonths(-1).Month;
+    private List<int> aniosDisponibles = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1, DateTime.Now.Year - 2 };
+    private int? filtroOperacionId = null;
+    private bool isLoading = false;
+
+    private List<Combos> operacionesList = new List<Combos>();
+    private List<RentabilidadMensualItem> rentabilidadEmpresas = new List<RentabilidadMensualItem>();
+
+    private decimal totalIngresos = 0;
+    private decimal totalCostoNomina = 0;
+    private decimal totalUtilidad = 0;
+    private decimal promedioMargen = 0;
+
+    public class RentabilidadMensualItem
+    {
+        public int OperacionId { get; set; }
+        public string Cliente { get; set; } = string.Empty;
+        public int TotalEmpleadosNomina { get; set; }
+        public int CantidadServicios { get; set; }
+        public int TotalProformas { get; set; }
+        public int TotalFacturas { get; set; }
+        public decimal IngresosTotales { get; set; }
+        public decimal CostoNominaReal { get; set; }
+        public bool EsCostoRealNomina { get; set; } = true;
+        public decimal UtilidadReal => IngresosTotales - CostoNominaReal;
+        public decimal MargenPercent => IngresosTotales > 0 ? (UtilidadReal / IngresosTotales) * 100m : 0m;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosOperaciones();
+        await CargarRentabilidadMensual();
+    }
+
+    private async Task CargarCombosOperaciones()
+    {
+        try
+        {
+            var res = await _OdooService.GetAllCombosHost("Operaciones");
+            if (res.Model != null)
+            {
+                operacionesList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar operaciones: " + ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task CargarRentabilidadMensual()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            DateTime inicio = new DateTime(anioSeleccionado, mesSeleccionado, 1);
+            DateTime fin = inicio.AddMonths(1).AddDays(-1);
+            int periodo = anioSeleccionado * 100 + mesSeleccionado;
+
+            // 1. Obtener Producción Diaria (Ingresos)
+            var resProd = await _OdooService.GetProduccionDiaria(inicio, fin, filtroOperacionId, null);
+            var produccionList = resProd.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+
+            // 2. Obtener Costos Reales de Nómina Mensual por Cliente
+            var resCosto = await _OdooService.GetCostoNominaMensualCliente(periodo);
+            var costosNominaList = resCosto.Model?.ToList() ?? new List<CostoNominaMensualClienteDto>();
+
+            // Obtener lista de IDs de operación únicos combinando Producción y Nómina
+            var operacionIds = produccionList
+                .Select(x => x.operacion_id ?? 0)
+                .Concat(costosNominaList.Select(x => x.cliente))
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+
+            if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
+            {
+                operacionIds = operacionIds.Where(x => x == filtroOperacionId.Value).ToList();
+            }
+
+            rentabilidadEmpresas = operacionIds.Select(opId => {
+                var prods = produccionList.Where(x => (x.operacion_id ?? 0) == opId).ToList();
+                var costoNomina = costosNominaList.FirstOrDefault(x => x.cliente == opId);
+
+                string nombreCliente = prods.FirstOrDefault(x => !string.IsNullOrEmpty(x.cliente))?.cliente;
+                if (string.IsNullOrEmpty(nombreCliente))
+                {
+                    var combo = operacionesList.FirstOrDefault(c => c.id == opId);
+                    nombreCliente = combo != null ? combo.nombre : $"Operación #{opId}";
+                }
+
+                decimal ingresos = prods.Sum(x => x.cantidad_producto * x.costo_producto);
+                decimal costoReal = costoNomina != null ? costoNomina.costo_total_nomina : (ingresos * 0.60m);
+                bool esReal = costoNomina != null;
+
+                return new RentabilidadMensualItem
+                {
+                    OperacionId = opId,
+                    Cliente = nombreCliente,
+                    TotalEmpleadosNomina = costoNomina?.total_empleados ?? 0,
+                    CantidadServicios = prods.Count,
+                    TotalProformas = prods.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),
+                    TotalFacturas = prods.Where(x => !string.IsNullOrEmpty(x.no_factura)).Select(x => x.no_factura).Distinct().Count(),
+                    IngresosTotales = ingresos,
+                    CostoNominaReal = costoReal,
+                    EsCostoRealNomina = esReal
+                };
+            })
+            .OrderByDescending(x => x.IngresosTotales)
+            .ToList();
+
+            totalIngresos = rentabilidadEmpresas.Sum(x => x.IngresosTotales);
+            totalCostoNomina = rentabilidadEmpresas.Sum(x => x.CostoNominaReal);
+            totalUtilidad = totalIngresos - totalCostoNomina;
+            promedioMargen = totalIngresos > 0 ? (totalUtilidad / totalIngresos) * 100m : 0m;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar la rentabilidad mensual: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero", 2 => "Febrero", 3 => "Marzo", 4 => "Abril",
+            5 => "Mayo", 6 => "Junio", 7 => "Julio", 8 => "Agosto",
+            9 => "Septiembre", 10 => "Octubre", 11 => "Noviembre", 12 => "Diciembre",
+            _ => ""
+        };
+    }
+}
