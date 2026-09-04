@@ -194,7 +194,7 @@
                         C$ @context.CostoNominaReal.ToString("N2")
                         @if (!context.EsCostoRealNomina)
                         {
-                            <span class="d-block text-caption text-secondary" style="font-size:10px;">(Estimado 60%)</span>
+                            <span class="d-block text-caption text-secondary" style="font-size:10px;">(Sin Nómina)</span>
                         }
                     </MudTd>
                     <MudTd Style="text-align:right; font-weight:bold;" Class="@(context.UtilidadReal < 0 ? "text-error" : "text-success")">
@@ -321,7 +321,7 @@
                 }
 
                 decimal ingresos = prods.Sum(x => x.cantidad_producto * x.costo_producto);
-                decimal costoReal = costoNomina != null ? costoNomina.costo_total_nomina : (ingresos * 0.60m);
+                decimal costoReal = costoNomina != null ? costoNomina.costo_total_nomina : 0m;
                 bool esReal = costoNomina != null;
 
                 return new RentabilidadMensualItem
