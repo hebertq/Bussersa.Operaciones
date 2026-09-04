@@ -140,6 +140,11 @@ namespace HostService.Interfaces
         Task<IResponse> SaveProductoAdicionalConfig(Modelo.Entidades.Operaciones.ProductoAdicionalConfig model);
         Task<IResponse> DeleteProductoAdicionalConfig(int id);
         Task<IListResponse<CostoNominaMensualClienteDto>> GetCostoNominaMensualCliente(int periodo);
+
+        // --- ASOCIACIÓN DE OPERACIONES ---
+        Task<IListResponse<Modelo.Entidades.Operaciones.AsociacionOperacionDto>> GetAllAsociacionesOperacion();
+        Task<IResponse> SaveAsociacionOperacion(Modelo.Entidades.Operaciones.AsociacionOperacionDto model);
+        Task<IResponse> DeleteAsociacionOperacion(int id);
     }
 }
 

@@ -180,7 +180,15 @@
                     <MudTd Style="text-align:center; font-weight:bold;">
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">#@context.OperacionId</MudChip>
                     </MudTd>
-                    <MudTd Class="font-bold text-dark" Style="font-size: 14px;">@context.Cliente</MudTd>
+                    <MudTd Class="font-bold text-dark" Style="font-size: 14px;">
+                        @context.Cliente
+                        @if (!string.IsNullOrEmpty(context.OperacionesConsolidadas))
+                        {
+                            <span class="d-block text-caption text-primary font-bold" style="font-size:11px;">
+                                <MudIcon Icon="@Icons.Material.Filled.MergeType" Size="Size.Small" Class="me-1" />@context.OperacionesConsolidadas
+                            </span>
+                        }
+                    </MudTd>
                     <MudTd Style="text-align:center;">
                         <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.TotalEmpleadosNomina emp.</MudChip>
                     </MudTd>
@@ -244,6 +252,7 @@
     {
         public int OperacionId { get; set; }
         public string Cliente { get; set; } = string.Empty;
+        public string? OperacionesConsolidadas { get; set; }
         public int TotalEmpleadosNomina { get; set; }
         public int CantidadServicios { get; set; }
         public int TotalProformas { get; set; }
@@ -296,9 +305,18 @@
             var resCosto = await _OdooService.GetCostoNominaMensualCliente(periodo);
             var costosNominaList = resCosto.Model?.ToList() ?? new List<CostoNominaMensualClienteDto>();
 
-            // Obtener lista de IDs de operación únicos combinando Producción y Nómina
-            var operacionIds = produccionList
-                .Select(x => x.operacion_id ?? 0)
+            // 3. Obtener Asociaciones de Operaciones Activas
+            var resAsoc = await _OdooService.GetAllAsociacionesOperacion();
+            var asociacionesList = resAsoc.Model?.Where(a => a.Activo).ToList() ?? new List<Modelo.Entidades.Operaciones.AsociacionOperacionDto>();
+
+            var mapaAsociaciones = asociacionesList.ToDictionary(a => a.OperacionOrigenId, a => a.OperacionDestinoId);
+
+            Func<int, int> getPrimaryOpId = (int opId) =>
+                mapaAsociaciones.TryGetValue(opId, out int destId) ? destId : opId;
+
+            // Obtener lista de IDs de operación principales únicos
+            var primaryOpIds = produccionList
+                .Select(x => getPrimaryOpId(x.operacion_id ?? 0))
                 .Concat(costosNominaList.Select(x => x.cliente))
                 .Where(x => x > 0)
                 .Distinct()
@@ -306,19 +324,29 @@
 
             if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
             {
-                operacionIds = operacionIds.Where(x => x == filtroOperacionId.Value).ToList();
+                int targetPrimary = getPrimaryOpId(filtroOperacionId.Value);
+                primaryOpIds = primaryOpIds.Where(x => x == targetPrimary).ToList();
             }
 
-            rentabilidadEmpresas = operacionIds.Select(opId => {
-                var prods = produccionList.Where(x => (x.operacion_id ?? 0) == opId).ToList();
+            rentabilidadEmpresas = primaryOpIds.Select(opId => {
+                var prods = produccionList.Where(x => getPrimaryOpId(x.operacion_id ?? 0) == opId).ToList();
                 var costoNomina = costosNominaList.FirstOrDefault(x => x.cliente == opId);
 
-                string nombreCliente = prods.FirstOrDefault(x => !string.IsNullOrEmpty(x.cliente))?.cliente;
+                string nombreCliente = prods.FirstOrDefault(x => getPrimaryOpId(x.operacion_id ?? 0) == opId && !string.IsNullOrEmpty(x.cliente))?.cliente;
                 if (string.IsNullOrEmpty(nombreCliente))
                 {
                     var combo = operacionesList.FirstOrDefault(c => c.id == opId);
                     nombreCliente = combo != null ? combo.nombre : $"Operación #{opId}";
                 }
+
+                var secundariasMapeadas = asociacionesList
+                    .Where(a => a.OperacionDestinoId == opId)
+                    .Select(a => a.OperacionOrigenNombre ?? $"Operación #{a.OperacionOrigenId}")
+                    .ToList();
+
+                string? notaConsolidado = secundariasMapeadas.Any()
+                    ? "Consolidado: " + string.Join(", ", secundariasMapeadas)
+                    : null;
 
                 decimal ingresos = prods.Sum(x => x.cantidad_producto * x.costo_producto);
                 decimal costoReal = costoNomina != null ? costoNomina.costo_total_nomina : 0m;
@@ -328,6 +356,7 @@
                 {
                     OperacionId = opId,
                     Cliente = nombreCliente,
+                    OperacionesConsolidadas = notaConsolidado,
                     TotalEmpleadosNomina = costoNomina?.total_empleados ?? 0,
                     CantidadServicios = prods.Count,
                     TotalProformas = prods.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),

@@ -1,0 +1,328 @@
+@page "/comercial/asociacion-operaciones"
+@using Modelo.Entidades.Operaciones
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject IJSRuntime JSRuntime
+
+<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
+        <div>
+            <h2 class="fw-bold mb-1" style="color: #0f172a;">
+                <i class="bi bi-diagram-3-fill text-primary me-2"></i>Asociación de Operaciones (Facturación vs. Nómina)
+            </h2>
+            <p class="text-secondary small mb-0 fw-semibold">
+                Asocie operaciones secundarias de facturación (ej: Food Services #9) a operaciones principales con nómina (ej: Café Soluble #8) para consolidar sus ingresos en el Dashboard Mensual.
+            </p>
+        </div>
+        <div>
+            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
+                <i class="bi bi-plus-lg me-1"></i>+ NUEVA ASOCIACIÓN
+            </button>
+        </div>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center">
+        <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+        <div>
+            <strong>Consolidación en Dashboard Mensual:</strong>
+            La facturación/producción de la <em>Operación Origen</em> se consolidará junto con la <em>Operación Destino</em>. De esta forma, las operaciones sin nómina propia no muestran costos estimados ni pérdidas irreales.
+        </div>
+    </div>
+
+    <!-- Search & Summary -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card-body py-3 d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0" style="color: #0f172a;">
+                <i class="bi bi-link-45deg me-2 text-primary"></i>Listado de Operaciones Mapeadas (@FilteredAsociaciones.Count())
+            </h5>
+            <div class="input-group input-group-sm" style="max-width: 320px;">
+                <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar por operación..." @bind="searchText" @bind:event="oninput" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-dark fw-semibold mt-2">Cargando asociaciones...</p>
+        </div>
+    }
+    else if (!FilteredAsociaciones.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center">
+            <i class="bi bi-inbox text-secondary display-4"></i>
+            <p class="text-secondary fw-semibold mt-2">No hay asociaciones registradas.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary small fw-bold text-uppercase">
+                        <tr>
+                            <th class="ps-4">ID</th>
+                            <th>Operación Origen (Facturación)</th>
+                            <th></th>
+                            <th>Operación Destino (Nómina / Principal)</th>
+                            <th>Estado</th>
+                            <th class="text-end pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in FilteredAsociaciones)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-bold text-secondary">#@item.Id</td>
+                                <td>
+                                    <span class="badge bg-secondary px-2 py-1 me-2">ID @item.OperacionOrigenId</span>
+                                    <strong class="text-dark">@item.OperacionOrigenNombre</strong>
+                                </td>
+                                <td class="text-center text-primary">
+                                    <i class="bi bi-arrow-right fs-5"></i>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary px-2 py-1 me-2">ID @item.OperacionDestinoId</span>
+                                    <strong class="text-dark">@item.OperacionDestinoNombre</strong>
+                                </td>
+                                <td>
+                                    @if (item.Activo)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold">
+                                            Activo
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border rounded-pill px-3 py-1 fw-bold">
+                                            Inactivo
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-outline-primary me-2 rounded-circle" title="Editar" @onclick="() => PrepareEdit(item)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger rounded-circle" title="Eliminar" @onclick="() => DeleteAsociacion(item.Id)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Form -->
+@if (showModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-diagram-3 me-2"></i>@(currentModel.Id > 0 ? "Editar Asociación" : "Nueva Asociación de Operación")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger py-2 small fw-semibold mb-3">@errorMessage</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Operación Origen (Facturación / Secundaria)</label>
+                        <select class="form-select border fw-semibold" @bind="currentModel.OperacionOrigenId">
+                            <option value="0">-- Seleccione Operación Origen --</option>
+                            @foreach (var op in operacionesCombo)
+                            {
+                                <option value="@op.id">@op.nombre (ID: @op.id)</option>
+                            }
+                        </select>
+                        <div class="form-text small">Operación cuya facturación se transferirá / consolidará.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Operación Destino (Nómina / Principal)</label>
+                        <select class="form-select border fw-semibold" @bind="currentModel.OperacionDestinoId">
+                            <option value="0">-- Seleccione Operación Principal --</option>
+                            @foreach (var op in operacionesCombo)
+                            {
+                                <option value="@op.id">@op.nombre (ID: @op.id)</option>
+                            }
+                        </select>
+                        <div class="form-text small">Operación que absorbe los ingresos y posee el costo de nómina.</div>
+                    </div>
+
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" id="chkActivo" @bind="currentModel.Activo" />
+                        <label class="form-check-label fw-bold text-dark small" for="chkActivo">Asociación Activa</label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4" @onclick="CloseModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="SaveAsociacion" disabled="@saving">
+                        @if (saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AsociacionOperacionDto> asociaciones = new();
+    private List<Combos> operacionesCombo = new();
+    private AsociacionOperacionDto currentModel = new();
+    private bool loading = true;
+    private bool saving = false;
+    private bool showModal = false;
+    private string searchText = "";
+    private string errorMessage = "";
+
+    private IEnumerable<AsociacionOperacionDto> FilteredAsociaciones =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? asociaciones
+            : asociaciones.Where(a =>
+                (a.OperacionOrigenNombre ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (a.OperacionDestinoNombre ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        loading = true;
+        try
+        {
+            var comboResp = await _OdooService.GetAllCombosHost("operaciones");
+            if (comboResp != null && comboResp.Model != null)
+            {
+                operacionesCombo = comboResp.Model.OrderBy(x => x.nombre).ToList();
+            }
+
+            var listResp = await _OdooService.GetAllAsociacionesOperacion();
+            if (listResp != null && listResp.Model != null)
+            {
+                asociaciones = listResp.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al cargar asociaciones: " + ex.Message);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void PrepareCreate()
+    {
+        currentModel = new AsociacionOperacionDto { Activo = true };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void PrepareEdit(AsociacionOperacionDto item)
+    {
+        currentModel = new AsociacionOperacionDto
+        {
+            Id = item.Id,
+            OperacionOrigenId = item.OperacionOrigenId,
+            OperacionOrigenNombre = item.OperacionOrigenNombre,
+            OperacionDestinoId = item.OperacionDestinoId,
+            OperacionDestinoNombre = item.OperacionDestinoNombre,
+            Activo = item.Activo,
+            UserAdd = item.UserAdd,
+            DateAdd = item.DateAdd
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        errorMessage = "";
+    }
+
+    private async Task SaveAsociacion()
+    {
+        errorMessage = "";
+        if (currentModel.OperacionOrigenId <= 0)
+        {
+            errorMessage = "Seleccione una operación de origen válida.";
+            return;
+        }
+        if (currentModel.OperacionDestinoId <= 0)
+        {
+            errorMessage = "Seleccione una operación de destino válida.";
+            return;
+        }
+        if (currentModel.OperacionOrigenId == currentModel.OperacionDestinoId)
+        {
+            errorMessage = "La operación de origen y destino no pueden ser la misma.";
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var res = await _OdooService.SaveAsociacionOperacion(currentModel);
+            if (res != null && res.Respuesta != null && !res.Respuesta.ExisteError)
+            {
+                showModal = false;
+                await LoadData();
+            }
+            else
+            {
+                errorMessage = res?.Respuesta?.MensajeError ?? "Error al guardar la asociación.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error inesperado: " + ex.Message;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task DeleteAsociacion(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta asociación de operación?");
+        if (confirmed)
+        {
+            try
+            {
+                var res = await _OdooService.DeleteAsociacionOperacion(id);
+                if (res != null && res.Respuesta != null && !res.Respuesta.ExisteError)
+                {
+                    await LoadData();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al eliminar asociación: " + ex.Message);
+            }
+        }
+    }
+}
