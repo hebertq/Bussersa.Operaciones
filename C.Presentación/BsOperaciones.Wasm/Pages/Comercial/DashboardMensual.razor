@@ -297,8 +297,8 @@
             DateTime fin = inicio.AddMonths(1).AddDays(-1);
             int periodo = anioSeleccionado * 100 + mesSeleccionado;
 
-            // 1. Obtener Producción Diaria (Ingresos)
-            var resProd = await _OdooService.GetProduccionDiaria(inicio, fin, filtroOperacionId, null);
+            // 1. Obtener Producción Diaria (Ingresos de todas las operaciones para consolidar)
+            var resProd = await _OdooService.GetProduccionDiaria(inicio, fin, null, null);
             var produccionList = resProd.Model?.ToList() ?? new List<ProduccionDiariaDto>();
 
             // 2. Obtener Costos Reales de Nómina Mensual por Cliente
