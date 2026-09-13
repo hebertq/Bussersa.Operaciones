@@ -74,7 +74,39 @@
                     }
                 </div>
 
-                <MudTable Items="variantsList" Hover="true" Elevation="0" Dense="true" Class="mb-4">
+                <MudTable Items="variantsList" Hover="true" Elevation="0" Dense="true" Class="mb-4" Filter="FilterFunc">
+                    <ToolBarContent>
+                        <div class="d-flex align-center justify-space-between w-100 flex-wrap gap-4">
+                            <MudTextField @bind-Value="searchString" 
+                                          Placeholder="Buscar por SKU, característica o precio..." 
+                                          Adornment="Adornment.Start" 
+                                          AdornmentIcon="@Icons.Material.Filled.Search" 
+                                          IconSize="Size.Medium" 
+                                          Class="mt-0" 
+                                          Immediate="true" 
+                                          Clearable="true" 
+                                          Style="max-width: 450px; background-color: white;" 
+                                          Margin="Margin.Dense" 
+                                          Variant="Variant.Outlined" />
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       StartIcon="@Icons.Material.Filled.Download" 
+                                       OnClick="ExportarConsulta" 
+                                       Disabled="@(variantsList == null || !variantsList.Any() || isExporting)"
+                                       Class="px-4 py-2 font-bold"
+                                       Style="border-radius: 8px;">
+                                @if (isExporting)
+                                {
+                                    <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" />
+                                    <span>Generando Excel...</span>
+                                }
+                                else
+                                {
+                                    <span>Descargar Consulta</span>
+                                }
+                            </MudButton>
+                        </div>
+                    </ToolBarContent>
                     <HeaderContent>
                         <MudTh>Código SKU (Referencia)</MudTh>
                         <MudTh>Características (Atributos)</MudTh>
@@ -101,6 +133,11 @@
                             </div>
                         </MudTd>
                     </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }" 
+                                        RowsPerPageString="Filas por página:" 
+                                        InfoFormat="{first_item}-{last_item} de {all_items}" />
+                    </PagerContent>
                 </MudTable>
 
                 <!-- Botón de Sincronización -->
