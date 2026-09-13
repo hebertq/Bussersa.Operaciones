@@ -54,22 +54,22 @@ namespace BsOperaciones.Pages.Comercial
                         var cellVal = headerRow.GetCell(col)?.ToString()?.Trim()?.ToLower();
                         if (string.IsNullOrEmpty(cellVal)) continue;
 
-                        if (cellVal == "name" || cellVal == "plantilla" || cellVal == "producto" || cellVal == "nombre" || cellVal == "servicio" || cellVal == "servicios" || cellVal == "plantilla producto")
+                        if (cellVal == "name" || cellVal == "plantilla" || cellVal == "producto" || cellVal == "nombre" || cellVal == "servicio" || cellVal == "servicios" || cellVal == "plantilla producto" || cellVal == "plantilla de producto" || cellVal == "product_tmpl_id" || cellVal == "product_tmpl_id/name" || cellVal == "product template")
                         {
                             colName = col;
                             anyHeaderMatched = true;
                         }
-                        else if (cellVal == "default_code" || cellVal == "codigo" || cellVal == "código" || cellVal == "referencia" || cellVal == "referencia interna" || cellVal == "id interno" || cellVal == "id_interno" || cellVal == "id" || cellVal == "código interno" || cellVal == "codigo interno" || cellVal == "id-interno" || cellVal == "código sku" || cellVal == "codigo sku" || cellVal == "sku")
+                        else if (cellVal == "default_code" || cellVal == "codigo" || cellVal == "código" || cellVal == "referencia" || cellVal == "referencia interna" || cellVal == "id interno" || cellVal == "id_interno" || cellVal == "id" || cellVal == "código interno" || cellVal == "codigo interno" || cellVal == "id-interno" || cellVal == "código sku" || cellVal == "codigo sku" || cellVal == "sku" || cellVal == "product_id" || cellVal == "product_id/default_code" || cellVal == "product_id/id" || cellVal == "product_id/name" || cellVal == "variante de producto" || cellVal == "product variant")
                         {
                             colCode = col;
                             anyHeaderMatched = true;
                         }
-                        else if (cellVal == "lst_price" || cellVal == "precio" || cellVal == "precio de venta" || cellVal == "precio_venta" || cellVal == "precio venta" || cellVal == "tarifa" || cellVal == "costo" || cellVal == "monto" || cellVal == "precio unitario")
+                        else if (cellVal == "lst_price" || cellVal == "precio" || cellVal == "precio de venta" || cellVal == "precio_venta" || cellVal == "precio venta" || cellVal == "tarifa" || cellVal == "costo" || cellVal == "monto" || cellVal == "precio unitario" || cellVal == "fixed_price" || cellVal == "precio fijo" || cellVal == "precio de lista" || cellVal == "price" || cellVal == "price_discount")
                         {
                             colPrice = col;
                             anyHeaderMatched = true;
                         }
-                        else if (cellVal == "product_template_variant_value_ids" || cellVal == "atributos" || cellVal == "atributos de variante" || cellVal == "valores" || cellVal == "detalles" || cellVal == "variante" || cellVal == "variantes" || cellVal == "valores de las variantes" || cellVal == "atributos y valores" || cellVal == "características" || cellVal == "caracteristicas")
+                        else if (cellVal == "product_template_variant_value_ids" || cellVal == "atributos" || cellVal == "atributos de variante" || cellVal == "valores" || cellVal == "detalles" || cellVal == "variante" || cellVal == "variantes" || cellVal == "valores de las variantes" || cellVal == "valores de variante" || cellVal == "valores de variantes" || cellVal == "atributos y valores" || cellVal == "características" || cellVal == "caracteristicas" || cellVal == "regla de la lista de precios" || cellVal == "regla de tarifa")
                         {
                             colAttrs = col;
                             anyHeaderMatched = true;
@@ -106,10 +106,15 @@ namespace BsOperaciones.Pages.Comercial
                         if (row == null) continue;
 
                         string nameVal = (colName != -1 && row.GetCell(colName) != null) ? row.GetCell(colName).ToString()?.Trim() ?? string.Empty : string.Empty;
-                        if (string.IsNullOrEmpty(nameVal)) continue;
-
                         string codeVal = (colCode != -1 && row.GetCell(colCode) != null) ? row.GetCell(colCode).ToString()?.Trim() ?? string.Empty : string.Empty;
-                        
+                        string attrsVal = (colAttrs != -1 && row.GetCell(colAttrs) != null) ? row.GetCell(colAttrs).ToString()?.Trim() ?? string.Empty : string.Empty;
+
+                        if (string.IsNullOrEmpty(nameVal) && !string.IsNullOrEmpty(attrsVal))
+                        {
+                            nameVal = "Servicio";
+                        }
+                        if (string.IsNullOrEmpty(nameVal) && string.IsNullOrEmpty(attrsVal) && string.IsNullOrEmpty(codeVal)) continue;
+
                         decimal priceVal = 0;
                         if (colPrice != -1 && row.GetCell(colPrice) != null)
                         {
@@ -119,8 +124,6 @@ namespace BsOperaciones.Pages.Comercial
                                 decimal.TryParse(priceCellStr, out priceVal);
                             }
                         }
-
-                        string attrsVal = (colAttrs != -1 && row.GetCell(colAttrs) != null) ? row.GetCell(colAttrs).ToString()?.Trim() ?? string.Empty : string.Empty;
 
                         list.Add(new ImportarVarianteItem
                         {
