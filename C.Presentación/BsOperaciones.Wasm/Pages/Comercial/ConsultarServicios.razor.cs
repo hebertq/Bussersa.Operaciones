@@ -253,10 +253,10 @@ namespace BsOperaciones.Pages.Comercial
                     row.CreateCell(2).SetCellValue(item.nombre ?? "");
                 }
 
-                // Ajustar ancho de columnas automáticamente
-                sheet.AutoSizeColumn(0);
-                sheet.AutoSizeColumn(1);
-                sheet.AutoSizeColumn(2);
+                // Establecer ancho de columnas (evita System.Drawing.Common PlatformNotSupportedException en Blazor WASM)
+                sheet.SetColumnWidth(0, 35 * 256);
+                sheet.SetColumnWidth(1, 20 * 256);
+                sheet.SetColumnWidth(2, 65 * 256);
 
                 using var ms = new System.IO.MemoryStream();
                 workbook.Write(ms);
