@@ -222,7 +222,7 @@ namespace BsOperaciones.Pages.Comercial
                 var dataFormat = workbook.CreateDataFormat();
                 priceStyle.DataFormat = dataFormat.GetFormat("#,##0.0000");
 
-                // Fila 0: Encabezados exactos solicitados
+                // Fila 0: Encabezados para compatibilidad total con Importar Variantes
                 var headerRow = sheet.CreateRow(0);
 
                 var c0 = headerRow.CreateCell(0);
@@ -230,12 +230,16 @@ namespace BsOperaciones.Pages.Comercial
                 c0.CellStyle = headerStyle;
 
                 var c1 = headerRow.CreateCell(1);
-                c1.SetCellValue("Precio de venta");
+                c1.SetCellValue("Código");
                 c1.CellStyle = headerStyle;
 
                 var c2 = headerRow.CreateCell(2);
-                c2.SetCellValue("Valores de las variantes");
+                c2.SetCellValue("Precio de venta");
                 c2.CellStyle = headerStyle;
+
+                var c3 = headerRow.CreateCell(3);
+                c3.SetCellValue("Valores de las variantes");
+                c3.CellStyle = headerStyle;
 
                 // Filas de datos
                 int rowIndex = 1;
@@ -245,18 +249,20 @@ namespace BsOperaciones.Pages.Comercial
                     string prodNombre = !string.IsNullOrWhiteSpace(item.template_name) ? item.template_name : (selectedTemplate?.nombre ?? "");
                     
                     row.CreateCell(0).SetCellValue(prodNombre);
+                    row.CreateCell(1).SetCellValue(item.default_code ?? "");
                     
-                    var priceCell = row.CreateCell(1);
+                    var priceCell = row.CreateCell(2);
                     priceCell.SetCellValue((double)item.precio);
                     priceCell.CellStyle = priceStyle;
 
-                    row.CreateCell(2).SetCellValue(item.nombre ?? "");
+                    row.CreateCell(3).SetCellValue(item.nombre ?? "");
                 }
 
                 // Establecer ancho de columnas (evita System.Drawing.Common PlatformNotSupportedException en Blazor WASM)
                 sheet.SetColumnWidth(0, 35 * 256);
                 sheet.SetColumnWidth(1, 20 * 256);
-                sheet.SetColumnWidth(2, 65 * 256);
+                sheet.SetColumnWidth(2, 20 * 256);
+                sheet.SetColumnWidth(3, 65 * 256);
 
                 using var ms = new System.IO.MemoryStream();
                 workbook.Write(ms);
