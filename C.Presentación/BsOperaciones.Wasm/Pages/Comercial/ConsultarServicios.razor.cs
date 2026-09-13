@@ -199,53 +199,73 @@ namespace BsOperaciones.Pages.Comercial
 
             try
             {
-                var exportList = filteredData.Select(x => new
-                {
-                    Codigo_SKU = string.IsNullOrWhiteSpace(x.default_code) ? "S/C" : x.default_code,
-                    Caracteristicas_Atributos = x.nombre ?? "",
-                    Precio_Lista_Odoo_NIO = x.precio
-                }).ToList();
-
-                var request = new MultiSheetExcelRequest
-                {
-                    Hojas = new List<ExcelRequest>
-                    {
-                        new ExcelRequest
-                        {
-                            Hoja = "Variantes de Servicio",
-                            Datos = Modelo.Validaciones.Util.ToDictionaryList(exportList),
-                            IncludeHeader = true
-                        }
-                    }
-                };
-
                 string nombrePlantilla = selectedTemplate?.nombre ?? "Servicios";
                 string nombreLimpio = string.Concat(nombrePlantilla.Split(System.IO.Path.GetInvalidFileNameChars())).Replace(" ", "_");
                 string fileName = $"Consulta_Variantes_{nombreLimpio}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
 
-                var response = await OdooService.GenerateExcel(request);
-                if (response?.Model != null && !string.IsNullOrEmpty(response.Model.File) && !response.Respuesta.ExisteError)
-                {
-                    await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.Model.File, fileName);
-                    Snackbar.Add("Consulta exportada a Excel con éxito.", Severity.Success);
-                }
-                else
-                {
-                    // Generación directa de CSV si el servicio remoto falla
-                    var csvBuilder = new System.Text.StringBuilder();
-                    csvBuilder.AppendLine("Código SKU (Referencia);Características (Atributos);Precio de Lista Odoo (C$)");
-                    foreach (var item in exportList)
-                    {
-                        csvBuilder.AppendLine($"\"{item.Codigo_SKU}\";\"{item.Caracteristicas_Atributos.Replace("\"", "\"\"")}\";{item.Precio_Lista_Odoo_NIO:F4}");
-                    }
+                // Crear libro Excel limpio sin logos utilizando NPOI
+                var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+                var sheet = workbook.CreateSheet("Variantes");
 
-                    byte[] csvBytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csvBuilder.ToString())).ToArray();
-                    string base64Csv = Convert.ToBase64String(csvBytes);
-                    string csvFileName = $"Consulta_Variantes_{nombreLimpio}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                // Estilo para encabezados
+                var headerFont = workbook.CreateFont();
+                headerFont.IsBold = true;
+                headerFont.FontHeightInPoints = 11;
+                
+                var headerStyle = workbook.CreateCellStyle();
+                headerStyle.SetFont(headerFont);
+                headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+                headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
 
-                    await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Csv, csvFileName);
-                    Snackbar.Add("Consulta exportada a CSV con éxito.", Severity.Success);
+                // Estilo para precios (formato numérico)
+                var priceStyle = workbook.CreateCellStyle();
+                var dataFormat = workbook.CreateDataFormat();
+                priceStyle.DataFormat = dataFormat.GetFormat("#,##0.0000");
+
+                // Fila 0: Encabezados exactos solicitados
+                var headerRow = sheet.CreateRow(0);
+
+                var c0 = headerRow.CreateCell(0);
+                c0.SetCellValue("Nombre");
+                c0.CellStyle = headerStyle;
+
+                var c1 = headerRow.CreateCell(1);
+                c1.SetCellValue("Precio de venta");
+                c1.CellStyle = headerStyle;
+
+                var c2 = headerRow.CreateCell(2);
+                c2.SetCellValue("Valores de las variantes");
+                c2.CellStyle = headerStyle;
+
+                // Filas de datos
+                int rowIndex = 1;
+                foreach (var item in filteredData)
+                {
+                    var row = sheet.CreateRow(rowIndex++);
+                    string prodNombre = !string.IsNullOrWhiteSpace(item.template_name) ? item.template_name : (selectedTemplate?.nombre ?? "");
+                    
+                    row.CreateCell(0).SetCellValue(prodNombre);
+                    
+                    var priceCell = row.CreateCell(1);
+                    priceCell.SetCellValue((double)item.precio);
+                    priceCell.CellStyle = priceStyle;
+
+                    row.CreateCell(2).SetCellValue(item.nombre ?? "");
                 }
+
+                // Ajustar ancho de columnas automáticamente
+                sheet.AutoSizeColumn(0);
+                sheet.AutoSizeColumn(1);
+                sheet.AutoSizeColumn(2);
+
+                using var ms = new System.IO.MemoryStream();
+                workbook.Write(ms);
+                workbook.Close();
+                byte[] bytes = ms.ToArray();
+                string base64 = Convert.ToBase64String(bytes);
+
+                await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+                Snackbar.Add("Consulta exportada a Excel con éxito.", Severity.Success);
             }
             catch (Exception ex)
             {
