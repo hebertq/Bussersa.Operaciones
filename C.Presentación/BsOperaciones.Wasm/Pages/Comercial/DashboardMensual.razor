@@ -317,7 +317,7 @@
             // Obtener lista de IDs de operación principales únicos
             var primaryOpIds = produccionList
                 .Select(x => getPrimaryOpId(x.operacion_id ?? 0))
-                .Concat(costosNominaList.Select(x => x.cliente))
+                .Concat(costosNominaList.Select(x => getPrimaryOpId(x.cliente)))
                 .Where(x => x > 0)
                 .Distinct()
                 .ToList();
@@ -330,9 +330,9 @@
 
             rentabilidadEmpresas = primaryOpIds.Select(opId => {
                 var prods = produccionList.Where(x => getPrimaryOpId(x.operacion_id ?? 0) == opId).ToList();
-                var costoNomina = costosNominaList.FirstOrDefault(x => x.cliente == opId);
+                var costosNominaOp = costosNominaList.Where(x => getPrimaryOpId(x.cliente) == opId).ToList();
 
-                string nombreCliente = prods.FirstOrDefault(x => getPrimaryOpId(x.operacion_id ?? 0) == opId && !string.IsNullOrEmpty(x.cliente))?.cliente;
+                string nombreCliente = prods.FirstOrDefault(x => (x.operacion_id ?? 0) == opId && !string.IsNullOrEmpty(x.cliente))?.cliente;
                 if (string.IsNullOrEmpty(nombreCliente))
                 {
                     var combo = operacionesList.FirstOrDefault(c => c.id == opId);
@@ -349,15 +349,16 @@
                     : null;
 
                 decimal ingresos = prods.Sum(x => x.cantidad_producto * x.costo_producto);
-                decimal costoReal = costoNomina != null ? costoNomina.costo_total_nomina : 0m;
-                bool esReal = costoNomina != null;
+                decimal costoReal = costosNominaOp.Sum(x => x.costo_total_nomina);
+                int totalEmpleados = costosNominaOp.Sum(x => x.total_empleados);
+                bool esReal = costosNominaOp.Any();
 
                 return new RentabilidadMensualItem
                 {
                     OperacionId = opId,
                     Cliente = nombreCliente,
                     OperacionesConsolidadas = notaConsolidado,
-                    TotalEmpleadosNomina = costoNomina?.total_empleados ?? 0,
+                    TotalEmpleadosNomina = totalEmpleados,
                     CantidadServicios = prods.Count,
                     TotalProformas = prods.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),
                     TotalFacturas = prods.Where(x => !string.IsNullOrEmpty(x.no_factura)).Select(x => x.no_factura).Distinct().Count(),
