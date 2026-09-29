@@ -264,18 +264,25 @@
             {
                 var produccion = res.Model.ToList();
 
-                // Agrupar por operacion_id (Entero Estándar)
+                var resAsoc = await _OdooService.GetAllAsociacionesOperacion();
+                var asociacionesList = resAsoc.Model?.Where(a => a.Activo).ToList() ?? new List<Modelo.Entidades.Operaciones.AsociacionOperacionDto>();
+                var mapaAsociaciones = asociacionesList.ToDictionary(a => a.OperacionOrigenId, a => a.OperacionDestinoId);
+                Func<int, int> getPrimaryOpId = (int opId) =>
+                    mapaAsociaciones.TryGetValue(opId, out int destId) ? destId : opId;
+
+                // Agrupar por la operación principal consolidada
                 rentabilidadEmpresas = produccion
-                    .GroupBy(x => x.operacion_id ?? 0)
+                    .GroupBy(x => getPrimaryOpId(x.operacion_id ?? 0))
                     .Select(g => {
-                        var firstItem = g.First();
-                        string nombreCliente = firstItem.cliente;
+                        int opId = g.Key;
+                        var mainItem = g.FirstOrDefault(x => (x.operacion_id ?? 0) == opId && !string.IsNullOrEmpty(x.cliente));
+                        string nombreCliente = mainItem?.cliente;
 
                         // Si no viene cliente en la fila, buscarlo por operacion_id en el combo
                         if (string.IsNullOrEmpty(nombreCliente))
                         {
-                            var matchCombo = operacionesList.FirstOrDefault(c => c.id == g.Key);
-                            nombreCliente = matchCombo != null ? matchCombo.nombre : $"Operación ID: {g.Key}";
+                            var matchCombo = operacionesList.FirstOrDefault(c => c.id == opId);
+                            nombreCliente = matchCombo != null ? matchCombo.nombre : $"Operación ID: {opId}";
                         }
 
                         decimal ingresos = g.Sum(x => x.cantidad_producto * x.costo_producto);
@@ -283,7 +290,7 @@
                         decimal costoEst = ingresos * 0.60m;
                         return new RentabilidadEmpresaItem
                         {
-                            OperacionId = g.Key,
+                            OperacionId = opId,
                             Cliente = nombreCliente,
                             CantidadServicios = g.Count(),
                             TotalProformas = g.Where(x => !string.IsNullOrEmpty(x.no_proforma)).Select(x => x.no_proforma).Distinct().Count(),
