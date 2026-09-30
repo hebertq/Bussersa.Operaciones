@@ -33,7 +33,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         protected DateTime? fchaInicio = DateTime.Now.Date.AddDays(-30), fchaFin = DateTime.Now.Date;
         protected string _searchMaestro = "", _searchDetalle = "";
 
-        // Supervisores exclusion
+        // Supervisores exclusion & catalog
         protected bool excluirSupervisores = true;
         protected bool mostrarModalSupervisores = false;
         protected HashSet<int> supervisoresIds = new();
@@ -66,7 +66,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 : ListaEmpleadosSupervisores.Where(x =>
                     (x.Nombre ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase) ||
                     x.IdEmpleado.ToString().Contains(_searchSupervisor) ||
-                    (x.Area ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase));
+                    (x.Area ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase) ||
+                    (x.TipoEmpleado ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase));
 
         protected override async Task OnInitializedAsync()
         {
@@ -74,6 +75,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
             var res = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
             PayLoadOper = res.Model ?? new();
+
+            await CargarSupervisoresConfig();
         }
 
         protected async Task ConsultarReporte()
@@ -107,7 +110,6 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     }).ToList();
 
                     await CargarSupervisoresConfig();
-                    ConstruirListaSupervisoresModal();
                     AplicarFiltrosYTotales();
 
                     if (!DatosCierreRaw.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
@@ -124,16 +126,22 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         {
             try
             {
-                string key = $"supervisores_cliente_{operacionId}";
-                string? json = await JS.InvokeAsync<string>("localStorage.getItem", key);
-                if (!string.IsNullOrEmpty(json))
+                string? jsonGlobal = await JS.InvokeAsync<string>("localStorage.getItem", "supervisores_catalogo_global");
+                var ids = !string.IsNullOrEmpty(jsonGlobal) ? JsonSerializer.Deserialize<List<int>>(jsonGlobal) : null;
+                supervisoresIds = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
+
+                if (operacionId > 0)
                 {
-                    var ids = JsonSerializer.Deserialize<List<int>>(json);
-                    supervisoresIds = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
-                }
-                else
-                {
-                    supervisoresIds = new HashSet<int>();
+                    string keyOper = $"supervisores_cliente_{operacionId}";
+                    string? jsonOper = await JS.InvokeAsync<string>("localStorage.getItem", keyOper);
+                    if (!string.IsNullOrEmpty(jsonOper))
+                    {
+                        var idsOper = JsonSerializer.Deserialize<List<int>>(jsonOper);
+                        if (idsOper != null)
+                        {
+                            foreach (var id in idsOper) supervisoresIds.Add(id);
+                        }
+                    }
                 }
             }
             catch
@@ -147,10 +155,15 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             try
             {
                 supervisoresIds = new HashSet<int>(ListaEmpleadosSupervisores.Where(x => x.EsSupervisor).Select(x => x.IdEmpleado));
-                string key = $"supervisores_cliente_{operacionId}";
                 string json = JsonSerializer.Serialize(supervisoresIds.ToList());
-                await JS.InvokeVoidAsync("localStorage.setItem", key, json);
-                Snackbar.Add("Configuración de supervisores guardada exitosamente.", Severity.Success);
+                await JS.InvokeVoidAsync("localStorage.setItem", "supervisores_catalogo_global", json);
+                if (operacionId > 0)
+                {
+                    string keyOper = $"supervisores_cliente_{operacionId}";
+                    await JS.InvokeVoidAsync("localStorage.setItem", keyOper, json);
+                }
+
+                Snackbar.Add("Catálogo de supervisores guardado exitosamente.", Severity.Success);
                 mostrarModalSupervisores = false;
                 AplicarFiltrosYTotales();
             }
@@ -173,40 +186,82 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                    nombre.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase);
         }
 
-        protected void ConstruirListaSupervisoresModal()
+        protected async Task AbrirModalSupervisores()
         {
-            var empleadosUnicos = DatosCierreRaw
-                .GroupBy(x => x.id_empleado)
-                .Select(g => {
-                    var first = g.First();
-                    bool esSup = supervisoresIds.Contains(first.id_empleado) ||
-                                 (!string.IsNullOrEmpty(first.tipo_empleado) && (first.tipo_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.tipo_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase))) ||
-                                 (!string.IsNullOrEmpty(first.nombre_empleado) && (first.nombre_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.nombre_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase)));
-                    return new EmpleadoSupervisorItem
-                    {
-                        IdEmpleado = first.id_empleado,
-                        Nombre = first.nombre_empleado ?? $"Empleado #{first.id_empleado}",
-                        Area = first.area_nombre ?? "N/A",
-                        TipoEmpleado = first.tipo_empleado ?? "",
-                        EsSupervisor = esSup
-                    };
-                })
-                .OrderBy(x => x.Nombre)
-                .ToList();
-
-            ListaEmpleadosSupervisores = empleadosUnicos;
-        }
-
-        protected void AbrirModalSupervisores()
-        {
-            if (!DatosCierreRaw.Any())
+            isloading = true;
+            StateHasChanged();
+            try
             {
-                Snackbar.Add("Realice una consulta primero para cargar los colaboradores.", Severity.Warning);
-                return;
+                await CargarSupervisoresConfig();
+
+                List<EmpleadoSupervisorItem> items = new();
+
+                // 1. Empleados de la consulta actual si existen
+                if (DatosCierreRaw != null && DatosCierreRaw.Any())
+                {
+                    var queryItems = DatosCierreRaw
+                        .GroupBy(x => x.id_empleado)
+                        .Select(g => {
+                            var first = g.First();
+                            bool esSup = supervisoresIds.Contains(first.id_empleado) ||
+                                         (!string.IsNullOrEmpty(first.tipo_empleado) && (first.tipo_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.tipo_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase))) ||
+                                         (!string.IsNullOrEmpty(first.nombre_empleado) && (first.nombre_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.nombre_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase)));
+                            return new EmpleadoSupervisorItem
+                            {
+                                IdEmpleado = first.id_empleado,
+                                Nombre = first.nombre_empleado ?? $"Empleado #{first.id_empleado}",
+                                Area = first.area_nombre ?? "N/A",
+                                TipoEmpleado = first.tipo_empleado ?? "",
+                                EsSupervisor = esSup
+                            };
+                        });
+                    items.AddRange(queryItems);
+                }
+
+                // 2. Traer todos los empleados activos del sistema para configurar cualquier supervisor
+                try
+                {
+                    var resEmp = await OdooService.GetAllActiveEmployeesForRotation();
+                    if (resEmp?.Model != null)
+                    {
+                        var masterEmp = resEmp.Model.Select(e => new EmpleadoSupervisorItem
+                        {
+                            IdEmpleado = e.Id,
+                            Nombre = e.Name,
+                            Area = e.DepartmentName ?? "General",
+                            TipoEmpleado = e.JobTitle ?? "Colaborador",
+                            EsSupervisor = supervisoresIds.Contains(e.Id) ||
+                                           (!string.IsNullOrEmpty(e.JobTitle) && (e.JobTitle.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || e.JobTitle.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase))) ||
+                                           (!string.IsNullOrEmpty(e.Name) && (e.Name.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || e.Name.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase)))
+                        });
+
+                        foreach (var emp in masterEmp)
+                        {
+                            if (!items.Any(x => x.IdEmpleado == emp.IdEmpleado))
+                            {
+                                items.Add(emp);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback
+                }
+
+                ListaEmpleadosSupervisores = items.OrderBy(x => x.Nombre).ToList();
+                _searchSupervisor = "";
+                mostrarModalSupervisores = true;
             }
-            ConstruirListaSupervisoresModal();
-            _searchSupervisor = "";
-            mostrarModalSupervisores = true;
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al abrir catálogo: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isloading = false;
+                StateHasChanged();
+            }
         }
 
         protected void MarcarTodosSupervisores()
@@ -248,7 +303,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             StateHasChanged();
         }
 
-        protected int CantidadSupervisoresConfigurados => ListaEmpleadosSupervisores.Count(x => x.EsSupervisor);
+        protected int CantidadSupervisoresConfigurados => supervisoresIds.Count;
         protected int CantidadMarcacionesExcluidas => DatosCierreRaw.Count(EsSupervisor);
 
         protected async Task ExportarExcelCompleto()
