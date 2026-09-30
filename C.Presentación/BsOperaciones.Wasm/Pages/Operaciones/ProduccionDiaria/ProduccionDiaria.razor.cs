@@ -42,6 +42,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected bool estaCargando;
         protected bool estaExportando;
         protected List<ProduccionDiariaDto> produccionDiariaList = new();
+        protected Dictionary<int, string> asociacionesOrigenDestino = new();
 
         // Consolidación
         protected HashSet<ProduccionDiariaDto> selectedItems = new();
@@ -69,10 +70,36 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             StateHasChanged();
             try
             {
+                var resAsoc = await OdooService.GetAllAsociacionesOperacion();
+                var asociaciones = resAsoc.Model?.Where(a => a.Activo).ToList() ?? new();
+
+                asociacionesOrigenDestino = asociaciones.ToDictionary(
+                    a => a.OperacionOrigenId, 
+                    a => a.OperacionDestinoNombre ?? $"Operación #{a.OperacionDestinoId}"
+                );
+
+                HashSet<int> targetOpIds = new();
+                if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
+                {
+                    int primaryId = filtroOperacionId.Value;
+                    targetOpIds.Add(primaryId);
+
+                    var secundarias = asociaciones
+                        .Where(a => a.OperacionDestinoId == primaryId)
+                        .Select(a => a.OperacionOrigenId);
+
+                    foreach (var secId in secundarias)
+                    {
+                        targetOpIds.Add(secId);
+                    }
+                }
+
+                int? opIdQueryParam = (targetOpIds.Count > 1) ? null : filtroOperacionId;
+
                 var response = await _mediator.Send(new GetProduccionDiariaQuery(
                     dateRange.Start, 
                     dateRange.End, 
-                    filtroOperacionId, 
+                    opIdQueryParam, 
                     filtroEstado == "Todos" ? null : filtroEstado
                 ));
 
@@ -82,7 +109,15 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 }
                 else
                 {
-                    produccionDiariaList = response.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+                    var rawList = response.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+                    if (targetOpIds.Any())
+                    {
+                        produccionDiariaList = rawList.Where(x => targetOpIds.Contains(x.operacion_id ?? 0)).ToList();
+                    }
+                    else
+                    {
+                        produccionDiariaList = rawList;
+                    }
                 }
             }
             catch (Exception ex)

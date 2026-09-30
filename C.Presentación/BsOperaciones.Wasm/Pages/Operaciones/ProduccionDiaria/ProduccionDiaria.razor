@@ -228,7 +228,15 @@
         <RowTemplate>
             <MudTd DataLabel="Fecha">@context.fecha_inicio?.ToString("yyyy-MM-dd")</MudTd>
             <MudTd DataLabel="Cliente / Área">
-                <div class="font-bold">@context.cliente</div>
+                <div class="font-bold d-flex align-center gap-1 flex-wrap">
+                    <span>@context.cliente</span>
+                    @if (asociacionesOrigenDestino.TryGetValue(context.operacion_id ?? 0, out string? destNombre))
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="ma-0" Style="font-size: 10px; height: 18px;">
+                            Asociado a @destNombre
+                        </MudChip>
+                    }
+                </div>
                 <div class="text-secondary" style="font-size: 0.8rem;">@context.area_cliente</div>
             </MudTd>
             <MudTd DataLabel="SKU / Servicio / Producto">
