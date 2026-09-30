@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
@@ -21,6 +22,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         [Inject] protected IJSRuntime JS { get; set; }
         [Inject] protected HostService.Interfaces.IOdooService OdooService { get; set; }
 
+        protected List<ReporteCierreMarcadasDetalle> DatosCierreRaw = new();
         protected List<ReporteCierreMarcadasDetalle> DatosCierre = new();
         protected List<ConsolidadoCierre> ResumenPorArea = new();
         protected List<Combos> PayLoadOper = new();
@@ -30,6 +32,22 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         protected bool esRango, isloading;
         protected DateTime? fchaInicio = DateTime.Now.Date.AddDays(-30), fchaFin = DateTime.Now.Date;
         protected string _searchMaestro = "", _searchDetalle = "";
+
+        // Supervisores exclusion
+        protected bool excluirSupervisores = true;
+        protected bool mostrarModalSupervisores = false;
+        protected HashSet<int> supervisoresIds = new();
+        protected string _searchSupervisor = "";
+        protected List<EmpleadoSupervisorItem> ListaEmpleadosSupervisores = new();
+
+        public class EmpleadoSupervisorItem
+        {
+            public int IdEmpleado { get; set; }
+            public string Nombre { get; set; } = string.Empty;
+            public string Area { get; set; } = string.Empty;
+            public string TipoEmpleado { get; set; } = string.Empty;
+            public bool EsSupervisor { get; set; }
+        }
 
         public class ConsolidadoCierre
         {
@@ -42,9 +60,16 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             public int TotalColaboradores { get; set; }
         }
 
+        protected IEnumerable<EmpleadoSupervisorItem> FilteredSupervisoresList =>
+            string.IsNullOrWhiteSpace(_searchSupervisor)
+                ? ListaEmpleadosSupervisores
+                : ListaEmpleadosSupervisores.Where(x =>
+                    (x.Nombre ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase) ||
+                    x.IdEmpleado.ToString().Contains(_searchSupervisor) ||
+                    (x.Area ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase));
+
         protected override async Task OnInitializedAsync()
         {
-            // Inicializar lista de años (Actual y Anterior)
             YearsList = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1 };
 
             var res = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
@@ -68,8 +93,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
                 if (response.Model != null)
                 {
-                    // Mapeo a clase Detalle
-                    DatosCierre = response.Model.Select(x => new ReporteCierreMarcadasDetalle
+                    DatosCierreRaw = response.Model.Select(x => new ReporteCierreMarcadasDetalle
                     {
                         fecha_asistencia = x.fecha_asistencia,
                         id_empleado = x.id_empleado,
@@ -82,19 +106,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         horas_extras = x.horas_extras
                     }).ToList();
 
-                    // Lógica de Consolidado por Área
-                    ResumenPorArea = DatosCierre.GroupBy(x => x.area_nombre).Select(g => new ConsolidadoCierre
-                    {
-                        Area = g.Key ?? "SIN ÁREA",
-                        FechaMin = g.Min(x => x.fecha_asistencia),
-                        FechaMax = g.Max(x => x.fecha_asistencia),
-                        DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
-                        TotalHoras = g.Sum(x => x.horas_totales),
-                        TotalExtras = g.Sum(x => x.horas_extras),
-                        TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
-                    }).OrderBy(x => x.Area).ToList();
+                    await CargarSupervisoresConfig();
+                    ConstruirListaSupervisoresModal();
+                    AplicarFiltrosYTotales();
 
-                    if (!DatosCierre.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
+                    if (!DatosCierreRaw.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
                 }
             }
             catch (Exception ex)
@@ -103,6 +119,137 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
             finally { isloading = false; }
         }
+
+        protected async Task CargarSupervisoresConfig()
+        {
+            try
+            {
+                string key = $"supervisores_cliente_{operacionId}";
+                string? json = await JS.InvokeAsync<string>("localStorage.getItem", key);
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var ids = JsonSerializer.Deserialize<List<int>>(json);
+                    supervisoresIds = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
+                }
+                else
+                {
+                    supervisoresIds = new HashSet<int>();
+                }
+            }
+            catch
+            {
+                supervisoresIds = new HashSet<int>();
+            }
+        }
+
+        protected async Task GuardarSupervisoresConfig()
+        {
+            try
+            {
+                supervisoresIds = new HashSet<int>(ListaEmpleadosSupervisores.Where(x => x.EsSupervisor).Select(x => x.IdEmpleado));
+                string key = $"supervisores_cliente_{operacionId}";
+                string json = JsonSerializer.Serialize(supervisoresIds.ToList());
+                await JS.InvokeVoidAsync("localStorage.setItem", key, json);
+                Snackbar.Add("Configuración de supervisores guardada exitosamente.", Severity.Success);
+                mostrarModalSupervisores = false;
+                AplicarFiltrosYTotales();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error al guardar supervisores: " + ex.Message, Severity.Error);
+            }
+        }
+
+        protected bool EsSupervisor(ReporteCierreMarcadasDetalle item)
+        {
+            if (supervisoresIds.Contains(item.id_empleado)) return true;
+
+            string tipo = item.tipo_empleado ?? "";
+            string nombre = item.nombre_empleado ?? "";
+
+            return tipo.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) ||
+                   tipo.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase) ||
+                   nombre.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) ||
+                   nombre.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase);
+        }
+
+        protected void ConstruirListaSupervisoresModal()
+        {
+            var empleadosUnicos = DatosCierreRaw
+                .GroupBy(x => x.id_empleado)
+                .Select(g => {
+                    var first = g.First();
+                    bool esSup = supervisoresIds.Contains(first.id_empleado) ||
+                                 (!string.IsNullOrEmpty(first.tipo_empleado) && (first.tipo_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.tipo_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase))) ||
+                                 (!string.IsNullOrEmpty(first.nombre_empleado) && (first.nombre_empleado.Contains("SUPERVISOR", StringComparison.OrdinalIgnoreCase) || first.nombre_empleado.Contains("SUPERVISORA", StringComparison.OrdinalIgnoreCase)));
+                    return new EmpleadoSupervisorItem
+                    {
+                        IdEmpleado = first.id_empleado,
+                        Nombre = first.nombre_empleado ?? $"Empleado #{first.id_empleado}",
+                        Area = first.area_nombre ?? "N/A",
+                        TipoEmpleado = first.tipo_empleado ?? "",
+                        EsSupervisor = esSup
+                    };
+                })
+                .OrderBy(x => x.Nombre)
+                .ToList();
+
+            ListaEmpleadosSupervisores = empleadosUnicos;
+        }
+
+        protected void AbrirModalSupervisores()
+        {
+            if (!DatosCierreRaw.Any())
+            {
+                Snackbar.Add("Realice una consulta primero para cargar los colaboradores.", Severity.Warning);
+                return;
+            }
+            ConstruirListaSupervisoresModal();
+            _searchSupervisor = "";
+            mostrarModalSupervisores = true;
+        }
+
+        protected void MarcarTodosSupervisores()
+        {
+            foreach (var item in FilteredSupervisoresList) item.EsSupervisor = true;
+        }
+
+        protected void DesmarcarTodosSupervisores()
+        {
+            foreach (var item in FilteredSupervisoresList) item.EsSupervisor = false;
+        }
+
+        protected void AplicarFiltrosYTotales()
+        {
+            if (excluirSupervisores)
+            {
+                DatosCierre = DatosCierreRaw.Where(x => !EsSupervisor(x)).ToList();
+            }
+            else
+            {
+                DatosCierre = DatosCierreRaw.ToList();
+            }
+
+            ResumenPorArea = DatosCierre
+                .GroupBy(x => x.area_nombre)
+                .Select(g => new ConsolidadoCierre
+                {
+                    Area = g.Key ?? "SIN ÁREA",
+                    FechaMin = g.Min(x => x.fecha_asistencia),
+                    FechaMax = g.Max(x => x.fecha_asistencia),
+                    DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
+                    TotalHoras = g.Sum(x => x.horas_totales),
+                    TotalExtras = g.Sum(x => x.horas_extras),
+                    TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
+                })
+                .OrderBy(x => x.Area)
+                .ToList();
+
+            StateHasChanged();
+        }
+
+        protected int CantidadSupervisoresConfigurados => ListaEmpleadosSupervisores.Count(x => x.EsSupervisor);
+        protected int CantidadMarcacionesExcluidas => DatosCierreRaw.Count(EsSupervisor);
 
         protected async Task ExportarExcelCompleto()
         {
@@ -113,7 +260,6 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             await Task.Delay(50);
             try
             {
-                // Mapeo a objetos con fechas como String para evitar el formato numérico en Excel
                 var consolidadoExport = ResumenPorArea.Select(x => new
                 {
                     x.Area,

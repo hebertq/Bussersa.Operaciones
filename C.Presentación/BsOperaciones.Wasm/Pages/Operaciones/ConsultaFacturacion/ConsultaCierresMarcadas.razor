@@ -13,7 +13,7 @@
 @* --- PANEL DE FILTROS --- *@
 <MudPaper Elevation="0" Class="pa-5 mb-4" Style="background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
     <MudGrid Spacing="3" Class="align-center">
-        <MudItem xs="12" sm="4">
+        <MudItem xs="12" sm="3">
             <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId"
                        Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="0">Seleccione un cliente...</MudSelectItem>
@@ -67,12 +67,36 @@
             <MudItem xs="6" sm="2"><MudDatePicker Label="Fin" @bind-Date="fchaFin" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
         }
 
-        <MudItem xs="12" sm="2">
+        <MudItem xs="12" sm="3" Class="d-flex gap-2 align-center">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConsultarReporte" FullWidth="true" Disabled="@isloading" Style="height: 40px;">
                 @(isloading ? "Buscando..." : "CONSULTAR")
             </MudButton>
+
+            <MudTooltip Text="Configurar supervisores a excluir del cobro">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="AbrirModalSupervisores" Style="height: 40px; min-width: 150px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.SupervisorAccount">
+                    Supervisores (@CantidadSupervisoresConfigurados)
+                </MudButton>
+            </MudTooltip>
         </MudItem>
     </MudGrid>
+
+    <div class="d-flex align-center justify-between mt-3 pt-3 border-top flex-wrap gap-2">
+        <div class="d-flex align-center gap-2">
+            <MudCheckBox T="bool" Value="@excluirSupervisores" ValueChanged="@((bool val) => { excluirSupervisores = val; AplicarFiltrosYTotales(); })" Color="Color.Error" Dense="true">
+                <span class="font-bold text-dark" style="font-size: 14px;">Excluir Supervisores del Cobro</span>
+            </MudCheckBox>
+            <MudTooltip Text="Al activar esta opción, las horas y marcaciones de supervisores no se cobran ni aparecen en el resumen cobrable.">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
+            </MudTooltip>
+        </div>
+
+        @if (excluirSupervisores && CantidadMarcacionesExcluidas > 0)
+        {
+            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">
+                🚫 @CantidadMarcacionesExcluidas marcaciones de supervisores excluidas del cobro
+            </MudChip>
+        }
+    </div>
 </MudPaper>
 
 @* --- CONTENEDOR DE RESULTADOS SIEMPRE VISIBLE --- *@
@@ -130,7 +154,19 @@
                 <Columns>
                     <PropertyColumn Property="x => x.fecha_asistencia" Title="Fecha" Format="dd/MM/yyyy" />
                     <PropertyColumn Property="x => x.area_nombre" Title="Área" />
-                    <PropertyColumn Property="x => x.nombre_empleado" Title="Colaborador" />
+                    <TemplateColumn Title="Colaborador">
+                        <CellTemplate>
+                            <div class="d-flex align-center gap-1">
+                                <span class="font-bold">@context.Item.nombre_empleado</span>
+                                @if (EsSupervisor(context.Item))
+                                {
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 9px; height: 18px; padding: 0 4px;">
+                                        SUPERVISOR (NO COBRABLE)
+                                    </MudChip>
+                                }
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
                     <PropertyColumn Property="x => x.entrada_movimiento" Title="Entrada" />
                     <PropertyColumn Property="x => x.salida_movimiento" Title="Salida" />
                     <PropertyColumn Property="x => x.horas_totales" Title="Horas" />
@@ -144,3 +180,81 @@
         </MudTabPanel>
     </MudTabs>
 </div>
+
+@* --- MODAL DE GESTIÓN DE SUPERVISORES --- *@
+@if (mostrarModalSupervisores)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-person-badge-fill fs-4"></i>
+                        Gestión de Supervisores (Exclusión de Cobro)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalSupervisores = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2 small fw-semibold mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                        <span>Los colaboradores marcados como <strong>Supervisor</strong> se excluirán automáticamente del reporte de auditoría y del resumen cobrable a clientes.</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="input-group input-group-sm" style="max-width: 320px;">
+                            <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                            <input type="text" class="form-control border" placeholder="Buscar por colaborador o ID..." @bind="_searchSupervisor" @bind:event="oninput" />
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-secondary btn-sm me-2 fw-semibold" @onclick="MarcarTodosSupervisores">Marcar Todos</button>
+                            <button class="btn btn-outline-secondary btn-sm fw-semibold" @onclick="DesmarcarTodosSupervisores">Desmarcar Todos</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-secondary small fw-bold text-uppercase sticky-top">
+                                <tr>
+                                    <th class="text-center" style="width: 80px;">Supervisor</th>
+                                    <th>ID</th>
+                                    <th>Colaborador</th>
+                                    <th>Área</th>
+                                    <th>Tipo Empleado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FilteredSupervisoresList)
+                                {
+                                    <tr class="@(item.EsSupervisor ? "table-warning" : "")">
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" @bind="item.EsSupervisor" style="width: 20px; height: 20px; cursor: pointer;" />
+                                        </td>
+                                        <td class="fw-bold text-secondary">#@item.IdEmpleado</td>
+                                        <td class="fw-bold text-dark">
+                                            @item.Nombre
+                                            @if (item.EsSupervisor)
+                                            {
+                                                <span class="badge bg-danger ms-2" style="font-size: 10px;">EXCLUIDO DEL COBRO</span>
+                                            }
+                                        </td>
+                                        <td class="text-secondary small">@item.Area</td>
+                                        <td class="text-secondary small">@item.TipoEmpleado</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <span class="small text-secondary fw-semibold">
+                        Supervisores seleccionados: <strong>@ListaEmpleadosSupervisores.Count(x => x.EsSupervisor)</strong> de @ListaEmpleadosSupervisores.Count
+                    </span>
+                    <div>
+                        <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4 me-2" @onclick="() => mostrarModalSupervisores = false">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="GuardarSupervisoresConfig">Guardar Configuración</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
