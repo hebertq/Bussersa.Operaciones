@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
+using Modelo.Entidades.Operaciones;
 using MudBlazor;
 using NPOI.SS.UserModel;
 using System;
@@ -70,8 +71,40 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             StateHasChanged();
             try
             {
-                var resAsoc = await OdooService.GetAllAsociacionesOperacion();
-                var asociaciones = resAsoc.Model?.Where(a => a.Activo).ToList() ?? new();
+                List<AsociacionOperacionDto> asociaciones = new();
+                try
+                {
+                    string? json = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "asociaciones_clientes_produccion");
+                    if (!string.IsNullOrEmpty(json))
+                    {
+                        asociaciones = System.Text.Json.JsonSerializer.Deserialize<List<AsociacionOperacionDto>>(json)?.Where(a => a.Activo).ToList() ?? new();
+                    }
+                    else
+                    {
+                        var lasCondesCombo = operacionesList.FirstOrDefault(c => c.id == 5 || c.nombre.Contains("Condes", StringComparison.OrdinalIgnoreCase));
+                        var walmartCombo = operacionesList.FirstOrDefault(c => c.id == 4 || c.nombre.Contains("WalMart", StringComparison.OrdinalIgnoreCase) || c.nombre.Contains("Walmart", StringComparison.OrdinalIgnoreCase));
+
+                        asociaciones = new List<AsociacionOperacionDto>
+                        {
+                            new AsociacionOperacionDto
+                            {
+                                Id = 1,
+                                OperacionOrigenId = lasCondesCombo?.id ?? 5,
+                                OperacionOrigenNombre = lasCondesCombo?.nombre ?? "Las Condes",
+                                OperacionDestinoId = walmartCombo?.id ?? 4,
+                                OperacionDestinoNombre = walmartCombo?.nombre ?? "WalMart",
+                                Activo = true
+                            }
+                        };
+                    }
+                }
+                catch
+                {
+                    asociaciones = new List<AsociacionOperacionDto>
+                    {
+                        new AsociacionOperacionDto { OperacionOrigenId = 5, OperacionOrigenNombre = "Las Condes", OperacionDestinoId = 4, OperacionDestinoNombre = "WalMart", Activo = true }
+                    };
+                }
 
                 asociacionesOrigenDestino = asociaciones.ToDictionary(
                     a => a.OperacionOrigenId, 

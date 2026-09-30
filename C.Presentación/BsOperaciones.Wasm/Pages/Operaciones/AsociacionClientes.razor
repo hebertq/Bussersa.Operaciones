@@ -2,6 +2,7 @@
 @using Modelo.Entidades.Operaciones
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
+@using System.Text.Json
 @inject IOdooService _OdooService
 @inject IJSRuntime JSRuntime
 @inject ISnackbar Snackbar
@@ -14,7 +15,7 @@
                 <i class="bi bi-diagram-3-fill text-primary me-2"></i>Asociación de Clientes (Producción Diaria)
             </h2>
             <p class="text-secondary small mb-0 fw-semibold">
-                Asocie clientes/operaciones secundarias (ej: Las Condes) a operaciones principales (ej: WalMart) para que sus movimientos se muestren consolidados en la Producción Diaria.
+                Asocie clientes/operaciones secundarias (ej: Las Condes) a operaciones principales (ej: WalMart) independientemente para la Producción Diaria.
             </p>
         </div>
         <div>
@@ -28,8 +29,8 @@
     <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center">
         <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
         <div>
-            <strong>Consolidación en Producción Diaria:</strong>
-            Al filtrar por la <em>Operación Destino (Principal)</em> en la Producción Diaria, la grilla mostrará automáticamente los movimientos de la operación principal junto con todas sus <em>Operaciones Origen (Secundarias)</em> asociadas.
+            <strong>Consolidación exclusiva en Producción Diaria:</strong>
+            Al filtrar por la <em>Operación Destino (Principal)</em> en la Producción Diaria, la grilla mostrará automáticamente los movimientos de la operación principal junto con sus <em>Operaciones Origen (Secundarias)</em> configuradas en esta tabla.
         </div>
     </div>
 
@@ -58,7 +59,7 @@
     {
         <div class="card border-0 shadow-sm p-5 text-center">
             <i class="bi bi-inbox text-secondary display-4"></i>
-            <p class="text-secondary fw-semibold mt-2">No hay asociaciones de clientes registradas.</p>
+            <p class="text-secondary fw-semibold mt-2">No hay asociaciones de clientes registradas para producción.</p>
         </div>
     }
     else
@@ -162,7 +163,7 @@
                                 <option value="@op.id">@op.nombre (ID: @op.id)</option>
                             }
                         </select>
-                        <div class="form-text small">Cliente/operación principal que consolidará los movimientos.</div>
+                        <div class="form-text small">Cliente/operación principal que consolidará los movimientos en la Producción Diaria.</div>
                     </div>
 
                     <div class="form-check form-switch mt-3">
@@ -186,6 +187,7 @@
 }
 
 @code {
+    private const string STORAGE_KEY = "asociaciones_clientes_produccion";
     private List<AsociacionOperacionDto> asociaciones = new();
     private List<Combos> operacionesCombo = new();
     private AsociacionOperacionDto currentModel = new();
@@ -217,8 +219,30 @@
             var resCombos = await _OdooService.GetAllCombosHost("Operaciones");
             operacionesCombo = resCombos.Model?.ToList() ?? new();
 
-            var resAsoc = await _OdooService.GetAllAsociacionesOperacion();
-            asociaciones = resAsoc.Model?.ToList() ?? new();
+            string? json = await JSRuntime.InvokeAsync<string>("localStorage.getItem", STORAGE_KEY);
+            if (!string.IsNullOrEmpty(json))
+            {
+                asociaciones = JsonSerializer.Deserialize<List<AsociacionOperacionDto>>(json) ?? new();
+            }
+            else
+            {
+                var lasCondesCombo = operacionesCombo.FirstOrDefault(c => c.id == 5 || c.nombre.Contains("Condes", StringComparison.OrdinalIgnoreCase));
+                var walmartCombo = operacionesCombo.FirstOrDefault(c => c.id == 4 || c.nombre.Contains("WalMart", StringComparison.OrdinalIgnoreCase) || c.nombre.Contains("Walmart", StringComparison.OrdinalIgnoreCase));
+
+                asociaciones = new List<AsociacionOperacionDto>
+                {
+                    new AsociacionOperacionDto
+                    {
+                        Id = 1,
+                        OperacionOrigenId = lasCondesCombo?.id ?? 5,
+                        OperacionOrigenNombre = lasCondesCombo?.nombre ?? "Las Condes",
+                        OperacionDestinoId = walmartCombo?.id ?? 4,
+                        OperacionDestinoNombre = walmartCombo?.nombre ?? "WalMart",
+                        Activo = true
+                    }
+                };
+                await SaveToStorage();
+            }
         }
         catch (Exception ex)
         {
@@ -228,6 +252,19 @@
         {
             loading = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task SaveToStorage()
+    {
+        try
+        {
+            string json = JsonSerializer.Serialize(asociaciones);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", STORAGE_KEY, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error al guardar en localStorage: " + ex.Message);
         }
     }
 
@@ -282,17 +319,32 @@
         errorMessage = "";
         try
         {
-            var res = await _OdooService.SaveAsociacionOperacion(currentModel);
-            if (res != null && res.Respuesta != null && !res.Respuesta.ExisteError)
+            var origenObj = operacionesCombo.FirstOrDefault(o => o.id == currentModel.OperacionOrigenId);
+            var destinoObj = operacionesCombo.FirstOrDefault(o => o.id == currentModel.OperacionDestinoId);
+            currentModel.OperacionOrigenNombre = origenObj?.nombre ?? $"Operación #{currentModel.OperacionOrigenId}";
+            currentModel.OperacionDestinoNombre = destinoObj?.nombre ?? $"Operación #{currentModel.OperacionDestinoId}";
+
+            if (currentModel.Id > 0)
             {
-                Snackbar.Add("Asociación guardada exitosamente.", Severity.Success);
-                showModal = false;
-                await LoadData();
+                var existing = asociaciones.FirstOrDefault(a => a.Id == currentModel.Id);
+                if (existing != null)
+                {
+                    existing.OperacionOrigenId = currentModel.OperacionOrigenId;
+                    existing.OperacionOrigenNombre = currentModel.OperacionOrigenNombre;
+                    existing.OperacionDestinoId = currentModel.OperacionDestinoId;
+                    existing.OperacionDestinoNombre = currentModel.OperacionDestinoNombre;
+                    existing.Activo = currentModel.Activo;
+                }
             }
             else
             {
-                errorMessage = res?.Respuesta?.MensajeError ?? "Error al guardar la asociación.";
+                currentModel.Id = asociaciones.Any() ? asociaciones.Max(a => a.Id) + 1 : 1;
+                asociaciones.Add(currentModel);
             }
+
+            await SaveToStorage();
+            Snackbar.Add("Asociación guardada exitosamente.", Severity.Success);
+            showModal = false;
         }
         catch (Exception ex)
         {
@@ -312,16 +364,9 @@
 
         try
         {
-            var res = await _OdooService.DeleteAsociacionOperacion(id);
-            if (res != null && res.Respuesta != null && !res.Respuesta.ExisteError)
-            {
-                Snackbar.Add("Asociación eliminada exitosamente.", Severity.Success);
-                await LoadData();
-            }
-            else
-            {
-                Snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar la asociación.", Severity.Error);
-            }
+            asociaciones.RemoveAll(a => a.Id == id);
+            await SaveToStorage();
+            Snackbar.Add("Asociación eliminada exitosamente.", Severity.Success);
         }
         catch (Exception ex)
         {
