@@ -139,7 +139,7 @@
             <MudItem xs="12" sm="3">
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                     <MudSelectItem T="int?" Value="@((int?)null)">Todos</MudSelectItem>
                     @if (operacionesList != null)
@@ -152,6 +152,9 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="2">
+                <MudTextField T="string" Label="Área" @bind-Value="filtroArea" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Placeholder="Buscar área..." />
+            </MudItem>
+            <MudItem xs="12" sm="2">
                 <MudSelect T="string" Label="Estado de Facturación" @bind-Value="filtroEstado" Variant="Variant.Outlined" Margin="Margin.Dense">
                     <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
                     <MudSelectItem Value="@("SinProforma")">Sin Proforma</MudSelectItem>
@@ -159,7 +162,7 @@
                     <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="3" Class="d-flex gap-2" Style="margin-bottom: 5px;">
+            <MudItem xs="12" sm="2" Class="d-flex gap-2" Style="margin-bottom: 5px;">
                 <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
                     Buscar
                 </MudButton>
@@ -177,6 +180,7 @@
         </div>
         <div>Rango: <span class="font-medium text-dark">@(dateRange?.Start?.ToString("dd/MM/yyyy") ?? "N/A")</span> al <span class="font-medium text-dark">@(dateRange?.End?.ToString("dd/MM/yyyy") ?? "N/A")</span></div>
         <div>ID Operación: <span class="font-bold text-primary">@(filtroOperacionId?.ToString() ?? "null (Todos)")</span></div>
+        <div>Filtro Área: <span class="font-bold text-secondary">@(string.IsNullOrWhiteSpace(filtroArea) ? "Todos" : filtroArea)</span></div>
         <div>Filtro Estado: <span class="font-bold text-success">@filtroEstado</span></div>
         <div>Registros Cargados: <span class="font-bold text-info">@produccionDiariaList.Count</span></div>
     </div>

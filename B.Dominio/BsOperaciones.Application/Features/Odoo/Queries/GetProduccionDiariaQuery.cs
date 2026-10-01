@@ -5,5 +5,5 @@ using System;
 
 namespace BsOperaciones.Application.Features.Odoo.Queries
 {
-    public record GetProduccionDiariaQuery(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura) : IRequest<IListResponse<ProduccionDiariaDto>>;
+    public record GetProduccionDiariaQuery(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura, string? area = null) : IRequest<IListResponse<ProduccionDiariaDto>>;
 }
