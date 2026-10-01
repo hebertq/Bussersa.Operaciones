@@ -2389,7 +2389,7 @@ namespace HostService.Clases
             }
             return response;
         }
-        public async Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura, string? area = null)
+        public async Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<ProduccionDiariaDto> response = new ListResponse<ProduccionDiariaDto>();
@@ -2400,7 +2400,6 @@ namespace HostService.Clases
                 if (fin.HasValue) queryParams.Add($"fin={fin.Value:yyyy-MM-dd}");
                 if (operacionId.HasValue && operacionId.Value > 0) queryParams.Add($"operacionId={operacionId.Value}");
                 if (!string.IsNullOrEmpty(estadoFactura)) queryParams.Add($"estadoFactura={estadoFactura}");
-                if (!string.IsNullOrWhiteSpace(area)) queryParams.Add($"area={Uri.EscapeDataString(area)}");
 
                 string queryStr = queryParams.Any() ? "?" + string.Join("&", queryParams) : "";
                 var requestUrl = CreateRequestUri($"Operaciones/GetProduccion{queryStr}");

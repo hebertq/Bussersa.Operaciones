@@ -113,7 +113,7 @@ namespace HostService.Interfaces
 
         // --- PRODUCCIÓN DIARIA ---
         Task<IResponse> ImportarProduccionDiaria(List<ProduccionDiariaDto> items);
-        Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura, string? area = null);
+        Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura);
         Task<IResponse> UpdateProduccionDiaria(ProduccionDiariaDto item);
         Task<IResponse> ConsolidarProforma(ConsolidarProformaRequest request);
         Task<IResponse> ActualizarOrdenItemProforma(int itemId, int orden);

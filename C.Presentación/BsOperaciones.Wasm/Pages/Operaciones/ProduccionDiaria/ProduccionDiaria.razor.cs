@@ -40,7 +40,6 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected DateRange dateRange = new(DateTime.Today.AddDays(-30), DateTime.Today);
         protected int? filtroOperacionId;
         protected string filtroEstado = "Todos";
-        protected string? filtroArea;
         protected bool estaCargando;
         protected bool estaExportando;
         protected List<ProduccionDiariaDto> produccionDiariaList = new();
@@ -134,8 +133,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     dateRange.Start, 
                     dateRange.End, 
                     opIdQueryParam, 
-                    filtroEstado == "Todos" ? null : filtroEstado,
-                    filtroArea
+                    filtroEstado == "Todos" ? null : filtroEstado
                 ));
 
                 if (response.Respuesta.ExisteError)
