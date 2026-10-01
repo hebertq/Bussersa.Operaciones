@@ -395,7 +395,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         else if (cellValue.Contains("marchamo")) colIndices["no_marchamo"] = i;
                         else if (cellValue.Contains("peso")) colIndices["peso"] = i;
                         else if (cellValue.Contains("cantidad")) colIndices["cantidad"] = i;
-                        else if (cellValue.Contains("costo") || cellValue.Contains("tarifa")) colIndices["costo_producto"] = i;
+                        else if (cellValue.Contains("costo") || cellValue.Contains("tarifa") || cellValue.Contains("precio")) colIndices["costo_producto"] = i;
                         else if (cellValue.Contains("asignado") || cellValue.Contains("operador")) colIndices["asignado_a"] = i;
                     }
 
