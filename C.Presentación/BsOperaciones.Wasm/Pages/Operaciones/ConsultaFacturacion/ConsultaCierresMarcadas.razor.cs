@@ -53,6 +53,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         public class ConsolidadoCierre
         {
             public string Area { get; set; }
+            public string Cargo { get; set; } = string.Empty;
             public DateTime FechaMin { get; set; }
             public DateTime FechaMax { get; set; }
             public int DiasLaborados { get; set; }
@@ -113,6 +114,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         nombre_empleado = x.nombre_empleado,
                         tipo_empleado = x.tipo_empleado,
                         area_nombre = x.area_nombre,
+                        cargo = x.cargo,
                         entrada_movimiento = x.entrada_movimiento,
                         salida_movimiento = x.salida_movimiento,
                         horas_totales = x.horas_totales,
@@ -278,10 +280,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
 
             ResumenPorArea = DatosCierre
-                .GroupBy(x => x.area_nombre)
+                .GroupBy(x => new { Area = x.area_nombre, Cargo = x.cargo })
                 .Select(g => new ConsolidadoCierre
                 {
-                    Area = g.Key ?? "SIN ÁREA",
+                    Area = g.Key.Area ?? "SIN ÁREA",
+                    Cargo = g.Key.Cargo ?? "SIN CARGO",
                     FechaMin = g.Min(x => x.fecha_asistencia),
                     FechaMax = g.Max(x => x.fecha_asistencia),
                     DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
@@ -290,6 +293,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
                 })
                 .OrderBy(x => x.Area)
+                .ThenBy(x => x.Cargo)
                 .ToList();
 
             StateHasChanged();
@@ -310,6 +314,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 var consolidadoExport = ResumenPorArea.Select(x => new
                 {
                     x.Area,
+                    x.Cargo,
                     Desde = x.FechaMin.ToString("yyyy-MM-dd"),
                     Hasta = x.FechaMax.ToString("yyyy-MM-dd"),
                     Días = x.DiasLaborados,
@@ -322,6 +327,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 {
                     Fecha = x.fecha_asistencia.ToString("yyyy-MM-dd"),
                     Área = x.area_nombre,
+                    Cargo = x.cargo,
                     ID = x.id_empleado,
                     Nombre = x.nombre_empleado,
                     Entrada = x.entrada_movimiento,
@@ -363,7 +369,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
         }
 
-        protected Func<ConsolidadoCierre, bool> _filterMaestro => x => string.IsNullOrWhiteSpace(_searchMaestro) || x.Area.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase);
-        protected Func<ReporteCierreMarcadasDetalle, bool> _filterDetalle => x => string.IsNullOrWhiteSpace(_searchDetalle) || x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase);
+        protected Func<ConsolidadoCierre, bool> _filterMaestro => x => string.IsNullOrWhiteSpace(_searchMaestro) ||
+            (x.Area != null && x.Area.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Cargo != null && x.Cargo.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase));
+        protected Func<ReporteCierreMarcadasDetalle, bool> _filterDetalle => x => string.IsNullOrWhiteSpace(_searchDetalle) ||
+            (x.nombre_empleado != null && x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
+            (x.cargo != null && x.cargo.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -173,6 +173,7 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
                         DETALLE_ALERTA = alerta.Mensaje,
                         fecha = x.fecha.ToString("yyyy-MM-dd"),
                         x.areamov,
+                        x.cargo,
                         x.tipoempleado,
                         x.id,
                         x.nombre,

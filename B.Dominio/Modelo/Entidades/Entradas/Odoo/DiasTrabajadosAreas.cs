@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -123,5 +123,8 @@ namespace Modelo.Entidades.Entradas.Odoo
         [Display(Name = "Cierre", Order = 22)]
         public bool cierre { get; set; } = false;
         public bool es_op_mixta { get; set; } = false;
+
+        [Display(Name = "Cargo", Order = 23)]
+        public string? cargo { get; set; }
     }
 }

@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 
 namespace Modelo.Report
 {
     public class ConsolidadoCierre
     {
         public string Area { get; set; }
+        public string Cargo { get; set; } = string.Empty;
         public DateTime FechaMin { get; set; }
         public DateTime FechaMax { get; set; }
         public int DiasLaborados { get; set; }
@@ -20,6 +21,7 @@ namespace Modelo.Report
         public string nombre_empleado { get; set; }
         public string tipo_empleado { get; set; }
         public string area_nombre { get; set; }
+        public string? cargo { get; set; }
         public string entrada_movimiento { get; set; }
         public string salida_movimiento { get; set; }
         public decimal horas_totales { get; set; }

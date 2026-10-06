@@ -124,6 +124,7 @@
                 </ToolBarContent>
                 <Columns>
                     <PropertyColumn Property="x => x.Area" Title="Área / Proyecto" />
+                    <PropertyColumn Property="x => x.Cargo" Title="Cargo" />
                     <TemplateColumn Title="Periodo">
                         <CellTemplate>
                             @(context.Item.FechaMin == default ? "---" : $"{context.Item.FechaMin:dd/MM} al {context.Item.FechaMax:dd/MM/yyyy}")
@@ -154,6 +155,7 @@
                 <Columns>
                     <PropertyColumn Property="x => x.fecha_asistencia" Title="Fecha" Format="dd/MM/yyyy" />
                     <PropertyColumn Property="x => x.area_nombre" Title="Área" />
+                    <PropertyColumn Property="x => x.cargo" Title="Cargo" />
                     <TemplateColumn Title="Colaborador">
                         <CellTemplate>
                             <div class="d-flex align-center gap-1">

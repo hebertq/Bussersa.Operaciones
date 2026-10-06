@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Modelo.Report
 {
@@ -17,5 +17,6 @@ namespace Modelo.Report
         public decimal horas_extras { get; set; }
         public DateTime fecha_registro { get; set; }
         public DateTime? fecha_actualizacion { get; set; }
+        public string? cargo { get; set; }
     }
 }
