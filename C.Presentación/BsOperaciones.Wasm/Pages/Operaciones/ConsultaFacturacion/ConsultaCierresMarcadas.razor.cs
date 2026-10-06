@@ -280,11 +280,15 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
 
             ResumenPorArea = DatosCierre
-                .GroupBy(x => new { Area = x.area_nombre, Cargo = x.cargo })
+                .GroupBy(x => new
+                {
+                    Area = string.IsNullOrWhiteSpace(x.area_nombre) ? "SIN ÁREA" : x.area_nombre.Trim(),
+                    Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim()
+                })
                 .Select(g => new ConsolidadoCierre
                 {
-                    Area = g.Key.Area ?? "SIN ÁREA",
-                    Cargo = g.Key.Cargo ?? "SIN CARGO",
+                    Area = g.Key.Area,
+                    Cargo = g.Key.Cargo,
                     FechaMin = g.Min(x => x.fecha_asistencia),
                     FechaMax = g.Max(x => x.fecha_asistencia),
                     DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
