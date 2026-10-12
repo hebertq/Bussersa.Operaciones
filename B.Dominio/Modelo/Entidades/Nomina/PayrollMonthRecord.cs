@@ -40,5 +40,6 @@ namespace Modelo.Entidades.Nomina
         public decimal tot_vac { get; set; }
         public decimal tot_agui { get; set; }
         public decimal tot_ind { get; set; }
+        public decimal prestaciones { get; set; }
     }
 }

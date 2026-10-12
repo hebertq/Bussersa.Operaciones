@@ -103,6 +103,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                     Depreciacion = x.emb_depre_vehiculo,
                     Vacaciones = x.emp_vacaciones,
                     Aguinaldo = x.emp_aguinaldo,
+                    Prestaciones = x.emp_prestaciones,
                     Otros_Ingresos = x.emp_otros_ingresos,
                     TotalIngresos = x.emp_total_ingresos,
                     Deducibles = x.emp_ingresos_deducir,

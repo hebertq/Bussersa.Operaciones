@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Modelo.Report
 {
@@ -35,6 +35,7 @@ namespace Modelo.Report
         // Prestaciones legales
         public decimal? emp_vacaciones { get; set; }
         public decimal? emp_aguinaldo { get; set; }
+        public decimal? emp_prestaciones { get; set; }
 
         // Totales de ingresos
         public decimal? emp_otros_ingresos { get; set; }

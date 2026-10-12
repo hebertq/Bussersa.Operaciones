@@ -145,6 +145,9 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Entidades.Operaciones.AsociacionOperacionDto>> GetAllAsociacionesOperacion();
         Task<IResponse> SaveAsociacionOperacion(Modelo.Entidades.Operaciones.AsociacionOperacionDto model);
         Task<IResponse> DeleteAsociacionOperacion(int id);
+
+        // --- RENTABILIDAD CON PRECISIÓN Y PRÉSTAMOS DE PERSONAL ---
+        Task<ISingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>> GetRentabilidadPrecision(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m);
     }
 }
 

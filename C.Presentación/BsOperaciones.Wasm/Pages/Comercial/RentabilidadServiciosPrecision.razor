@@ -1,0 +1,687 @@
+@page "/comercial/indicadores-servicios"
+@using Modelo.Comercial
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<style>
+    .precision-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .status-badge-perdida {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-riesgo {
+        background: #fefce8;
+        color: #a16207;
+        border: 1px solid #fef08a;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-rentable {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .effect-badge-subsidia {
+        background: #faf5ff;
+        color: #6b21a8;
+        border: 1px solid #e9d5ff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    .effect-badge-absorbe {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    .effect-badge-equilibrado {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 11px;
+    }
+</style>
+
+<div class="precision-container">
+    <!-- Encabezado Principal -->
+    <div class="d-flex justify-between align-center flex-wrap mb-6">
+        <div>
+            <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
+                <MudIcon Icon="@Icons.Material.Filled.QueryStats" Color="Color.Primary" Size="Size.Large" />
+                Rentabilidad de Servicios y Conciliación de Préstamos
+            </h3>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Indicadores de alta precisión con redistribución real de costos laborales por horas trabajadas, semaforización y cálculo de tarifa sugerida.
+            </MudText>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarIndicadores" Class="font-bold">
+                Actualizar Indicadores
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <MudPaper Class="pa-4 mb-6 panel-card" Elevation="2">
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem XS="12" SM="3" MD="2">
+                <MudSelect T="int" Label="Año" @bind-Value="anioSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var a in aniosDisponibles)
+                    {
+                        <MudSelectItem T="int" Value="@a">@a</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="3" MD="2">
+                <MudSelect T="int" Label="Mes de Cierre" @bind-Value="mesSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="int" Value="1">Enero</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">Febrero</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">Marzo</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
+                    <MudSelectItem T="int" Value="5">Mayo</MudSelectItem>
+                    <MudSelectItem T="int" Value="6">Junio</MudSelectItem>
+                    <MudSelectItem T="int" Value="7">Julio</MudSelectItem>
+                    <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
+                    <MudSelectItem T="int" Value="9">Septiembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="10">Octubre</MudSelectItem>
+                    <MudSelectItem T="int" Value="11">Noviembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="12">Diciembre</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="4">
+                <MudSelect T="int?" Label="Operación / Cliente" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todas las Operaciones</MudSelectItem>
+                    @if (operacionesList != null)
+                    {
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2">
+                <MudNumericField T="decimal" Label="Margen Objetivo (%)" @bind-Value="margenObjetivoPct" Min="5" Max="80" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarIndicadores" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2 font-bold">
+                    Consultar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (consolidado == null || !consolidado.Servicios.Any())
+    {
+        <MudPaper Class="pa-12 text-center my-6 panel-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-3" Style="font-size: 48px;" />
+            <MudText Typo="Typo.h6" Class="font-bold">No se encontraron registros para @ObtenerNombreMes(mesSeleccionado) @anioSeleccionado</MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Verifica que existan registros de asistencia y cierre de nómina para el período seleccionado.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <!-- KPI Cards -->
+        <MudGrid Class="mb-6">
+            <MudItem XS="12" SM="6" MD="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">TOTAL FACTURADO</MudText>
+                    <MudText Typo="Typo.h6" Class="font-bold mt-1" Style="color: #2563eb;">C$ @consolidado.TotalIngresos.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") horas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #dc2626;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO LABORAL REAL</MudText>
+                    <MudText Typo="Typo.h6" Class="font-bold mt-1" Style="color: #dc2626;">C$ @consolidado.TotalCostoReal.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Redistribuido por horas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #16a34a;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD BRUTA REAL</MudText>
+                    <MudText Typo="Typo.h6" Class="font-bold mt-1" Style="@(consolidado.TotalUtilidadReal >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
+                        C$ @consolidado.TotalUtilidadReal.ToString("N2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Margen: @consolidado.MargenGlobalPct.ToString("N1")%</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #7c3aed;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">PRÉSTAMOS INTER-CLIENTE</MudText>
+                    <MudText Typo="Typo.h6" Class="font-bold mt-1" Style="color: #7c3aed;">C$ @consolidado.TotalCostoTransferido.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasPrestadas.ToString("N1") hrs prestadas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="4">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #0891b2;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">ESTADO DE SERVICIOS EVALUADOS</MudText>
+                    <div class="d-flex justify-center gap-3 mt-2">
+                        <MudTooltip Text="Servicios con margen negativo (pérdida)">
+                            <span class="status-badge-perdida">🔴 @consolidado.ServiciosEnPerdida Pérdida</span>
+                        </MudTooltip>
+                        <MudTooltip Text="Servicios por debajo del margen objetivo">
+                            <span class="status-badge-riesgo">🟡 @consolidado.ServiciosEnRiesgo Riesgo</span>
+                        </MudTooltip>
+                        <MudTooltip Text="Servicios rentables (>= margen objetivo)">
+                            <span class="status-badge-rentable">🟢 @consolidado.ServiciosRentables Rentables</span>
+                        </MudTooltip>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Pestañas Principales -->
+        <MudCard Elevation="2" Class="panel-card mb-6">
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" Color="Color.Surface">
+                
+                <!-- TAB 1: Matriz de Rentabilidad por Servicio / Cargo -->
+                <MudTabPanel Text="Rentabilidad por Servicio y Cargo" Icon="@Icons.Material.Filled.WorkOutline">
+                    <div class="d-flex justify-between align-center flex-wrap mb-4 gap-3">
+                        <div class="d-flex align-center gap-2">
+                            <MudButton Variant="@(filtroEstado == null ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Default" OnClick="@(() => SetFiltroEstado(null))">
+                                Todos (@consolidado.Servicios.Count)
+                            </MudButton>
+                            <MudButton Variant="@(filtroEstado == "PERDIDA" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Error" OnClick="@(() => SetFiltroEstado("PERDIDA"))">
+                                🔴 En Pérdida (@consolidado.ServiciosEnPerdida)
+                            </MudButton>
+                            <MudButton Variant="@(filtroEstado == "RIESGO" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Warning" OnClick="@(() => SetFiltroEstado("RIESGO"))">
+                                🟡 En Riesgo (@consolidado.ServiciosEnRiesgo)
+                            </MudButton>
+                            <MudButton Variant="@(filtroEstado == "RENTABLE" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Success" OnClick="@(() => SetFiltroEstado("RENTABLE"))">
+                                🟢 Rentables (@consolidado.ServiciosRentables)
+                            </MudButton>
+                        </div>
+                        
+                        <div style="min-width: 280px;">
+                            <MudTextField @bind-Value="busquedaServicio" Placeholder="Buscar por cliente o cargo..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                        </div>
+                    </div>
+
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                        <strong>Fórmula de Precisión:</strong> La tarifa por hora sugerida calcula el precio mínimo necesario para cubrir el costo laboral exacto del colaborador y alcanzar el <strong>@margenObjetivoPct% de margen</strong>: <code>Tarifa = CostoHora / (1 - @((margenObjetivoPct / 100m).ToString("0.00")))</code>.
+                    </MudAlert>
+
+                    <MudTable Items="@ServiciosFiltrados" Hover="true" Striped="true" Dense="true" Elevation="0" CustomHeader="true">
+                        <HeaderContent>
+                            <MudTHeadRow>
+                                <MudTh>Cliente / Operación</MudTh>
+                                <MudTh>Cargo / Servicio</MudTh>
+                                <MudTh Style="text-align: right;">Colab.</MudTh>
+                                <MudTh Style="text-align: right;">Horas</MudTh>
+                                <MudTh Style="text-align: right;">Costo Laboral</MudTh>
+                                <MudTh Style="text-align: right;">Costo/Hr</MudTh>
+                                <MudTh Style="text-align: right;">Facturado</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa/Hr</MudTh>
+                                <MudTh Style="text-align: center;">Margen %</MudTh>
+                                <MudTh Style="text-align: center;">Estado</MudTh>
+                                <MudTh Style="text-align: right; background: #f0fdf4;">Tarifa Sugerida</MudTh>
+                                <MudTh Style="text-align: center;">Ajuste Sugerido</MudTh>
+                            </MudTHeadRow>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Operación"><strong>@context.operacion_nombre</strong></MudTd>
+                            <MudTd DataLabel="Cargo">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@context.cargo</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Colaboradores" Style="text-align: right;">@context.colaboradores_activos</MudTd>
+                            <MudTd DataLabel="Horas" Style="text-align: right;">@context.total_horas_trabajadas.ToString("N1")</MudTd>
+                            <MudTd DataLabel="Costo Laboral" Style="text-align: right;">C$ @context.total_costo_laboral_real.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Costo/Hr" Style="text-align: right; font-weight: 600;">C$ @context.costo_promedio_hora.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Facturado" Style="text-align: right;">C$ @context.total_ingreso_facturado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Tarifa/Hr" Style="text-align: right; font-weight: 600;">C$ @context.tarifa_promedio_hora.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Margen %" Style="text-align: center; font-weight: 700;">
+                                <span style="@(context.margen_porcentaje < 0 ? "color: #dc2626;" : context.margen_porcentaje < margenObjetivoPct ? "color: #d97706;" : "color: #16a34a;")">
+                                    @context.margen_porcentaje.ToString("N1")%
+                                </span>
+                            </MudTd>
+                            <MudTd DataLabel="Estado" Style="text-align: center;">
+                                @if (context.estado_rentabilidad == "PERDIDA")
+                                {
+                                    <span class="status-badge-perdida">🔴 PÉRDIDA</span>
+                                }
+                                else if (context.estado_rentabilidad == "RIESGO")
+                                {
+                                    <span class="status-badge-riesgo">🟡 RIESGO</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge-rentable">🟢 RENTABLE</span>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right; font-weight: 700; color: #15803d; background: #f0fdf4;">
+                                C$ @context.tarifa_sugerida_minima.ToString("N2")
+                            </MudTd>
+                            <MudTd DataLabel="Ajuste" Style="text-align: center;">
+                                @if (context.tarifa_actual_vs_sugerida_pct < 0)
+                                {
+                                    <MudTooltip Text="@($"Se requiere aumentar la tarifa en C$ {(context.tarifa_sugerida_minima - context.tarifa_promedio_hora):N2}/hora para llegar al {margenObjetivoPct}% de margen")">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">
+                                            +@Math.Abs(context.tarifa_actual_vs_sugerida_pct).ToString("N1")% C$/hr
+                                        </MudChip>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <span style="color: #16a34a; font-weight: 600; font-size: 12px;">✓ Cumple Objetivo</span>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+
+                <!-- TAB 2: Conciliación de Préstamos / Transferencias de Personal Inter-Cliente -->
+                <MudTabPanel Text="Conciliación de Préstamos de Personal" Icon="@Icons.Material.Filled.SwapHoriz">
+                    <div class="d-flex justify-between align-center flex-wrap mb-4 gap-3">
+                        <MudText Typo="Typo.subtitle1" Class="font-bold" Color="Color.Primary">
+                            Trazabilidad de Colaboradores con Contrato en un Cliente y Jornadas en Otro
+                        </MudText>
+                        <div style="min-width: 280px;">
+                            <MudTextField @bind-Value="busquedaPrestamo" Placeholder="Buscar por colaborador o cliente..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                        </div>
+                    </div>
+
+                    <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                        Esta tabla identifica los movimientos de empleados que laboraron fuera de la operación en la que están contratados. 
+                        El costo laboral mensual reportado por nómina se transfiere proporcionalmente a las horas registradas en el cliente destino, corrigiendo distorsiones de nómina.
+                    </MudAlert>
+
+                    <MudTable Items="@PrestamosFiltrados" Hover="true" Striped="true" Dense="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Colaborador</MudTh>
+                            <MudTh>Cargo</MudTh>
+                            <MudTh>Nómina Origen</MudTh>
+                            <MudTh Style="text-align: right;">Costo Nómina Origen</MudTh>
+                            <MudTh>Cliente Destino (Donde Trabajó)</MudTh>
+                            <MudTh Style="text-align: right;">Horas en Destino</MudTh>
+                            <MudTh Style="text-align: right;">Horas Totales</MudTh>
+                            <MudTh Style="text-align: center;">% Tiempo</MudTh>
+                            <MudTh Style="text-align: right; background: #faf5ff;">Costo Transferido</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Colaborador"><strong>@context.colaborador_nombre</strong></MudTd>
+                            <MudTd DataLabel="Cargo">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@context.cargo</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Origen">
+                                <span class="effect-badge-subsidia">@context.cliente_origen_nombre</span>
+                            </MudTd>
+                            <MudTd DataLabel="Costo Origen" Style="text-align: right;">C$ @context.costo_mensual_origen.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Destino">
+                                <span class="effect-badge-absorbe">@context.cliente_destino_nombre</span>
+                            </MudTd>
+                            <MudTd DataLabel="Horas Destino" Style="text-align: right; font-weight: 600;">@context.horas_en_destino.ToString("N1") hrs</MudTd>
+                            <MudTd DataLabel="Horas Totales" Style="text-align: right;">@context.horas_totales_mes.ToString("N1") hrs</MudTd>
+                            <MudTd DataLabel="% Tiempo" Style="text-align: center; font-weight: 700;">@context.porcentaje_tiempo_destino.ToString("N1")%</MudTd>
+                            <MudTd DataLabel="Costo Transferido" Style="text-align: right; font-weight: 700; color: #6b21a8; background: #faf5ff;">
+                                C$ @context.costo_transferido_destino.ToString("N2")
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+
+                <!-- TAB 3: Comparativo de Clientes (Distorsión Nómina vs Real) -->
+                <MudTabPanel Text="Comparativo de Clientes (Nómina vs Real)" Icon="@Icons.Material.Filled.CompareArrows">
+                    <div class="mb-4">
+                        <MudText Typo="Typo.subtitle1" Class="font-bold" Color="Color.Primary">
+                            Impacto de la Redistribución en la Rentabilidad de Cada Cliente
+                        </MudText>
+                        <MudText Typo="Typo.body2" Class="text-secondary">
+                            Compara el margen calculado con la nómina contratada nominal frente al margen obtenido al cargar las horas y costos reales que cada cliente consumió efectivamente.
+                        </MudText>
+                    </div>
+
+                    <MudTable Items="@consolidado.Clientes" Hover="true" Striped="true" Dense="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Operación / Cliente</MudTh>
+                            <MudTh Style="text-align: center;">Personal (Nóm vs Real)</MudTh>
+                            <MudTh Style="text-align: right;">Costo Nominal Nómina</MudTh>
+                            <MudTh Style="text-align: right; background: #eff6ff;">Costo Real Redistribuido</MudTh>
+                            <MudTh Style="text-align: right;">Facturación</MudTh>
+                            <MudTh Style="text-align: center;">Margen Anterior (Nominal)</MudTh>
+                            <MudTh Style="text-align: center; background: #f0fdf4;">Margen Real (Efectivo)</MudTh>
+                            <MudTh Style="text-align: right;">Impacto Préstamos</MudTh>
+                            <MudTh Style="text-align: center;">Diagnóstico</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Cliente"><strong>@context.operacion_nombre</strong></MudTd>
+                            <MudTd DataLabel="Colaboradores" Style="text-align: center;">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.colaboradores_nomina en nóm. / @context.colaboradores_trabajando en campo</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Costo Nominal" Style="text-align: right;">C$ @context.costo_nomina_nominal.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Costo Redistribuido" Style="text-align: right; font-weight: 700; color: #1e40af; background: #eff6ff;">
+                                C$ @context.costo_laboral_redistribuido.ToString("N2")
+                            </MudTd>
+                            <MudTd DataLabel="Facturación" Style="text-align: right;">C$ @context.ingreso_total_facturado.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Margen Nominal" Style="text-align: center; color: #64748b;">
+                                @context.margen_nominal_pct.ToString("N1")%
+                            </MudTd>
+                            <MudTd DataLabel="Margen Real" Style="text-align: center; font-weight: 700; background: #f0fdf4;">
+                                <span style="@(context.margen_redistribuido_pct < 0 ? "color: #dc2626;" : context.margen_redistribuido_pct < margenObjetivoPct ? "color: #d97706;" : "color: #16a34a;")">
+                                    @context.margen_redistribuido_pct.ToString("N1")%
+                                </span>
+                            </MudTd>
+                            <MudTd DataLabel="Diferencia" Style="text-align: right; font-weight: 600;">
+                                <span style="@(context.diferencia_costo > 0 ? "color: #16a34a;" : context.diferencia_costo < 0 ? "color: #dc2626;" : "color: #64748b;")">
+                                    @(context.diferencia_costo > 0 ? "+" : "")C$ @context.diferencia_costo.ToString("N2")
+                                </span>
+                            </MudTd>
+                            <MudTd DataLabel="Efecto" Style="text-align: center;">
+                                @if (context.efecto_distorsion == "SUBSIDIA A OTROS")
+                                {
+                                    <span class="effect-badge-subsidia">📤 SUBSIDIA A OTROS</span>
+                                }
+                                else if (context.efecto_distorsion == "ABSORBE COSTO PRESTADO")
+                                {
+                                    <span class="effect-badge-absorbe">📥 ABSORBE PRESTADOS</span>
+                                }
+                                else
+                                {
+                                    <span class="effect-badge-equilibrado">⚖️ EQUILIBRADO</span>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+
+                <!-- TAB 4: Simulador Rápido de Tarifas -->
+                <MudTabPanel Text="Simulador de Tarifas y Precios" Icon="@Icons.Material.Filled.Calculate">
+                    <MudGrid>
+                        <MudItem XS="12" MD="5">
+                            <MudPaper Class="pa-4 panel-card" Elevation="1">
+                                <MudText Typo="Typo.h6" Class="font-bold mb-3" Color="Color.Primary">
+                                    Configurador de Simulación
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="text-secondary mb-4">
+                                    Selecciona un servicio evaluado en el período para simular el impacto económico de ajustar su tarifa.
+                                </MudText>
+
+                                <MudSelect T="RentabilidadServicioPrecisionDto" Label="Seleccionar Servicio / Cargo" @bind-Value="servicioSimulado" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4">
+                                    @if (consolidado?.Servicios != null)
+                                    {
+                                        @foreach (var s in consolidado.Servicios)
+                                        {
+                                            <MudSelectItem T="RentabilidadServicioPrecisionDto" Value="@s">
+                                                @s.operacion_nombre - @s.cargo (Actual: C$ @s.tarifa_promedio_hora.ToString("N2")/hr, Margen: @s.margen_porcentaje.ToString("N1")%)
+                                            </MudSelectItem>
+                                        }
+                                    }
+                                </MudSelect>
+
+                                <MudSlider @bind-Value="margenSimulacion" Min="5" Max="60" Step="1" Color="Color.Primary" Class="mb-2">
+                                    Margen Objetivo Simulado: <strong>@margenSimulacion%</strong>
+                                </MudSlider>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem XS="12" MD="7">
+                            @if (servicioSimulado != null)
+                            {
+                                var tarifaCalculada = (1m - (margenSimulacion / 100m)) > 0
+                                    ? Math.Round(servicioSimulado.costo_promedio_hora / (1m - (margenSimulacion / 100m)), 2)
+                                    : 0m;
+                                var incrementoPorHora = tarifaCalculada - servicioSimulado.tarifa_promedio_hora;
+                                var incrementoPct = servicioSimulado.tarifa_promedio_hora > 0
+                                    ? Math.Round((incrementoPorHora / servicioSimulado.tarifa_promedio_hora) * 100m, 2)
+                                    : 0m;
+                                var ingresoAdicional = incrementoPorHora * servicioSimulado.total_horas_trabajadas;
+
+                                <MudPaper Class="pa-4 panel-card" Elevation="1">
+                                    <MudText Typo="Typo.h6" Class="font-bold mb-3" Color="Color.Success">
+                                        Resultado de la Simulación para @servicioSimulado.operacion_nombre - @servicioSimulado.cargo
+                                    </MudText>
+                                    
+                                    <MudGrid>
+                                        <MudItem XS="6" SM="3">
+                                            <MudText Typo="Typo.caption" Class="text-muted font-bold">COSTO / HORA</MudText>
+                                            <MudText Typo="Typo.body1" Class="font-bold">C$ @servicioSimulado.costo_promedio_hora.ToString("N2")</MudText>
+                                        </MudItem>
+                                        <MudItem XS="6" SM="3">
+                                            <MudText Typo="Typo.caption" Class="text-muted font-bold">TARIFA ACTUAL / HORA</MudText>
+                                            <MudText Typo="Typo.body1" Class="font-bold">C$ @servicioSimulado.tarifa_promedio_hora.ToString("N2")</MudText>
+                                        </MudItem>
+                                        <MudItem XS="6" SM="3">
+                                            <MudText Typo="Typo.caption" Class="text-muted font-bold">MARGEN ACTUAL</MudText>
+                                            <MudText Typo="Typo.body1" Class="font-bold" Style="@(servicioSimulado.margen_porcentaje < 0 ? "color: #dc2626;" : "color: #16a34a;")">
+                                                @servicioSimulado.margen_porcentaje.ToString("N1")%
+                                            </MudText>
+                                        </MudItem>
+                                        <MudItem XS="6" SM="3">
+                                            <MudText Typo="Typo.caption" Class="text-muted font-bold">HORAS EVALUADAS</MudText>
+                                            <MudText Typo="Typo.body1" Class="font-bold">@servicioSimulado.total_horas_trabajadas.ToString("N1") hrs</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-4" />
+
+                                    <MudGrid>
+                                        <MudItem XS="12" SM="4">
+                                            <MudPaper Class="pa-3 text-center" Style="background: #f0fdf4; border-radius: 8px;" Elevation="0">
+                                                <MudText Typo="Typo.caption" Class="font-bold" Color="Color.Success">NUEVA TARIFA RECOMENDADA</MudText>
+                                                <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #15803d;">C$ @tarifaCalculada.ToString("N2")/hr</MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem XS="12" SM="4">
+                                            <MudPaper Class="pa-3 text-center" Style="background: #eff6ff; border-radius: 8px;" Elevation="0">
+                                                <MudText Typo="Typo.caption" Class="font-bold" Color="Color.Primary">INCREMENTO POR HORA</MudText>
+                                                <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #1d4ed8;">
+                                                    @(incrementoPorHora >= 0 ? "+" : "")C$ @incrementoPorHora.ToString("N2") (@incrementoPct.ToString("N1")%)
+                                                </MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                        <MudItem XS="12" SM="4">
+                                            <MudPaper Class="pa-3 text-center" Style="background: #faf5ff; border-radius: 8px;" Elevation="0">
+                                                <MudText Typo="Typo.caption" Class="font-bold" Color="Color.Secondary">INGRESO EXTRA MENSUAL</MudText>
+                                                <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #7c3aed;">
+                                                    @(ingresoAdicional >= 0 ? "+" : "")C$ @ingresoAdicional.ToString("N2")
+                                                </MudText>
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            }
+                            else
+                            {
+                                <MudPaper Class="pa-8 text-center panel-card" Elevation="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                                    <MudText Typo="Typo.body1" Class="text-secondary">Selecciona un servicio a la izquierda para iniciar la simulación.</MudText>
+                                </MudPaper>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+            </MudTabs>
+        </MudCard>
+    }
+</div>
+
+@code {
+    private int anioSeleccionado = DateTime.Now.Year;
+    private int mesSeleccionado = 9; // Septiembre por defecto para ver los datos recién procesados
+    private List<int> aniosDisponibles = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1, DateTime.Now.Year - 2 };
+    private int? filtroOperacionId = null;
+    private decimal margenObjetivoPct = 20.0m;
+    private bool isLoading = false;
+
+    private List<Combos> operacionesList = new List<Combos>();
+    private RentabilidadPrecisionConsolidadoDto consolidado = new RentabilidadPrecisionConsolidadoDto();
+
+    // Filtros de tabla
+    private string? filtroEstado = null;
+    private string busquedaServicio = string.Empty;
+    private string busquedaPrestamo = string.Empty;
+
+    // Simulador
+    private RentabilidadServicioPrecisionDto? servicioSimulado = null;
+    private decimal margenSimulacion = 25.0m;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosOperaciones();
+        await CargarIndicadores();
+    }
+
+    private async Task CargarCombosOperaciones()
+    {
+        try
+        {
+            var res = await _OdooService.GetAllCombosHost("Operaciones");
+            if (res.Model != null)
+            {
+                operacionesList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar operaciones: " + ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task CargarIndicadores()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            int periodo = anioSeleccionado * 100 + mesSeleccionado;
+            decimal margenDecimal = margenObjetivoPct / 100m;
+
+            var res = await _OdooService.GetRentabilidadPrecision(periodo, filtroOperacionId, margenDecimal);
+            if (res.Model != null)
+            {
+                consolidado = res.Model;
+                if (consolidado.Servicios.Any())
+                {
+                    servicioSimulado = consolidado.Servicios.FirstOrDefault(s => s.estado_rentabilidad == "PERDIDA") 
+                                       ?? consolidado.Servicios.FirstOrDefault();
+                }
+            }
+            else
+            {
+                consolidado = new RentabilidadPrecisionConsolidadoDto();
+                Snackbar.Add("No se obtuvieron datos para el período.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar indicadores de precisión: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetFiltroEstado(string? estado)
+    {
+        filtroEstado = estado;
+    }
+
+    private IEnumerable<RentabilidadServicioPrecisionDto> ServiciosFiltrados
+    {
+        get
+        {
+            if (consolidado?.Servicios == null) return Enumerable.Empty<RentabilidadServicioPrecisionDto>();
+
+            var q = consolidado.Servicios.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(filtroEstado))
+            {
+                q = q.Where(s => s.estado_rentabilidad == filtroEstado);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busquedaServicio))
+            {
+                var term = busquedaServicio.Trim().ToLower();
+                q = q.Where(s => (s.operacion_nombre?.ToLower().Contains(term) ?? false) ||
+                                 (s.cargo?.ToLower().Contains(term) ?? false));
+            }
+
+            return q;
+        }
+    }
+
+    private IEnumerable<ConciliacionPrestamoPersonalDto> PrestamosFiltrados
+    {
+        get
+        {
+            if (consolidado?.Prestamos == null) return Enumerable.Empty<ConciliacionPrestamoPersonalDto>();
+
+            var q = consolidado.Prestamos.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(busquedaPrestamo))
+            {
+                var term = busquedaPrestamo.Trim().ToLower();
+                q = q.Where(p => (p.colaborador_nombre?.ToLower().Contains(term) ?? false) ||
+                                 (p.cliente_origen_nombre?.ToLower().Contains(term) ?? false) ||
+                                 (p.cliente_destino_nombre?.ToLower().Contains(term) ?? false) ||
+                                 (p.cargo?.ToLower().Contains(term) ?? false));
+            }
+
+            return q;
+        }
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero", 2 => "Febrero", 3 => "Marzo", 4 => "Abril",
+            5 => "Mayo", 6 => "Junio", 7 => "Julio", 8 => "Agosto",
+            9 => "Septiembre", 10 => "Octubre", 11 => "Noviembre", 12 => "Diciembre",
+            _ => ""
+        };
+    }
+}

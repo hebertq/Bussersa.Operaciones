@@ -7,6 +7,7 @@ using Modelo.Entidades.Nomina;
 using Modelo.Interfaces;
 using Modelo.Report;
 using Modelo.Admin;
+using Modelo.Comercial;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -3162,6 +3163,42 @@ namespace HostService.Clases
                 }
                 else
                     response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>> GetRentabilidadPrecision(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto> response = new SingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>();
+            try
+            {
+                string queryString = $"periodo={periodo}&margenObjetivo={margenObjetivo.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                if (operacionId.HasValue && operacionId.Value > 0)
+                {
+                    queryString += $"&operacionId={operacionId.Value}";
+                }
+
+                var requestUrl = CreateRequestUri($"OdQuery/GetRentabilidadPrecision/{periodo}", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
             }
             catch (Exception ex)
             {
