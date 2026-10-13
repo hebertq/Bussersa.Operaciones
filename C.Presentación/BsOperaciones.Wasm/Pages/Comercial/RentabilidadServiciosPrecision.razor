@@ -414,14 +414,21 @@
             int periodo = anioSeleccionado * 100 + mesSeleccionado;
 
             var res = await _OdooService.GetRentabilidadPrecision(periodo, filtroOperacionId, 0.20m);
-            if (res.Model != null)
+            if (res.Model != null && res.Respuesta?.ExisteError != true)
             {
                 consolidado = res.Model;
             }
             else
             {
                 consolidado = new RentabilidadPrecisionConsolidadoDto();
-                Snackbar.Add("No se obtuvieron datos para el período.", Severity.Info);
+                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add($"Error en el servidor: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("No se obtuvieron datos para el período.", Severity.Info);
+                }
             }
         }
         catch (Exception ex)
