@@ -3206,6 +3206,78 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<Modelo.Comercial.RentabilidadCargoConsolidadoDto>> GetRentabilidadCargos(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Comercial.RentabilidadCargoConsolidadoDto> response = new ListResponse<Modelo.Comercial.RentabilidadCargoConsolidadoDto>();
+            try
+            {
+                string queryString = $"periodo={periodo}&margenObjetivo={margenObjetivo.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                if (operacionId.HasValue && operacionId.Value > 0)
+                {
+                    queryString += $"&operacionId={operacionId.Value}";
+                }
+
+                var requestUrl = CreateRequestUri($"OdQuery/GetRentabilidadCargos/{periodo}", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.RentabilidadCargoConsolidadoDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Comercial.AuditoriaIncidenciasOperacionDto>> GetAuditoriaIncidencias(DateTime inicio, DateTime fin, int? operacionId = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Comercial.AuditoriaIncidenciasOperacionDto> response = new ListResponse<Modelo.Comercial.AuditoriaIncidenciasOperacionDto>();
+            try
+            {
+                string queryString = $"inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}";
+                if (operacionId.HasValue && operacionId.Value > 0)
+                {
+                    queryString += $"&operacionId={operacionId.Value}";
+                }
+
+                var requestUrl = CreateRequestUri("OdQuery/GetAuditoriaIncidencias", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Comercial.AuditoriaIncidenciasOperacionDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 

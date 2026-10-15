@@ -54,6 +54,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         {
             public string Area { get; set; }
             public string Cargo { get; set; } = string.Empty;
+            public string Turno { get; set; } = string.Empty;
             public DateTime FechaMin { get; set; }
             public DateTime FechaMax { get; set; }
             public int DiasLaborados { get; set; }
@@ -118,7 +119,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         entrada_movimiento = x.entrada_movimiento,
                         salida_movimiento = x.salida_movimiento,
                         horas_totales = x.horas_totales,
-                        horas_extras = x.horas_extras
+                        horas_extras = x.horas_extras,
+                        Turno = DeterminarTurnoSegunLeyNicaragua(x.entrada_movimiento, x.salida_movimiento)
                     }).ToList();
 
                     await CargarSupervisoresConfig();
@@ -283,12 +285,14 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 .GroupBy(x => new
                 {
                     Area = string.IsNullOrWhiteSpace(x.area_nombre) ? "SIN ÁREA" : x.area_nombre.Trim(),
-                    Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim()
+                    Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim(),
+                    Turno = string.IsNullOrWhiteSpace(x.Turno) ? "SIN TURNO" : x.Turno.Trim()
                 })
                 .Select(g => new ConsolidadoCierre
                 {
                     Area = g.Key.Area,
                     Cargo = g.Key.Cargo,
+                    Turno = g.Key.Turno,
                     FechaMin = g.Min(x => x.fecha_asistencia),
                     FechaMax = g.Max(x => x.fecha_asistencia),
                     DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
@@ -298,9 +302,90 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 })
                 .OrderBy(x => x.Area)
                 .ThenBy(x => x.Cargo)
+                .ThenBy(x => x.Turno)
                 .ToList();
 
             StateHasChanged();
+        }
+
+        public static bool TryParseHora(string? str, out TimeSpan time)
+        {
+            time = TimeSpan.Zero;
+            if (string.IsNullOrWhiteSpace(str)) return false;
+            str = str.Trim();
+            if (TimeSpan.TryParse(str, out time)) return true;
+            if (DateTime.TryParse(str, out var dt))
+            {
+                time = dt.TimeOfDay;
+                return true;
+            }
+            return false;
+        }
+
+        public static string DeterminarTurnoSegunLeyNicaragua(string? entradaStr, string? salidaStr)
+        {
+            if (!TryParseHora(entradaStr, out var entrada) || !TryParseHora(salidaStr, out var salida))
+            {
+                return "Sin Turno";
+            }
+
+            if (entrada == salida)
+            {
+                return "Sin Turno";
+            }
+
+            int startMinutes = (int)entrada.TotalMinutes;
+            int endMinutes = (int)salida.TotalMinutes;
+
+            if (endMinutes <= startMinutes)
+            {
+                endMinutes += 1440; // Cruza la medianoche
+            }
+
+            int totalMinutes = endMinutes - startMinutes;
+            if (totalMinutes <= 0 || totalMinutes > 1440 * 2) return "Sin Turno";
+
+            int diurnos = 0;
+            int nocturnos = 0;
+
+            for (int m = startMinutes; m < endMinutes; m++)
+            {
+                int minDelDia = m % 1440;
+                // Código del Trabajo de Nicaragua (Ley N° 185):
+                // Art. 51: Jornada diurna es la que se ejecuta entre las 06:00 y las 20:00 (360 a 1200 minutos).
+                // Art. 52: Jornada nocturna es la que se ejecuta entre las 20:00 y las 06:00 del día siguiente.
+                if (minDelDia >= 360 && minDelDia < 1200)
+                {
+                    diurnos++;
+                }
+                else
+                {
+                    nocturnos++;
+                }
+            }
+
+            // Art. 51: Diurno completo
+            if (nocturnos == 0)
+            {
+                return "Diurno";
+            }
+
+            // Art. 52: Nocturno completo
+            if (diurnos == 0)
+            {
+                return "Nocturno";
+            }
+
+            // Art. 53: Mixto
+            // "siempre que el período nocturno sea menor de tres horas y media (210 minutos).
+            // Si en la jornada mixta se laboran tres horas y media o más en el período nocturno,
+            // se reputará trabajo nocturno para todos los efectos legales."
+            if (nocturnos >= 210)
+            {
+                return "Nocturno";
+            }
+
+            return "Mixto";
         }
 
         protected int CantidadSupervisoresConfigurados => supervisoresIds.Count;
@@ -319,6 +404,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 {
                     x.Area,
                     x.Cargo,
+                    x.Turno,
                     Desde = x.FechaMin.ToString("yyyy-MM-dd"),
                     Hasta = x.FechaMax.ToString("yyyy-MM-dd"),
                     Días = x.DiasLaborados,
@@ -332,6 +418,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Fecha = x.fecha_asistencia.ToString("yyyy-MM-dd"),
                     Área = x.area_nombre,
                     Cargo = x.cargo,
+                    x.Turno,
                     ID = x.id_empleado,
                     Nombre = x.nombre_empleado,
                     Entrada = x.entrada_movimiento,
@@ -375,9 +462,12 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
         protected Func<ConsolidadoCierre, bool> _filterMaestro => x => string.IsNullOrWhiteSpace(_searchMaestro) ||
             (x.Area != null && x.Area.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase)) ||
-            (x.Cargo != null && x.Cargo.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase));
+            (x.Cargo != null && x.Cargo.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Turno != null && x.Turno.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase));
         protected Func<ReporteCierreMarcadasDetalle, bool> _filterDetalle => x => string.IsNullOrWhiteSpace(_searchDetalle) ||
             (x.nombre_empleado != null && x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
-            (x.cargo != null && x.cargo.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase));
+            (x.cargo != null && x.cargo.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Turno != null && x.Turno.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
+            (x.area_nombre != null && x.area_nombre.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase));
     }
 }

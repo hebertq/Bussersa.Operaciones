@@ -1,0 +1,488 @@
+@page "/comercial/indicadores-puestos"
+@using Modelo.Comercial
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<style>
+    .precision-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .status-badge-perdida {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-rentable {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-meta {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+</style>
+
+<div class="precision-container">
+    <!-- Encabezado Principal -->
+    <div class="d-flex justify-between align-center flex-wrap mb-6">
+        <div>
+            <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
+                <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Primary" Size="Size.Large" />
+                Rentabilidad Consolidada por Puesto de Trabajo
+            </h3>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Consolidación de márgenes, tarifa efectiva, absorción de nómina real y brecha arancelaria por rol operativo homologado.
+            </MudText>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarIndicadores" Class="font-bold">
+                Actualizar Indicadores
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <MudPaper Class="pa-4 mb-6 panel-card" Elevation="2">
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem XS="12" SM="3" MD="2">
+                <MudSelect T="int" Label="Año" @bind-Value="anioSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var a in aniosDisponibles)
+                    {
+                        <MudSelectItem T="int" Value="@a">@a</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="3" MD="2">
+                <MudSelect T="int" Label="Mes de Cierre" @bind-Value="mesSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="int" Value="1">Enero</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">Febrero</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">Marzo</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">Abril</MudSelectItem>
+                    <MudSelectItem T="int" Value="5">Mayo</MudSelectItem>
+                    <MudSelectItem T="int" Value="6">Junio</MudSelectItem>
+                    <MudSelectItem T="int" Value="7">Julio</MudSelectItem>
+                    <MudSelectItem T="int" Value="8">Agosto</MudSelectItem>
+                    <MudSelectItem T="int" Value="9">Septiembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="10">Octubre</MudSelectItem>
+                    <MudSelectItem T="int" Value="11">Noviembre</MudSelectItem>
+                    <MudSelectItem T="int" Value="12">Diciembre</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="4">
+                <MudSelect T="int?" Label="Operación / Cliente" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todas las Operaciones</MudSelectItem>
+                    @if (operacionesList != null)
+                    {
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2">
+                <MudNumericField T="decimal" Label="Margen Meta %" @bind-Value="margenObjetivoPct" Min="0" Max="100" Step="5" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarIndicadores" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2 font-bold">
+                    Consultar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (cargosList == null || !cargosList.Any())
+    {
+        <MudPaper Class="pa-12 text-center my-6 panel-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-3" Style="font-size: 48px;" />
+            <MudText Typo="Typo.h6" Class="font-bold">No se encontraron puestos para @ObtenerNombreMes(mesSeleccionado) @anioSeleccionado</MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Verifica que existan registros de asistencia y cierre de nómina para el período seleccionado.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <!-- KPI Cards Globales por Puesto -->
+        <MudGrid Class="mb-6">
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">FACTURACIÓN TOTAL</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #2563eb;">C$ @TotalIngresos.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@TotalHoras.ToString("N1") hrs laboradas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #dc2626;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO LABORAL REAL ABSORBIDO</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #dc2626;">C$ @TotalCostoReal.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Costo hora prom: C$ @CostoPromedioHoraGlobal.ToString("N2")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #16a34a;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD BRUTA CONSOLIDADA</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="@(TotalUtilidad >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
+                        C$ @TotalUtilidad.ToString("N2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Margen Consolidado: @MargenGlobalPct.ToString("N1")%</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #0891b2;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">PUESTOS EVALUADOS</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #0891b2;">@cargosList.Count Puestos</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">
+                        <span style="color: #16a34a; font-weight: bold;">@PuestosRentables rentables</span> / 
+                        <span style="color: #dc2626; font-weight: bold;">@PuestosPerdida a pérdida</span>
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Tabla Detallada por Puesto -->
+        <MudCard Elevation="2" Class="panel-card mb-6">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6" Class="font-bold d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.TableChart" Color="Color.Primary" />
+                        Desglose de Rentabilidad y Precios Sugeridos por Rol Operativo
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <div class="d-flex justify-between align-center flex-wrap mb-4 gap-3">
+                    <div class="d-flex align-center gap-2">
+                        <MudButton Variant="@(filtroEstado == null ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Default" OnClick="@(() => SetFiltroEstado(null))">
+                            Todos (@cargosList.Count)
+                        </MudButton>
+                        <MudButton Variant="@(filtroEstado == "PERDIDA" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Error" OnClick="@(() => SetFiltroEstado("PERDIDA"))">
+                            🔴 En Pérdida (@PuestosPerdida)
+                        </MudButton>
+                        <MudButton Variant="@(filtroEstado == "RENTABLE" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Success" OnClick="@(() => SetFiltroEstado("RENTABLE"))">
+                            🟢 Con Utilidad (@PuestosRentables)
+                        </MudButton>
+                    </div>
+                    
+                    <div style="min-width: 280px;">
+                        <MudTextField @bind-Value="busquedaCargo" Placeholder="Buscar por puesto o cargo..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                    </div>
+                </div>
+
+                <MudTable Items="@CargosFiltrados" Hover="true" Striped="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Puesto Homologado</MudTh>
+                        <MudTh Style="text-align: center;">Operaciones</MudTh>
+                        <MudTh Style="text-align: right;">Horas Laboradas</MudTh>
+                        <MudTh Style="text-align: right;">Facturación</MudTh>
+                        <MudTh Style="text-align: center;">% Part.</MudTh>
+                        <MudTh Style="text-align: right; background: #eff6ff;">Tarifa / Hr</MudTh>
+                        <MudTh Style="text-align: right; background: #fef2f2;">Costo / Hr</MudTh>
+                        <MudTh Style="text-align: right;">Margen / Hr</MudTh>
+                        <MudTh Style="text-align: right;">Utilidad Neta</MudTh>
+                        <MudTh Style="text-align: center;">Margen Real %</MudTh>
+                        <MudTh Style="text-align: right; background: #f0fdf4;">Tarifa Sugerida (@margenObjetivoPct%)</MudTh>
+                        <MudTh Style="text-align: center;">Estado</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Puesto">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@ObtenerIconoCargo(context.cargo)" Color="Color.Primary" Size="Size.Small" />
+                                <strong>@context.cargo</strong>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Operaciones" Style="text-align: center;">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.total_operaciones ops</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Horas" Style="text-align: right;">@context.horas_totales.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Facturación" Style="text-align: right; font-weight: 600;">C$ @context.ingreso_total.ToString("N2")</MudTd>
+                        <MudTd DataLabel="% Participación" Style="text-align: center;">
+                            <div class="d-flex align-center justify-center gap-1">
+                                <span style="font-size: 11px; font-weight: 600;">@context.participacion_ingreso_pct.ToString("N1")%</span>
+                            </div>
+                            <MudProgressLinear Value="@((double)context.participacion_ingreso_pct)" Max="100" Color="Color.Primary" Rounded="true" Size="Size.Small" Style="height: 4px; width: 60px; margin: 0 auto;" />
+                        </MudTd>
+                        <MudTd DataLabel="Tarifa/Hr" Style="text-align: right; font-weight: 700; color: #1e40af; background: #eff6ff;">
+                            C$ @context.tarifa_promedio_hora.ToString("N2")
+                        </MudTd>
+                        <MudTd DataLabel="Costo/Hr" Style="text-align: right; font-weight: 700; color: #991b1b; background: #fef2f2;">
+                            C$ @context.costo_promedio_hora.ToString("N2")
+                        </MudTd>
+                        <MudTd DataLabel="Margen/Hr" Style="text-align: right; font-weight: 700;">
+                            <span style="@(context.margen_hora >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
+                                @(context.margen_hora >= 0 ? "+" : "")C$ @context.margen_hora.ToString("N2")
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Utilidad" Style="text-align: right; font-weight: 600;">
+                            <span style="@(context.utilidad_neta >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
+                                C$ @context.utilidad_neta.ToString("N2")
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Margen %" Style="text-align: center; font-weight: 700;">
+                            <span style="@(context.margen_porcentaje < 0 ? "color: #dc2626;" : context.margen_porcentaje >= margenObjetivoPct ? "color: #16a34a;" : "color: #2563eb;")">
+                                @context.margen_porcentaje.ToString("N1")%
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right; font-weight: 700; color: #15803d; background: #f0fdf4;">
+                            C$ @context.precio_sugerido.ToString("N2")
+                        </MudTd>
+                        <MudTd DataLabel="Estado" Style="text-align: center;">
+                            @if (context.margen_porcentaje < 0)
+                            {
+                                <span class="status-badge-perdida">🔴 EN PÉRDIDA</span>
+                            }
+                            else if (context.margen_porcentaje >= margenObjetivoPct)
+                            {
+                                <span class="status-badge-meta">🎯 EN META</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge-rentable">🟢 RENTABLE</span>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+
+        <!-- Comparativa Visual Tarifa vs Costo vs Sugerido -->
+        <MudGrid Class="mb-6">
+            @foreach (var c in CargosFiltrados)
+            {
+                <MudItem XS="12" SM="6" MD="4">
+                    <MudPaper Class="pa-4 panel-card" Elevation="2">
+                        <div class="d-flex justify-between align-center mb-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@ObtenerIconoCargo(c.cargo)" Color="Color.Primary" />
+                                <strong style="font-size: 15px;">@c.cargo</strong>
+                            </div>
+                            @if (c.margen_porcentaje < 0)
+                            {
+                                <span class="status-badge-perdida">@c.margen_porcentaje.ToString("N1")%</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge-rentable">+@c.margen_porcentaje.ToString("N1")%</span>
+                            }
+                        </div>
+
+                        <MudDivider Class="my-2" />
+
+                        <div class="d-flex justify-between py-1">
+                            <span class="text-secondary" style="font-size: 13px;">Tarifa Cobrada:</span>
+                            <strong style="color: #1e40af;">C$ @c.tarifa_promedio_hora.ToString("N2") / hr</strong>
+                        </div>
+                        <div class="d-flex justify-between py-1">
+                            <span class="text-secondary" style="font-size: 13px;">Costo Laboral Real:</span>
+                            <strong style="color: #991b1b;">C$ @c.costo_promedio_hora.ToString("N2") / hr</strong>
+                        </div>
+                        <div class="d-flex justify-between py-1">
+                            <span class="text-secondary" style="font-size: 13px;">Tarifa Meta (@margenObjetivoPct%):</span>
+                            <strong style="color: #15803d;">C$ @c.precio_sugerido.ToString("N2") / hr</strong>
+                        </div>
+
+                        <MudDivider Class="my-2" />
+
+                        <div class="d-flex justify-between py-1">
+                            <span class="text-secondary" style="font-size: 13px;">Brecha Arancelaria:</span>
+                            @if (c.tarifa_promedio_hora >= c.precio_sugerido)
+                            {
+                                <span style="color: #16a34a; font-weight: 700; font-size: 13px;">
+                                    +C$ @((c.tarifa_promedio_hora - c.precio_sugerido).ToString("N2")) (Supera meta)
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="color: #dc2626; font-weight: 700; font-size: 13px;">
+                                    -C$ @((c.precio_sugerido - c.tarifa_promedio_hora).ToString("N2")) (Ajuste sugerido)
+                                </span>
+                            }
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</div>
+
+@code {
+    private int anioSeleccionado = 2026;
+    private int mesSeleccionado = 8; // Agosto por defecto
+    private List<int> aniosDisponibles = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1, DateTime.Now.Year - 2 };
+    private int? filtroOperacionId = null;
+    private decimal margenObjetivoPct = 20.0m;
+    private bool isLoading = false;
+
+    private List<Combos> operacionesList = new List<Combos>();
+    private List<RentabilidadCargoConsolidadoDto> cargosList = new List<RentabilidadCargoConsolidadoDto>();
+
+    // Filtros de tabla
+    private string? filtroEstado = null;
+    private string busquedaCargo = string.Empty;
+
+    // Totales calculados
+    private decimal TotalIngresos => cargosList?.Sum(c => c.ingreso_total) ?? 0m;
+    private decimal TotalCostoReal => cargosList?.Sum(c => c.costo_real_total) ?? 0m;
+    private decimal TotalUtilidad => TotalIngresos - TotalCostoReal;
+    private decimal TotalHoras => cargosList?.Sum(c => c.horas_totales) ?? 0m;
+    private decimal MargenGlobalPct => TotalIngresos > 0 ? Math.Round((TotalUtilidad / TotalIngresos) * 100m, 2) : 0m;
+    private decimal CostoPromedioHoraGlobal => TotalHoras > 0 ? Math.Round(TotalCostoReal / TotalHoras, 2) : 0m;
+    private int PuestosPerdida => cargosList?.Count(c => c.margen_porcentaje < 0) ?? 0;
+    private int PuestosRentables => cargosList?.Count(c => c.margen_porcentaje >= 0) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosOperaciones();
+        await CargarIndicadores();
+    }
+
+    private async Task CargarCombosOperaciones()
+    {
+        try
+        {
+            var res = await _OdooService.GetAllCombosHost("Operaciones");
+            if (res.Model != null)
+            {
+                operacionesList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar operaciones: " + ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task CargarIndicadores()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            int periodo = anioSeleccionado * 100 + mesSeleccionado;
+            decimal margenObjDecimal = margenObjetivoPct / 100m;
+
+            var res = await _OdooService.GetRentabilidadCargos(periodo, filtroOperacionId, margenObjDecimal);
+            if (res.Model != null && res.Respuesta?.ExisteError != true)
+            {
+                cargosList = res.Model.ToList();
+            }
+            else
+            {
+                cargosList = new List<RentabilidadCargoConsolidadoDto>();
+                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add($"Error en el servidor: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("No se obtuvieron datos para el período.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar rentabilidad de cargos: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetFiltroEstado(string? estado)
+    {
+        filtroEstado = estado;
+    }
+
+    private IEnumerable<RentabilidadCargoConsolidadoDto> CargosFiltrados
+    {
+        get
+        {
+            if (cargosList == null) return Enumerable.Empty<RentabilidadCargoConsolidadoDto>();
+
+            var q = cargosList.AsEnumerable();
+
+            if (filtroEstado == "PERDIDA")
+            {
+                q = q.Where(c => c.margen_porcentaje < 0);
+            }
+            else if (filtroEstado == "RENTABLE")
+            {
+                q = q.Where(c => c.margen_porcentaje >= 0);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busquedaCargo))
+            {
+                var term = busquedaCargo.Trim().ToLower();
+                q = q.Where(c => c.cargo != null && c.cargo.ToLower().Contains(term));
+            }
+
+            return q;
+        }
+    }
+
+    private string ObtenerIconoCargo(string cargo)
+    {
+        if (string.IsNullOrWhiteSpace(cargo)) return Icons.Material.Filled.Work;
+        var c = cargo.ToLower();
+        if (c.Contains("conductor") || c.Contains("chofer")) return Icons.Material.Filled.LocalShipping;
+        if (c.Contains("montacarga")) return Icons.Material.Filled.Engineering;
+        if (c.Contains("almacen") || c.Contains("operario")) return Icons.Material.Filled.Inventory2;
+        if (c.Contains("supervisor")) return Icons.Material.Filled.SupervisorAccount;
+        if (c.Contains("holler")) return Icons.Material.Filled.PrecisionManufacturing;
+        return Icons.Material.Filled.Badge;
+    }
+
+    private string ObtenerNombreMes(int mes)
+    {
+        return mes switch
+        {
+            1 => "Enero", 2 => "Febrero", 3 => "Marzo", 4 => "Abril",
+            5 => "Mayo", 6 => "Junio", 7 => "Julio", 8 => "Agosto",
+            9 => "Septiembre", 10 => "Octubre", 11 => "Noviembre", 12 => "Diciembre",
+            _ => ""
+        };
+    }
+}

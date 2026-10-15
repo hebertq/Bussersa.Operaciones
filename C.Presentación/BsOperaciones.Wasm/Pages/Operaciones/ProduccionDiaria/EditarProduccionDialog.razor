@@ -12,8 +12,11 @@
     <DialogContent>
         <MudForm @ref="form" @bind-IsValid="isValid">
             <MudGrid Class="pt-2">
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker Label="Fecha" @bind-Date="fecha" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker Label="Fecha Inicio" @bind-Date="fechaInicio" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudDatePicker Label="Fecha Fin" @bind-Date="fechaFin" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
@@ -77,7 +80,8 @@
     [Parameter] public List<Combos> OperacionesList { get; set; } = new();
 
     private ProduccionDiariaDto item = new();
-    private DateTime? fecha;
+    private DateTime? fechaInicio;
+    private DateTime? fechaFin;
     private int operacionId;
     private bool isValid;
     private MudForm form = null!;
@@ -112,7 +116,8 @@
             operacion_id = Item.operacion_id
         };
 
-        fecha = item.fecha_inicio;
+        fechaInicio = item.fecha_inicio;
+        fechaFin = item.fecha_fin ?? item.fecha_inicio;
         operacionId = item.operacion_id ?? 0;
     }
 
@@ -123,8 +128,8 @@
 
     private void Save()
     {
-        item.fecha_inicio = fecha;
-        item.fecha_fin = fecha;
+        item.fecha_inicio = fechaInicio;
+        item.fecha_fin = fechaFin ?? fechaInicio;
         item.operacion_id = operacionId;
         MudDialog.Close(DialogResult.Ok(item));
     }

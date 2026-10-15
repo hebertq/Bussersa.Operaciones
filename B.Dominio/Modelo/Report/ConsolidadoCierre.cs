@@ -6,6 +6,7 @@ namespace Modelo.Report
     {
         public string Area { get; set; }
         public string Cargo { get; set; } = string.Empty;
+        public string Turno { get; set; } = string.Empty;
         public DateTime FechaMin { get; set; }
         public DateTime FechaMax { get; set; }
         public int DiasLaborados { get; set; }
@@ -22,6 +23,7 @@ namespace Modelo.Report
         public string tipo_empleado { get; set; }
         public string area_nombre { get; set; }
         public string? cargo { get; set; }
+        public string Turno { get; set; } = string.Empty;
         public string entrada_movimiento { get; set; }
         public string salida_movimiento { get; set; }
         public decimal horas_totales { get; set; }

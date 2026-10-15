@@ -379,9 +379,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         var cellValue = headerRow.GetCell(i)?.ToString()?.Trim()?.ToLower();
                         if (string.IsNullOrEmpty(cellValue)) continue;
 
-                        if (cellValue.Contains("fecha inicio") || cellValue.Contains("fecha_inicio") || cellValue.Contains("fecha de inicio") || cellValue.Contains("fecha desde")) colIndices["fecha_inicio"] = i;
-                        else if (cellValue.Contains("fecha fin") || cellValue.Contains("fecha_fin") || cellValue.Contains("fecha de fin") || cellValue.Contains("fecha final") || cellValue.Contains("fecha hasta")) colIndices["fecha_fin"] = i;
-                        else if (cellValue.Contains("fecha")) colIndices["fecha"] = i;
+                        if (cellValue.Contains("fecha inicio") || cellValue.Contains("fecha_inicio") || cellValue.Contains("fecha de inicio") || cellValue.Contains("fecha desde") || cellValue == "inicio") colIndices["fecha_inicio"] = i;
+                        else if (cellValue.Contains("fecha fin") || cellValue.Contains("fecha_fin") || cellValue.Contains("fecha de fin") || cellValue.Contains("fecha final") || cellValue.Contains("fecha hasta") || cellValue == "fin") colIndices["fecha_fin"] = i;
+                        else if (cellValue == "fecha" || cellValue.StartsWith("fecha (") || cellValue == "fecha de registro") colIndices["fecha"] = i;
                         else if (cellValue.Contains("hoja")) colIndices["hoja_servicio"] = i;
                         else if (cellValue.Contains("cliente") && !cellValue.Contains("área") && !cellValue.Contains("area")) colIndices["cliente"] = i;
                         else if (cellValue.Contains("área") || cellValue.Contains("area")) colIndices["area_cliente"] = i;
@@ -417,7 +417,11 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         if (string.IsNullOrEmpty(sc)) continue;
 
                         var fInicio = GetDateVal(row, colIndices, "fecha_inicio", evaluator) ?? GetDateVal(row, colIndices, "fecha", evaluator);
-                        var fFin = GetDateVal(row, colIndices, "fecha_fin", evaluator) ?? fInicio;
+                        var fFin = GetDateVal(row, colIndices, "fecha_fin", evaluator);
+                        if (!fFin.HasValue)
+                        {
+                            fFin = fInicio;
+                        }
 
                         var dto = new ProduccionDiariaDto
                         {
@@ -624,6 +628,31 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             return cell.ToString()?.Trim();
         }
 
+        private static bool TryParseAnyDate(string? text, out DateTime result)
+        {
+            result = default;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            text = text.Trim();
+
+            string[] formats = new[]
+            {
+                "yyyy-MM-dd", "yyyy/MM/dd",
+                "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d-M-yyyy",
+                "yyyyMMdd", "MM/dd/yyyy", "M/d/yyyy"
+            };
+
+            if (DateTime.TryParseExact(text, formats, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out result))
+                return true;
+
+            if (DateTime.TryParse(text, System.Globalization.CultureInfo.GetCultureInfo("es-NI"), System.Globalization.DateTimeStyles.None, out result))
+                return true;
+
+            if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out result))
+                return true;
+
+            return false;
+        }
+
         private DateTime? GetDateVal(IRow row, Dictionary<string, int> indices, string key, IFormulaEvaluator evaluator)
         {
             if (!indices.ContainsKey(key)) return null;
@@ -642,12 +671,17 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     return cell.DateCellValue;
                 }
                 
-                string? sVal = cell.CachedFormulaResultType == CellType.String ? cell.StringCellValue : null;
-                if (DateTime.TryParse(sVal, out DateTime d)) return d;
+                string? sVal = cell.CachedFormulaResultType == CellType.String ? cell.StringCellValue : cell.ToString();
+                if (TryParseAnyDate(sVal, out DateTime d)) return d;
                 return null;
             }
 
-            if (DateTime.TryParse(cell.ToString(), out DateTime date))
+            if (cell.CellType == CellType.String)
+            {
+                if (TryParseAnyDate(cell.StringCellValue, out DateTime dStr)) return dStr;
+            }
+
+            if (TryParseAnyDate(cell.ToString(), out DateTime date))
             {
                 return date;
             }

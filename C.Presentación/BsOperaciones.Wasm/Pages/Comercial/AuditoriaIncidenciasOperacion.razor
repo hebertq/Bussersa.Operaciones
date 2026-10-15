@@ -1,0 +1,442 @@
+﻿@page "/comercial/auditoria-operativa"
+@using Modelo.Comercial
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _OdooService
+@inject ISnackbar Snackbar
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<style>
+    .auditoria-container {
+        padding: 24px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+    .panel-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        background: white;
+    }
+    .status-badge-excelente {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-bueno {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-regular {
+        background: #fefce8;
+        color: #a16207;
+        border: 1px solid #fef08a;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-critico {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-bloqueado {
+        background: #450a0a;
+        color: #fecaca;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-alerta {
+        background: #78350f;
+        color: #fef3c7;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .status-badge-apto {
+        background: #064e3b;
+        color: #a7f3d0;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+</style>
+
+<div class="auditoria-container">
+    <!-- Encabezado Principal -->
+    <div class="d-flex justify-between align-center flex-wrap mb-4">
+        <div>
+            <h3 class="font-bold d-flex align-center gap-2 mb-1" style="color: #0f172a; font-size: 24px;">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Primary" Size="Size.Large" />
+                Auditoría Operativa y Control de Cierre de Asistencia
+            </h3>
+            <MudText Typo="Typo.body2" Class="text-secondary">
+                Diagnóstico previo al cierre de nómina: Detección preventiva de desbordamientos de tareas Odoo vs reloj biométrico, cruces e incidencias.
+            </MudText>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarAuditoria" Class="font-bold">
+                Auditar Nuevamente
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Banner Regla de Negocio Bussersa -->
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-6 rounded-lg" Icon="@Icons.Material.Filled.Shield">
+        <strong>REGLA OPERATIVA DE CONTROL FINANCIERO:</strong> Si una operación presenta <strong>desbordamiento de horas (&gt; 0 hrs)</strong> o cruces de horario, el analista <strong>no puede cerrar ese día</strong>. Debe verificar en conjunto con el supervisor de campo para conciliar las marcadas y proteger la liquidez de la empresa.
+    </MudAlert>
+
+    <!-- Barra de Filtros (Rango de Fechas + Operación) -->
+    <MudPaper Class="pa-4 mb-6 panel-card" Elevation="2">
+        <MudGrid AlignItems="AlignItems.Center">
+            <MudItem XS="12" SM="4" MD="3">
+                <MudDatePicker Label="Fecha Inicio" @bind-Date="fechaInicio" DateFormat="yyyy-MM-dd" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem XS="12" SM="4" MD="3">
+                <MudDatePicker Label="Fecha Fin" @bind-Date="fechaFin" DateFormat="yyyy-MM-dd" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem XS="12" SM="4" MD="4">
+                <MudSelect T="int?" Label="Operación / Cliente" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Todas las Operaciones</MudSelectItem>
+                    @if (operacionesList != null)
+                    {
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem XS="12" SM="12" MD="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarAuditoria" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2 font-bold">
+                    Auditar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+    }
+    else if (auditoriaList == null || !auditoriaList.Any())
+    {
+        <MudPaper Class="pa-12 text-center my-6 panel-card" Elevation="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Info" Class="mb-3" Style="font-size: 48px;" />
+            <MudText Typo="Typo.h6" Class="font-bold">No se registraron asistencias ni tareas en el rango seleccionado</MudText>
+            <MudText Typo="Typo.body2" Class="text-secondary mt-1">Selecciona otro rango de fechas para evaluar las operaciones.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <!-- KPI Cards de Calidad -->
+        <MudGrid Class="mb-6">
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">REGISTROS AUDITADOS</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #2563eb;">@TotalRegistros.ToString("N0")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@auditoriaList.Count operaciones activas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #16a34a;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">MARCADAS 100% CONCILIADAS</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #16a34a;">@TotalRegistrosOk.ToString("N0")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Calidad Global: @IndiceCalidadGlobal.ToString("N1")%</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #dc2626;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">HORAS DE DESBORDE DETECTADAS</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #dc2626;">@TotalHorasDesborde.ToString("N1") hrs</MudText>
+                    <MudText Typo="Typo.caption" Class="text-danger font-bold">@TotalDesbordes casos de desborde</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="3">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #d97706;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">OPERACIONES CON BLOQUEO</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #d97706;">@OpsConBloqueo de @auditoriaList.Count</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@OpsAptas operaciones aptas para cierre</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Tabla Scorecard de Calidad por Operación -->
+        <MudCard Elevation="2" Class="panel-card mb-6">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6" Class="font-bold d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Assessment" Color="Color.Primary" />
+                        Tablero de Control de Calidad e Inconsistencias Operativas
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <div class="d-flex justify-between align-center flex-wrap mb-4 gap-3">
+                    <div class="d-flex align-center gap-2">
+                        <MudButton Variant="@(filtroEstadoCalidad == null ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Default" OnClick="@(() => SetFiltroEstado(null))">
+                            Todas (@auditoriaList.Count)
+                        </MudButton>
+                        <MudButton Variant="@(filtroEstadoCalidad == "BLOQUEADO" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Error" OnClick="@(() => SetFiltroEstado("BLOQUEADO"))">
+                            🔒 Bloqueadas (@OpsConBloqueo)
+                        </MudButton>
+                        <MudButton Variant="@(filtroEstadoCalidad == "APTO" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Success" OnClick="@(() => SetFiltroEstado("APTO"))">
+                            ✅ Aptas (@OpsAptas)
+                        </MudButton>
+                    </div>
+                    
+                    <div style="min-width: 280px;">
+                        <MudTextField @bind-Value="busquedaOperacion" Placeholder="Buscar operación..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                    </div>
+                </div>
+
+                <MudTable Items="@OperacionesFiltradas" Hover="true" Striped="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Operación / Cliente</MudTh>
+                        <MudTh Style="text-align: right;">Total Regs</MudTh>
+                        <MudTh Style="text-align: right;">OK</MudTh>
+                        <MudTh Style="text-align: right; background: #fef2f2;">Desbordes</MudTh>
+                        <MudTh Style="text-align: right; background: #fee2e2;">Hrs Desborde</MudTh>
+                        <MudTh Style="text-align: right;">Cruces</MudTh>
+                        <MudTh Style="text-align: right;">Sin Reloj</MudTh>
+                        <MudTh Style="text-align: right;">Sin Tarea</MudTh>
+                        <MudTh Style="text-align: center;">Índice Calidad</MudTh>
+                        <MudTh Style="text-align: center;">Auditoría</MudTh>
+                        <MudTh Style="text-align: center;">Estado Cierre</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Operación"><strong>@context.operacion_nombre</strong></MudTd>
+                        <MudTd DataLabel="Total" Style="text-align: right;">@context.total_registros</MudTd>
+                        <MudTd DataLabel="OK" Style="text-align: right; font-weight: 600; color: #16a34a;">@context.registros_ok</MudTd>
+                        <MudTd DataLabel="Desbordes" Style="text-align: right; font-weight: 700; background: #fef2f2;">
+                            <span style="@(context.total_desbordes > 0 ? "color: #dc2626;" : "color: #64748b;")">
+                                @context.total_desbordes
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Hrs Desborde" Style="text-align: right; font-weight: 700; background: #fee2e2;">
+                            <span style="@(context.horas_desborde > 0 ? "color: #b91c1c;" : "color: #64748b;")">
+                                @(context.horas_desborde > 0 ? $"+{context.horas_desborde:N2}h" : "0h")
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Cruces" Style="text-align: right; font-weight: 600;">
+                            <span style="@(context.total_cruces > 0 ? "color: #d97706;" : "color: #64748b;")">
+                                @context.total_cruces
+                            </span>
+                        </MudTd>
+                        <MudTd DataLabel="Sin Reloj" Style="text-align: right; color: #64748b;">@context.total_sin_reloj</MudTd>
+                        <MudTd DataLabel="Sin Tarea" Style="text-align: right; color: #64748b;">@context.total_sin_tarea</MudTd>
+                        <MudTd DataLabel="Calidad %" Style="text-align: center;">
+                            <div class="d-flex align-center justify-center gap-1">
+                                <span style="font-size: 11px; font-weight: 700;">@context.indice_calidad_pct.ToString("N1")%</span>
+                            </div>
+                            <MudProgressLinear Value="@((double)context.indice_calidad_pct)" Max="100" Color="@ObtenerColorProgreso(context.indice_calidad_pct)" Rounded="true" Size="Size.Small" Style="height: 5px; width: 70px; margin: 0 auto;" />
+                        </MudTd>
+                        <MudTd DataLabel="Auditoría" Style="text-align: center;">
+                            @if (context.estado_calidad == "EXCELENTE")
+                            {
+                                <span class="status-badge-excelente">🟢 EXCELENTE</span>
+                            }
+                            else if (context.estado_calidad == "BUENO")
+                            {
+                                <span class="status-badge-bueno">🔵 BUENO</span>
+                            }
+                            else if (context.estado_calidad == "REGULAR")
+                            {
+                                <span class="status-badge-regular">🟡 REGULAR</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge-critico">🔴 CRÍTICO</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Estado Cierre" Style="text-align: center;">
+                            @if (context.horas_desborde > 0)
+                            {
+                                <span class="status-badge-bloqueado">🔒 BLOQUEADO</span>
+                            }
+                            else if (context.total_cruces > 0)
+                            {
+                                <span class="status-badge-alerta">⚠️ REVISAR CRUCES</span>
+                            }
+                            else
+                            {
+                                <span class="status-badge-apto">✅ APTO</span>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+    }
+</div>
+
+@code {
+    private DateTime? fechaInicio = new DateTime(2026, 9, 1);
+    private DateTime? fechaFin = new DateTime(2026, 9, 10);
+    private int? filtroOperacionId = null;
+    private bool isLoading = false;
+
+    private List<Combos> operacionesList = new List<Combos>();
+    private List<AuditoriaIncidenciasOperacionDto> auditoriaList = new List<AuditoriaIncidenciasOperacionDto>();
+
+    // Filtros de tabla
+    private string? filtroEstadoCalidad = null;
+    private string busquedaOperacion = string.Empty;
+
+    // Totales calculados
+    private int TotalRegistros => auditoriaList?.Sum(a => a.total_registros) ?? 0;
+    private int TotalRegistrosOk => auditoriaList?.Sum(a => a.registros_ok) ?? 0;
+    private int TotalDesbordes => auditoriaList?.Sum(a => a.total_desbordes) ?? 0;
+    private decimal TotalHorasDesborde => auditoriaList?.Sum(a => a.horas_desborde) ?? 0m;
+    private int TotalCruces => auditoriaList?.Sum(a => a.total_cruces) ?? 0;
+    private decimal IndiceCalidadGlobal => TotalRegistros > 0 ? Math.Round(((decimal)TotalRegistrosOk / TotalRegistros) * 100m, 2) : 100m;
+    private int OpsConBloqueo => auditoriaList?.Count(a => a.horas_desborde > 0 || a.total_cruces > 0) ?? 0;
+    private int OpsAptas => auditoriaList?.Count(a => a.horas_desborde == 0 && a.total_cruces == 0) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCombosOperaciones();
+        await CargarAuditoria();
+    }
+
+    private async Task CargarCombosOperaciones()
+    {
+        try
+        {
+            var res = await _OdooService.GetAllCombosHost("Operaciones");
+            if (res.Model != null)
+            {
+                operacionesList = res.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar operaciones: " + ex.Message, Severity.Warning);
+        }
+    }
+
+    private async Task CargarAuditoria()
+    {
+        if (!fechaInicio.HasValue || !fechaFin.HasValue)
+        {
+            Snackbar.Add("Selecciona un rango de fechas válido.", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var res = await _OdooService.GetAuditoriaIncidencias(fechaInicio.Value, fechaFin.Value, filtroOperacionId);
+            if (res.Model != null && res.Respuesta?.ExisteError != true)
+            {
+                auditoriaList = res.Model.ToList();
+            }
+            else
+            {
+                auditoriaList = new List<AuditoriaIncidenciasOperacionDto>();
+                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add($"Error en el servidor: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("No se obtuvieron datos para el período.", Severity.Info);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al realizar la auditoría: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetFiltroEstado(string? estado)
+    {
+        filtroEstadoCalidad = estado;
+    }
+
+    private IEnumerable<AuditoriaIncidenciasOperacionDto> OperacionesFiltradas
+    {
+        get
+        {
+            if (auditoriaList == null) return Enumerable.Empty<AuditoriaIncidenciasOperacionDto>();
+
+            var q = auditoriaList.AsEnumerable();
+
+            if (filtroEstadoCalidad == "BLOQUEADO")
+            {
+                q = q.Where(a => a.horas_desborde > 0 || a.total_cruces > 0);
+            }
+            else if (filtroEstadoCalidad == "APTO")
+            {
+                q = q.Where(a => a.horas_desborde == 0 && a.total_cruces == 0);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busquedaOperacion))
+            {
+                var term = busquedaOperacion.Trim().ToLower();
+                q = q.Where(a => a.operacion_nombre != null && a.operacion_nombre.ToLower().Contains(term));
+            }
+
+            return q;
+        }
+    }
+
+    private Color ObtenerColorProgreso(decimal pct)
+    {
+        if (pct >= 95m) return Color.Success;
+        if (pct >= 85m) return Color.Info;
+        if (pct >= 70m) return Color.Warning;
+        return Color.Error;
+    }
+}

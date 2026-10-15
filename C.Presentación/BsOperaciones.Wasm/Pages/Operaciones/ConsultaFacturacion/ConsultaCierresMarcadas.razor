@@ -125,6 +125,32 @@
                 <Columns>
                     <PropertyColumn Property="x => x.Area" Title="Área / Proyecto" />
                     <PropertyColumn Property="x => x.Cargo" Title="Cargo" />
+                    <TemplateColumn Title="Turno">
+                        <CellTemplate>
+                            @if (context.Item.Turno == "Diurno")
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                                    ☀️ Diurno
+                                </MudChip>
+                            }
+                            else if (context.Item.Turno == "Nocturno")
+                            {
+                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold text-white" Style="font-size: 11px; background-color: #34495e;">
+                                    🌙 Nocturno
+                                </MudChip>
+                            }
+                            else if (context.Item.Turno == "Mixto")
+                            {
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                                    ⚖️ Mixto
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">@(string.IsNullOrEmpty(context.Item.Turno) ? "---" : context.Item.Turno)</span>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
                     <TemplateColumn Title="Periodo">
                         <CellTemplate>
                             @(context.Item.FechaMin == default ? "---" : $"{context.Item.FechaMin:dd/MM} al {context.Item.FechaMax:dd/MM/yyyy}")
@@ -156,6 +182,26 @@
                     <PropertyColumn Property="x => x.fecha_asistencia" Title="Fecha" Format="dd/MM/yyyy" />
                     <PropertyColumn Property="x => x.area_nombre" Title="Área" />
                     <PropertyColumn Property="x => x.cargo" Title="Cargo" />
+                    <TemplateColumn Title="Turno">
+                        <CellTemplate>
+                            @if (context.Item.Turno == "Diurno")
+                            {
+                                <span class="badge bg-warning text-dark fw-semibold" style="font-size: 11px;">☀️ Diurno</span>
+                            }
+                            else if (context.Item.Turno == "Nocturno")
+                            {
+                                <span class="badge bg-dark text-white fw-semibold" style="font-size: 11px;">🌙 Nocturno</span>
+                            }
+                            else if (context.Item.Turno == "Mixto")
+                            {
+                                <span class="badge bg-info text-dark fw-semibold" style="font-size: 11px;">⚖️ Mixto</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">---</span>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
                     <TemplateColumn Title="Colaborador">
                         <CellTemplate>
                             <div class="d-flex align-center gap-1">

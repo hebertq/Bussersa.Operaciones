@@ -67,4 +67,36 @@ namespace Modelo.Comercial
         public decimal TotalCostoTransferido { get; set; }
         public decimal TotalHorasPrestadas { get; set; }
     }
+
+    public class RentabilidadCargoConsolidadoDto
+    {
+        public string cargo { get; set; } = string.Empty;
+        public int total_operaciones { get; set; }
+        public decimal horas_totales { get; set; }
+        public decimal ingreso_total { get; set; }
+        public decimal costo_real_total { get; set; }
+        public decimal tarifa_promedio_hora { get; set; }
+        public decimal costo_promedio_hora { get; set; }
+        public decimal utilidad_neta { get; set; }
+        public decimal margen_porcentaje { get; set; }
+        public decimal margen_hora { get; set; }
+        public decimal precio_sugerido { get; set; }
+        public decimal participacion_ingreso_pct { get; set; }
+        public string estado_rentabilidad { get; set; } = string.Empty;
+    }
+
+    public class AuditoriaIncidenciasOperacionDto
+    {
+        public int operacion_id { get; set; }
+        public string operacion_nombre { get; set; } = string.Empty;
+        public int total_registros { get; set; }
+        public int registros_ok { get; set; }
+        public int total_desbordes { get; set; }
+        public decimal horas_desborde { get; set; }
+        public int total_cruces { get; set; }
+        public int total_sin_reloj { get; set; }
+        public int total_sin_tarea { get; set; }
+        public decimal indice_calidad_pct { get; set; }
+        public string estado_calidad { get; set; } = string.Empty;
+    }
 }

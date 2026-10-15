@@ -226,7 +226,13 @@
             <MudTh Style="text-align: center;">Acciones</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Fecha">@context.fecha_inicio?.ToString("yyyy-MM-dd")</MudTd>
+            <MudTd DataLabel="Fecha">
+                <div class="font-bold">@context.fecha_inicio?.ToString("yyyy-MM-dd")</div>
+                @if (context.fecha_fin.HasValue && context.fecha_fin.Value.Date != context.fecha_inicio?.Date)
+                {
+                    <div class="text-secondary" style="font-size: 0.75rem;">al @context.fecha_fin?.ToString("yyyy-MM-dd")</div>
+                }
+            </MudTd>
             <MudTd DataLabel="Cliente / Área">
                 <div class="font-bold d-flex align-center gap-1 flex-wrap">
                     <span>@context.cliente</span>

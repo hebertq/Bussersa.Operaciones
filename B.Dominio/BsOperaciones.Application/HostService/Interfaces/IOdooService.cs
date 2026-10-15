@@ -148,6 +148,8 @@ namespace HostService.Interfaces
 
         // --- RENTABILIDAD CON PRECISIÓN Y PRÉSTAMOS DE PERSONAL ---
         Task<ISingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>> GetRentabilidadPrecision(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m);
+        Task<IListResponse<Modelo.Comercial.RentabilidadCargoConsolidadoDto>> GetRentabilidadCargos(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m);
+        Task<IListResponse<Modelo.Comercial.AuditoriaIncidenciasOperacionDto>> GetAuditoriaIncidencias(DateTime inicio, DateTime fin, int? operacionId = null);
     }
 }
 
