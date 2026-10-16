@@ -50,18 +50,9 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             public bool EsSupervisor { get; set; }
         }
 
-        public class ConsolidadoCierre
-        {
-            public string Area { get; set; }
-            public string Cargo { get; set; } = string.Empty;
-            public string Turno { get; set; } = string.Empty;
-            public DateTime FechaMin { get; set; }
-            public DateTime FechaMax { get; set; }
-            public int DiasLaborados { get; set; }
-            public decimal TotalHoras { get; set; }
-            public decimal TotalExtras { get; set; }
-            public int TotalColaboradores { get; set; }
-        }
+        // Reglas de Cobro & Configuración
+        protected bool mostrarModalReglas = false;
+        protected ReglasCobroConfig ReglasConfig = new();
 
         protected IEnumerable<EmpleadoSupervisorItem> FilteredSupervisoresList =>
             string.IsNullOrWhiteSpace(_searchSupervisor)
@@ -89,6 +80,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
 
             await CargarSupervisoresConfig();
+            await CargarReglasConfig();
         }
 
         protected async Task ConsultarReporte()
@@ -124,6 +116,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     }).ToList();
 
                     await CargarSupervisoresConfig();
+                    await CargarReglasConfig();
                     AplicarFiltrosYTotales();
 
                     if (!DatosCierreRaw.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
@@ -270,6 +263,185 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             foreach (var item in FilteredSupervisoresList) item.EsSupervisor = false;
         }
 
+        protected async Task CargarReglasConfig()
+        {
+            try
+            {
+                string? json = await JS.InvokeAsync<string>("localStorage.getItem", "config_reglas_cobro_horas");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var config = JsonSerializer.Deserialize<ReglasCobroConfig>(json);
+                    if (config != null)
+                    {
+                        ReglasConfig = config;
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al cargar config_reglas_cobro_horas: " + ex.Message);
+            }
+            ReglasConfig = new ReglasCobroConfig();
+        }
+
+        protected async Task GuardarReglasConfig()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(ReglasConfig);
+                await JS.InvokeVoidAsync("localStorage.setItem", "config_reglas_cobro_horas", json);
+                Snackbar.Add("Reglas de cobro guardadas exitosamente.", Severity.Success);
+                mostrarModalReglas = false;
+                AplicarFiltrosYTotales();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error al guardar reglas de cobro: " + ex.Message, Severity.Error);
+            }
+        }
+
+        protected async Task RestablecerReglasDefault()
+        {
+            ReglasConfig = new ReglasCobroConfig();
+            await GuardarReglasConfig();
+            Snackbar.Add("Reglas restablecidas a los valores oficiales por defecto.", Severity.Info);
+        }
+
+        public static bool ContienePalabraClave(string? texto, string keywordsCsv)
+        {
+            if (string.IsNullOrWhiteSpace(texto) || string.IsNullOrWhiteSpace(keywordsCsv)) return false;
+            var keywords = keywordsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var kw in keywords)
+            {
+                if (texto.Contains(kw, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
+        protected void CalcularHorasCobrables(ReporteCierreMarcadasDetalle item)
+        {
+            if (item == null) return;
+
+            // Si las reglas de cobro están desactivadas, conservamos marcación real sin ajuste
+            if (!ReglasConfig.AplicarReglas)
+            {
+                item.HorasNormalesCobrables = item.horas_totales;
+                item.HorasExtrasCobrables = item.horas_extras;
+                item.ReglaAplicada = "Marcación Real";
+                return;
+            }
+
+            string cargo = item.cargo ?? "";
+            string turno = item.Turno ?? "";
+
+            // Cálculo de tiempo transcurrido físico
+            decimal horasTranscurridas = 0;
+            if (TryParseHora(item.entrada_movimiento, out var tEntrada) && TryParseHora(item.salida_movimiento, out var tSalida) && tEntrada != tSalida)
+            {
+                int minEntrada = (int)tEntrada.TotalMinutes;
+                int minSalida = (int)tSalida.TotalMinutes;
+                if (minSalida <= minEntrada) minSalida += 1440;
+                horasTranscurridas = Math.Round((decimal)(minSalida - minEntrada) / 60m, 2);
+            }
+
+            decimal totalHorasMarcadas = item.horas_totales + item.horas_extras;
+            decimal horasEfectivas = horasTranscurridas > 0 ? horasTranscurridas : totalHorasMarcadas;
+
+            // 1. REGLA: CONDUCTORES / CHOFERES
+            // Pago y cobro fijo de 8 horas normales, 0 extras siempre
+            if (ReglasConfig.ConductoresActivo && ContienePalabraClave(cargo, ReglasConfig.ConductoresKeywords))
+            {
+                item.HorasNormalesCobrables = ReglasConfig.ConductoresHorasFijas;
+                item.HorasExtrasCobrables = 0.0m;
+                item.ReglaAplicada = $"Conductor (Fijo {ReglasConfig.ConductoresHorasFijas:N0}N)";
+                return;
+            }
+
+            // 2. REGLA: OPERADORES DE MONTACARGA
+            // Turno de 12 horas diurno o nocturno se cobra como 8 normales y 4 extras
+            if (ReglasConfig.MontacargasActivo && ContienePalabraClave(cargo, ReglasConfig.MontacargasKeywords))
+            {
+                if (horasEfectivas >= 11.0m || totalHorasMarcadas >= 11.0m)
+                {
+                    item.HorasNormalesCobrables = ReglasConfig.MontacargasHorasNormales;
+                    decimal excedenteSobre12h = Math.Max(0.0m, horasEfectivas - 12.0m);
+                    item.HorasExtrasCobrables = ReglasConfig.MontacargasHorasExtras12h + excedenteSobre12h;
+                    item.ReglaAplicada = $"Montacarga 12h ({item.HorasNormalesCobrables:N0}N + {item.HorasExtrasCobrables:N1}E)";
+                }
+                else if (horasEfectivas >= ReglasConfig.MontacargasHorasNormales)
+                {
+                    item.HorasNormalesCobrables = ReglasConfig.MontacargasHorasNormales;
+                    item.HorasExtrasCobrables = horasEfectivas - ReglasConfig.MontacargasHorasNormales;
+                    item.ReglaAplicada = $"Montacarga ({item.HorasNormalesCobrables:N0}N + {item.HorasExtrasCobrables:N1}E)";
+                }
+                else
+                {
+                    item.HorasNormalesCobrables = horasEfectivas > 0 ? horasEfectivas : item.horas_totales;
+                    item.HorasExtrasCobrables = 0.0m;
+                    item.ReglaAplicada = "Montacarga (Parcial)";
+                }
+                return;
+            }
+
+            // 3. REGLA: OPERADORES DE ALMACÉN / OPERARIOS / BODEGA
+            // Diurno: 8h normales, excedente a extras.
+            // Nocturno: Jornada de 7h se factura como 8h normales; excedente sobre 7h pasa a horas extras.
+            if (ReglasConfig.AlmacenActivo && ContienePalabraClave(cargo, ReglasConfig.AlmacenKeywords))
+            {
+                bool esNocturnoOMixto = turno.Equals("Nocturno", StringComparison.OrdinalIgnoreCase) ||
+                                       turno.Equals("Mixto", StringComparison.OrdinalIgnoreCase);
+
+                if (esNocturnoOMixto)
+                {
+                    decimal horasReales = item.horas_totales > 0 ? item.horas_totales : horasEfectivas;
+                    if (horasReales >= 6.5m)
+                    {
+                        item.HorasNormalesCobrables = ReglasConfig.AlmacenHorasNormalesNocturnoCobro;
+                        decimal excesoSobre7h = Math.Max(0.0m, horasReales - ReglasConfig.AlmacenHorasBaseNocturno);
+                        item.HorasExtrasCobrables = item.horas_extras + excesoSobre7h;
+                        item.ReglaAplicada = $"Almacén {turno} ({ReglasConfig.AlmacenHorasBaseNocturno:N0}h → {item.HorasNormalesCobrables:N0}N)";
+                    }
+                    else
+                    {
+                        item.HorasNormalesCobrables = horasReales;
+                        item.HorasExtrasCobrables = item.horas_extras;
+                        item.ReglaAplicada = $"Almacén {turno} (Parcial)";
+                    }
+                }
+                else
+                {
+                    decimal hTotales = item.horas_totales > 0 ? item.horas_totales : horasEfectivas;
+                    if (hTotales >= ReglasConfig.AlmacenHorasNormalesDiurno)
+                    {
+                        item.HorasNormalesCobrables = ReglasConfig.AlmacenHorasNormalesDiurno;
+                        item.HorasExtrasCobrables = item.horas_extras + (hTotales - ReglasConfig.AlmacenHorasNormalesDiurno);
+                    }
+                    else
+                    {
+                        item.HorasNormalesCobrables = hTotales;
+                        item.HorasExtrasCobrables = item.horas_extras;
+                    }
+                    item.ReglaAplicada = $"Almacén {turno} ({item.HorasNormalesCobrables:N0}N + {item.HorasExtrasCobrables:N1}E)";
+                }
+                return;
+            }
+
+            // 4. REGLA POR DEFECTO: OTROS PUESTOS (Tope 8N, exceso a extras)
+            decimal ht = item.horas_totales > 0 ? item.horas_totales : horasEfectivas;
+            if (ht >= 8.0m)
+            {
+                item.HorasNormalesCobrables = 8.0m;
+                item.HorasExtrasCobrables = item.horas_extras + (ht - 8.0m);
+            }
+            else
+            {
+                item.HorasNormalesCobrables = ht;
+                item.HorasExtrasCobrables = item.horas_extras;
+            }
+            item.ReglaAplicada = "Estándar";
+        }
+
         protected void AplicarFiltrosYTotales()
         {
             if (excluirSupervisores)
@@ -281,29 +453,66 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 DatosCierre = DatosCierreRaw.ToList();
             }
 
-            ResumenPorArea = DatosCierre
-                .GroupBy(x => new
-                {
-                    Area = string.IsNullOrWhiteSpace(x.area_nombre) ? "SIN ÁREA" : x.area_nombre.Trim(),
-                    Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim(),
-                    Turno = string.IsNullOrWhiteSpace(x.Turno) ? "SIN TURNO" : x.Turno.Trim()
-                })
-                .Select(g => new ConsolidadoCierre
-                {
-                    Area = g.Key.Area,
-                    Cargo = g.Key.Cargo,
-                    Turno = g.Key.Turno,
-                    FechaMin = g.Min(x => x.fecha_asistencia),
-                    FechaMax = g.Max(x => x.fecha_asistencia),
-                    DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
-                    TotalHoras = g.Sum(x => x.horas_totales),
-                    TotalExtras = g.Sum(x => x.horas_extras),
-                    TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
-                })
-                .OrderBy(x => x.Area)
-                .ThenBy(x => x.Cargo)
-                .ThenBy(x => x.Turno)
-                .ToList();
+            foreach (var item in DatosCierre)
+            {
+                CalcularHorasCobrables(item);
+            }
+
+            if (ReglasConfig.ModoAgrupacion == "AreaCargo")
+            {
+                ResumenPorArea = DatosCierre
+                    .GroupBy(x => new
+                    {
+                        Area = string.IsNullOrWhiteSpace(x.area_nombre) ? "SIN ÁREA" : x.area_nombre.Trim(),
+                        Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim(),
+                        Turno = "CONSOLIDADO"
+                    })
+                    .Select(g => new ConsolidadoCierre
+                    {
+                        Area = g.Key.Area,
+                        Cargo = g.Key.Cargo,
+                        Turno = g.Key.Turno,
+                        FechaMin = g.Min(x => x.fecha_asistencia),
+                        FechaMax = g.Max(x => x.fecha_asistencia),
+                        DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
+                        TotalHoras = g.Sum(x => x.HorasNormalesCobrables),
+                        TotalExtras = g.Sum(x => x.HorasExtrasCobrables),
+                        TotalHorasReales = g.Sum(x => x.horas_totales),
+                        TotalExtrasReales = g.Sum(x => x.horas_extras),
+                        TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
+                    })
+                    .OrderBy(x => x.Area)
+                    .ThenBy(x => x.Cargo)
+                    .ToList();
+            }
+            else
+            {
+                ResumenPorArea = DatosCierre
+                    .GroupBy(x => new
+                    {
+                        Area = string.IsNullOrWhiteSpace(x.area_nombre) ? "SIN ÁREA" : x.area_nombre.Trim(),
+                        Cargo = string.IsNullOrWhiteSpace(x.cargo) ? "SIN CARGO" : x.cargo.Trim(),
+                        Turno = string.IsNullOrWhiteSpace(x.Turno) ? "SIN TURNO" : x.Turno.Trim()
+                    })
+                    .Select(g => new ConsolidadoCierre
+                    {
+                        Area = g.Key.Area,
+                        Cargo = g.Key.Cargo,
+                        Turno = g.Key.Turno,
+                        FechaMin = g.Min(x => x.fecha_asistencia),
+                        FechaMax = g.Max(x => x.fecha_asistencia),
+                        DiasLaborados = g.Select(x => x.fecha_asistencia.Date).Distinct().Count(),
+                        TotalHoras = g.Sum(x => x.HorasNormalesCobrables),
+                        TotalExtras = g.Sum(x => x.HorasExtrasCobrables),
+                        TotalHorasReales = g.Sum(x => x.horas_totales),
+                        TotalExtrasReales = g.Sum(x => x.horas_extras),
+                        TotalColaboradores = g.Select(x => x.id_empleado).Distinct().Count()
+                    })
+                    .OrderBy(x => x.Area)
+                    .ThenBy(x => x.Cargo)
+                    .ThenBy(x => x.Turno)
+                    .ToList();
+            }
 
             StateHasChanged();
         }
@@ -409,8 +618,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Hasta = x.FechaMax.ToString("yyyy-MM-dd"),
                     Días = x.DiasLaborados,
                     Personal = x.TotalColaboradores,
-                    Total_Horas = x.TotalHoras,
-                    Total_Extras = x.TotalExtras
+                    Horas_Cobrables = x.TotalHoras,
+                    Extras_Cobrables = x.TotalExtras,
+                    Total_Cobrable = x.TotalHoras + x.TotalExtras,
+                    Horas_Marcadas_Reales = x.TotalHorasReales,
+                    Extras_Marcadas_Reales = x.TotalExtrasReales
                 }).ToList();
 
                 var detalleExport = DatosCierre.Select(x => new
@@ -423,8 +635,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Nombre = x.nombre_empleado,
                     Entrada = x.entrada_movimiento,
                     Salida = x.salida_movimiento,
-                    Horas = x.horas_totales,
-                    Extras = x.horas_extras
+                    Horas_Marcadas = x.horas_totales,
+                    Extras_Marcadas = x.horas_extras,
+                    Horas_Cobrables = x.HorasNormalesCobrables,
+                    Extras_Cobrables = x.HorasExtrasCobrables,
+                    Regla_Aplicada = x.ReglaAplicada
                 }).ToList();
 
                 var request = new MultiSheetExcelRequest
