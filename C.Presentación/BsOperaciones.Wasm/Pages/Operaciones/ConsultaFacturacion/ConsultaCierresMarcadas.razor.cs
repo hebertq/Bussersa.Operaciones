@@ -288,36 +288,72 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             ReglasConfig = new ReglasCobroConfig();
         }
 
-        protected string NombreClienteSeleccionado =>
-            PayLoadOper.FirstOrDefault(x => x.id == operacionId)?.nombre ?? (operacionId > 0 ? $"Cliente #{operacionId}" : "Sin Cliente Seleccionado");
+        protected int modalOperacionId = 0;
+        protected string NombreOperacionModal =>
+            PayLoadOper.FirstOrDefault(x => x.id == modalOperacionId)?.nombre ?? (modalOperacionId > 0 ? $"Operación #{modalOperacionId}" : "Seleccione Operación");
 
         protected List<Modelo.Entidades.Operaciones.ReglaCobroClienteDto> ReglasCliente = new();
+        protected Modelo.Entidades.Operaciones.ReglaCobroClienteDto editingRegla = new();
         protected bool cargandoReglas = false;
+        protected bool guardandoRegla = false;
 
         protected async Task AbrirModalReglas()
         {
-            if (operacionId == 0)
+            if (operacionId > 0)
             {
-                Snackbar.Add("Seleccione un cliente para configurar sus reglas de cobro.", Severity.Warning);
-                return;
+                modalOperacionId = operacionId;
+            }
+            else if (PayLoadOper != null && PayLoadOper.Any())
+            {
+                var glacial = PayLoadOper.FirstOrDefault(x => x.id == 28 || (x.nombre != null && x.nombre.Contains("Glacial", StringComparison.OrdinalIgnoreCase)));
+                modalOperacionId = glacial?.id ?? PayLoadOper.First().id;
+            }
+            else
+            {
+                modalOperacionId = 0;
             }
 
-            cargandoReglas = true;
+            LimpiarFormularioEdicion();
             mostrarModalReglas = true;
             StateHasChanged();
 
+            if (modalOperacionId > 0)
+            {
+                await CargarReglasDeOperacion(modalOperacionId);
+            }
+        }
+
+        protected async Task OnModalOperacionChanged(ChangeEventArgs e)
+        {
+            if (int.TryParse(e.Value?.ToString(), out int opId))
+            {
+                modalOperacionId = opId;
+                LimpiarFormularioEdicion();
+                if (modalOperacionId > 0)
+                {
+                    await CargarReglasDeOperacion(modalOperacionId);
+                }
+                else
+                {
+                    ReglasCliente.Clear();
+                    StateHasChanged();
+                }
+            }
+        }
+
+        protected async Task CargarReglasDeOperacion(int opId)
+        {
+            cargandoReglas = true;
+            StateHasChanged();
             try
             {
-                var res = await OdooService.GetReglasCobroCliente(operacionId);
-                ReglasCliente = res.Model?.ToList() ?? new();
-                if (!ReglasCliente.Any())
-                {
-                    CargarPlantillaDefaultReglas();
-                }
+                var res = await OdooService.GetReglasCobroCliente(opId);
+                ReglasCliente = res.Model?.OrderBy(x => x.Orden).ThenBy(x => x.Id).ToList() ?? new();
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"Error al cargar reglas del cliente: {ex.Message}", Severity.Error);
+                Snackbar.Add($"Error al cargar reglas: {ex.Message}", Severity.Error);
+                ReglasCliente = new();
             }
             finally
             {
@@ -326,97 +362,188 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
         }
 
-        protected void CargarPlantillaDefaultReglas()
+        protected void LimpiarFormularioEdicion()
         {
-            ReglasCliente = new List<Modelo.Entidades.Operaciones.ReglaCobroClienteDto>
+            editingRegla = new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
             {
-                new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
-                {
-                    OperacionId = operacionId,
-                    NombreRegla = "Operador de Montacargas (12h)",
-                    CargoPatron = "montacarga, montacarguista",
-                    TipoRegla = "MONTACARGA_12H",
-                    HorasNormales = 8.00m,
-                    HorasExtrasBase = 4.00m,
-                    HorasBaseTurno = 12.00m,
-                    Activa = true,
-                    Orden = 1
-                },
-                new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
-                {
-                    OperacionId = operacionId,
-                    NombreRegla = "Operador de Almacén (Nocturno 7h -> 8h)",
-                    CargoPatron = "almacen, bodega, operario, ayudante",
-                    TipoRegla = "NOCTURNO_EQUIVALENCIA",
-                    HorasNormales = 8.00m,
-                    HorasExtrasBase = 0.00m,
-                    HorasBaseTurno = 7.00m,
-                    Activa = true,
-                    Orden = 2
-                },
-                new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
-                {
-                    OperacionId = operacionId,
-                    NombreRegla = "Conductor / Chofer (Fijo 8h)",
-                    CargoPatron = "conductor, chofer, motorista",
-                    TipoRegla = "FIJO_DIARIO",
-                    HorasNormales = 8.00m,
-                    HorasExtrasBase = 0.00m,
-                    HorasBaseTurno = 8.00m,
-                    Activa = true,
-                    Orden = 3
-                }
-            };
-        }
-
-        protected void AgregarNuevaRegla()
-        {
-            ReglasCliente.Add(new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
-            {
-                OperacionId = operacionId,
-                NombreRegla = $"Nueva Regla #{ReglasCliente.Count + 1}",
+                Id = 0,
+                OperacionId = modalOperacionId,
+                NombreRegla = "",
                 CargoPatron = "",
-                TipoRegla = "TOPE_DIARIO",
+                TipoRegla = "MONTACARGA_12H",
                 HorasNormales = 8.00m,
-                HorasExtrasBase = 0.00m,
-                HorasBaseTurno = 8.00m,
+                HorasExtrasBase = 4.00m,
+                HorasBaseTurno = 12.00m,
                 Activa = true,
                 Orden = ReglasCliente.Count + 1
-            });
-        }
-
-        protected void EliminarRegla(Modelo.Entidades.Operaciones.ReglaCobroClienteDto regla)
-        {
-            ReglasCliente.Remove(regla);
-        }
-
-        protected async Task GuardarReglasClienteEnDb()
-        {
-            if (operacionId == 0) return;
-
-            cargandoReglas = true;
+            };
             StateHasChanged();
+        }
+
+        protected void EditarRegla(Modelo.Entidades.Operaciones.ReglaCobroClienteDto regla)
+        {
+            editingRegla = new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
+            {
+                Id = regla.Id,
+                OperacionId = regla.OperacionId,
+                NombreRegla = regla.NombreRegla,
+                CargoPatron = regla.CargoPatron,
+                TipoRegla = regla.TipoRegla,
+                HorasNormales = regla.HorasNormales,
+                HorasExtrasBase = regla.HorasExtrasBase,
+                HorasBaseTurno = regla.HorasBaseTurno,
+                Activa = regla.Activa,
+                Orden = regla.Orden,
+                FechaRegistro = regla.FechaRegistro,
+                FechaActualizacion = regla.FechaActualizacion
+            };
+            StateHasChanged();
+        }
+
+        protected void OnTipoReglaChanged(ChangeEventArgs e)
+        {
+            string nuevoTipo = e.Value?.ToString() ?? "PERSONALIZADA";
+            editingRegla.TipoRegla = nuevoTipo;
+            switch (nuevoTipo)
+            {
+                case "MONTACARGA_12H":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 4.00m;
+                    editingRegla.HorasBaseTurno = 12.00m;
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de Montacargas (12h)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "montacarga, montacarguista";
+                    break;
+                case "NOCTURNO_EQUIVALENCIA":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 7.00m;
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de Almacén (Nocturno 7h -> 8h)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "almacen, bodega, operario, ayudante";
+                    break;
+                case "FIJO_DIARIO":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Conductor / Chofer (Fijo 8h)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "conductor, chofer, motorista";
+                    break;
+                case "TOPE_DIARIO":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                    break;
+            }
+        }
+
+        protected async Task GuardarReglaFormulario()
+        {
+            if (modalOperacionId == 0)
+            {
+                Snackbar.Add("Debe seleccionar una operación primero.", Severity.Warning);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla))
+            {
+                Snackbar.Add("El nombre de la regla es requerido.", Severity.Warning);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron))
+            {
+                Snackbar.Add("Debe indicar al menos una palabra clave de cargo.", Severity.Warning);
+                return;
+            }
+
+            editingRegla.OperacionId = modalOperacionId;
+            guardandoRegla = true;
+            StateHasChanged();
+
             try
             {
-                var res = await OdooService.SaveReglasCobroCliente(operacionId, ReglasCliente);
-                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                var listaActualizada = ReglasCliente.ToList();
+                if (editingRegla.Id > 0)
                 {
-                    Snackbar.Add($"Error al guardar reglas: {res.Respuesta.MensajeError}", Severity.Error);
+                    var idx = listaActualizada.FindIndex(x => x.Id == editingRegla.Id);
+                    if (idx >= 0)
+                    {
+                        listaActualizada[idx] = editingRegla;
+                    }
+                    else
+                    {
+                        listaActualizada.Add(editingRegla);
+                    }
                 }
                 else
                 {
-                    Snackbar.Add("Reglas de cobro guardadas exitosamente en la base de datos.", Severity.Success);
-                    mostrarModalReglas = false;
-                    await ConsultarReporte();
+                    editingRegla.Orden = listaActualizada.Count + 1;
+                    listaActualizada.Add(editingRegla);
+                }
+
+                var res = await OdooService.SaveReglasCobroCliente(modalOperacionId, listaActualizada);
+                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add($"Error al guardar en base de datos: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add(editingRegla.Id > 0 ? "Regla actualizada en base de datos con éxito." : "Regla creada y guardada en base de datos con éxito.", Severity.Success);
+                    await CargarReglasDeOperacion(modalOperacionId);
+                    LimpiarFormularioEdicion();
+
+                    if (modalOperacionId == operacionId && DatosCierreRaw != null && DatosCierreRaw.Any())
+                    {
+                        await ConsultarReporte();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"Error al guardar reglas: {ex.Message}", Severity.Error);
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
             }
             finally
             {
-                cargandoReglas = false;
+                guardandoRegla = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task EliminarReglaDeGrilla(Modelo.Entidades.Operaciones.ReglaCobroClienteDto regla)
+        {
+            if (modalOperacionId == 0) return;
+
+            guardandoRegla = true;
+            StateHasChanged();
+            try
+            {
+                var lista = ReglasCliente.Where(x => x.Id != regla.Id && x != regla).ToList();
+                var res = await OdooService.SaveReglasCobroCliente(modalOperacionId, lista);
+                if (res.Respuesta != null && res.Respuesta.ExisteError)
+                {
+                    Snackbar.Add($"Error al eliminar regla: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("Regla eliminada de la base de datos.", Severity.Success);
+                    if (editingRegla.Id == regla.Id)
+                    {
+                        LimpiarFormularioEdicion();
+                    }
+                    await CargarReglasDeOperacion(modalOperacionId);
+
+                    if (modalOperacionId == operacionId && DatosCierreRaw != null && DatosCierreRaw.Any())
+                    {
+                        await ConsultarReporte();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al eliminar: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                guardandoRegla = false;
                 StateHasChanged();
             }
         }

@@ -116,7 +116,7 @@
             </MudTooltip>
 
             <MudTooltip Text="Configurar reglas de cobro de horas por puesto (Montacargas, Almacén, Choferes)">
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="() => mostrarModalReglas = true" Style="height: 36px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.Tune">
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="AbrirModalReglas" Style="height: 36px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.Tune">
                     Reglas Cobro
                 </MudButton>
             </MudTooltip>
@@ -393,125 +393,247 @@
 @* --- MODAL DE CONFIGURACIÓN DE REGLAS DE COBRO POR CLIENTE --- *@
 @if (mostrarModalReglas)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 99999;">
-        <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55); z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 1140px;">
             <div class="modal-content border-0 shadow-lg rounded-3">
-                <div class="modal-header bg-dark text-white">
+                @* HEADER *@
+                <div class="modal-header bg-dark text-white py-3">
                     <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-gear-wide-connected fs-4 text-info"></i>
                         <div>
-                            <h5 class="modal-title fw-bold mb-0">Reglas de Cobro por Cliente</h5>
-                            <span class="badge bg-primary text-white" style="font-size: 11px;">@NombreClienteSeleccionado</span>
+                            <h5 class="modal-title fw-bold mb-0">Reglas de Cobro de Horas por Operación</h5>
+                            <small class="text-light opacity-75">Configuración y persistencia en Base de Datos (PostgreSQL)</small>
                         </div>
                     </div>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalReglas = false"></button>
                 </div>
-                <div class="modal-body p-4" style="max-height: 600px; overflow-y: auto;">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="alert alert-info py-2 px-3 small fw-semibold mb-0 d-flex align-items-center gap-2 flex-grow-1 me-3">
-                            <i class="bi bi-info-circle-fill fs-5"></i>
-                            <span>Las reglas se guardan en la <strong>Base de Datos</strong> asociadas a este cliente y se calculan automáticamente mediante <strong>LEFT JOIN</strong> en el servidor al consultar el reporte.</span>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fw-semibold" @onclick="CargarPlantillaDefaultReglas">
-                                <i class="bi bi-arrow-repeat"></i> Plantilla Estándar
-                            </button>
-                            <button type="button" class="btn btn-success btn-sm rounded-pill fw-bold px-3 shadow-sm" @onclick="AgregarNuevaRegla">
-                                <i class="bi bi-plus-circle-fill me-1"></i> + Nueva Regla
-                            </button>
+
+                @* BODY *@
+                <div class="modal-body p-4" style="max-height: 80vh; overflow-y: auto;">
+                    
+                    @* 1. FILTRO POR OPERACIÓN *@
+                    <div class="card border-0 bg-light p-3 mb-3 shadow-sm rounded-3">
+                        <div class="row align-items-center g-2">
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-building me-1 text-primary"></i> Filtrar por Operación / Cliente:
+                                </label>
+                                <select class="form-select form-select-sm fw-bold border-primary shadow-sm" value="@modalOperacionId" @onchange="OnModalOperacionChanged">
+                                    <option value="0">-- Seleccione una Operación --</option>
+                                    @if (PayLoadOper != null)
+                                    {
+                                        @foreach (var op in PayLoadOper)
+                                        {
+                                            <option value="@op.id">@op.nombre</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-5 d-flex align-items-center justify-content-md-end gap-2 mt-2 mt-md-0">
+                                @if (modalOperacionId > 0)
+                                {
+                                    <span class="badge bg-primary px-3 py-2 fs-6">
+                                        <i class="bi bi-check-circle-fill me-1"></i> @NombreOperacionModal
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Seleccione una operación
+                                    </span>
+                                }
+                            </div>
                         </div>
                     </div>
 
-                    @if (cargandoReglas)
+                    @if (modalOperacionId > 0)
                     {
-                        <div class="text-center py-5">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="small text-muted mt-2">Cargando reglas desde la base de datos...</p>
-                        </div>
-                    }
-                    else if (!ReglasCliente.Any())
-                    {
-                        <div class="text-center py-5 border rounded bg-light">
-                            <i class="bi bi-inbox fs-1 text-muted"></i>
-                            <p class="fw-semibold text-secondary mt-2 mb-3">Este cliente no tiene reglas de cobro configuradas.</p>
-                            <button class="btn btn-primary btn-sm rounded-pill fw-bold px-3" @onclick="CargarPlantillaDefaultReglas">
-                                <i class="bi bi-magic me-1"></i> Cargar Reglas Recomendadas
-                            </button>
-                        </div>
-                    }
-                    else
-                    {
-                        @for (int i = 0; i < ReglasCliente.Count; i++)
-                        {
-                            var regla = ReglasCliente[i];
-                            int index = i + 1;
-                            <div class="card mb-3 border @(regla.Activa ? "border-primary" : "border-secondary") shadow-sm">
-                                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                                    <div class="d-flex align-items-center gap-2 flex-grow-1 me-3">
-                                        <span class="badge bg-secondary">#@index</span>
-                                        <input type="text" class="form-control form-control-sm fw-bold border-primary" style="max-width: 320px;" placeholder="Nombre de la regla..." @bind="regla.NombreRegla" />
+                        @* 2. CONTROLES DE EDICIÓN (FORMULARIO MASTER) *@
+                        <div class="card border-primary border-opacity-50 shadow-sm mb-4">
+                            <div class="card-header bg-primary bg-opacity-10 py-2 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-primary small d-flex align-items-center gap-1">
+                                    <i class="bi @(editingRegla.Id > 0 ? "bi-pencil-square" : "bi-plus-circle")"></i>
+                                    <span>@(editingRegla.Id > 0 ? $"Editando Regla: {editingRegla.NombreRegla}" : "Controles de Edición: Agregar Nueva Regla")</span>
+                                </div>
+                                @if (editingRegla.Id > 0)
+                                {
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 small" @onclick="LimpiarFormularioEdicion">
+                                        <i class="bi bi-x-circle me-1"></i> Cancelar Edición
+                                    </button>
+                                }
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold text-secondary mb-1">Nombre de la Regla:</label>
+                                        <input type="text" class="form-control form-control-sm fw-semibold" placeholder="ej. Operador de Montacargas" @bind="editingRegla.NombreRegla" />
                                     </div>
-                                    <div class="d-flex align-items-center gap-3">
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold text-secondary mb-1">Palabras clave del Cargo (separadas por comas):</label>
+                                        <input type="text" class="form-control form-control-sm" placeholder="ej. montacarga, montacarguista" @bind="editingRegla.CargoPatron" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="small fw-bold text-secondary mb-1">Tipo / Comportamiento de Cobro:</label>
+                                        <select class="form-select form-select-sm" value="@editingRegla.TipoRegla" @onchange="OnTipoReglaChanged">
+                                            <option value="MONTACARGA_12H">🚜 Montacargas 12h (8N + 4E + Exceso)</option>
+                                            <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>
+                                            <option value="FIJO_DIARIO">🚚 Tarifa Fija Diaria (Horas Fijas)</option>
+                                            <option value="TOPE_DIARIO">⏱️ Tope Diario (Exceso a Extras)</option>
+                                            <option value="PERSONALIZADA">⚙️ Personalizada</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="small fw-bold text-secondary mb-1">Horas Normales:</label>
+                                        <input type="number" step="0.5" class="form-control form-control-sm" @bind="editingRegla.HorasNormales" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="small fw-bold text-secondary mb-1">Horas Extras Base:</label>
+                                        <input type="number" step="0.5" class="form-control form-control-sm" @bind="editingRegla.HorasExtrasBase" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="small fw-bold text-secondary mb-1">Horas Base Turno:</label>
+                                        <input type="number" step="0.5" class="form-control form-control-sm" @bind="editingRegla.HorasBaseTurno" />
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-center gap-3 pt-3">
                                         <div class="form-check form-switch mb-0">
-                                            <input class="form-check-input" type="checkbox" id="@($"chkActiva_{index}")" @bind="regla.Activa" />
-                                            <label class="form-check-label small fw-bold @(regla.Activa ? "text-success" : "text-muted")" for="@($"chkActiva_{index}")">
-                                                @(regla.Activa ? "Activa" : "Inactiva")
+                                            <input class="form-check-input" type="checkbox" id="chkModalReglaActiva" @bind="editingRegla.Activa" />
+                                            <label class="form-check-label small fw-bold @(editingRegla.Activa ? "text-success" : "text-muted")" for="chkModalReglaActiva">
+                                                @(editingRegla.Activa ? "Regla Activa" : "Regla Inactiva")
                                             </label>
                                         </div>
-                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-1" title="Eliminar regla" @onclick="() => EliminarRegla(regla)">
-                                            <i class="bi bi-trash-fill px-1"></i>
-                                        </button>
                                     </div>
                                 </div>
-                                <div class="card-body py-2">
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-md-4">
-                                            <label class="small fw-bold text-secondary">Palabras clave del Cargo (separadas por comas):</label>
-                                            <input type="text" class="form-control form-control-sm" @bind="regla.CargoPatron" placeholder="ej. montacarga, montacarguista" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="small fw-bold text-secondary">Tipo / Comportamiento de Cobro:</label>
-                                            <select class="form-select form-select-sm" @bind="regla.TipoRegla">
-                                                <option value="MONTACARGA_12H">🚜 Montacargas 12h (8N + 4E + Exceso)</option>
-                                                <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>
-                                                <option value="FIJO_DIARIO">🚚 Tarifa Fija Diaria (Horas Fijas)</option>
-                                                <option value="TOPE_DIARIO">⏱️ Tope Diario (Exceso a Extras)</option>
-                                                <option value="PERSONALIZADA">⚙️ Personalizada</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="small fw-bold text-secondary">Horas Normales:</label>
-                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasNormales" />
-                                        </div>
-                                        <div class="col-md-1">
-                                            <label class="small fw-bold text-secondary">Extras Base:</label>
-                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasExtrasBase" />
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label class="small fw-bold text-secondary">Base Turno / Umbral:</label>
-                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasBaseTurno" />
-                                        </div>
-                                    </div>
+
+                                <div class="d-flex justify-content-end gap-2 mt-3 pt-2 border-top">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" @onclick="LimpiarFormularioEdicion" disabled="@guardandoRegla">
+                                        <i class="bi bi-eraser-fill me-1"></i> Limpiar
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm" @onclick="GuardarReglaFormulario" disabled="@guardandoRegla">
+                                        @if (guardandoRegla)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            <span>Guardando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi @(editingRegla.Id > 0 ? "bi-check-circle-fill" : "bi-cloud-arrow-up-fill") me-1"></i>
+                                            <span>@(editingRegla.Id > 0 ? "Actualizar Regla en Base de Datos" : "Guardar Regla en Base de Datos")</span>
+                                        }
+                                    </button>
                                 </div>
                             </div>
-                        }
+                        </div>
+
+                        @* 3. GRILLA DE REGLAS APLICADAS *@
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <span class="fw-bold small text-dark">
+                                    <i class="bi bi-table me-1 text-primary"></i> Reglas Aplicadas Registradas (@ReglasCliente.Count)
+                                </span>
+                                <small class="text-muted">Presione <strong>Editar</strong> en cualquier fila para cargarla en los controles superiores.</small>
+                            </div>
+                            <div class="card-body p-0">
+                                @if (cargandoReglas)
+                                {
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                        <span class="small text-muted ms-2">Cargando reglas desde la base de datos...</span>
+                                    </div>
+                                }
+                                else if (!ReglasCliente.Any())
+                                {
+                                    <div class="text-center py-4 bg-light">
+                                        <i class="bi bi-inbox fs-3 text-muted"></i>
+                                        <p class="small text-muted mb-0 mt-1">No hay reglas registradas para esta operación. Ingrese una en los controles de arriba para agregarla.</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-striped align-middle mb-0 small">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th style="width: 40px;" class="text-center">#</th>
+                                                    <th>Nombre Regla</th>
+                                                    <th>Cargos / Palabras Clave</th>
+                                                    <th>Tipo de Cobro</th>
+                                                    <th class="text-center">H. Normales</th>
+                                                    <th class="text-center">H. Extras Base</th>
+                                                    <th class="text-center">H. Base Turno</th>
+                                                    <th class="text-center">Estado</th>
+                                                    <th class="text-center" style="width: 140px;">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (int i = 0; i < ReglasCliente.Count; i++)
+                                                {
+                                                    var regla = ReglasCliente[i];
+                                                    int num = i + 1;
+                                                    bool isEditingThis = editingRegla.Id > 0 && editingRegla.Id == regla.Id;
+                                                    <tr class="@(isEditingThis ? "table-warning fw-bold" : "")">
+                                                        <td class="text-center fw-bold">@num</td>
+                                                        <td class="fw-bold text-primary">@regla.NombreRegla</td>
+                                                        <td>
+                                                            <code>@regla.CargoPatron</code>
+                                                        </td>
+                                                        <td>
+                                                            @switch (regla.TipoRegla)
+                                                            {
+                                                                case "MONTACARGA_12H":
+                                                                    <span>🚜 Montacargas 12h</span>
+                                                                    break;
+                                                                case "NOCTURNO_EQUIVALENCIA":
+                                                                    <span>🌙 Nocturno 7h→8N</span>
+                                                                    break;
+                                                                case "FIJO_DIARIO":
+                                                                    <span>🚚 Tarifa Fija</span>
+                                                                    break;
+                                                                case "TOPE_DIARIO":
+                                                                    <span>⏱️ Tope Diario</span>
+                                                                    break;
+                                                                default:
+                                                                    <span>⚙️ Personalizada</span>
+                                                                    break;
+                                                            }
+                                                        </td>
+                                                        <td class="text-center">@regla.HorasNormales.ToString("F1") h</td>
+                                                        <td class="text-center">@regla.HorasExtrasBase.ToString("F1") h</td>
+                                                        <td class="text-center">@regla.HorasBaseTurno.ToString("F1") h</td>
+                                                        <td class="text-center">
+                                                            @if (regla.Activa)
+                                                            {
+                                                                <span class="badge bg-success">Activa</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-secondary">Inactiva</span>
+                                                            }
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <div class="d-flex justify-content-center gap-1">
+                                                                <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2" title="Editar regla" @onclick="() => EditarRegla(regla)">
+                                                                    <i class="bi bi-pencil-square me-1"></i> Editar
+                                                                </button>
+                                                                <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" title="Eliminar regla" @onclick="() => EliminarReglaDeGrilla(regla)">
+                                                                    <i class="bi bi-trash-fill"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+                        </div>
                     }
                 </div>
-                <div class="modal-footer bg-light d-flex justify-content-between">
-                    <div>
-                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold px-3 me-2" @onclick="AgregarNuevaRegla">
-                            <i class="bi bi-plus-circle-fill"></i> + Agregar Otra Regla
-                        </button>
-                        <span class="small text-muted fw-semibold">
-                            Total: <strong>@ReglasCliente.Count</strong> regla(s)
-                        </span>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4 me-2" @onclick="() => mostrarModalReglas = false">Cerrar</button>
-                        <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="GuardarReglasClienteEnDb" disabled="@cargandoReglas">
-                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar en Base de Datos
-                        </button>
-                    </div>
+
+                @* FOOTER *@
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4" @onclick="() => mostrarModalReglas = false">Cerrar</button>
                 </div>
             </div>
         </div>
