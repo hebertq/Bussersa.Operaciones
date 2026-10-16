@@ -633,6 +633,15 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
 
             // Fallback estándar si viniera sin pre-cálculo
+            // Si todas las horas están en extras (horas_totales = 0 y horas_extras > 0), es feriado / domingo: 100% extras
+            if (item.horas_totales == 0 && item.horas_extras > 0)
+            {
+                item.HorasNormalesCobrables = 0.0m;
+                item.HorasExtrasCobrables = item.horas_extras;
+                item.ReglaAplicada = "Feriado / Domingo";
+                return;
+            }
+
             decimal ht = item.horas_totales;
             if (ht >= 8.0m)
             {
