@@ -18,5 +18,8 @@ namespace Modelo.Report
         public DateTime fecha_registro { get; set; }
         public DateTime? fecha_actualizacion { get; set; }
         public string? cargo { get; set; }
+        public decimal horas_normales_cobrables { get; set; }
+        public decimal horas_extras_cobrables { get; set; }
+        public string? regla_aplicada { get; set; }
     }
 }

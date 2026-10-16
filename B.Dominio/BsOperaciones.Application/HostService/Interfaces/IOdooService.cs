@@ -150,6 +150,11 @@ namespace HostService.Interfaces
         Task<ISingleResponse<Modelo.Comercial.RentabilidadPrecisionConsolidadoDto>> GetRentabilidadPrecision(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m);
         Task<IListResponse<Modelo.Comercial.RentabilidadCargoConsolidadoDto>> GetRentabilidadCargos(int periodo, int? operacionId = null, decimal margenObjetivo = 0.20m);
         Task<IListResponse<Modelo.Comercial.AuditoriaIncidenciasOperacionDto>> GetAuditoriaIncidencias(DateTime inicio, DateTime fin, int? operacionId = null);
+
+        // --- REGLAS DE COBRO POR CLIENTE ---
+        Task<IListResponse<Modelo.Entidades.Operaciones.ReglaCobroClienteDto>> GetReglasCobroCliente(int operacionId);
+        Task<IResponse> SaveReglasCobroCliente(int operacionId, List<Modelo.Entidades.Operaciones.ReglaCobroClienteDto> reglas);
+        Task<IResponse> DeleteReglaCobroCliente(int id);
     }
 }
 

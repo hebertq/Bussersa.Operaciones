@@ -390,118 +390,127 @@
     </div>
 }
 
-@* --- MODAL DE CONFIGURACIÓN DE REGLAS DE COBRO --- *@
+@* --- MODAL DE CONFIGURACIÓN DE REGLAS DE COBRO POR CLIENTE --- *@
 @if (mostrarModalReglas)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 99999;">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content border-0 shadow-lg rounded-3">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
                         <i class="bi bi-gear-wide-connected fs-4 text-info"></i>
-                        Reglas de Cobro y Facturación de Horas por Puesto
-                    </h5>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0">Reglas de Cobro por Cliente</h5>
+                            <span class="badge bg-primary text-white" style="font-size: 11px;">@NombreClienteSeleccionado</span>
+                        </div>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalReglas = false"></button>
                 </div>
-                <div class="modal-body p-4" style="max-height: 520px; overflow-y: auto;">
-                    <div class="alert alert-info py-2 small fw-semibold mb-4 d-flex align-items-center gap-2">
-                        <i class="bi bi-info-circle-fill fs-5"></i>
-                        <span>Configure los criterios de reagrupación y cobro de horas normales y extras para Glacial y demás operaciones. Puede editar las palabras clave para que coincidan con cualquier puesto de sus clientes.</span>
-                    </div>
-
-                    @* REGLA 1: OPERADOR DE MONTACARGA *@
-                    <div class="card mb-3 border @(ReglasConfig.MontacargasActivo ? "border-primary" : "border-secondary") shadow-sm">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="chkMontacargas" @bind="ReglasConfig.MontacargasActivo" />
-                                <label class="form-check-label fw-bold text-dark" for="chkMontacargas">
-                                    🚜 1. Operador de Montacargas (Turnos de 12 horas)
-                                </label>
-                            </div>
-                            <span class="badge @(ReglasConfig.MontacargasActivo ? "bg-primary" : "bg-secondary")">@(ReglasConfig.MontacargasActivo ? "ACTIVA" : "INACTIVA")</span>
+                <div class="modal-body p-4" style="max-height: 600px; overflow-y: auto;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="alert alert-info py-2 px-3 small fw-semibold mb-0 d-flex align-items-center gap-2 flex-grow-1 me-3">
+                            <i class="bi bi-info-circle-fill fs-5"></i>
+                            <span>Las reglas se guardan en la <strong>Base de Datos</strong> asociadas a este cliente y se calculan automáticamente mediante <strong>LEFT JOIN</strong> en el servidor al consultar el reporte.</span>
                         </div>
-                        <div class="card-body py-2">
-                            <p class="small text-muted mb-2">Turnos de 12h (diurno o nocturno) se facturan como <strong>8 horas normales</strong> y <strong>4 extras</strong>.</p>
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="small fw-bold">Palabras clave del cargo:</label>
-                                    <input type="text" class="form-control form-control-sm" @bind="ReglasConfig.MontacargasKeywords" placeholder="montacarga, montacarguista" />
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="small fw-bold">Horas Normales:</label>
-                                    <input type="number" step="0.5" class="form-control form-control-sm" @bind="ReglasConfig.MontacargasHorasNormales" />
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="small fw-bold">Extras por Turno 12h:</label>
-                                    <input type="number" step="0.5" class="form-control form-control-sm" @bind="ReglasConfig.MontacargasHorasExtras12h" />
-                                </div>
-                            </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fw-semibold" @onclick="CargarPlantillaDefaultReglas">
+                                <i class="bi bi-arrow-repeat"></i> Plantilla Estándar
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm rounded-pill fw-bold px-3 shadow-sm" @onclick="AgregarNuevaRegla">
+                                <i class="bi bi-plus-circle-fill me-1"></i> + Nueva Regla
+                            </button>
                         </div>
                     </div>
 
-                    @* REGLA 2: OPERADOR DE ALMACÉN *@
-                    <div class="card mb-3 border @(ReglasConfig.AlmacenActivo ? "border-success" : "border-secondary") shadow-sm">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="chkAlmacen" @bind="ReglasConfig.AlmacenActivo" />
-                                <label class="form-check-label fw-bold text-dark" for="chkAlmacen">
-                                    📦 2. Operador de Almacén / Operario / Bodega
-                                </label>
-                            </div>
-                            <span class="badge @(ReglasConfig.AlmacenActivo ? "bg-success" : "bg-secondary")">@(ReglasConfig.AlmacenActivo ? "ACTIVA" : "INACTIVA")</span>
+                    @if (cargandoReglas)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="small text-muted mt-2">Cargando reglas desde la base de datos...</p>
                         </div>
-                        <div class="card-body py-2">
-                            <p class="small text-muted mb-2">Diurno: base 8h y exceso a extras. Nocturno: 7h trabajadas se facturan como <strong>8 horas normales</strong> y el excedente a extras.</p>
-                            <div class="row g-2">
-                                <div class="col-md-5">
-                                    <label class="small fw-bold">Palabras clave del cargo:</label>
-                                    <input type="text" class="form-control form-control-sm" @bind="ReglasConfig.AlmacenKeywords" placeholder="almacen, operario, bodega" />
+                    }
+                    else if (!ReglasCliente.Any())
+                    {
+                        <div class="text-center py-5 border rounded bg-light">
+                            <i class="bi bi-inbox fs-1 text-muted"></i>
+                            <p class="fw-semibold text-secondary mt-2 mb-3">Este cliente no tiene reglas de cobro configuradas.</p>
+                            <button class="btn btn-primary btn-sm rounded-pill fw-bold px-3" @onclick="CargarPlantillaDefaultReglas">
+                                <i class="bi bi-magic me-1"></i> Cargar Reglas Recomendadas
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        @for (int i = 0; i < ReglasCliente.Count; i++)
+                        {
+                            var regla = ReglasCliente[i];
+                            int index = i + 1;
+                            <div class="card mb-3 border @(regla.Activa ? "border-primary" : "border-secondary") shadow-sm">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
+                                    <div class="d-flex align-items-center gap-2 flex-grow-1 me-3">
+                                        <span class="badge bg-secondary">#@index</span>
+                                        <input type="text" class="form-control form-control-sm fw-bold border-primary" style="max-width: 320px;" placeholder="Nombre de la regla..." @bind="regla.NombreRegla" />
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" id="@($"chkActiva_{index}")" @bind="regla.Activa" />
+                                            <label class="form-check-label small fw-bold @(regla.Activa ? "text-success" : "text-muted")" for="@($"chkActiva_{index}")">
+                                                @(regla.Activa ? "Activa" : "Inactiva")
+                                            </label>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-circle p-1" title="Eliminar regla" @onclick="() => EliminarRegla(regla)">
+                                            <i class="bi bi-trash-fill px-1"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="small fw-bold">Base Nocturna Ley (h):</label>
-                                    <input type="number" step="0.5" class="form-control form-control-sm" @bind="ReglasConfig.AlmacenHorasBaseNocturno" />
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="small fw-bold">Cobro Nocturno Equivalente (h):</label>
-                                    <input type="number" step="0.5" class="form-control form-control-sm" @bind="ReglasConfig.AlmacenHorasNormalesNocturnoCobro" />
+                                <div class="card-body py-2">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-4">
+                                            <label class="small fw-bold text-secondary">Palabras clave del Cargo (separadas por comas):</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="regla.CargoPatron" placeholder="ej. montacarga, montacarguista" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="small fw-bold text-secondary">Tipo / Comportamiento de Cobro:</label>
+                                            <select class="form-select form-select-sm" @bind="regla.TipoRegla">
+                                                <option value="MONTACARGA_12H">🚜 Montacargas 12h (8N + 4E + Exceso)</option>
+                                                <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>
+                                                <option value="FIJO_DIARIO">🚚 Tarifa Fija Diaria (Horas Fijas)</option>
+                                                <option value="TOPE_DIARIO">⏱️ Tope Diario (Exceso a Extras)</option>
+                                                <option value="PERSONALIZADA">⚙️ Personalizada</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="small fw-bold text-secondary">Horas Normales:</label>
+                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasNormales" />
+                                        </div>
+                                        <div class="col-md-1">
+                                            <label class="small fw-bold text-secondary">Extras Base:</label>
+                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasExtrasBase" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="small fw-bold text-secondary">Base Turno / Umbral:</label>
+                                            <input type="number" step="0.5" class="form-control form-control-sm" @bind="regla.HorasBaseTurno" />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    @* REGLA 3: CONDUCTORES *@
-                    <div class="card mb-3 border @(ReglasConfig.ConductoresActivo ? "border-warning" : "border-secondary") shadow-sm">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" id="chkConductores" @bind="ReglasConfig.ConductoresActivo" />
-                                <label class="form-check-label fw-bold text-dark" for="chkConductores">
-                                    🚚 3. Conductores / Choferes (Tarifa Fija Diaria)
-                                </label>
-                            </div>
-                            <span class="badge @(ReglasConfig.ConductoresActivo ? "bg-warning text-dark" : "bg-secondary")">@(ReglasConfig.ConductoresActivo ? "ACTIVA" : "INACTIVA")</span>
-                        </div>
-                        <div class="card-body py-2">
-                            <p class="small text-muted mb-2">Pago fijo de <strong>8 horas normales</strong> por día laborado, sin horas extras cobrables.</p>
-                            <div class="row g-2">
-                                <div class="col-md-8">
-                                    <label class="small fw-bold">Palabras clave del cargo:</label>
-                                    <input type="text" class="form-control form-control-sm" @bind="ReglasConfig.ConductoresKeywords" placeholder="conductor, chofer, motorista" />
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="small fw-bold">Horas Normales Fijas:</label>
-                                    <input type="number" step="0.5" class="form-control form-control-sm" @bind="ReglasConfig.ConductoresHorasFijas" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        }
+                    }
                 </div>
                 <div class="modal-footer bg-light d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fw-bold px-3" @onclick="RestablecerReglasDefault">
-                        <i class="bi bi-arrow-counterclockwise"></i> Restablecer Valores Oficiales
-                    </button>
                     <div>
-                        <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4 me-2" @onclick="() => mostrarModalReglas = false">Cancelar</button>
-                        <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="GuardarReglasConfig">Guardar y Aplicar</button>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold px-3 me-2" @onclick="AgregarNuevaRegla">
+                            <i class="bi bi-plus-circle-fill"></i> + Agregar Otra Regla
+                        </button>
+                        <span class="small text-muted fw-semibold">
+                            Total: <strong>@ReglasCliente.Count</strong> regla(s)
+                        </span>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4 me-2" @onclick="() => mostrarModalReglas = false">Cerrar</button>
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="GuardarReglasClienteEnDb" disabled="@cargandoReglas">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar en Base de Datos
+                        </button>
                     </div>
                 </div>
             </div>
