@@ -662,12 +662,22 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 return;
             }
 
+            bool esNocturnoCruce = !string.IsNullOrEmpty(item.entrada_movimiento)
+                && !string.IsNullOrEmpty(item.salida_movimiento)
+                && string.Compare(item.entrada_movimiento, "17:00") >= 0
+                && string.Compare(item.salida_movimiento, item.entrada_movimiento) < 0;
+
             // Fallback estándar si viniera sin pre-cálculo
             // Si todas las horas están en extras (horas_totales = 0 y horas_extras > 0), es feriado en día diferente de domingo: 100% extras
             if (item.horas_totales == 0 && item.horas_extras > 0 && item.fecha_asistencia.DayOfWeek != DayOfWeek.Sunday)
             {
+                decimal extrasFeriado = item.horas_extras;
+                if (esNocturnoCruce && extrasFeriado >= 13.0m)
+                {
+                    extrasFeriado -= 1.0m;
+                }
                 item.HorasNormalesCobrables = 0.0m;
-                item.HorasExtrasCobrables = item.horas_extras;
+                item.HorasExtrasCobrables = extrasFeriado;
                 item.ReglaAplicada = "Feriado";
                 return;
             }
