@@ -296,6 +296,25 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         protected Modelo.Entidades.Operaciones.ReglaCobroClienteDto editingRegla = new();
         protected bool cargandoReglas = false;
         protected bool guardandoRegla = false;
+        protected List<Combos> ListaCargosHr = new();
+        protected bool permitirCargoManual = false;
+
+        protected async Task CargarCargosHr()
+        {
+            if (ListaCargosHr != null && ListaCargosHr.Any()) return;
+            try
+            {
+                var res = await OdooService.GetHrJobs();
+                if (res != null && res.Model != null)
+                {
+                    ListaCargosHr = res.Model.OrderBy(x => x.nombre).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al cargar cargos hr_job: {ex.Message}");
+            }
+        }
 
         protected async Task AbrirModalReglas()
         {
@@ -316,6 +335,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             LimpiarFormularioEdicion();
             mostrarModalReglas = true;
             StateHasChanged();
+
+            await CargarCargosHr();
 
             if (modalOperacionId > 0)
             {
@@ -377,6 +398,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 Activa = true,
                 Orden = ReglasCliente.Count + 1
             };
+            permitirCargoManual = false;
             StateHasChanged();
         }
 
@@ -397,7 +419,50 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 FechaRegistro = regla.FechaRegistro,
                 FechaActualizacion = regla.FechaActualizacion
             };
+            permitirCargoManual = false;
             StateHasChanged();
+        }
+
+        protected void OnCargoChanged(ChangeEventArgs e)
+        {
+            string nuevoCargo = e.Value?.ToString() ?? "";
+            editingRegla.CargoPatron = nuevoCargo;
+
+            // Si el nombre de la regla está vacío o es un nombre por defecto de regla, sugerir nombre
+            if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla) || editingRegla.NombreRegla.StartsWith("Regla "))
+            {
+                if (!string.IsNullOrWhiteSpace(nuevoCargo))
+                {
+                    editingRegla.NombreRegla = $"Regla {nuevoCargo}";
+                }
+            }
+
+            // Auto-sugerir TipoRegla y horas según el cargo oficial de hr_job
+            if (!string.IsNullOrWhiteSpace(nuevoCargo))
+            {
+                string lower = nuevoCargo.ToLower();
+                if (lower.Contains("montacarga"))
+                {
+                    editingRegla.TipoRegla = "MONTACARGA_12H";
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 4.00m;
+                    editingRegla.HorasBaseTurno = 12.00m;
+                }
+                else if (lower.Contains("almacen") || lower.Contains("bodega"))
+                {
+                    editingRegla.TipoRegla = "NOCTURNO_EQUIVALENCIA";
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 7.00m;
+                }
+                else if (lower.Contains("conductor") || lower.Contains("chofer"))
+                {
+                    editingRegla.TipoRegla = "FIJO_DIARIO";
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                }
+            }
         }
 
         protected void OnTipoReglaChanged(ChangeEventArgs e)
@@ -411,21 +476,21 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     editingRegla.HorasExtrasBase = 4.00m;
                     editingRegla.HorasBaseTurno = 12.00m;
                     if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de Montacargas (12h)";
-                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "montacarga, montacarguista";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "Operador de montacarga";
                     break;
                 case "NOCTURNO_EQUIVALENCIA":
                     editingRegla.HorasNormales = 8.00m;
                     editingRegla.HorasExtrasBase = 0.00m;
                     editingRegla.HorasBaseTurno = 7.00m;
                     if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de Almacén (Nocturno 7h -> 8h)";
-                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "almacen, bodega, operario, ayudante";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "Operador de almacen";
                     break;
                 case "FIJO_DIARIO":
                     editingRegla.HorasNormales = 8.00m;
                     editingRegla.HorasExtrasBase = 0.00m;
                     editingRegla.HorasBaseTurno = 8.00m;
                     if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Conductor / Chofer (Fijo 8h)";
-                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "conductor, chofer, motorista";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "Conductor";
                     break;
                 case "TOPE_DIARIO":
                     editingRegla.HorasNormales = 8.00m;

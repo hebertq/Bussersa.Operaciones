@@ -469,8 +469,35 @@
                                         <input type="text" class="form-control form-control-sm fw-semibold" placeholder="ej. Operador de Montacargas" @bind="editingRegla.NombreRegla" />
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="small fw-bold text-secondary mb-1">Palabras clave del Cargo (separadas por comas):</label>
-                                        <input type="text" class="form-control form-control-sm" placeholder="ej. montacarga, montacarguista" @bind="editingRegla.CargoPatron" />
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="small fw-bold text-secondary mb-0">
+                                                <i class="bi bi-briefcase-fill text-primary me-1"></i> Cargo (hr_job):
+                                            </label>
+                                            <button type="button" class="btn btn-link p-0 text-decoration-none small text-muted" style="font-size: 0.75rem;" @onclick="() => permitirCargoManual = !permitirCargoManual">
+                                                <i class="bi @(permitirCargoManual ? "bi-list-ul" : "bi-pencil") me-1"></i>@(permitirCargoManual ? "Elegir de lista" : "Escribir manual")
+                                            </button>
+                                        </div>
+                                        @if (!permitirCargoManual)
+                                        {
+                                            <select class="form-select form-select-sm fw-semibold" value="@editingRegla.CargoPatron" @onchange="OnCargoChanged">
+                                                <option value="">-- Seleccione un Cargo --</option>
+                                                @if (ListaCargosHr != null)
+                                                {
+                                                    @foreach (var c in ListaCargosHr)
+                                                    {
+                                                        <option value="@c.nombre">@c.nombre</option>
+                                                    }
+                                                }
+                                                @if (!string.IsNullOrEmpty(editingRegla.CargoPatron) && ListaCargosHr != null && !ListaCargosHr.Any(x => string.Equals(x.nombre, editingRegla.CargoPatron, StringComparison.OrdinalIgnoreCase)))
+                                                {
+                                                    <option value="@editingRegla.CargoPatron">@editingRegla.CargoPatron (Personalizado)</option>
+                                                }
+                                            </select>
+                                        }
+                                        else
+                                        {
+                                            <input type="text" class="form-control form-control-sm" placeholder="ej. Operador de montacarga, conductor" @bind="editingRegla.CargoPatron" />
+                                        }
                                     </div>
                                     <div class="col-md-4">
                                         <label class="small fw-bold text-secondary mb-1">Tipo / Comportamiento de Cobro:</label>
@@ -556,7 +583,7 @@
                                                 <tr>
                                                     <th style="width: 40px;" class="text-center">#</th>
                                                     <th>Nombre Regla</th>
-                                                    <th>Cargos / Palabras Clave</th>
+                                                    <th>Cargo (hr_job)</th>
                                                     <th>Tipo de Cobro</th>
                                                     <th class="text-center">H. Normales</th>
                                                     <th class="text-center">H. Extras Base</th>

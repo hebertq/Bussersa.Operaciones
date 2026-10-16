@@ -155,6 +155,9 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Entidades.Operaciones.ReglaCobroClienteDto>> GetReglasCobroCliente(int operacionId);
         Task<IResponse> SaveReglasCobroCliente(int operacionId, List<Modelo.Entidades.Operaciones.ReglaCobroClienteDto> reglas);
         Task<IResponse> DeleteReglaCobroCliente(int id);
+
+        // --- CATÁLOGO DE CARGOS ODOO (hr_job) ---
+        Task<IListResponse<Combos>> GetHrJobs();
     }
 }
 
