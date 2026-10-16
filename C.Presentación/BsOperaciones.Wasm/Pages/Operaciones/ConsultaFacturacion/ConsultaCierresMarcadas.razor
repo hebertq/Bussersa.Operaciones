@@ -11,9 +11,10 @@
 <MudText Typo="Typo.h5" Class="mb-4 fw-bold" Color="Color.Primary">REPORTE DE AUDITORÍA Y CIERRE</MudText>
 
 @* --- PANEL DE FILTROS --- *@
-<MudPaper Elevation="0" Class="pa-5 mb-4" Style="background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
-    <MudGrid Spacing="3" Class="align-center">
-        <MudItem xs="12" sm="3">
+<MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+    @* --- FILA 1: PARÁMETROS DE CONSULTA Y BOTÓN PRINCIPAL --- *@
+    <MudGrid Spacing="2" Class="align-center">
+        <MudItem xs="12" sm="12" md="4">
             <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId"
                        Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="0">Seleccione un cliente...</MudSelectItem>
@@ -27,7 +28,7 @@
             </MudSelect>
         </MudItem>
 
-        <MudItem xs="12" sm="2">
+        <MudItem xs="12" sm="4" md="2">
             <MudSelect T="bool" Label="Filtrar por" @bind-Value="esRango" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                 <MudSelectItem Value="false">Mes y Año</MudSelectItem>
                 <MudSelectItem Value="true">Rango de Fecha</MudSelectItem>
@@ -36,7 +37,7 @@
 
         @if (!esRango)
         {
-            <MudItem xs="6" sm="2">
+            <MudItem xs="6" sm="4" md="2">
                 <MudSelect T="int" Label="Año" @bind-Value="anio" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                     @foreach (var year in YearsList)
                     {
@@ -44,7 +45,7 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="6" sm="2">
+            <MudItem xs="6" sm="4" md="2">
                 <MudSelect T="int" Label="Mes" @bind-Value="mes" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                     <MudSelectItem Value="1">ENERO</MudSelectItem>
                     <MudSelectItem Value="2">FEBRERO</MudSelectItem>
@@ -63,34 +64,24 @@
         }
         else
         {
-            <MudItem xs="6" sm="2"><MudDatePicker Label="Inicio" @bind-Date="fchaInicio" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-            <MudItem xs="6" sm="2"><MudDatePicker Label="Fin" @bind-Date="fchaFin" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+            <MudItem xs="6" sm="4" md="2"><MudDatePicker Label="Inicio" @bind-Date="fchaInicio" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+            <MudItem xs="6" sm="4" md="2"><MudDatePicker Label="Fin" @bind-Date="fchaFin" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
         }
 
-        <MudItem xs="12" sm="3" Class="d-flex gap-2 align-center">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConsultarReporte" FullWidth="true" Disabled="@isloading" Style="height: 40px;">
+        <MudItem xs="12" sm="12" md="2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConsultarReporte" FullWidth="true" Disabled="@isloading" Style="height: 40px; font-weight: bold;" StartIcon="@Icons.Material.Filled.Search">
                 @(isloading ? "Buscando..." : "CONSULTAR")
             </MudButton>
-
-            <MudTooltip Text="Configurar supervisores a excluir del cobro">
-                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="AbrirModalSupervisores" Style="height: 40px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.SupervisorAccount">
-                    Supervisores (@CantidadSupervisoresConfigurados)
-                </MudButton>
-            </MudTooltip>
-
-            <MudTooltip Text="Configurar reglas de cobro de horas por puesto (Montacargas, Almacén, Choferes)">
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="() => mostrarModalReglas = true" Style="height: 40px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.Tune">
-                    Reglas Cobro
-                </MudButton>
-            </MudTooltip>
         </MudItem>
     </MudGrid>
 
+    @* --- FILA 2: CONFIGURACIÓN DE FACTURACIÓN Y BOTONES DE ACCIÓN --- *@
     <div class="d-flex align-center justify-between mt-3 pt-3 border-top flex-wrap gap-3">
-        <div class="d-flex align-center gap-4 flex-wrap">
+        @* Opciones de cálculo y agrupación *@
+        <div class="d-flex align-center gap-3 flex-wrap">
             <div class="d-flex align-center gap-1">
                 <MudCheckBox T="bool" Value="@ReglasConfig.AplicarReglas" ValueChanged="@((bool val) => { ReglasConfig.AplicarReglas = val; AplicarFiltrosYTotales(); })" Color="Color.Success" Dense="true">
-                    <span class="font-bold text-dark" style="font-size: 14px;">Aplicar Reglas de Facturación</span>
+                    <span class="font-bold text-dark" style="font-size: 13px;">Reglas de Cobro</span>
                 </MudCheckBox>
                 <MudTooltip Text="Recalcula las horas cobrables por puesto: Montacargas (8N + 4E), Almacén (Diu 8N / Noc 7h→8N), Conductores (Fijo 8N).">
                     <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
@@ -99,51 +90,68 @@
 
             <div class="d-flex align-center gap-1">
                 <MudCheckBox T="bool" Value="@excluirSupervisores" ValueChanged="@((bool val) => { excluirSupervisores = val; AplicarFiltrosYTotales(); })" Color="Color.Error" Dense="true">
-                    <span class="font-bold text-dark" style="font-size: 14px;">Excluir Supervisores del Cobro</span>
+                    <span class="font-bold text-dark" style="font-size: 13px;">Excluir Supervisores</span>
                 </MudCheckBox>
                 <MudTooltip Text="Al activar esta opción, las horas y marcaciones de supervisores no se cobran ni aparecen en el resumen cobrable.">
                     <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
                 </MudTooltip>
             </div>
 
-            <div class="d-flex align-center gap-2">
-                <span class="small fw-bold text-secondary">Agrupar por:</span>
+            <div class="d-flex align-center gap-1">
+                <span class="small fw-bold text-secondary" style="font-size: 12px; white-space: nowrap;">Agrupar:</span>
                 <MudSelect T="string" Value="@ReglasConfig.ModoAgrupacion" ValueChanged="@((string val) => { ReglasConfig.ModoAgrupacion = val; AplicarFiltrosYTotales(); })"
-                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width: 190px; background-color: white;">
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width: 175px; background-color: white;">
                     <MudSelectItem Value="@("AreaCargoTurno")">Área, Cargo y Turno</MudSelectItem>
                     <MudSelectItem Value="@("AreaCargo")">Área y Cargo (Global)</MudSelectItem>
                 </MudSelect>
             </div>
         </div>
 
+        @* Botones de gestión y exportación en su propia fila/bloque *@
         <div class="d-flex align-center gap-2 flex-wrap">
+            <MudTooltip Text="Configurar supervisores a excluir del cobro">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" OnClick="AbrirModalSupervisores" Style="height: 36px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.SupervisorAccount">
+                    Supervisores (@CantidadSupervisoresConfigurados)
+                </MudButton>
+            </MudTooltip>
+
+            <MudTooltip Text="Configurar reglas de cobro de horas por puesto (Montacargas, Almacén, Choferes)">
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="() => mostrarModalReglas = true" Style="height: 36px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.Tune">
+                    Reglas Cobro
+                </MudButton>
+            </MudTooltip>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                       StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                       Disabled="@(DatosCierre == null || !DatosCierre.Any())"
+                       OnClick="ExportarExcelCompleto" Style="height: 36px; white-space: nowrap;" Class="fw-bold rounded-pill px-3">
+                Exportar Excel (2 Hojas)
+            </MudButton>
+        </div>
+    </div>
+
+    @* Fila de Badges Informativos de Estado *@
+    @if (ReglasConfig.AplicarReglas || (excluirSupervisores && CantidadMarcacionesExcluidas > 0))
+    {
+        <div class="d-flex align-center gap-2 mt-2 pt-2 border-top flex-wrap">
             @if (ReglasConfig.AplicarReglas)
             {
-                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined" Style="font-weight: 600;">
+                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px; font-weight: 600;">
                     ⚖️ Montacargas (8N+4E) | Almacén (Noc 7h→8N) | Conductores (8N Fijo)
                 </MudChip>
             }
             @if (excluirSupervisores && CantidadMarcacionesExcluidas > 0)
             {
-                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">
-                    🚫 @CantidadMarcacionesExcluidas marcaciones de supervisores excluidas
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 11px; font-weight: bold;">
+                    🚫 @CantidadMarcacionesExcluidas marcaciones de supervisores excluidas del cobro
                 </MudChip>
             }
         </div>
-    </div>
+    }
 </MudPaper>
 
-@* --- CONTENEDOR DE RESULTADOS SIEMPRE VISIBLE --- *@
-<div style="position: relative;">
-    <div style="position: absolute; right: 10px; top: 8px; z-index: 10;">
-        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
-                   StartIcon="@Icons.Custom.FileFormats.FileExcel"
-                   Disabled="@(DatosCierre == null || !DatosCierre.Any())"
-                   OnClick="ExportarExcelCompleto" Class="rounded-pill px-4">
-            EXPORTAR EXCEL (2 HOJAS)
-        </MudButton>
-    </div>
-
+@* --- CONTENEDOR DE RESULTADOS --- *@
+<div>
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary">
 
         @* TAB 1: CONSOLIDADO *@
