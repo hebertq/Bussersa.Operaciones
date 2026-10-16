@@ -392,8 +392,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 NombreRegla = "",
                 CargoPatron = "",
                 TipoRegla = "MONTACARGA_12H",
-                HorasNormales = 8.00m,
-                HorasExtrasBase = 4.00m,
+                HorasNormales = 12.00m,
+                HorasExtrasBase = 0.00m,
                 HorasBaseTurno = 12.00m,
                 Activa = true,
                 Orden = ReglasCliente.Count + 1
@@ -444,8 +444,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 if (lower.Contains("montacarga"))
                 {
                     editingRegla.TipoRegla = "MONTACARGA_12H";
-                    editingRegla.HorasNormales = 8.00m;
-                    editingRegla.HorasExtrasBase = 4.00m;
+                    editingRegla.HorasNormales = 12.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
                     editingRegla.HorasBaseTurno = 12.00m;
                 }
                 else if (lower.Contains("almacen") || lower.Contains("bodega"))
@@ -472,10 +472,10 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             switch (nuevoTipo)
             {
                 case "MONTACARGA_12H":
-                    editingRegla.HorasNormales = 8.00m;
-                    editingRegla.HorasExtrasBase = 4.00m;
+                    editingRegla.HorasNormales = 12.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
                     editingRegla.HorasBaseTurno = 12.00m;
-                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de Montacargas (12h)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Operador de montacarga (12h)";
                     if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "Operador de montacarga";
                     break;
                 case "NOCTURNO_EQUIVALENCIA":
