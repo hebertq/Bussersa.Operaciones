@@ -124,6 +124,14 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
                     if (!DatosCierreRaw.Any()) Snackbar.Add("No se encontraron registros.", Severity.Info);
                 }
+                else if (response?.Respuesta != null && response.Respuesta.ExisteError)
+                {
+                    Snackbar.Add(response.Respuesta.MensajeError ?? "Error al consultar los registros del cliente.", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add("No se encontraron registros para la consulta realizada.", Severity.Info);
+                }
             }
             catch (Exception ex)
             {
@@ -286,6 +294,28 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 Console.WriteLine("Error al cargar config_reglas_cobro_horas: " + ex.Message);
             }
             ReglasConfig = new ReglasCobroConfig();
+        }
+
+        protected string ReglasResumenTexto
+        {
+            get
+            {
+                if (!ReglasConfig.AplicarReglas) return "⚙️ Marcación Real (Sin reglas de cobro)";
+                if (DatosCierre == null || !DatosCierre.Any()) return "⚖️ Reglas de Cobro Activas";
+
+                var reglasDistintas = DatosCierre
+                    .Select(x => x.ReglaAplicada)
+                    .Where(r => !string.IsNullOrWhiteSpace(r) && r != "Estándar" && r != "Feriado" && r != "Marcación Real")
+                    .Distinct()
+                    .ToList();
+
+                if (reglasDistintas.Any())
+                {
+                    return $"⚖️ Reglas Especiales: {string.Join(" | ", reglasDistintas)}";
+                }
+
+                return "⚖️ Reglas Estándar (Jornada base 8h)";
+            }
         }
 
         protected int modalOperacionId = 0;

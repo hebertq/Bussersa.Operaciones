@@ -83,7 +83,7 @@
                 <MudCheckBox T="bool" Value="@ReglasConfig.AplicarReglas" ValueChanged="@((bool val) => { ReglasConfig.AplicarReglas = val; AplicarFiltrosYTotales(); })" Color="Color.Success" Dense="true">
                     <span class="font-bold text-dark" style="font-size: 13px;">Reglas de Cobro</span>
                 </MudCheckBox>
-                <MudTooltip Text="Recalcula las horas cobrables por puesto: Montacargas (8N + 4E), Almacén (Diu 8N / Noc 7h→8N), Conductores (Fijo 8N).">
+                <MudTooltip Text="Calcula las horas cobrables según las reglas asignadas al cliente seleccionado o la regla estándar de 8h.">
                     <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
                 </MudTooltip>
             </div>
@@ -115,7 +115,7 @@
                 </MudButton>
             </MudTooltip>
 
-            <MudTooltip Text="Configurar reglas de cobro de horas por puesto (Montacargas, Almacén, Choferes)">
+            <MudTooltip Text="Configurar reglas de cobro de horas por cliente y puesto">
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="AbrirModalReglas" Style="height: 36px; white-space: nowrap;" StartIcon="@Icons.Material.Filled.Tune">
                     Reglas Cobro
                 </MudButton>
@@ -136,8 +136,8 @@
         <div class="d-flex align-center gap-2 mt-2 pt-2 border-top flex-wrap">
             @if (ReglasConfig.AplicarReglas)
             {
-                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px; font-weight: 600;">
-                    ⚖️ Montacargas (8N+4E) | Almacén (Noc 7h→8N) | Conductores (8N Fijo)
+                <MudChip T="string" Color="@(ReglasResumenTexto.Contains("Especiales") ? Color.Success : Color.Info)" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px; font-weight: 600;">
+                    @ReglasResumenTexto
                 </MudChip>
             }
             @if (excluirSupervisores && CantidadMarcacionesExcluidas > 0)
