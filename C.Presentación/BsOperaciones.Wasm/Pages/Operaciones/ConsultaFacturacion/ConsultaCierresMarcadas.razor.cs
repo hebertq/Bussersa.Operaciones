@@ -633,25 +633,32 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
 
             // Fallback estándar si viniera sin pre-cálculo
-            // Si todas las horas están en extras (horas_totales = 0 y horas_extras > 0), es feriado / domingo: 100% extras
-            if (item.horas_totales == 0 && item.horas_extras > 0)
+            // Si todas las horas están en extras (horas_totales = 0 y horas_extras > 0), es feriado en día diferente de domingo: 100% extras
+            if (item.horas_totales == 0 && item.horas_extras > 0 && item.fecha_asistencia.DayOfWeek != DayOfWeek.Sunday)
             {
                 item.HorasNormalesCobrables = 0.0m;
                 item.HorasExtrasCobrables = item.horas_extras;
-                item.ReglaAplicada = "Feriado / Domingo";
+                item.ReglaAplicada = "Feriado";
                 return;
             }
 
-            decimal ht = item.horas_totales;
+            // Si es domingo, trabajan por turnos y las horas registradas en extras representan su jornada de turno
+            decimal ht = (item.fecha_asistencia.DayOfWeek == DayOfWeek.Sunday && item.horas_totales == 0)
+                ? item.horas_extras
+                : item.horas_totales;
+            decimal he = (item.fecha_asistencia.DayOfWeek == DayOfWeek.Sunday && item.horas_totales == 0)
+                ? 0.0m
+                : item.horas_extras;
+
             if (ht >= 8.0m)
             {
                 item.HorasNormalesCobrables = 8.0m;
-                item.HorasExtrasCobrables = item.horas_extras + (ht - 8.0m);
+                item.HorasExtrasCobrables = he + (ht - 8.0m);
             }
             else
             {
                 item.HorasNormalesCobrables = ht;
-                item.HorasExtrasCobrables = item.horas_extras;
+                item.HorasExtrasCobrables = he;
             }
             item.ReglaAplicada = "Estándar";
         }
