@@ -1,4 +1,4 @@
-﻿@page "/comercial/auditoria-operativa"
+@page "/comercial/auditoria-operativa"
 @using Modelo.Comercial
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.ClasesGenericas
@@ -116,7 +116,7 @@
         </div>
         
         <div class="d-flex gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarAuditoria" Class="font-bold">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarAuditoria" Class="font-bold" Disabled="@isLoading">
                 Auditar Nuevamente
             </MudButton>
         </div>
@@ -149,8 +149,8 @@
                 </MudSelect>
             </MudItem>
             <MudItem XS="12" SM="12" MD="2" Class="d-flex justify-end">
-                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarAuditoria" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2 font-bold">
-                    Auditar
+                <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="CargarAuditoria" StartIcon="@Icons.Material.Filled.Search" FullWidth="true" Class="py-2 font-bold" Disabled="@isLoading">
+                    @(isLoading ? "Auditando..." : "Auditar")
                 </MudButton>
             </MudItem>
         </MudGrid>
@@ -158,9 +158,17 @@
 
     @if (isLoading)
     {
-        <div class="d-flex justify-center my-12">
-            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-        </div>
+        <MudPaper Class="pa-8 my-6 text-center panel-card" Elevation="2">
+            <div class="d-flex flex-column align-center justify-center">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+                <MudText Typo="Typo.h6" Class="font-bold" Style="color: #0f172a;">
+                    Auditando Operaciones y Cuadrando Asistencias vs Tareas...
+                </MudText>
+                <MudText Typo="Typo.body2" Class="text-secondary mt-2" Style="max-width: 520px;">
+                    Cruzando registros de reloj biométrico contra tareas registradas en Odoo para detectar desbordes, cruces de horario y pérdidas.
+                </MudText>
+            </div>
+        </MudPaper>
     }
     else if (auditoriaList == null || !auditoriaList.Any())
     {
@@ -375,6 +383,14 @@
             if (res.Model != null && res.Respuesta?.ExisteError != true)
             {
                 auditoriaList = res.Model.ToList();
+                if (auditoriaList.Count == 0)
+                {
+                    Snackbar.Add("No se registraron asistencias ni tareas en el rango seleccionado.", Severity.Info);
+                }
+                else
+                {
+                    Snackbar.Add($"Auditoría completada con éxito: {auditoriaList.Count} operaciones evaluadas.", Severity.Success);
+                }
             }
             else
             {
