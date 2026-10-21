@@ -39,7 +39,10 @@ jobs:
 
       - name: Sync static files to AWS S3
         run: |
+          find release/wwwroot -type f -exec touch {} +
           aws s3 sync release/wwwroot/ s3://${{ secrets.AWS_S3_BUCKET_NAME }} --delete
+          aws s3 cp release/wwwroot/index.html s3://${{ secrets.AWS_S3_BUCKET_NAME }}/index.html --cache-control "no-cache, no-store, must-revalidate" --metadata-directive REPLACE
+          aws s3 cp release/wwwroot/_framework/blazor.boot.json s3://${{ secrets.AWS_S3_BUCKET_NAME }}/_framework/blazor.boot.json --cache-control "no-cache, no-store, must-revalidate" --metadata-directive REPLACE
 
       - name: Invalidate CloudFront Cache
         continue-on-error: true
