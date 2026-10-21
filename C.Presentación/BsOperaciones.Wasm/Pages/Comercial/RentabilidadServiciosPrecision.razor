@@ -5,6 +5,7 @@
 @using HostService.Interfaces
 @inject IOdooService _OdooService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <style>
@@ -269,11 +270,37 @@
                                 Préstamos de Personal entre Clientes
                             </MudText>
                             <MudText Typo="Typo.body2" Class="text-secondary">
-                                Empleados con contrato en una nómina pero que trabajaron jornadas efectivas en otro cliente.
+                                @if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
+                                {
+                                    <span>Colaboradores cargados a la nómina de <strong>@(operacionesList.FirstOrDefault(o => o.id == filtroOperacionId.Value)?.nombre ?? "este cliente")</strong> cuya facturación se fue a otro cliente.</span>
+                                }
+                                else
+                                {
+                                    <span>Colaboradores con contrato en una nómina que trabajaron jornadas efectivas en otro cliente.</span>
+                                }
                             </MudText>
                         </div>
-                        <div style="min-width: 280px;">
-                            <MudTextField @bind-Value="busquedaPrestamo" Placeholder="Buscar por colaborador o cliente..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <div style="min-width: 260px;">
+                                <MudTextField @bind-Value="busquedaPrestamo" Placeholder="Buscar por colaborador o cliente..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                            </div>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       StartIcon="@Icons.Material.Filled.Download" 
+                                       OnClick="ExportarPrestamosExcel" 
+                                       Disabled="@(PrestamosFiltrados == null || !PrestamosFiltrados.Any() || isExportingPrestamos)"
+                                       Class="font-bold py-2"
+                                       Style="border-radius: 8px;">
+                                @if (isExportingPrestamos)
+                                {
+                                    <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" />
+                                    <span>Exportando...</span>
+                                }
+                                else
+                                {
+                                    <span>Exportar Excel</span>
+                                }
+                            </MudButton>
                         </div>
                     </div>
 
@@ -281,8 +308,8 @@
                         <HeaderContent>
                             <MudTh>Colaborador</MudTh>
                             <MudTh>Cargo</MudTh>
-                            <MudTh>Nómina Contratada</MudTh>
-                            <MudTh>Cliente Donde Trabajó</MudTh>
+                            <MudTh>Nómina Contratada (Paga Salario)</MudTh>
+                            <MudTh>Cliente Donde Trabajó (Facturó)</MudTh>
                             <MudTh Style="text-align: right;">Horas Prestadas</MudTh>
                             <MudTh Style="text-align: right;">Costo / Hr Empleado</MudTh>
                             <MudTh Style="text-align: right; background: #faf5ff;">Costo C$ Transferido</MudTh>
@@ -304,6 +331,14 @@
                                 C$ @context.costo_transferido.ToString("N2")
                             </MudTd>
                         </RowTemplate>
+                        <FooterContent>
+                            <MudTd colspan="4" Style="font-weight: 800; text-align: right;">TOTALES:</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800;">@PrestamosFiltrados.Sum(p => p.horas_trabajadas).ToString("N2") hrs</MudTd>
+                            <MudTd Style="text-align: right;">-</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800; color: #6b21a8; background: #faf5ff;">
+                                C$ @PrestamosFiltrados.Sum(p => p.costo_transferido).ToString("N2")
+                            </MudTd>
+                        </FooterContent>
                     </MudTable>
                 </MudTabPanel>
 
@@ -381,6 +416,7 @@
     private string? filtroEstado = null;
     private string busquedaServicio = string.Empty;
     private string busquedaPrestamo = string.Empty;
+    private bool isExportingPrestamos = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -483,6 +519,12 @@
 
             var q = consolidado.Prestamos.AsEnumerable();
 
+            // Si hay un cliente seleccionado, asegurar que SOLO se muestren los cargados a la nómina de este cliente que trabajaron en otro cliente
+            if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
+            {
+                q = q.Where(p => p.op_nomina_id == filtroOperacionId.Value && p.op_trabajo_id != filtroOperacionId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(busquedaPrestamo))
             {
                 var term = busquedaPrestamo.Trim().ToLower();
@@ -493,6 +535,171 @@
             }
 
             return q;
+        }
+    }
+
+    private async Task ExportarPrestamosExcel()
+    {
+        var data = PrestamosFiltrados.ToList();
+        if (!data.Any())
+        {
+            Snackbar.Add("No hay datos de préstamos para exportar.", Severity.Warning);
+            return;
+        }
+
+        isExportingPrestamos = true;
+        StateHasChanged();
+        await Task.Delay(50);
+
+        try
+        {
+            string nombreCliente = filtroOperacionId.HasValue && filtroOperacionId.Value > 0
+                ? (operacionesList.FirstOrDefault(o => o.id == filtroOperacionId.Value)?.nombre ?? $"Op_{filtroOperacionId.Value}")
+                : "Todas_las_Operaciones";
+
+            string nombreLimpio = string.Concat(nombreCliente.Split(System.IO.Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName = $"Prestamos_Personal_{nombreLimpio}_{ObtenerNombreMes(mesSeleccionado)}_{anioSeleccionado}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+            var sheet = workbook.CreateSheet("Prestamos_Personal");
+
+            // Estilos
+            var titleFont = workbook.CreateFont();
+            titleFont.IsBold = true;
+            titleFont.FontHeightInPoints = 14;
+            var titleStyle = workbook.CreateCellStyle();
+            titleStyle.SetFont(titleFont);
+
+            var subtitleFont = workbook.CreateFont();
+            subtitleFont.IsItalic = true;
+            subtitleFont.FontHeightInPoints = 10;
+            var subtitleStyle = workbook.CreateCellStyle();
+            subtitleStyle.SetFont(subtitleFont);
+
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerFont.FontHeightInPoints = 11;
+            headerFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+            var headerStyle = workbook.CreateCellStyle();
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.RoyalBlue.Index;
+            headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+            headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+
+            var dataFormat = workbook.CreateDataFormat();
+
+            var moneyStyle = workbook.CreateCellStyle();
+            moneyStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            moneyStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var hoursStyle = workbook.CreateCellStyle();
+            hoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            hoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var totalStyle = workbook.CreateCellStyle();
+            var totalFont = workbook.CreateFont();
+            totalFont.IsBold = true;
+            totalStyle.SetFont(totalFont);
+            totalStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            totalStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var totalHoursStyle = workbook.CreateCellStyle();
+            totalHoursStyle.SetFont(totalFont);
+            totalHoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            totalHoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            // Fila 0: Título
+            var rTitle = sheet.CreateRow(0);
+            rTitle.CreateCell(0).SetCellValue("BUSSERSA - CONCILIACIÓN DE PRÉSTAMOS DE PERSONAL");
+            rTitle.GetCell(0).CellStyle = titleStyle;
+
+            // Fila 1: Subtítulo Período y Cliente
+            var rSub = sheet.CreateRow(1);
+            rSub.CreateCell(0).SetCellValue($"Período: {ObtenerNombreMes(mesSeleccionado)} {anioSeleccionado} | Cliente Nómina: {nombreCliente.Replace("_", " ")} | Generado: {DateTime.Now:dd/MM/yyyy HH:mm}");
+            rSub.GetCell(0).CellStyle = subtitleStyle;
+
+            // Fila 3: Encabezados
+            var rHeader = sheet.CreateRow(3);
+            string[] headers = new[] {
+                "No.", "Colaborador", "Cargo", "Nómina Contratada (Paga Salario)",
+                "Cliente Donde Trabajó (Facturó)", "Horas Prestadas", "Costo / Hr Empleado (C$)", "Costo C$ Transferido"
+            };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = rHeader.CreateCell(i);
+                cell.SetCellValue(headers[i]);
+                cell.CellStyle = headerStyle;
+            }
+
+            // Filas de datos
+            int rowIdx = 4;
+            int counter = 1;
+            foreach (var item in data)
+            {
+                var row = sheet.CreateRow(rowIdx++);
+                row.CreateCell(0).SetCellValue(counter++);
+                row.CreateCell(1).SetCellValue(item.nombre_empleado ?? "");
+                row.CreateCell(2).SetCellValue(item.cargo ?? "");
+                row.CreateCell(3).SetCellValue(item.op_nomina_nombre ?? "");
+                row.CreateCell(4).SetCellValue(item.op_trabajo_nombre ?? "");
+
+                var cHours = row.CreateCell(5);
+                cHours.SetCellValue((double)item.horas_trabajadas);
+                cHours.CellStyle = hoursStyle;
+
+                var cCostHr = row.CreateCell(6);
+                cCostHr.SetCellValue((double)item.costo_hora_empleado);
+                cCostHr.CellStyle = moneyStyle;
+
+                var cTotal = row.CreateCell(7);
+                cTotal.SetCellValue((double)item.costo_transferido);
+                cTotal.CellStyle = moneyStyle;
+            }
+
+            // Fila de Totales
+            var rTotal = sheet.CreateRow(rowIdx);
+            var cTotalLabel = rTotal.CreateCell(4);
+            cTotalLabel.SetCellValue("TOTALES:");
+            cTotalLabel.CellStyle = totalStyle;
+
+            var cSumHours = rTotal.CreateCell(5);
+            cSumHours.SetCellValue((double)data.Sum(p => p.horas_trabajadas));
+            cSumHours.CellStyle = totalHoursStyle;
+
+            var cSumCost = rTotal.CreateCell(7);
+            cSumCost.SetCellValue((double)data.Sum(p => p.costo_transferido));
+            cSumCost.CellStyle = totalStyle;
+
+            // Ancho de columnas fijas para evitar excepciones de GDI en WASM
+            sheet.SetColumnWidth(0, 8 * 256);
+            sheet.SetColumnWidth(1, 35 * 256);
+            sheet.SetColumnWidth(2, 28 * 256);
+            sheet.SetColumnWidth(3, 25 * 256);
+            sheet.SetColumnWidth(4, 25 * 256);
+            sheet.SetColumnWidth(5, 18 * 256);
+            sheet.SetColumnWidth(6, 22 * 256);
+            sheet.SetColumnWidth(7, 24 * 256);
+
+            using var ms = new System.IO.MemoryStream();
+            workbook.Write(ms);
+            workbook.Close();
+            byte[] bytes = ms.ToArray();
+            string base64 = Convert.ToBase64String(bytes);
+
+            await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+            Snackbar.Add("Reporte de Préstamos descargado con éxito.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar a Excel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isExportingPrestamos = false;
+            StateHasChanged();
         }
     }
 
