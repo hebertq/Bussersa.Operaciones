@@ -158,6 +158,9 @@ namespace HostService.Interfaces
 
         // --- CATÁLOGO DE CARGOS ODOO (hr_job) ---
         Task<IListResponse<Combos>> GetHrJobs();
+
+        // --- MOVIMIENTOS DE PERSONAL A REDMINE ---
+        Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto>> CrearMovimientosPersonalMasivo(Modelo.ClasesGenericas.CrearMovimientosPersonalRequestDto request);
     }
 }
 

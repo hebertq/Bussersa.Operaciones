@@ -3382,6 +3382,32 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto>> CrearMovimientosPersonalMasivo(Modelo.ClasesGenericas.CrearMovimientosPersonalRequestDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto> response = new SingleResponse<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("OCommand/CrearMovimientosPersonalMasivo");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 

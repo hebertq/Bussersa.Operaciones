@@ -1,0 +1,305 @@
+@page "/operaciones/movimientos-personal-excel"
+@using Modelo.ClasesGenericas
+@using Modelo.Admin
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+    @* Encabezado Principal *@
+    <MudPaper Elevation="2" Class="pa-4 mb-4" Style="border-left: 5px solid #1E88E5; border-radius: 8px;">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.GroupWork" Size="Size.Medium" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h5" Class="fw-bold">Carga de Movimientos de Personal (Excel a Redmine)</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Importa jornadas y agrupaciones desde la pestaña <strong>Consolidado Agrupado</strong> y genera automáticamente los tickets en Redmine.
+                    </MudText>
+                </div>
+            </MudStack>
+            @if (filasExcel.Any())
+            {
+                <MudStack Row="true" Spacing="2">
+                    <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">
+                        Total: @filasExcel.Count
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                        Seleccionadas: @filasExcel.Count(x => x.Seleccionado)
+                    </MudChip>
+                    @if (totalExitosos > 0)
+                    {
+                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                            Creados: @totalExitosos
+                        </MudChip>
+                    }
+                    @if (totalFallidos > 0)
+                    {
+                        <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Error">
+                            Errores: @totalFallidos
+                        </MudChip>
+                    }
+                </MudStack>
+            }
+        </MudStack>
+    </MudPaper>
+
+    @* Panel de Configuración y Carga *@
+    <MudCard Elevation="2" Class="mb-4">
+        <MudCardContent>
+            <MudGrid>
+                @* 1. Selector de Operación / Cliente *@
+                <MudItem xs="12" sm="6" md="4">
+                    <MudSelect T="int?" 
+                               Label="Cliente de la Operación" 
+                               Value="@selectedOperacionId" 
+                               ValueChanged="OnOperacionChanged"
+                               Placeholder="Seleccione el cliente..."
+                               Variant="Variant.Outlined"
+                               Dense="true"
+                               AdornmentIcon="@Icons.Material.Filled.Business" 
+                               AdornmentColor="Color.Primary">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione un cliente --</MudSelectItem>
+                        @foreach (var op in operacionesList)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)op.id)">@($"{op.id}-{op.nombre}")</MudSelectItem>
+                        }
+                    </MudSelect>
+                    @if (!string.IsNullOrEmpty(clienteRedmineIdentificador))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Primary" Class="mt-1 d-block">
+                            Cliente Redmine: <strong>@clienteRedmineIdentificador</strong>
+                        </MudText>
+                    }
+                </MudItem>
+
+                @* 2. Subida de Archivo Excel *@
+                <MudItem xs="12" sm="6" md="5">
+                    <MudFileUpload T="IBrowserFile" 
+                                   Accept=".xlsx" 
+                                   FilesChanged="OnExcelFileSelected"
+                                   Class="d-flex align-center">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Success"
+                                       StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                                       Disabled="@estaCargandoArchivo"
+                                       Size="Size.Medium">
+                                @(estaCargandoArchivo ? "Leyendo archivo..." : "Seleccionar Excel (.xlsx)")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    @if (archivoExcel != null)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Dark" Class="mt-1 d-block text-truncate">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                            @archivoExcel.Name (@((archivoExcel.Size / 1024.0).ToString("N1")) KB)
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
+                            Debe contener la pestaña <em>Consolidado Agrupado</em>.
+                        </MudText>
+                    }
+                </MudItem>
+
+                @* 3. Filtro por Fecha (si hay datos) *@
+                <MudItem xs="12" sm="6" md="3">
+                    @if (fechasDisponibles.Any())
+                    {
+                        <MudSelect T="string" 
+                                   Label="Filtrar por Fecha" 
+                                   Value="@filtroFecha" 
+                                   ValueChanged="OnFiltroFechaChanged"
+                                   Variant="Variant.Outlined" 
+                                   Dense="true">
+                            <MudSelectItem T="string" Value="@("TODAS")">Todas las fechas (@filasExcel.Count)</MudSelectItem>
+                            @foreach (var f in fechasDisponibles)
+                            {
+                                <MudSelectItem T="string" Value="@f">@f (@filasExcel.Count(x => x.Fecha == f))</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+
+        @* Barra de progreso de lectura *@
+        @if (estaCargandoArchivo)
+        {
+            <MudProgressLinear Color="Color.Success" Indeterminate="true" Class="my-0" />
+        }
+    </MudCard>
+
+    @* Grilla de Movimientos *@
+    @if (filasFiltradas.Any())
+    {
+        <MudCard Elevation="3" Class="mb-4">
+            <MudCardHeader Class="pb-2">
+                <CardHeaderContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.h6">
+                            Jornadas Detectadas en el Consolidado (@filasFiltradas.Count)
+                        </MudText>
+                        <MudStack Row="true" Spacing="2">
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small" 
+                                       StartIcon="@Icons.Material.Filled.SelectAll"
+                                       OnClick="SeleccionarTodo">
+                                Seleccionar Todos
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Secondary" 
+                                       Size="Size.Small" 
+                                       StartIcon="@Icons.Material.Filled.Deselect"
+                                       OnClick="DeseleccionarTodo">
+                                Deseleccionar
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </CardHeaderContent>
+            </MudCardHeader>
+
+            <MudCardContent Class="pa-0">
+                <MudTable Items="@filasFiltradas" 
+                          Hover="true" 
+                          Dense="true" 
+                          Striped="true" 
+                          Bordered="true" 
+                          Elevation="0"
+                          Virtualize="true"
+                          FixedHeader="true"
+                          Height="520px">
+                    <HeaderContent>
+                        <MudTh Style="width: 50px; text-align: center;">Sel.</MudTh>
+                        <MudTh Style="width: 130px;">Estado</MudTh>
+                        <MudTh>Área del Cliente</MudTh>
+                        <MudTh>Cargo / Puesto</MudTh>
+                        <MudTh Style="width: 105px; text-align: center;">Fecha</MudTh>
+                        <MudTh Style="width: 120px; text-align: center;">Horario</MudTh>
+                        <MudTh Style="width: 80px; text-align: center;">Cant.</MudTh>
+                        <MudTh Style="min-width: 160px;">IDs Empleados (Descripción)</MudTh>
+                        <MudTh Style="min-width: 200px;">Asunto del Ticket (Redmine)</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Style="text-align: center;">
+                            <MudCheckBox @bind-Value="@context.Seleccionado" 
+                                         Color="Color.Primary" 
+                                         Dense="true" 
+                                         Disabled="@(context.Estado == EstadoCreacion.Exitoso || estaProcesando)" />
+                        </MudTd>
+                        <MudTd>
+                            @if (context.Estado == EstadoCreacion.Pendiente)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Pendiente</MudChip>
+                            }
+                            else if (context.Estado == EstadoCreacion.EnProceso)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">Creando...</MudChip>
+                            }
+                            else if (context.Estado == EstadoCreacion.Exitoso)
+                            {
+                                @if (context.RedmineIssueId.HasValue)
+                                {
+                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.RedmineIssueId.Value}")" 
+                                             Target="_blank" 
+                                             Underline="Underline.Always" 
+                                             Color="Color.Success">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.OpenInNew">
+                                            #@context.RedmineIssueId.Value
+                                        </MudChip>
+                                    </MudLink>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Creado</MudChip>
+                                }
+                            }
+                            else if (context.Estado == EstadoCreacion.Fallido)
+                            {
+                                <MudTooltip Text="@context.MensajeError" Color="Color.Error">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.ErrorOutline">
+                                        Error
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                        <MudTd>
+                            <MudText Typo="Typo.body2" Class="fw-bold">@context.Area</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudText Typo="Typo.body2">@context.Cargo</MudText>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            <MudText Typo="Typo.body2">@context.FechaFormateada</MudText>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">
+                                @($"{context.HoraInicio} - {context.HoraFin}")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            <MudBadge Content="@context.CantidadEmpleados" Color="Color.Info" Overlap="false" Class="d-inline-block">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                            </MudBadge>
+                        </MudTd>
+                        <MudTd>
+                            <MudTooltip Text="@context.IdsEmpleados">
+                                <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 200px;">
+                                    @context.IdsEmpleados
+                                </MudText>
+                            </MudTooltip>
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField @bind-Value="@context.Asunto" 
+                                          Margin="Margin.Dense" 
+                                          Variant="Variant.Outlined" 
+                                          Disabled="@(context.Estado == EstadoCreacion.Exitoso || estaProcesando)" 
+                                          Class="py-0" />
+                        </MudTd>
+                    </RowTemplate>
+                    <FooterContent>
+                        <MudTd colspan="6" Class="fw-bold text-end">Total de Colaboradores Seleccionados:</MudTd>
+                        <MudTd Style="text-align: center;" Class="fw-bold">
+                            @filasFiltradas.Where(x => x.Seleccionado).Sum(x => x.CantidadEmpleados)
+                        </MudTd>
+                        <MudTd colspan="2"></MudTd>
+                    </FooterContent>
+                </MudTable>
+            </MudCardContent>
+
+            @* Barra de progreso de envío a Redmine *@
+            @if (estaProcesando)
+            {
+                <MudCardContent Class="py-2">
+                    <MudProgressLinear Color="Color.Primary" Value="@progresoEnvio" Class="my-1" />
+                    <MudText Typo="Typo.caption" Color="Color.Primary" Class="d-block text-center">
+                        Procesando @progresoActual de @progresoTotal tickets en Redmine (@progresoEnvio%)...
+                    </MudText>
+                </MudCardContent>
+            }
+
+            @* Botones de Acción *@
+            <MudCardActions Class="pa-4 d-flex justify-space-between align-center">
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Secondary" 
+                           StartIcon="@Icons.Material.Filled.Clear"
+                           Disabled="@estaProcesando"
+                           OnClick="LimpiarTodo">
+                    Limpiar Grilla
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           Disabled="@(!PuedeCrear)"
+                           OnClick="ConfirmarYCrearMovimientos">
+                    @(estaProcesando ? "Creando tickets en Redmine..." : $"Crear {filasFiltradas.Count(x => x.Seleccionado && x.Estado != EstadoCreacion.Exitoso)} Movimientos en Redmine")
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+</MudContainer>
