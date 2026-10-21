@@ -546,6 +546,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch (Exception ex)
             {
+                foreach (var it in pendientes.Where(x => x.Estado == EstadoCreacion.EnProceso))
+                {
+                    it.Estado = EstadoCreacion.Fallido;
+                    it.MensajeError = ex.Message;
+                    totalFallidos++;
+                }
                 _snackbar.Add($"Error crítico durante la creación en Redmine: {ex.Message}", Severity.Error);
             }
             finally
