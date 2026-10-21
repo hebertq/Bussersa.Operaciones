@@ -6,6 +6,7 @@ namespace Modelo.ClasesGenericas
     {
         public int OperacionId { get; set; }
         public string ClienteRedmine { get; set; } = string.Empty; // e.g. "4-WalMart"
+        public string ModoGeneracion { get; set; } = "Ambos";      // "Ambos", "SoloMovimientos", "SoloViaticos"
         public List<MovimientoPersonalItemDto> Movimientos { get; set; } = new();
     }
 
@@ -25,6 +26,8 @@ namespace Modelo.ClasesGenericas
         public string DobleTurno { get; set; } = "0";
         public string TiempoComida { get; set; } = "0.00";
         public string EsOperacionMixta { get; set; } = "0";
+        public string? VtcoTrasp { get; set; } = "0";
+        public string? VtcoAlim { get; set; } = "0";
     }
 
     public class ResultadoCreacionMovimientosDto
@@ -40,6 +43,8 @@ namespace Modelo.ClasesGenericas
         public int FilaIndex { get; set; }
         public bool Exitoso { get; set; }
         public int? RedmineIssueId { get; set; }
+        public int? RedmineViaticosIssueId { get; set; }
         public string? Mensaje { get; set; }
+        public string? MensajeViaticos { get; set; }
     }
 }

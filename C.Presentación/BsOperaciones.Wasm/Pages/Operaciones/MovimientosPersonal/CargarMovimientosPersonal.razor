@@ -30,7 +30,13 @@
                     @if (totalExitosos > 0)
                     {
                         <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
-                            Creados: @totalExitosos
+                            Movimientos: @totalExitosos
+                        </MudChip>
+                    }
+                    @if (totalViaticosCreados > 0)
+                    {
+                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Payments">
+                            Viáticos: @totalViaticosCreados
                         </MudChip>
                     }
                     @if (totalFallidos > 0)
@@ -122,6 +128,52 @@
                         </MudSelect>
                     }
                 </MudItem>
+
+                @* 4. Selector Estético de Modo de Generación *@
+                @if (filasExcel.Any())
+                {
+                    <MudItem xs="12">
+                        <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background-color: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-lines-default);">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap gap-2">
+                                <div>
+                                    <MudText Typo="Typo.subtitle2" Class="fw-bold" Color="Color.Primary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Class="mr-1" />
+                                        Modo de Creación en Redmine:
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Seleccione qué tipos de tickets se enviarán a Redmine para las jornadas seleccionadas.
+                                    </MudText>
+                                </div>
+                                <MudToggleGroup T="ModoGeneracionTickets" 
+                                                Value="@modoSeleccionado" 
+                                                ValueChanged="@((ModoGeneracionTickets m) => { modoSeleccionado = m; StateHasChanged(); })" 
+                                                Color="Color.Primary" 
+                                                CheckMark="true" 
+                                                FixedContent="true" 
+                                                Disabled="@estaProcesando">
+                                    <MudToggleItem Value="@ModoGeneracionTickets.Ambos">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Size="Size.Small" Color="Color.Primary" />
+                                            <span>Ambos (Movimientos + Viáticos)</span>
+                                        </MudStack>
+                                    </MudToggleItem>
+                                    <MudToggleItem Value="@ModoGeneracionTickets.SoloMovimientos">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Info" />
+                                            <span>Solo Movimientos</span>
+                                        </MudStack>
+                                    </MudToggleItem>
+                                    <MudToggleItem Value="@ModoGeneracionTickets.SoloViaticos">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" Color="Color.Success" />
+                                            <span>Solo Viáticos</span>
+                                        </MudStack>
+                                    </MudToggleItem>
+                                </MudToggleGroup>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                }
             </MudGrid>
         </MudCardContent>
 
@@ -174,14 +226,16 @@
                           Height="520px">
                     <HeaderContent>
                         <MudTh Style="width: 50px; text-align: center;">Sel.</MudTh>
-                        <MudTh Style="width: 130px;">Estado</MudTh>
+                        <MudTh Style="min-width: 140px;">Tickets Redmine</MudTh>
                         <MudTh>Área del Cliente</MudTh>
                         <MudTh>Cargo / Puesto</MudTh>
-                        <MudTh Style="width: 105px; text-align: center;">Fecha</MudTh>
-                        <MudTh Style="width: 120px; text-align: center;">Horario</MudTh>
-                        <MudTh Style="width: 80px; text-align: center;">Cant.</MudTh>
-                        <MudTh Style="min-width: 160px;">IDs Empleados (Descripción)</MudTh>
-                        <MudTh Style="min-width: 200px;">Asunto del Ticket (Redmine)</MudTh>
+                        <MudTh Style="width: 100px; text-align: center;">Fecha</MudTh>
+                        <MudTh Style="width: 110px; text-align: center;">Horario</MudTh>
+                        <MudTh Style="width: 70px; text-align: center;">Recursos</MudTh>
+                        <MudTh Style="width: 95px; text-align: center;">Vtco Trasp</MudTh>
+                        <MudTh Style="width: 95px; text-align: center;">Vtco Alim</MudTh>
+                        <MudTh Style="min-width: 150px;">IDs Empleados</MudTh>
+                        <MudTh Style="min-width: 180px;">Asunto del Ticket</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd Style="text-align: center;">
@@ -191,40 +245,51 @@
                                          Disabled="@(context.Estado == EstadoCreacion.Exitoso || estaProcesando)" />
                         </MudTd>
                         <MudTd>
-                            @if (context.Estado == EstadoCreacion.Pendiente)
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Pendiente</MudChip>
-                            }
-                            else if (context.Estado == EstadoCreacion.EnProceso)
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">Creando...</MudChip>
-                            }
-                            else if (context.Estado == EstadoCreacion.Exitoso)
-                            {
+                            <MudStack Spacing="1">
                                 @if (context.RedmineIssueId.HasValue)
                                 {
                                     <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.RedmineIssueId.Value}")" 
                                              Target="_blank" 
-                                             Underline="Underline.Always" 
-                                             Color="Color.Success">
+                                             Underline="Underline.Always">
                                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.OpenInNew">
-                                            #@context.RedmineIssueId.Value
+                                            Mov #@context.RedmineIssueId.Value
                                         </MudChip>
                                     </MudLink>
                                 }
-                                else
+                                @if (context.RedmineViaticosIssueId.HasValue)
                                 {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Creado</MudChip>
+                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.RedmineViaticosIssueId.Value}")" 
+                                             Target="_blank" 
+                                             Underline="Underline.Always">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Payments">
+                                            Viat #@context.RedmineViaticosIssueId.Value
+                                        </MudChip>
+                                    </MudLink>
                                 }
-                            }
-                            else if (context.Estado == EstadoCreacion.Fallido)
-                            {
-                                <MudTooltip Text="@context.MensajeError" Color="Color.Error">
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.ErrorOutline">
-                                        Error
-                                    </MudChip>
-                                </MudTooltip>
-                            }
+                                @if (!context.RedmineIssueId.HasValue && !context.RedmineViaticosIssueId.HasValue)
+                                {
+                                    @if (context.Estado == EstadoCreacion.Pendiente)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Pendiente</MudChip>
+                                    }
+                                    else if (context.Estado == EstadoCreacion.EnProceso)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">Creando...</MudChip>
+                                    }
+                                    else if (context.Estado == EstadoCreacion.Exitoso)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">Creado</MudChip>
+                                    }
+                                }
+                                @if (context.Estado == EstadoCreacion.Fallido)
+                                {
+                                    <MudTooltip Text="@context.MensajeError" Color="Color.Error">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.ErrorOutline">
+                                            Error
+                                        </MudChip>
+                                    </MudTooltip>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd>
                             <MudText Typo="Typo.body2" Class="fw-bold">@context.Area</MudText>
@@ -245,9 +310,33 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
                             </MudBadge>
                         </MudTd>
+                        <MudTd Style="text-align: center;">
+                            @if (EsMontoValido(context.VtcoTrasp))
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">
+                                    @context.VtcoTrasp
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                            }
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            @if (EsMontoValido(context.VtcoAlim))
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success">
+                                    @context.VtcoAlim
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                            }
+                        </MudTd>
                         <MudTd>
                             <MudTooltip Text="@context.IdsEmpleados">
-                                <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 200px;">
+                                <MudText Typo="Typo.body2" Class="text-truncate" Style="max-width: 180px;">
                                     @context.IdsEmpleados
                                 </MudText>
                             </MudTooltip>
@@ -265,7 +354,7 @@
                         <MudTd Style="text-align: center;" Class="fw-bold">
                             @filasFiltradas.Where(x => x.Seleccionado).Sum(x => x.CantidadEmpleados)
                         </MudTd>
-                        <MudTd colspan="2"></MudTd>
+                        <MudTd colspan="4"></MudTd>
                     </FooterContent>
                 </MudTable>
             </MudCardContent>
@@ -297,7 +386,7 @@
                            StartIcon="@Icons.Material.Filled.CloudUpload"
                            Disabled="@(!PuedeCrear)"
                            OnClick="ConfirmarYCrearMovimientos">
-                    @(estaProcesando ? "Creando tickets en Redmine..." : $"Crear {filasFiltradas.Count(x => x.Seleccionado && x.Estado != EstadoCreacion.Exitoso)} Movimientos en Redmine")
+                    @TextoBotonCrear
                 </MudButton>
             </MudCardActions>
         </MudCard>

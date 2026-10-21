@@ -36,6 +36,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected int totalExitosos = 0;
         protected int totalFallidos = 0;
+        protected int totalViaticosCreados = 0;
+
+        protected ModoGeneracionTickets modoSeleccionado = ModoGeneracionTickets.Ambos;
 
         protected string filtroFecha = "TODAS";
         protected List<string> fechasDisponibles = new();
@@ -44,10 +47,43 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected List<MovimientoGridItem> filasFiltradas => 
             filtroFecha == "TODAS" ? filasExcel : filasExcel.Where(x => x.Fecha == filtroFecha).ToList();
 
+        public static bool EsMontoValido(string? val)
+        {
+            if (string.IsNullOrWhiteSpace(val)) return false;
+            var v = val.Trim();
+            if (v == "0" || v == "0.0" || v == "0.00") return false;
+            if (decimal.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d))
+                return d > 0;
+            return true;
+        }
+
+        protected int totalMovimientosPendientes => filasFiltradas.Count(x => x.Seleccionado && x.Estado != EstadoCreacion.Exitoso);
+        protected int totalViaticosPendientes => filasFiltradas.Count(x => x.Seleccionado && x.TieneViaticos && !x.RedmineViaticosIssueId.HasValue);
+
         protected bool PuedeCrear => 
             !estaProcesando && 
             selectedOperacionId.HasValue && 
-            filasFiltradas.Any(x => x.Seleccionado && x.Estado != EstadoCreacion.Exitoso);
+            (
+                (modoSeleccionado == ModoGeneracionTickets.Ambos && (totalMovimientosPendientes > 0 || totalViaticosPendientes > 0)) ||
+                (modoSeleccionado == ModoGeneracionTickets.SoloMovimientos && totalMovimientosPendientes > 0) ||
+                (modoSeleccionado == ModoGeneracionTickets.SoloViaticos && totalViaticosPendientes > 0)
+            );
+
+        protected string TextoBotonCrear
+        {
+            get
+            {
+                if (estaProcesando) return "Creando tickets en Redmine...";
+                if (modoSeleccionado == ModoGeneracionTickets.SoloMovimientos)
+                    return $"Crear {totalMovimientosPendientes} Movimientos de Personal";
+                if (modoSeleccionado == ModoGeneracionTickets.SoloViaticos)
+                    return $"Crear {totalViaticosPendientes} Solicitudes de Viáticos";
+                
+                if (totalViaticosPendientes > 0)
+                    return $"Crear {totalMovimientosPendientes} Movimientos y {totalViaticosPendientes} Viáticos";
+                return $"Crear {totalMovimientosPendientes} Movimientos en Redmine";
+            }
+        }
 
         protected override async Task OnInitializedAsync()
         {
@@ -204,6 +240,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 int colHoraInicio = -1;
                 int colHoraFin = -1;
                 int colCant = -1;
+                int colVtcoTrasp = -1;
+                int colVtcoAlim = -1;
                 int colIds = -1;
 
                 for (int c = 0; c < headerRow.LastCellNum; c++)
@@ -214,18 +252,38 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     else if (val == "fecha") colFecha = c;
                     else if (val.Contains("hora inicio") || val.Contains("hora entrada") || val == "inicio") colHoraInicio = c;
                     else if (val.Contains("hora fin") || val.Contains("hora salida") || val == "fin") colHoraFin = c;
-                    else if (val.Contains("cant") || val.Contains("empleados") && !val.Contains("ids")) colCant = c;
+                    else if (val.Contains("trasp") || val.Contains("transporte")) colVtcoTrasp = c;
+                    else if (val.Contains("alim") || val.Contains("alimentaci")) colVtcoAlim = c;
+                    else if (val.Contains("cant") || (val.Contains("empleados") && !val.Contains("ids"))) colCant = c;
                     else if (val.Contains("ids") || val.Contains("separados")) colIds = c;
                 }
 
-                // Fallbacks posicionales estándar de la plantilla si no se detectaron todos por nombre
+                // Fallbacks posicionales estándar si no se detectaron todos por nombre
                 if (colArea == -1) colArea = 0;
                 if (colPuesto == -1) colPuesto = 1;
                 if (colFecha == -1) colFecha = 2;
                 if (colHoraInicio == -1) colHoraInicio = 3;
                 if (colHoraFin == -1) colHoraFin = 4;
                 if (colCant == -1) colCant = 5;
-                if (colIds == -1) colIds = 6;
+
+                if (colIds == -1)
+                {
+                    if (headerRow.LastCellNum >= 9)
+                    {
+                        if (colVtcoTrasp == -1) colVtcoTrasp = 6;
+                        if (colVtcoAlim == -1) colVtcoAlim = 7;
+                        colIds = 8;
+                    }
+                    else
+                    {
+                        colIds = 6;
+                    }
+                }
+                else if (colIds >= 8)
+                {
+                    if (colVtcoTrasp == -1) colVtcoTrasp = 6;
+                    if (colVtcoAlim == -1) colVtcoAlim = 7;
+                }
 
                 int indexCounter = 1;
                 var fechasSet = new HashSet<string>();
@@ -242,6 +300,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     string horaInicio = ExtraerHora(row.GetCell(colHoraInicio), evaluator);
                     string horaFin = ExtraerHora(row.GetCell(colHoraFin), evaluator);
                     int cantidad = ExtraerEntero(row.GetCell(colCant), evaluator);
+                    string vtcoTrasp = colVtcoTrasp >= 0 ? ExtraerMonto(row.GetCell(colVtcoTrasp), evaluator) : "0";
+                    string vtcoAlim = colVtcoAlim >= 0 ? ExtraerMonto(row.GetCell(colVtcoAlim), evaluator) : "0";
 
                     // Si no hay área ni IDs, es una fila vacía o de pie
                     if (string.IsNullOrWhiteSpace(area) && string.IsNullOrWhiteSpace(idsEmpleados))
@@ -276,6 +336,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraInicio = horaInicio,
                         HoraFin = horaFin,
                         CantidadEmpleados = cantidad > 0 ? cantidad : Math.Max(1, idsEmpleados.Split(',', StringSplitOptions.RemoveEmptyEntries).Length),
+                        VtcoTrasp = vtcoTrasp,
+                        VtcoAlim = vtcoAlim,
                         IdsEmpleados = idsEmpleados,
                         Asunto = asuntoSugerido
                     };
@@ -340,17 +402,32 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
-            var pendientes = filasFiltradas.Where(x => x.Seleccionado && x.Estado != EstadoCreacion.Exitoso).ToList();
+            var pendientes = filasFiltradas.Where(x => 
+                x.Seleccionado && 
+                (
+                    (modoSeleccionado == ModoGeneracionTickets.Ambos && (x.Estado != EstadoCreacion.Exitoso || (x.TieneViaticos && !x.RedmineViaticosIssueId.HasValue))) ||
+                    (modoSeleccionado == ModoGeneracionTickets.SoloMovimientos && x.Estado != EstadoCreacion.Exitoso) ||
+                    (modoSeleccionado == ModoGeneracionTickets.SoloViaticos && x.TieneViaticos && !x.RedmineViaticosIssueId.HasValue)
+                )
+            ).ToList();
+
             if (!pendientes.Any())
             {
-                _snackbar.Add("No hay movimientos seleccionados pendientes de procesar.", Severity.Info);
+                _snackbar.Add("No hay registros pendientes para el modo seleccionado.", Severity.Info);
                 return;
             }
 
+            string detalleTexto = modoSeleccionado switch
+            {
+                ModoGeneracionTickets.SoloMovimientos => $"Crear {pendientes.Count} tickets de Movimientos de Personal",
+                ModoGeneracionTickets.SoloViaticos => $"Crear {pendientes.Count(x => x.TieneViaticos)} tickets de Solicitud de Viáticos",
+                _ => $"Crear {pendientes.Count} tickets de Movimientos y hasta {pendientes.Count(x => x.TieneViaticos)} tickets de Viáticos"
+            };
+
             bool? confirmado = await _dialogService.ShowMessageBox(
                 "Confirmación de Carga a Redmine",
-                $"¿Está seguro de crear {pendientes.Count} tickets de Movimientos de Personal en Redmine para el cliente '{clienteRedmineIdentificador}'?",
-                yesText: "Sí, Crear Tickets",
+                $"¿Está seguro de {detalleTexto} en Redmine para el cliente '{clienteRedmineIdentificador}'?",
+                yesText: "Sí, Procesar",
                 cancelText: "Cancelar"
             );
 
@@ -375,6 +452,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         OperacionId = selectedOperacionId.Value,
                         ClienteRedmine = clienteRedmineIdentificador,
+                        ModoGeneracion = modoSeleccionado.ToString(),
                         Movimientos = chunk.Select(x => new MovimientoPersonalItemDto
                         {
                             FilaIndex = x.Index,
@@ -386,12 +464,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             CantidadEmpleados = x.CantidadEmpleados,
                             IdsEmpleados = x.IdsEmpleados,
                             Asunto = x.Asunto,
-                            Observaciones = string.Empty
+                            Observaciones = string.Empty,
+                            VtcoTrasp = x.VtcoTrasp,
+                            VtcoAlim = x.VtcoAlim
                         }).ToList()
                     };
 
                     var apiResponse = await _odooService.CrearMovimientosPersonalMasivo(requestDto);
-                    if (apiResponse != null && apiResponse.Model != null && apiResponse.Model.Detalles != null)
+                    if (apiResponse?.Model?.Detalles != null)
                     {
                         foreach (var det in apiResponse.Model.Detalles)
                         {
@@ -401,7 +481,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                 if (det.Exitoso)
                                 {
                                     target.Estado = EstadoCreacion.Exitoso;
-                                    target.RedmineIssueId = det.RedmineIssueId;
+                                    if (det.RedmineIssueId.HasValue) target.RedmineIssueId = det.RedmineIssueId;
+                                    if (det.RedmineViaticosIssueId.HasValue)
+                                    {
+                                        target.RedmineViaticosIssueId = det.RedmineViaticosIssueId;
+                                        totalViaticosCreados++;
+                                    }
                                     target.MensajeError = null;
                                     target.Seleccionado = false;
                                     totalExitosos++;
@@ -432,11 +517,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (totalFallidos == 0)
                 {
-                    _snackbar.Add($"¡Excelente! Se crearon exitosamente {totalExitosos} tickets en Redmine.", Severity.Success);
+                    _snackbar.Add($"¡Excelente! Proceso completado exitosamente en Redmine.", Severity.Success);
                 }
                 else
                 {
-                    _snackbar.Add($"Proceso finalizado. Creados: {totalExitosos}, Errores: {totalFallidos}. Revisa los estados en la grilla.", Severity.Warning);
+                    _snackbar.Add($"Proceso finalizado. Exitosos: {totalExitosos}, Errores: {totalFallidos}. Revisa la grilla para detalles.", Severity.Warning);
                 }
             }
             catch (Exception ex)
@@ -609,7 +694,43 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             return 0;
         }
 
+        private string ExtraerMonto(ICell? cell, IFormulaEvaluator evaluator)
+        {
+            if (cell == null) return "0";
+            try
+            {
+                if (cell.CellType == CellType.Numeric)
+                {
+                    return cell.NumericCellValue.ToString("0.##", CultureInfo.InvariantCulture);
+                }
+                if (cell.CellType == CellType.Formula)
+                {
+                    var res = evaluator.Evaluate(cell);
+                    if (res != null && res.CellType == CellType.Numeric)
+                        return res.NumberValue.ToString("0.##", CultureInfo.InvariantCulture);
+                    if (res != null && res.CellType == CellType.String)
+                    {
+                        var s = res.StringValue?.Trim() ?? "0";
+                        return string.IsNullOrEmpty(s) ? "0" : s;
+                    }
+                }
+                var str = cell.ToString()?.Trim() ?? "0";
+                return string.IsNullOrEmpty(str) ? "0" : str;
+            }
+            catch
+            {
+                return "0";
+            }
+        }
+
         #endregion
+    }
+
+    public enum ModoGeneracionTickets
+    {
+        Ambos,
+        SoloMovimientos,
+        SoloViaticos
     }
 
     public enum EstadoCreacion
@@ -626,7 +747,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public bool Seleccionado { get; set; } = true;
         public EstadoCreacion Estado { get; set; } = EstadoCreacion.Pendiente;
         public int? RedmineIssueId { get; set; }
+        public int? RedmineViaticosIssueId { get; set; }
         public string? MensajeError { get; set; }
+        public string? MensajeViaticos { get; set; }
 
         public string Area { get; set; } = string.Empty;
         public string Cargo { get; set; } = string.Empty;
@@ -635,7 +758,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraInicio { get; set; } = string.Empty; // HH:mm
         public string HoraFin { get; set; } = string.Empty; // HH:mm
         public int CantidadEmpleados { get; set; }
+        public string? VtcoTrasp { get; set; } = "0";
+        public string? VtcoAlim { get; set; } = "0";
         public string IdsEmpleados { get; set; } = string.Empty;
         public string Asunto { get; set; } = string.Empty;
+
+        public bool TieneViaticos => CargarMovimientosPersonal.EsMontoValido(VtcoTrasp) || CargarMovimientosPersonal.EsMontoValido(VtcoAlim);
     }
 }
