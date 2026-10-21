@@ -98,20 +98,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (response?.Model != null)
                 {
                     operacionesList = response.Model.OrderBy(x => x.id).ToList();
-
-                    // Pre-seleccionar WalMart por defecto si existe (id 4)
-                    var wm = operacionesList.FirstOrDefault(x => x.id == 4 || x.nombre.ToLower().Contains("walmart"));
-                    if (wm != null)
-                    {
-                        selectedOperacionId = wm.id;
-                        clienteRedmineIdentificador = $"{wm.id}-{wm.nombre}";
-                    }
                 }
             }
             catch (Exception ex)
             {
                 _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Warning);
             }
+        }
+
+        protected string ObtenerNombreOperacion(int? id)
+        {
+            if (!id.HasValue) return "-- Seleccione el cliente --";
+            var op = operacionesList.FirstOrDefault(x => x.id == id.Value);
+            return op != null ? $"{op.id}-{op.nombre}" : $"Cliente {id.Value}";
         }
 
         protected void OnOperacionChanged(int? operacionId)
@@ -154,11 +153,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected void LimpiarTodo()
         {
             archivoExcel = null;
+            selectedOperacionId = null;
+            clienteRedmineIdentificador = string.Empty;
             filasExcel.Clear();
             fechasDisponibles.Clear();
             filtroFecha = "TODAS";
             totalExitosos = 0;
             totalFallidos = 0;
+            totalViaticosCreados = 0;
             progresoActual = 0;
             progresoTotal = 0;
             StateHasChanged();
@@ -346,6 +348,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 fechasDisponibles = fechasSet.OrderBy(x => x).ToList();
+
+                // Auto-inferir cliente del archivo cargado si aún no está seleccionado
+                if (!selectedOperacionId.HasValue && filasExcel.Any())
+                {
+                    var primeraArea = filasExcel.FirstOrDefault()?.Area?.ToLower() ?? "";
+                    var matchOp = operacionesList.FirstOrDefault(op => 
+                        !string.IsNullOrEmpty(op.nombre) && 
+                        (primeraArea.Contains(op.nombre.ToLower()) || 
+                         (op.nombre.ToLower().Contains("walmart") && primeraArea.Contains("walmart")) ||
+                         (op.nombre.ToLower().Contains("sinsa") && primeraArea.Contains("sinsa")) ||
+                         (op.nombre.ToLower().Contains("condes") && primeraArea.Contains("condes")) ||
+                         (op.nombre.ToLower().Contains("glacial") && primeraArea.Contains("glacial"))));
+
+                    if (matchOp != null)
+                    {
+                        OnOperacionChanged(matchOp.id);
+                    }
+                }
 
                 if (!filasExcel.Any())
                 {

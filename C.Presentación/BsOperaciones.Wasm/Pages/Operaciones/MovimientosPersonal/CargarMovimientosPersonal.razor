@@ -60,18 +60,26 @@
                                Label="Cliente de la Operación" 
                                Value="@selectedOperacionId" 
                                ValueChanged="OnOperacionChanged"
+                               ToStringFunc="ObtenerNombreOperacion"
                                Placeholder="Seleccione el cliente..."
                                Variant="Variant.Outlined"
                                Dense="true"
+                               Disabled="@(!filasExcel.Any() || estaProcesando)"
                                AdornmentIcon="@Icons.Material.Filled.Business" 
                                AdornmentColor="Color.Primary">
-                        <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione un cliente --</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione el cliente --</MudSelectItem>
                         @foreach (var op in operacionesList)
                         {
                             <MudSelectItem T="int?" Value="@((int?)op.id)">@($"{op.id}-{op.nombre}")</MudSelectItem>
                         }
                     </MudSelect>
-                    @if (!string.IsNullOrEmpty(clienteRedmineIdentificador))
+                    @if (!filasExcel.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
+                            Cargue el archivo Excel para habilitar la selección del cliente.
+                        </MudText>
+                    }
+                    else if (!string.IsNullOrEmpty(clienteRedmineIdentificador))
                     {
                         <MudText Typo="Typo.caption" Color="Color.Primary" Class="mt-1 d-block">
                             Cliente Redmine: <strong>@clienteRedmineIdentificador</strong>
