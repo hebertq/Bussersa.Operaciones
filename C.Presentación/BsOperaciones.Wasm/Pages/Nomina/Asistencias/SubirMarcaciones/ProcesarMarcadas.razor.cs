@@ -75,10 +75,13 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.SubirMarcaciones
                 if (listaCruda != null && listaCruda.Any())
                 {
                     var emps = await _mediator.Send(new GetAllCombosQuery("Empleados"));
+                    var listaEmps = emps?.Model ?? [];
                     PayLoadList = (from lh in listaCruda
-                                   join em in emps.Model on lh.id equals em.id
+                                   join em in listaEmps on lh.id equals em.id into gj
+                                   from subEm in gj.DefaultIfEmpty()
                                    select new HoraEntrada {
-                                       fecha = lh.fecha, id = lh.id, nombre = em.nombre,
+                                       fecha = lh.fecha, id = lh.id, 
+                                       nombre = subEm?.nombre ?? $"Empleado {lh.id}",
                                        entrada = lh.entrada, salida = lh.salida,
                                        bono = lh.bono, almuerzocena = lh.almuerzocena
                                    })

@@ -8,6 +8,9 @@ namespace BsOperaciones.Application.Common.Strategy.Reloj
         {
             var resultado = new List<HoraEntrada>();
 
+            // Deduplicar marcas idénticas en la misma fecha y hora
+            marcas = marcas.Distinct().ToList();
+
             // 1. Agrupamos por ID de empleado
             var grupos = marcas.GroupBy(x => x.id);
 
