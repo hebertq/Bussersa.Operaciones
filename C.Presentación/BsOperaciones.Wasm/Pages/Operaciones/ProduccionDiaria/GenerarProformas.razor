@@ -153,9 +153,15 @@
                                 <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" />
                                 <strong>@grupo.Cliente</strong> - Agrupación: <span class="text-primary">@grupo.Agrupacion</span>
                             </span>
-                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">
-                                Total: C$ @grupo.Items.Sum(x => x.Cantidad * x.Tarifa).ToString("N2")
-                            </MudChip>
+                            <div class="d-flex align-center gap-2">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">
+                                    <MudIcon Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" Class="mr-1" />
+                                    @grupo.Items.Sum(x => x.ProduccionIds?.Count ?? 0) registros vinculados
+                                </MudChip>
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Text">
+                                    Total: C$ @grupo.Items.Sum(x => x.Cantidad * x.Tarifa).ToString("N2")
+                                </MudChip>
+                            </div>
                         </div>
 
                         <MudTable Items="grupo.Items" Hover="true" Dense="true" Bordered="false" Elevation="0">
@@ -163,6 +169,7 @@
                                 <MudTh>Área / Cadena</MudTh>
                                 <MudTh>Código SKU</MudTh>
                                 <MudTh>Descripción</MudTh>
+                                <MudTh Style="text-align: center;">Registros Asociados</MudTh>
                                 <MudTh Style="text-align: right;">Cantidad</MudTh>
                                 <MudTh Style="text-align: right;">Tarifa</MudTh>
                                 <MudTh Style="text-align: right;">Subtotal</MudTh>
@@ -171,6 +178,18 @@
                                 <MudTd DataLabel="Área / Cadena">@context.Area</MudTd>
                                 <MudTd DataLabel="Código SKU">@context.SKU</MudTd>
                                 <MudTd DataLabel="Descripción">@context.Descripcion</MudTd>
+                                <MudTd DataLabel="Registros Asociados" Style="text-align: center;">
+                                    @if (context.ProduccionIds != null && context.ProduccionIds.Any())
+                                    {
+                                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Title="@($"IDs: {context.IdsDetalle}")">
+                                            @context.ProduccionIds.Count @(context.ProduccionIds.Count == 1 ? "registro" : "registros")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">Sin IDs</MudChip>
+                                    }
+                                </MudTd>
                                 <MudTd DataLabel="Cantidad" Style="text-align: right;">@context.Cantidad.ToString("N2")</MudTd>
                                 <MudTd DataLabel="Tarifa" Style="text-align: right;">C$ @context.Tarifa.ToString("N2")</MudTd>
                                 <MudTd DataLabel="Subtotal" Style="text-align: right;"><strong>C$ @((context.Cantidad * context.Tarifa).ToString("N2"))</strong></MudTd>

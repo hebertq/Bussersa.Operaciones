@@ -22,6 +22,8 @@ namespace Modelo.Entidades.Entradas.Odoo
         public string Descripcion { get; set; } = string.Empty;
         public decimal Tarifa { get; set; }
         public decimal Cantidad { get; set; }
+        public List<int> ProduccionIds { get; set; } = new();
+        public string? IdsDetalle { get; set; }
     }
 
     public class ProformaMappingResultDto

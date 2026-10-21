@@ -48,33 +48,32 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     IWorkbook workbook = WorkbookFactory.Create(ms);
                     IFormulaEvaluator evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
                     
-                    // Try to find the "Consolidado" sheet, or fallback to the first sheet
-                    ISheet sheet = workbook.GetSheet("Consolidado") ?? workbook.GetSheetAt(0);
+                    // Try to find the appropriate sheet:
+                    // Prefer sheet with actual Agrupación data, checking "Consolidado" then "Detalle"
+                    ISheet? sheet = null;
+                    var consolidadoSheet = workbook.GetSheet("Consolidado");
+                    var detalleSheet = workbook.GetSheet("Detalle");
 
-                    // Search for the header row containing "Cliente" within the first 10 rows
-                    IRow? headerRow = null;
-                    int headerRowIndex = -1;
-                    for (int r = 0; r <= Math.Min(sheet.LastRowNum, 10); r++)
+                    if (consolidadoSheet != null && HasAgrupacionData(consolidadoSheet, evaluator))
                     {
-                        var row = sheet.GetRow(r);
-                        if (row == null) continue;
-
-                        for (int c = 0; c < row.LastCellNum; c++)
-                        {
-                            var cellVal = row.GetCell(c)?.ToString()?.Trim()?.ToLower() ?? "";
-                            if (cellVal == "cliente" || cellVal.Contains("cliente"))
-                            {
-                                headerRow = row;
-                                headerRowIndex = r;
-                                break;
-                            }
-                        }
-                        if (headerRow != null) break;
+                        sheet = consolidadoSheet;
                     }
+                    else if (detalleSheet != null && HasAgrupacionData(detalleSheet, evaluator))
+                    {
+                        sheet = detalleSheet;
+                    }
+                    else
+                    {
+                        sheet = consolidadoSheet ?? detalleSheet ?? workbook.GetSheetAt(0);
+                    }
+
+                    var headerInfo = FindHeaderRow(sheet);
+                    IRow? headerRow = headerInfo.row;
+                    int headerRowIndex = headerInfo.index;
 
                     if (headerRow == null)
                     {
-                        _snackbar.Add("No se encontró la cabecera 'Cliente' en el archivo Excel.", Severity.Error);
+                        _snackbar.Add($"No se encontró la cabecera 'Cliente' en la pestaña '{sheet.SheetName}' del archivo Excel.", Severity.Error);
                         archivoExcel = null;
                         estaCargandoArchivo = false;
                         return;
@@ -92,9 +91,10 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         else if (cellValue.Contains("sku") || cellValue.Contains("código") || cellValue.Contains("codigo")) colIndices["sku"] = i;
                         else if (cellValue.Contains("descripción") || cellValue.Contains("descripcion")) colIndices["descripcion"] = i;
                         else if (cellValue.Contains("rango") || cellValue.Contains("fechas") || cellValue.Contains("período") || cellValue.Contains("periodo")) colIndices["rango_fechas"] = i;
-                        else if (cellValue.Contains("tarifa")) colIndices["tarifa"] = i;
+                        else if (cellValue.Contains("tarifa") || cellValue.Contains("costo")) colIndices["tarifa"] = i;
                         else if (cellValue.Contains("cantidad")) colIndices["cantidad"] = i;
                         else if (cellValue.Contains("agrupación") || cellValue.Contains("agrupacion")) colIndices["agrupacion"] = i;
+                        else if (cellValue.Contains("ids") || cellValue == "id" || cellValue.Contains("id detalle")) colIndices["ids"] = i;
                     }
 
                     // Validate minimal required columns
@@ -128,26 +128,59 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             descCompleta = $"{descCompleta} ({rangoFechas})";
                         }
 
+                        var rawIds = GetStringVal(row, colIndices, "ids", evaluator);
+                        var parsedIds = new List<int>();
+                        if (!string.IsNullOrWhiteSpace(rawIds))
+                        {
+                            var parts = rawIds.Split(new[] { ',', ';', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            foreach (var p in parts)
+                            {
+                                if (int.TryParse(p, out int pid) && pid > 0)
+                                {
+                                    parsedIds.Add(pid);
+                                }
+                            }
+                        }
+                        else if (colIndices.ContainsKey("ids"))
+                        {
+                            var numId = (int)GetDecimalVal(row, colIndices, "ids", evaluator);
+                            if (numId > 0) parsedIds.Add(numId);
+                        }
+
                         var itemDto = new ProformaItemDto
                         {
                             Area = GetStringVal(row, colIndices, "area", evaluator) ?? "",
                             SKU = sku,
                             Descripcion = descCompleta,
                             Cantidad = GetDecimalVal(row, colIndices, "cantidad", evaluator),
-                            Tarifa = GetDecimalVal(row, colIndices, "tarifa", evaluator)
+                            Tarifa = GetDecimalVal(row, colIndices, "tarifa", evaluator),
+                            ProduccionIds = parsedIds.Distinct().ToList(),
+                            IdsDetalle = string.Join(",", parsedIds.Distinct())
                         };
 
                         parsedItems.Add((cliente, agrupacion, itemDto));
                     }
 
-                    // Group by Cliente + Agrupación
+                    // Group by Cliente + Agrupación and combine items with same characteristics while preserving all IDs
                     gruposProformas = parsedItems
                         .GroupBy(x => new { x.cliente, x.agrupacion })
                         .Select(g => new ProformaGrupoDto
                         {
                             Cliente = g.Key.cliente,
                             Agrupacion = g.Key.agrupacion,
-                            Items = g.Select(x => x.item).ToList()
+                            Items = g
+                                .GroupBy(it => new { it.item.Area, it.item.SKU, it.item.Tarifa, it.item.Descripcion })
+                                .Select(ig => new ProformaItemDto
+                                {
+                                    Area = ig.Key.Area,
+                                    SKU = ig.Key.SKU,
+                                    Tarifa = ig.Key.Tarifa,
+                                    Descripcion = ig.Key.Descripcion,
+                                    Cantidad = ig.Sum(x => x.item.Cantidad),
+                                    ProduccionIds = ig.SelectMany(x => x.item.ProduccionIds).Distinct().ToList(),
+                                    IdsDetalle = string.Join(",", ig.SelectMany(x => x.item.ProduccionIds).Distinct())
+                                })
+                                .ToList()
                         })
                         .OrderBy(x => x.Cliente)
                         .ThenBy(x => x.Agrupacion)
@@ -159,7 +192,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     }
                     else
                     {
-                        _snackbar.Add($"Se procesó el archivo Excel. Detectadas {gruposProformas.Count} proformas.", Severity.Success);
+                        int totalIds = gruposProformas.Sum(g => g.Items.Sum(i => i.ProduccionIds.Count));
+                        _snackbar.Add($"Se procesó el archivo Excel ({sheet.SheetName}). Detectadas {gruposProformas.Count} proformas con {totalIds} registros vinculados.", Severity.Success);
                     }
                 }
             }
@@ -283,6 +317,55 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
 
             return 0;
+        }
+
+        private bool HasAgrupacionData(ISheet sheet, IFormulaEvaluator evaluator)
+        {
+            var header = FindHeaderRow(sheet);
+            if (header.row == null) return false;
+
+            int agrupCol = -1;
+            for (int i = 0; i < header.row.LastCellNum; i++)
+            {
+                var val = header.row.GetCell(i)?.ToString()?.Trim()?.ToLower() ?? "";
+                if (val.Contains("agrupación") || val.Contains("agrupacion"))
+                {
+                    agrupCol = i;
+                    break;
+                }
+            }
+            if (agrupCol < 0) return false;
+
+            for (int r = header.index + 1; r <= sheet.LastRowNum; r++)
+            {
+                var row = sheet.GetRow(r);
+                if (row == null) continue;
+                var cell = row.GetCell(agrupCol);
+                if (cell != null && !string.IsNullOrWhiteSpace(cell.ToString()))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private (IRow? row, int index) FindHeaderRow(ISheet sheet)
+        {
+            for (int r = 0; r <= Math.Min(sheet.LastRowNum, 10); r++)
+            {
+                var row = sheet.GetRow(r);
+                if (row == null) continue;
+
+                for (int c = 0; c < row.LastCellNum; c++)
+                {
+                    var cellVal = row.GetCell(c)?.ToString()?.Trim()?.ToLower() ?? "";
+                    if (cellVal == "cliente" || cellVal.Contains("cliente"))
+                    {
+                        return (row, r);
+                    }
+                }
+            }
+            return (null, -1);
         }
         #endregion
     }

@@ -749,7 +749,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         g.Key.Tarifa,
                         Cantidad = g.Sum(x => x.cantidad_producto),
                         Peso = g.Sum(x => x.peso),
-                        Total = g.Sum(x => x.cantidad_producto * x.costo_producto)
+                        Total = g.Sum(x => x.cantidad_producto * x.costo_producto),
+                        Ids = string.Join(",", g.Select(x => x.id))
                     })
                     .OrderBy(x => x.Cliente)
                     .ThenBy(x => x.SKU)
@@ -789,7 +790,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         { "Cantidad Total", x.Cantidad },
                         { "Peso Total (kg)", x.Peso },
                         { "Total Facturado (C$)", x.Total },
-                        { "Agrupación", "" }
+                        { "Agrupación", "" },
+                        { "IDs Detalle", x.Ids }
                     };
                     consolidatedData.Add(dict);
                 }
@@ -817,6 +819,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
                     var dict = new Dictionary<string, object>
                     {
+                        { "ID", x.id },
                         { "Fecha Inicio", x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
                         { "Fecha Fin", x.fecha_fin?.ToString("yyyy-MM-dd") ?? x.fecha_inicio?.ToString("yyyy-MM-dd") ?? "" },
                         { "Rango de Fechas", rangoFechas },
@@ -835,7 +838,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         { "Total Facturado (C$)", x.cantidad_producto * x.costo_producto },
                         { "No. Proforma", x.no_proforma ?? "Sin Proforma" },
                         { "No. Factura", x.no_factura ?? "Sin Factura" },
-                        { "Asignado A", x.asignado_a ?? "" }
+                        { "Asignado A", x.asignado_a ?? "" },
+                        { "Agrupación", "" }
                     };
                     detailData.Add(dict);
                 }
