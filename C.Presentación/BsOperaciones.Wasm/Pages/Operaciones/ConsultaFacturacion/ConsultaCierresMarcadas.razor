@@ -382,10 +382,10 @@
                         </div>
                     </div>
 
-                    @* TARJETAS KPI COMPARATIVAS (4 COLUMNAS BALANCEADAS) *@
+                    @* TARJETAS KPI COMPARATIVAS (3 COLUMNAS LIMPIAS) *@
                     <MudGrid Spacing="2" Class="mt-3">
                         @* 1. Bussersa Producción Cobrable *@
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="12" sm="4" md="4">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 10px;">
                                 <span class="small text-secondary fw-semibold">Producción Bussersa</span>
                                 <div class="fs-5 fw-bold text-primary mt-1">@resultadoConciliacion.TotalHorasBussersa.ToString("N1") h</div>
@@ -394,7 +394,7 @@
                         </MudItem>
 
                         @* 2. Total Registrado Cliente *@
-                        <MudItem xs="12" sm="6" md="3">
+                        <MudItem xs="12" sm="4" md="4">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
                                 <span class="small text-secondary fw-semibold">Total en Cliente</span>
                                 <div class="fs-5 fw-bold text-dark mt-1">@resultadoConciliacion.TotalHorasClienteTotal.ToString("N1") h</div>
@@ -402,21 +402,12 @@
                             </MudPaper>
                         </MudItem>
 
-                        @* 3. Brecha Neta vs Efectivamente Pagado (DIFERENCIA A COBRAR) *@
-                        <MudItem xs="12" sm="6" md="3">
+                        @* 3. Faltante a Cobrar (Turnos Omitidos) *@
+                        <MudItem xs="12" sm="4" md="4">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 10px;">
-                                <span class="small fw-bold text-danger">⚠️ Brecha a Cobrar</span>
-                                <div class="fs-5 fw-bold text-danger mt-1">@resultadoConciliacion.BrechaPagadoTotalHoras.ToString("N1") h</div>
-                                <div class="small text-danger fw-semibold" style="font-size: 11px;">@resultadoConciliacion.BrechaPagadoTurnos turnos pendientes</div>
-                            </MudPaper>
-                        </MudItem>
-
-                        @* 4. Diferencia Neta Global *@
-                        <MudItem xs="12" sm="6" md="3">
-                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;">
-                                <span class="small text-secondary fw-semibold">Diferencia Neta Global</span>
-                                <div class="fs-5 fw-bold text-orange mt-1">@resultadoConciliacion.DiferenciaTotalHorasGlobal.ToString("N1") h</div>
-                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.DiferenciaTurnosGlobal turnos netos</div>
+                                <span class="small fw-bold text-danger">⚠️ Faltante a Cobrar</span>
+                                <div class="fs-5 fw-bold text-danger mt-1">@resultadoConciliacion.TurnosFaltantes.Sum(x => x.TotalHorasCobrables).ToString("N1") h</div>
+                                <div class="small text-danger fw-semibold" style="font-size: 11px;">@resultadoConciliacion.TurnosFaltantes.Count turnos omitidos por facturar</div>
                             </MudPaper>
                         </MudItem>
                     </MudGrid>

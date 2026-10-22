@@ -1099,21 +1099,12 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     },
                     new
                     {
-                        Concepto = "BRECHA DIRECTA VS LO PAGADO",
-                        Turnos = resultadoConciliacion.BrechaPagadoTurnos,
-                        Horas_Ordinarias = resultadoConciliacion.BrechaPagadoHorasOrd,
-                        Horas_Extras = resultadoConciliacion.BrechaPagadoHorasExt,
-                        Total_Horas = resultadoConciliacion.BrechaPagadoTotalHoras,
-                        Observaciones = "Faltante real de cobro frente a lo liquidado por el cliente."
-                    },
-                    new
-                    {
-                        Concepto = "DIFERENCIA NETA GLOBAL (Bussersa - Cliente)",
-                        Turnos = resultadoConciliacion.DiferenciaTurnosGlobal,
-                        Horas_Ordinarias = resultadoConciliacion.DiferenciaHorasOrdGlobal,
-                        Horas_Extras = resultadoConciliacion.DiferenciaHorasExtGlobal,
-                        Total_Horas = resultadoConciliacion.DiferenciaTotalHorasGlobal,
-                        Observaciones = "Diferencia directa entre ambos archivos."
+                        Concepto = "FALTANTE TOTAL A COBRAR (Turnos Omitidos)",
+                        Turnos = resultadoConciliacion.TurnosFaltantes.Count,
+                        Horas_Ordinarias = resultadoConciliacion.TurnosFaltantes.Sum(x => x.HorasOrdCobrables),
+                        Horas_Extras = resultadoConciliacion.TurnosFaltantes.Sum(x => x.HorasExtCobrables),
+                        Total_Horas = resultadoConciliacion.TurnosFaltantes.Sum(x => x.TotalHorasCobrables),
+                        Observaciones = "Turnos laborados con biométrico en Bussersa omitidos por el cliente."
                     }
                 };
 

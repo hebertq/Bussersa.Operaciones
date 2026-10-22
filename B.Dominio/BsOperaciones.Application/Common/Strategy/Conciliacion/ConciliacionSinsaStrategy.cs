@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -87,8 +87,8 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                 else if (h.Contains("fecha") && !h.Contains("pago")) colFecha = c;
                 else if (h.Contains("puesto") || h.Contains("cargo")) colPuesto = c;
                 else if (h.Contains("bodega") || h.Contains("zona")) colBodega = c;
-                else if (h.Contains("ordinaria") || h.Contains("normal")) colHorasOrd = c;
-                else if (h.Contains("extra")) colHorasExt = c;
+                else if ((h.Contains("ordinaria") || h.Contains("normal")) && !h.Contains("costo") && !h.Contains("tarifa") && !h.Contains("valor") && !h.Contains("monto")) colHorasOrd = c;
+                else if (h.Contains("extra") && !h.Contains("costo") && !h.Contains("tarifa") && !h.Contains("valor") && !h.Contains("monto")) colHorasExt = c;
                 else if (h.Contains("estado")) colEstadoPago = c;
                 else if (h.Contains("factura")) colFactura = c;
                 else if (h.Contains("control")) colControl = c;
