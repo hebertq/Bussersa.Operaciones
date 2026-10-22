@@ -18,6 +18,7 @@ namespace Modelo.Comercial
         public decimal margen_hora { get; set; }
         public decimal precio_sugerido { get; set; }
         public string estado_rentabilidad { get; set; } = string.Empty;
+        public bool es_supervision { get; set; }
     }
 
     public class RentabilidadClienteRedistribuidaDto
@@ -34,6 +35,20 @@ namespace Modelo.Comercial
         public decimal margen_real { get; set; }
         public decimal total_horas_reales { get; set; }
         public int total_empleados_reales { get; set; }
+        public decimal costo_supervision { get; set; }
+        public decimal costo_operativo_directo { get; set; }
+        public decimal margen_operativo { get; set; }
+        public string supervisor_nombre { get; set; } = string.Empty;
+    }
+
+    public class RentabilidadSupervisorDto
+    {
+        public int operacion_id { get; set; }
+        public string operacion_nombre { get; set; } = string.Empty;
+        public int supervisor_id { get; set; }
+        public string supervisor_nombre { get; set; } = string.Empty;
+        public string cargo { get; set; } = string.Empty;
+        public decimal costo_supervision { get; set; }
     }
 
     public class ConciliacionPrestamoPersonalDto
@@ -55,6 +70,7 @@ namespace Modelo.Comercial
         public List<RentabilidadServicioPrecisionDto> Servicios { get; set; } = new List<RentabilidadServicioPrecisionDto>();
         public List<RentabilidadClienteRedistribuidaDto> Clientes { get; set; } = new List<RentabilidadClienteRedistribuidaDto>();
         public List<ConciliacionPrestamoPersonalDto> Prestamos { get; set; } = new List<ConciliacionPrestamoPersonalDto>();
+        public List<RentabilidadSupervisorDto> Supervisores { get; set; } = new List<RentabilidadSupervisorDto>();
 
         // Resumen KPIs Reales
         public decimal TotalIngresos { get; set; }
@@ -66,6 +82,12 @@ namespace Modelo.Comercial
         public int ServiciosRentables { get; set; }
         public decimal TotalCostoTransferido { get; set; }
         public decimal TotalHorasPrestadas { get; set; }
+
+        // Desglose Operativo Directo vs Supervisión
+        public decimal TotalCostoOperativo { get; set; }
+        public decimal TotalCostoSupervision { get; set; }
+        public decimal MargenOperativoPct { get; set; }
+        public int TotalSupervisores { get; set; }
     }
 
     public class RentabilidadCargoConsolidadoDto
