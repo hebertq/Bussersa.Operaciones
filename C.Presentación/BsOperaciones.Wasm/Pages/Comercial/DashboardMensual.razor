@@ -55,9 +55,14 @@
             </MudText>
         </div>
         
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarRentabilidadMensual" Class="font-bold">
-            Actualizar Datos
-        </MudButton>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Sync" OnClick="SincronizarGastosRedmine" Disabled="isSyncingGastos" Class="font-bold">
+                @(isSyncingGastos ? "Sincronizando..." : "Sincronizar Gastos Redmine")
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarRentabilidadMensual" Class="font-bold">
+                Actualizar Datos
+            </MudButton>
+        </div>
     </div>
 
     <!-- Filtros de Período Mensual (Año / Mes) y Cliente -->
@@ -125,25 +130,31 @@
     {
         <!-- Tarjetas KPI Generales -->
         <MudGrid Class="mb-6">
-            <MudItem XS="12" SM="6" MD="3">
+            <MudItem XS="12" SM="6" MD="4" LG="3">
                 <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #1E88E5; border-radius: 10px;" Elevation="3">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">INGRESOS TOTALES FACTURABLES</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Primary">C$ @totalIngresos.ToString("N2")</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
+            <MudItem XS="12" SM="6" MD="4" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #E53935; border-radius: 10px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO NÓMINA OPERATIVO REAL</MudText>
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO NÓMINA REAL</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Error">C$ @totalCostoNomina.ToString("N2")</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
-                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #43A047; border-radius: 10px;" Elevation="3">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD BRUTA REAL</MudText>
-                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="Color.Success">C$ @totalUtilidad.ToString("N2")</MudText>
+            <MudItem XS="12" SM="6" MD="4" LG="2">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #EA580C; border-radius: 10px;" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">GASTOS OPERATIVOS (REDMINE)</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Style="color: #EA580C;">C$ @totalGastosOperativos.ToString("N2")</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem XS="12" SM="6" MD="3">
+            <MudItem XS="12" SM="6" MD="6" LG="3">
+                <MudPaper Class="pa-4 text-center border-l-4" Style="@($"border-left: 5px solid {(totalUtilidad < 0 ? "#E53935" : "#43A047")}; border-radius: 10px;")" Elevation="3">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD NETA REAL</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-2" Color="@(totalUtilidad < 0 ? Color.Error : Color.Success)">C$ @totalUtilidad.ToString("N2")</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="6" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4" Style="border-left: 5px solid #8E24AA; border-radius: 10px;" Elevation="3">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">% RENTABILIDAD PROMEDIO</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-2" Style="color: #8E24AA;">@promedioMargen.ToString("N2")%</MudText>
@@ -172,7 +183,8 @@
                     <MudTh Style="text-align:center;">Proformas / Facturas</MudTh>
                     <MudTh Style="text-align:right;">Ingreso Total (C$)</MudTh>
                     <MudTh Style="text-align:right;">Costo Nómina Real (C$)</MudTh>
-                    <MudTh Style="text-align:right;">Utilidad Bruta (C$)</MudTh>
+                    <MudTh Style="text-align:right;">Gastos Operativos (C$)</MudTh>
+                    <MudTh Style="text-align:right;">Utilidad Neta (C$)</MudTh>
                     <MudTh Style="text-align:center;">Margen %</MudTh>
                     <MudTh Style="text-align:center;">Recomendación Tarifaria</MudTh>
                 </HeaderContent>
@@ -204,6 +216,9 @@
                         {
                             <span class="d-block text-caption text-secondary" style="font-size:10px;">(Sin Nómina)</span>
                         }
+                    </MudTd>
+                    <MudTd Style="text-align:right; color:#ea580c; font-weight:600;">
+                        C$ @context.GastosOperativos.ToString("N2")
                     </MudTd>
                     <MudTd Style="text-align:right; font-weight:bold;" Class="@(context.UtilidadReal < 0 ? "text-error" : "text-success")">
                         C$ @context.UtilidadReal.ToString("N2")
@@ -239,12 +254,14 @@
     private List<int> aniosDisponibles = new List<int> { DateTime.Now.Year, DateTime.Now.Year - 1, DateTime.Now.Year - 2 };
     private int? filtroOperacionId = null;
     private bool isLoading = false;
+    private bool isSyncingGastos = false;
 
     private List<Combos> operacionesList = new List<Combos>();
     private List<RentabilidadMensualItem> rentabilidadEmpresas = new List<RentabilidadMensualItem>();
 
     private decimal totalIngresos = 0;
     private decimal totalCostoNomina = 0;
+    private decimal totalGastosOperativos = 0;
     private decimal totalUtilidad = 0;
     private decimal promedioMargen = 0;
 
@@ -259,8 +276,10 @@
         public int TotalFacturas { get; set; }
         public decimal IngresosTotales { get; set; }
         public decimal CostoNominaReal { get; set; }
+        public decimal GastosOperativos { get; set; }
         public bool EsCostoRealNomina { get; set; } = true;
-        public decimal UtilidadReal => IngresosTotales - CostoNominaReal;
+        public decimal CostoTotalReal => CostoNominaReal + GastosOperativos;
+        public decimal UtilidadReal => IngresosTotales - CostoNominaReal - GastosOperativos;
         public decimal MargenPercent => IngresosTotales > 0 ? (UtilidadReal / IngresosTotales) * 100m : 0m;
     }
 
@@ -286,6 +305,36 @@
         }
     }
 
+    private async Task SincronizarGastosRedmine()
+    {
+        isSyncingGastos = true;
+        StateHasChanged();
+
+        try
+        {
+            var res = await _OdooService.SincronizarGastosOperativosRedmine(anioSeleccionado, mesSeleccionado);
+            if (res != null && res.Model != null)
+            {
+                Snackbar.Add(res.Model.Mensaje, Severity.Success);
+            }
+            else if (res != null && res.Respuesta != null && res.Respuesta.ExisteError)
+            {
+                Snackbar.Add("Error al sincronizar: " + res.Respuesta.MensajeError, Severity.Error);
+            }
+
+            await CargarRentabilidadMensual();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al sincronizar gastos operativos de Redmine: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            isSyncingGastos = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task CargarRentabilidadMensual()
     {
         isLoading = true;
@@ -305,7 +354,11 @@
             var resCosto = await _OdooService.GetCostoNominaMensualCliente(periodo);
             var costosNominaList = resCosto.Model?.ToList() ?? new List<CostoNominaMensualClienteDto>();
 
-            // 3. Obtener Asociaciones de Operaciones Activas
+            // 3. Obtener Gastos Operativos Mensuales (Redmine / admon.gastos_operativos)
+            var resGastos = await _OdooService.GetGastosOperativosMensuales(anioSeleccionado, mesSeleccionado, periodo, null);
+            var gastosList = resGastos.Model?.ToList() ?? new List<GastoOperativoDto>();
+
+            // 4. Obtener Asociaciones de Operaciones Activas
             var resAsoc = await _OdooService.GetAllAsociacionesOperacion();
             var asociacionesList = resAsoc.Model?.Where(a => a.Activo).ToList() ?? new List<Modelo.Entidades.Operaciones.AsociacionOperacionDto>();
 
@@ -318,6 +371,7 @@
             var primaryOpIds = produccionList
                 .Select(x => getPrimaryOpId(x.operacion_id ?? 0))
                 .Concat(costosNominaList.Select(x => getPrimaryOpId(x.cliente)))
+                .Concat(gastosList.Select(x => getPrimaryOpId(x.OperacionId)))
                 .Where(x => x > 0)
                 .Distinct()
                 .ToList();
@@ -331,8 +385,13 @@
             rentabilidadEmpresas = primaryOpIds.Select(opId => {
                 var prods = produccionList.Where(x => getPrimaryOpId(x.operacion_id ?? 0) == opId).ToList();
                 var costosNominaOp = costosNominaList.Where(x => getPrimaryOpId(x.cliente) == opId).ToList();
+                var gastosOp = gastosList.Where(x => getPrimaryOpId(x.OperacionId) == opId).ToList();
 
                 string nombreCliente = prods.FirstOrDefault(x => (x.operacion_id ?? 0) == opId && !string.IsNullOrEmpty(x.cliente))?.cliente;
+                if (string.IsNullOrEmpty(nombreCliente))
+                {
+                    nombreCliente = gastosOp.FirstOrDefault(x => !string.IsNullOrEmpty(x.Cliente))?.Cliente;
+                }
                 if (string.IsNullOrEmpty(nombreCliente))
                 {
                     var combo = operacionesList.FirstOrDefault(c => c.id == opId);
@@ -350,6 +409,7 @@
 
                 decimal ingresos = prods.Sum(x => x.cantidad_producto * x.costo_producto);
                 decimal costoReal = costosNominaOp.Sum(x => x.costo_total_nomina);
+                decimal gastosTotalOp = gastosOp.Sum(x => x.Monto);
                 int totalEmpleados = costosNominaOp.Sum(x => x.total_empleados);
                 bool esReal = costosNominaOp.Any();
 
@@ -364,6 +424,7 @@
                     TotalFacturas = prods.Where(x => !string.IsNullOrEmpty(x.no_factura)).Select(x => x.no_factura).Distinct().Count(),
                     IngresosTotales = ingresos,
                     CostoNominaReal = costoReal,
+                    GastosOperativos = gastosTotalOp,
                     EsCostoRealNomina = esReal
                 };
             })
@@ -372,7 +433,8 @@
 
             totalIngresos = rentabilidadEmpresas.Sum(x => x.IngresosTotales);
             totalCostoNomina = rentabilidadEmpresas.Sum(x => x.CostoNominaReal);
-            totalUtilidad = totalIngresos - totalCostoNomina;
+            totalGastosOperativos = rentabilidadEmpresas.Sum(x => x.GastosOperativos);
+            totalUtilidad = totalIngresos - totalCostoNomina - totalGastosOperativos;
             promedioMargen = totalIngresos > 0 ? (totalUtilidad / totalIngresos) * 100m : 0m;
         }
         catch (Exception ex)

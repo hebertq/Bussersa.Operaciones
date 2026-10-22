@@ -161,6 +161,10 @@ namespace HostService.Interfaces
 
         // --- MOVIMIENTOS DE PERSONAL A REDMINE ---
         Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionMovimientosDto>> CrearMovimientosPersonalMasivo(Modelo.ClasesGenericas.CrearMovimientosPersonalRequestDto request);
+
+        // --- GASTOS OPERATIVOS REDMINE ---
+        Task<IListResponse<Modelo.ClasesGenericas.GastoOperativoDto>> GetGastosOperativosMensuales(int? anio = null, int? mes = null, int? periodo = null, int? operacionId = null);
+        Task<ISingleResponse<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto>> SincronizarGastosOperativosRedmine(int? anio = null, int? mes = null);
     }
 }
 

@@ -3408,6 +3408,70 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<Modelo.ClasesGenericas.GastoOperativoDto>> GetGastosOperativosMensuales(int? anio = null, int? mes = null, int? periodo = null, int? operacionId = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.ClasesGenericas.GastoOperativoDto> response = new ListResponse<Modelo.ClasesGenericas.GastoOperativoDto>();
+            try
+            {
+                var queryParams = new List<string>();
+                if (anio.HasValue) queryParams.Add($"anio={anio.Value}");
+                if (mes.HasValue) queryParams.Add($"mes={mes.Value}");
+                if (periodo.HasValue) queryParams.Add($"periodo={periodo.Value}");
+                if (operacionId.HasValue && operacionId.Value > 0) queryParams.Add($"operacionId={operacionId.Value}");
+
+                string queryString = string.Join("&", queryParams);
+                var requestUrl = CreateRequestUri("OdQuery/GetGastosOperativosMensuales", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.GastoOperativoDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto>> SincronizarGastosOperativosRedmine(int? anio = null, int? mes = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto> response = new SingleResponse<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto>();
+            try
+            {
+                var queryParams = new List<string>();
+                if (anio.HasValue) queryParams.Add($"anio={anio.Value}");
+                if (mes.HasValue) queryParams.Add($"mes={mes.Value}");
+
+                string queryString = string.Join("&", queryParams);
+                var requestUrl = CreateRequestUri("OCommand/SincronizarGastosOperativosRedmine", queryString);
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
 
