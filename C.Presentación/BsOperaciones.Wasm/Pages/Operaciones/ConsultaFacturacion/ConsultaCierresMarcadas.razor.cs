@@ -4,10 +4,12 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using MediatR;
 using MudBlazor;
 using BsOperaciones.Application.Features.Odoo.Queries;
+using BsOperaciones.Application.Common.Strategy.Conciliacion;
 using Modelo.ClasesGenericas;
 using Modelo.Report;
 using Modelo.Entidades.Entradas.Odoo;
@@ -21,6 +23,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         [Inject] protected ISnackbar Snackbar { get; set; }
         [Inject] protected IJSRuntime JS { get; set; }
         [Inject] protected HostService.Interfaces.IOdooService OdooService { get; set; }
+        [Inject] protected ConciliacionClienteSelector ConciliacionSelector { get; set; }
 
         protected List<ReporteCierreMarcadasDetalle> DatosCierreRaw = new();
         protected List<ReporteCierreMarcadasDetalle> DatosCierre = new();
@@ -53,6 +56,52 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         // Reglas de Cobro & Configuración
         protected bool mostrarModalReglas = false;
         protected ReglasCobroConfig ReglasConfig = new();
+
+        // Conciliación con Cliente
+        protected int activeTabIndex = 0;
+        protected bool SoportaConciliacionActual => ConciliacionSelector != null && ConciliacionSelector.SoportaConciliacion(operacionId, NombreOperacionActual);
+        protected string NombreOperacionActual => PayLoadOper?.FirstOrDefault(x => x.id == operacionId)?.nombre ?? "";
+        protected bool TieneConciliacion => resultadoConciliacion != null;
+        protected ResultadoConciliacionDto? resultadoConciliacion = null;
+        protected string nombreArchivoConciliacion = string.Empty;
+        protected byte[]? archivoConciliacionBytes = null;
+
+        protected string _searchFaltante = "";
+        protected string _searchPendiente = "";
+        protected string _searchDiferencia = "";
+        protected string _searchResumenColab = "";
+        protected string _searchSoloCliente = "";
+
+        protected Func<TurnoFaltanteClienteDto, bool> _filterFaltante => x => string.IsNullOrWhiteSpace(_searchFaltante) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchFaltante, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Area != null && x.Area.Contains(_searchFaltante, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Cargo != null && x.Cargo.Contains(_searchFaltante, StringComparison.OrdinalIgnoreCase)) ||
+            (x.CategoriaFaltante != null && x.CategoriaFaltante.Contains(_searchFaltante, StringComparison.OrdinalIgnoreCase)) ||
+            x.IdEmpleado.ToString().Contains(_searchFaltante);
+
+        protected Func<RegistroPendienteClienteDto, bool> _filterPendiente => x => string.IsNullOrWhiteSpace(_searchPendiente) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchPendiente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Puesto != null && x.Puesto.Contains(_searchPendiente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Bodega != null && x.Bodega.Contains(_searchPendiente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.NoFactura != null && x.NoFactura.Contains(_searchPendiente, StringComparison.OrdinalIgnoreCase));
+
+        protected Func<DiferenciaDiaComunDto, bool> _filterDiferencia => x => string.IsNullOrWhiteSpace(_searchDiferencia) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Area != null && x.Area.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Cargo != null && x.Cargo.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase)) ||
+            (x.NoFacturaCliente != null && x.NoFacturaCliente.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase));
+
+        protected Func<ResumenColaboradorFaltanteDto, bool> _filterResumenColab => x => string.IsNullOrWhiteSpace(_searchResumenColab) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchResumenColab, StringComparison.OrdinalIgnoreCase)) ||
+            (x.AreaPrincipal != null && x.AreaPrincipal.Contains(_searchResumenColab, StringComparison.OrdinalIgnoreCase)) ||
+            (x.CargoPrincipal != null && x.CargoPrincipal.Contains(_searchResumenColab, StringComparison.OrdinalIgnoreCase)) ||
+            x.IdEmpleado.ToString().Contains(_searchResumenColab);
+
+        protected Func<RegistroSoloClienteDto, bool> _filterSoloCliente => x => string.IsNullOrWhiteSpace(_searchSoloCliente) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchSoloCliente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Puesto != null && x.Puesto.Contains(_searchSoloCliente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Bodega != null && x.Bodega.Contains(_searchSoloCliente, StringComparison.OrdinalIgnoreCase)) ||
+            (x.NoFactura != null && x.NoFactura.Contains(_searchSoloCliente, StringComparison.OrdinalIgnoreCase));
 
         protected IEnumerable<EmpleadoSupervisorItem> FilteredSupervisoresList =>
             string.IsNullOrWhiteSpace(_searchSupervisor)
@@ -775,6 +824,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     .ToList();
             }
 
+            if (archivoConciliacionBytes != null)
+            {
+                EjecutarConciliacion();
+            }
+
             StateHasChanged();
         }
 
@@ -929,6 +983,271 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             catch (Exception ex)
             {
                 Snackbar.Add("Error al exportar: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                isloading = false;
+            }
+        }
+
+        protected async Task CargarArchivoConciliacion(IBrowserFile file)
+        {
+            if (file == null) return;
+
+            if (DatosCierre == null || !DatosCierre.Any())
+            {
+                Snackbar.Add("Por favor realice primero la consulta en Bussersa antes de cargar el archivo del cliente.", Severity.Warning);
+                return;
+            }
+
+            isloading = true;
+            StateHasChanged();
+            await Task.Delay(50);
+
+            try
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+                using var ms = new System.IO.MemoryStream();
+                await stream.CopyToAsync(ms);
+                archivoConciliacionBytes = ms.ToArray();
+                nombreArchivoConciliacion = file.Name;
+
+                EjecutarConciliacion();
+
+                if (resultadoConciliacion != null)
+                {
+                    activeTabIndex = 2; // Llevar a la pestaña de conciliación
+                    Snackbar.Add($"Conciliación procesada: {resultadoConciliacion.BrechaPagadoTotalHoras:N1}h de brecha vs pagado ({resultadoConciliacion.TurnosFaltantes.Count} turnos omitidos).", Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al procesar archivo de conciliación: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isloading = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void EjecutarConciliacion()
+        {
+            if (archivoConciliacionBytes == null || !archivoConciliacionBytes.Any()) return;
+            if (DatosCierre == null || !DatosCierre.Any()) return;
+
+            try
+            {
+                var estrategia = ConciliacionSelector.ObtenerEstrategia(operacionId, NombreOperacionActual);
+                if (estrategia == null)
+                {
+                    Snackbar.Add("No hay una estrategia de conciliación configurada para este cliente.", Severity.Warning);
+                    return;
+                }
+
+                using var ms = new System.IO.MemoryStream(archivoConciliacionBytes);
+                DateTime? dInicio = esRango ? fchaInicio : new DateTime(anio, mes, 1);
+                DateTime? dFin = esRango ? fchaFin : new DateTime(anio, mes, DateTime.DaysInMonth(anio, mes));
+
+                resultadoConciliacion = estrategia.Conciliar(ms, DatosCierre, dInicio, dFin);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en EjecutarConciliacion: {ex.Message}");
+            }
+        }
+
+        protected void LimpiarConciliacion()
+        {
+            resultadoConciliacion = null;
+            archivoConciliacionBytes = null;
+            nombreArchivoConciliacion = string.Empty;
+            Snackbar.Add("Conciliación removida.", Severity.Info);
+            StateHasChanged();
+        }
+
+        protected async Task ExportarConciliacionExcel()
+        {
+            if (resultadoConciliacion == null) return;
+
+            isloading = true;
+            StateHasChanged();
+            await Task.Delay(50);
+
+            try
+            {
+                // Hoja 1: Resumen Ejecutivo
+                var resumenEjecutivo = new List<object>
+                {
+                    new
+                    {
+                        Concepto = "Bussersa (Cierre Real de Marcadas Cobrables)",
+                        Turnos = resultadoConciliacion.TotalTurnosBussersa,
+                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdBussersa,
+                        Horas_Extras = resultadoConciliacion.TotalHorasExtBussersa,
+                        Total_Horas = resultadoConciliacion.TotalHorasBussersa,
+                        Observaciones = "Marcaciones respaldadas con reloj biométrico en Bussersa."
+                    },
+                    new
+                    {
+                        Concepto = $"{resultadoConciliacion.NombreCliente} - Facturado y Pagado (Base Terceros)",
+                        Turnos = resultadoConciliacion.TotalTurnosClientePagado,
+                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClientePagado,
+                        Horas_Extras = resultadoConciliacion.TotalHorasExtClientePagado,
+                        Total_Horas = resultadoConciliacion.TotalHorasClientePagado,
+                        Observaciones = "Horas liquidadas en facturas pagadas."
+                    },
+                    new
+                    {
+                        Concepto = $"{resultadoConciliacion.NombreCliente} - Facturas en Estado PENDIENTE",
+                        Turnos = resultadoConciliacion.TotalTurnosClientePendiente,
+                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClientePendiente,
+                        Horas_Extras = resultadoConciliacion.TotalHorasExtClientePendiente,
+                        Total_Horas = resultadoConciliacion.TotalHorasClientePendiente,
+                        Observaciones = "Registrado por el cliente pero retenido en estado PENDIENTE de pago."
+                    },
+                    new
+                    {
+                        Concepto = $"{resultadoConciliacion.NombreCliente} - Total Registrado en su Archivo",
+                        Turnos = resultadoConciliacion.TotalTurnosClienteTotal,
+                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClienteTotal,
+                        Horas_Extras = resultadoConciliacion.TotalHorasExtClienteTotal,
+                        Total_Horas = resultadoConciliacion.TotalHorasClienteTotal,
+                        Observaciones = "Suma total de registros en archivo del cliente."
+                    },
+                    new
+                    {
+                        Concepto = "DIFERENCIA NETA GLOBAL (Bussersa - Cliente Total)",
+                        Turnos = resultadoConciliacion.DiferenciaTurnosGlobal,
+                        Horas_Ordinarias = resultadoConciliacion.DiferenciaHorasOrdGlobal,
+                        Horas_Extras = resultadoConciliacion.DiferenciaHorasExtGlobal,
+                        Total_Horas = resultadoConciliacion.DiferenciaTotalHorasGlobal,
+                        Observaciones = "Diferencia directa entre ambos archivos."
+                    },
+                    new
+                    {
+                        Concepto = "BRECHA DIRECTA VS LO EFECTIVAMENTE PAGADO",
+                        Turnos = resultadoConciliacion.BrechaPagadoTurnos,
+                        Horas_Ordinarias = resultadoConciliacion.BrechaPagadoHorasOrd,
+                        Horas_Extras = resultadoConciliacion.BrechaPagadoHorasExt,
+                        Total_Horas = resultadoConciliacion.BrechaPagadoTotalHoras,
+                        Observaciones = "Faltante real de cobro frente a lo liquidado por el cliente."
+                    }
+                };
+
+                // Hoja 2: Resumen Colaboradores
+                var resumenColabExport = resultadoConciliacion.ResumenColaboradores.Select(x => new
+                {
+                    No = x.No,
+                    ID_Empleado = x.IdEmpleado,
+                    Nombre_Colaborador = x.NombreEmpleado,
+                    Area_Principal = x.AreaPrincipal,
+                    Cargo_Principal = x.CargoPrincipal,
+                    Dias_Omitidos = x.DiasOmitidos,
+                    Horas_Ord_Omitidas = x.HorasOrdOmitidas,
+                    Horas_Ext_Omitidas = x.HorasExtOmitidas,
+                    Total_Horas_Omitidas = x.TotalHorasOmitidas,
+                    Categoria_Faltante = x.CategoriaFaltante,
+                    Causa_Raiz = x.CausaRaiz,
+                    Fechas_Omitidas = x.FechasOmitidas
+                }).ToList();
+
+                // Hoja 3: Detalle Turnos Faltantes
+                var faltantesExport = resultadoConciliacion.TurnosFaltantes.Select(x => new
+                {
+                    No = x.No,
+                    ID_Empleado = x.IdEmpleado,
+                    Nombre_Colaborador = x.NombreEmpleado,
+                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
+                    Dia_Semana = x.DiaSemana,
+                    Area_Bussersa = x.Area,
+                    Cargo_Bussersa = x.Cargo,
+                    x.Turno,
+                    Horas_Ord_Cobrables = x.HorasOrdCobrables,
+                    Horas_Ext_Cobrables = x.HorasExtCobrables,
+                    Total_Horas_Cobrables = x.TotalHorasCobrables,
+                    Categoria_Faltante = x.CategoriaFaltante,
+                    Motivo_Justificacion = x.MotivoJustificacion
+                }).ToList();
+
+                // Hoja 4: Facturas Pendientes
+                var pendientesExport = resultadoConciliacion.FacturasPendientes.Select(x => new
+                {
+                    No = x.No,
+                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
+                    Nombre_en_Cliente = x.NombreEmpleado,
+                    Puesto = x.Puesto,
+                    Bodega = x.Bodega,
+                    Horas_Ord = x.HorasOrd,
+                    Horas_Ext = x.HorasExt,
+                    Total_Horas = x.TotalHoras,
+                    No_Factura = x.NoFactura,
+                    Estado_Pago = x.EstadoPago,
+                    Observacion = x.Observacion
+                }).ToList();
+
+                // Hoja 5: Diferencias en Días Comunes
+                var diferenciasExport = resultadoConciliacion.DiferenciasDiasComunes.Select(x => new
+                {
+                    No = x.No,
+                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
+                    Nombre_Colaborador = x.NombreEmpleado,
+                    Area_Bussersa = x.Area,
+                    Cargo_Bussersa = x.Cargo,
+                    Horas_Bussersa = x.HorasBussersa,
+                    Horas_Cliente = x.HorasCliente,
+                    Diferencia_Horas = x.DiferenciaHoras,
+                    No_Factura_Cliente = x.NoFacturaCliente,
+                    Estado_Cliente = x.EstadoCliente,
+                    Detalle_Diferencia = x.DetalleDiferencia
+                }).ToList();
+
+                // Hoja 6: Solo en Cliente
+                var soloClienteExport = resultadoConciliacion.RegistrosSoloCliente.Select(x => new
+                {
+                    No = x.No,
+                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
+                    Nombre_en_Cliente = x.NombreEmpleado,
+                    Puesto = x.Puesto,
+                    Bodega = x.Bodega,
+                    Horas_Ord = x.HorasOrd,
+                    Horas_Ext = x.HorasExt,
+                    Total_Horas = x.TotalHoras,
+                    No_Factura = x.NoFactura,
+                    Estado_Pago = x.EstadoPago,
+                    Diagnostico = x.Diagnostico
+                }).ToList();
+
+                var request = new MultiSheetExcelRequest
+                {
+                    Hojas = new List<ExcelRequest>
+                    {
+                        new ExcelRequest { Hoja = "Resumen Ejecutivo", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenEjecutivo), IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Resumen Colaboradores", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenColabExport), IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Detalle Dias Faltantes", Datos = Modelo.Validaciones.Util.ToDictionaryList(faltantesExport), IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Facturas Pendientes", Datos = Modelo.Validaciones.Util.ToDictionaryList(pendientesExport), IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Diferencias Horas", Datos = Modelo.Validaciones.Util.ToDictionaryList(diferenciasExport), IncludeHeader = true },
+                        new ExcelRequest { Hoja = "Solo en Cliente", Datos = Modelo.Validaciones.Util.ToDictionaryList(soloClienteExport), IncludeHeader = true }
+                    }
+                };
+
+                var response = await OdooService.GenerateExcel(request);
+                if (!response.Respuesta.ExisteError && response.Model != null)
+                {
+                    string base64File = response.Model.File;
+                    string cliente = resultadoConciliacion.NombreCliente.Replace(" ", "_");
+                    string fchaStr = DateTime.Now.ToString("ddMMyy");
+                    await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64File, $"Conciliacion_{cliente}_{fchaStr}.xlsx");
+                    Snackbar.Add("Informe de Conciliación generado y descargado con éxito.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Error al generar Excel de Conciliación: " + response.Respuesta.MensajeError, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error al exportar conciliación: " + ex.Message, Severity.Error);
             }
             finally
             {

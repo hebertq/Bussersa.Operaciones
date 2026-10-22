@@ -121,6 +121,19 @@
                 </MudButton>
             </MudTooltip>
 
+            @if (SoportaConciliacionActual)
+            {
+                <MudFileUpload T="IBrowserFile" FilesChanged="CargarArchivoConciliacion" Accept=".xlsx,.xls">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled" Color="@(TieneConciliacion ? Color.Tertiary : Color.Warning)" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   Style="height: 36px; white-space: nowrap;" Class="fw-bold rounded-pill px-3">
+                            @(TieneConciliacion ? $"Conciliación Activa ({resultadoConciliacion.BrechaPagadoTotalHoras:N0}h brecha)" : $"Conciliar con {NombreOperacionActual}")
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+            }
+
             <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                        StartIcon="@Icons.Custom.FileFormats.FileExcel"
                        Disabled="@(DatosCierre == null || !DatosCierre.Any())"
@@ -152,7 +165,7 @@
 
 @* --- CONTENEDOR DE RESULTADOS --- *@
 <div>
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary" @bind-ActivePanelIndex="activeTabIndex">
 
         @* TAB 1: CONSOLIDADO *@
         <MudTabPanel Text="CONSOLIDADO POR ÁREA" Icon="@Icons.Material.Filled.Assignment">
@@ -310,6 +323,290 @@
                 </NoRecordsContent>
                 <PagerContent><MudDataGridPager T="ReporteCierreMarcadasDetalle" /></PagerContent>
             </MudDataGrid>
+        </MudTabPanel>
+
+        @* TAB 3: CONCILIACIÓN CON CLIENTE *@
+        <MudTabPanel Text="CONCILIACIÓN CLIENTE" Icon="@Icons.Material.Filled.CompareArrows" Disabled="@(!SoportaConciliacionActual && !TieneConciliacion)">
+            @if (!TieneConciliacion)
+            {
+                <MudPaper Elevation="0" Class="pa-8 my-4 text-center" Style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 16px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" Style="font-size: 3rem;" />
+                    <MudText Typo="Typo.h6" Class="fw-bold mt-2" Color="Color.Dark">Conciliación Biométrica / Facturación Externa (@(string.IsNullOrEmpty(NombreOperacionActual) ? "Cliente" : NombreOperacionActual))</MudText>
+                    <MudText Typo="Typo.body2" Class="text-secondary mt-1 mb-4" Style="max-width: 600px; margin: 0 auto;">
+                        Cargue el archivo de control biométrico o gastos de terceros emitido por el cliente (ej. <code>gastos_terceros_*.xlsx</code>) para comparar la producción real registrada por Bussersa contra lo facturado y pagado por el cliente.
+                    </MudText>
+                    <div class="d-flex justify-center">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="CargarArchivoConciliacion" Accept=".xlsx,.xls">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" Size="Size.Medium" Class="fw-bold px-4 py-2 rounded-pill">
+                                    SELECCIONAR ARCHIVO DE CLIENTE
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                    </div>
+                </MudPaper>
+            }
+            else
+            {
+                @* ENCABEZADO DE CONCILIACIÓN Y ACCIONES *@
+                <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div class="d-flex justify-between align-center flex-wrap gap-3">
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
+                                🏢 Cliente: @resultadoConciliacion.NombreCliente
+                            </MudChip>
+                            <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
+                                📄 Archivo: @nombreArchivoConciliacion
+                            </MudChip>
+                            @if (resultadoConciliacion.FechaInicio.HasValue && resultadoConciliacion.FechaFin.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small">
+                                    📅 Periodo: @resultadoConciliacion.FechaInicio.Value.ToString("dd/MM/yyyy") al @resultadoConciliacion.FechaFin.Value.ToString("dd/MM/yyyy")
+                                </MudChip>
+                            }
+                        </div>
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <MudFileUpload T="IBrowserFile" FilesChanged="CargarArchivoConciliacion" Accept=".xlsx,.xls">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh">
+                                        Cargar Otro Archivo
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="LimpiarConciliacion" StartIcon="@Icons.Material.Filled.Close">
+                                Quitar Conciliación
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" OnClick="ExportarConciliacionExcel" StartIcon="@Icons.Custom.FileFormats.FileExcel" Class="fw-bold rounded-pill px-3">
+                                Exportar Conciliación Completa (Excel)
+                            </MudButton>
+                        </div>
+                    </div>
+
+                    @* TARJETAS KPI COMPARATIVAS *@
+                    <MudGrid Spacing="2" Class="mt-3">
+                        @* 1. Bussersa Producción Cobrable *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 10px;">
+                                <span class="small text-secondary fw-semibold">Producción Bussersa</span>
+                                <div class="fs-5 fw-bold text-primary mt-1">@resultadoConciliacion.TotalHorasBussersa.ToString("N1") h</div>
+                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosBussersa turnos (@resultadoConciliacion.TotalHorasOrdBussersa.ToString("N1")o + @resultadoConciliacion.TotalHorasExtBussersa.ToString("N1")e)</div>
+                            </MudPaper>
+                        </MudItem>
+
+                        @* 2. Cliente Pagado *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;">
+                                <span class="small text-secondary fw-semibold">Cliente Pagado</span>
+                                <div class="fs-5 fw-bold text-success mt-1">@resultadoConciliacion.TotalHorasClientePagado.ToString("N1") h</div>
+                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosClientePagado turnos (@resultadoConciliacion.TotalHorasOrdClientePagado.ToString("N1")o + @resultadoConciliacion.TotalHorasExtClientePagado.ToString("N1")e)</div>
+                            </MudPaper>
+                        </MudItem>
+
+                        @* 3. Cliente Facturas Pendientes *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px;">
+                                <span class="small text-secondary fw-semibold">Facturas Pendientes</span>
+                                <div class="fs-5 fw-bold text-warning mt-1">@resultadoConciliacion.TotalHorasClientePendiente.ToString("N1") h</div>
+                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosClientePendiente turnos (@resultadoConciliacion.TotalHorasOrdClientePendiente.ToString("N1")o + @resultadoConciliacion.TotalHorasExtClientePendiente.ToString("N1")e)</div>
+                            </MudPaper>
+                        </MudItem>
+
+                        @* 4. Total Registrado Cliente *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+                                <span class="small text-secondary fw-semibold">Total en Cliente</span>
+                                <div class="fs-5 fw-bold text-dark mt-1">@resultadoConciliacion.TotalHorasClienteTotal.ToString("N1") h</div>
+                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosClienteTotal turnos registrados</div>
+                            </MudPaper>
+                        </MudItem>
+
+                        @* 5. Brecha Neta vs Efectivamente Pagado (DIFERENCIA A COBRAR) *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 10px;">
+                                <span class="small fw-bold text-danger">⚠️ Brecha vs Pagado</span>
+                                <div class="fs-5 fw-bold text-danger mt-1">@resultadoConciliacion.BrechaPagadoTotalHoras.ToString("N1") h</div>
+                                <div class="small text-danger fw-semibold" style="font-size: 11px;">@resultadoConciliacion.BrechaPagadoTurnos turnos pendientes</div>
+                            </MudPaper>
+                        </MudItem>
+
+                        @* 6. Diferencia Neta Global *@
+                        <MudItem xs="12" sm="6" md="2">
+                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;">
+                                <span class="small text-secondary fw-semibold">Diferencia Neta Global</span>
+                                <div class="fs-5 fw-bold text-orange mt-1">@resultadoConciliacion.DiferenciaTotalHorasGlobal.ToString("N1") h</div>
+                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.DiferenciaTurnosGlobal turnos netos</div>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                @* SUB-PESTAÑAS DE DETALLE DE CONCILIACIÓN *@
+                <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Default" Class="mt-2">
+                    @* SUB-TAB 1: TURNOS FALTANTES (OMITIDOS) *@
+                    <MudTabPanel Text="@($"Turnos Omitidos / Faltantes ({resultadoConciliacion.TurnosFaltantes.Count})")" Icon="@Icons.Material.Filled.Warning">
+                        <MudDataGrid Items="@resultadoConciliacion.TurnosFaltantes" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterFaltante">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-danger">Turnos Laborados en Bussersa Omitidos por el Cliente</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchFaltante" Placeholder="Buscar faltante..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
+                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                                <PropertyColumn Property="x => x.DiaSemana" Title="Día" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
+                                <PropertyColumn Property="x => x.Area" Title="Área" />
+                                <PropertyColumn Property="x => x.Cargo" Title="Cargo" />
+                                <TemplateColumn Title="Turno">
+                                    <CellTemplate><span class="badge bg-light text-dark border">@context.Item.Turno</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="H. Ord">
+                                    <CellTemplate><span class="fw-bold text-primary">@context.Item.HorasOrdCobrables.ToString("N1")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="H. Ext">
+                                    <CellTemplate><span class="fw-bold text-success">@context.Item.HorasExtCobrables.ToString("N1")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Total Horas">
+                                    <CellTemplate><span class="badge bg-danger text-white fw-bold px-2 py-1">@context.Item.TotalHorasCobrables.ToString("N1")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.CategoriaFaltante" Title="Categoría" />
+                                <PropertyColumn Property="x => x.MotivoJustificacion" Title="Motivo / Diagnóstico" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="TurnoFaltanteClienteDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+
+                    @* SUB-TAB 2: FACTURAS PENDIENTES *@
+                    <MudTabPanel Text="@($"Facturas Pendientes ({resultadoConciliacion.FacturasPendientes.Count})")" Icon="@Icons.Material.Filled.HourglassTop">
+                        <MudDataGrid Items="@resultadoConciliacion.FacturasPendientes" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterPendiente">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-warning">Registros del Cliente en Estado PENDIENTE</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchPendiente" Placeholder="Buscar factura o colaborador..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
+                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
+                                <PropertyColumn Property="x => x.Puesto" Title="Puesto" />
+                                <PropertyColumn Property="x => x.Bodega" Title="Bodega" />
+                                <TemplateColumn Title="H. Ord">
+                                    <CellTemplate><span>@context.Item.HorasOrd.ToString("N1")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="H. Ext">
+                                    <CellTemplate><span>@context.Item.HorasExt.ToString("N1")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Total Horas">
+                                    <CellTemplate><span class="badge bg-warning text-dark fw-bold px-2 py-1">@context.Item.TotalHoras.ToString("N1")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.NoFactura" Title="No. Factura" />
+                                <TemplateColumn Title="Estado">
+                                    <CellTemplate><span class="badge bg-danger text-white">PENDIENTE</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.Observacion" Title="Observación" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="RegistroPendienteClienteDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+
+                    @* SUB-TAB 3: DIFERENCIAS EN DÍAS COMUNES *@
+                    <MudTabPanel Text="@($"Diferencias en Días Comunes ({resultadoConciliacion.DiferenciasDiasComunes.Count})")" Icon="@Icons.Material.Filled.SyncProblem">
+                        <MudDataGrid Items="@resultadoConciliacion.DiferenciasDiasComunes" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterDiferencia">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-info">Discrepancias de Horas en Días Registrados por Ambos</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchDiferencia" Placeholder="Buscar discrepancia..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
+                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
+                                <PropertyColumn Property="x => x.Area" Title="Área" />
+                                <PropertyColumn Property="x => x.Cargo" Title="Cargo" />
+                                <TemplateColumn Title="Bussersa">
+                                    <CellTemplate><span class="fw-bold text-primary">@context.Item.HorasBussersa.ToString("N2")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Cliente">
+                                    <CellTemplate><span class="fw-bold text-dark">@context.Item.HorasCliente.ToString("N2")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Diferencia">
+                                    <CellTemplate>
+                                        <span class="badge @(context.Item.DiferenciaHoras > 0 ? "bg-danger text-white" : "bg-success text-white") fw-bold">
+                                            @(context.Item.DiferenciaHoras > 0 ? $"+{context.Item.DiferenciaHoras:N2}h" : $"{context.Item.DiferenciaHoras:N2}h")
+                                        </span>
+                                    </CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.NoFacturaCliente" Title="Factura" />
+                                <PropertyColumn Property="x => x.DetalleDiferencia" Title="Detalle" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="DiferenciaDiaComunDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+
+                    @* SUB-TAB 4: RESUMEN POR COLABORADOR *@
+                    <MudTabPanel Text="@($"Resumen por Colaborador ({resultadoConciliacion.ResumenColaboradores.Count})")" Icon="@Icons.Material.Filled.PeopleAlt">
+                        <MudDataGrid Items="@resultadoConciliacion.ResumenColaboradores" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterResumenColab">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-primary">Consolidado de Faltantes por Colaborador</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchResumenColab" Placeholder="Buscar colaborador..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
+                                <PropertyColumn Property="x => x.IdEmpleado" Title="ID" HeaderStyle="width: 80px;" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
+                                <PropertyColumn Property="x => x.AreaPrincipal" Title="Área Principal" />
+                                <PropertyColumn Property="x => x.CargoPrincipal" Title="Cargo" />
+                                <TemplateColumn Title="Días Omitidos">
+                                    <CellTemplate><span class="badge bg-danger text-white fw-bold px-2 py-1">@context.Item.DiasOmitidos días</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Horas Omitidas">
+                                    <CellTemplate><span class="fw-bold text-danger fs-6">@context.Item.TotalHorasOmitidas.ToString("N1")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.CategoriaFaltante" Title="Categoría" />
+                                <PropertyColumn Property="x => x.CausaRaiz" Title="Causa Raíz" />
+                                <PropertyColumn Property="x => x.FechasOmitidas" Title="Fechas Omitidas" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="ResumenColaboradorFaltanteDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+
+                    @* SUB-TAB 5: SOLO EN ARCHIVO CLIENTE *@
+                    <MudTabPanel Text="@($"Solo en Cliente ({resultadoConciliacion.RegistrosSoloCliente.Count})")" Icon="@Icons.Material.Filled.HelpOutline">
+                        <MudDataGrid Items="@resultadoConciliacion.RegistrosSoloCliente" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterSoloCliente">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-secondary">Registros en el Archivo del Cliente No Encontrados en Bussersa</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchSoloCliente" Placeholder="Buscar..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
+                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Nombre en Cliente" />
+                                <PropertyColumn Property="x => x.Puesto" Title="Puesto" />
+                                <PropertyColumn Property="x => x.Bodega" Title="Bodega" />
+                                <TemplateColumn Title="Total Horas">
+                                    <CellTemplate><span class="fw-bold text-dark">@context.Item.TotalHoras.ToString("N1")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.NoFactura" Title="Factura" />
+                                <PropertyColumn Property="x => x.EstadoPago" Title="Estado" />
+                                <PropertyColumn Property="x => x.Diagnostico" Title="Diagnóstico" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="RegistroSoloClienteDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+                </MudTabs>
+            }
         </MudTabPanel>
     </MudTabs>
 </div>

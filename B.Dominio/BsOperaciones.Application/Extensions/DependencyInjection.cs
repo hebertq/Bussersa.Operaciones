@@ -1,4 +1,5 @@
 using BsOperaciones.Application.Common.Strategy.Reloj;
+using BsOperaciones.Application.Common.Strategy.Conciliacion;
 using Blazored.LocalStorage;
 using HostService.Clases;
 using HostService.Interfaces;
@@ -31,6 +32,8 @@ namespace BsOperaciones.Application.Extensions
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);
             
             services.AddScoped<RelojSelector>();
+            services.AddScoped<ConciliacionClienteSelector>();
+            services.AddScoped<ConciliacionSinsaStrategy>();
             services.AddScoped<IUtilidades, Utilidad>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IOdooService, OdooService>();
