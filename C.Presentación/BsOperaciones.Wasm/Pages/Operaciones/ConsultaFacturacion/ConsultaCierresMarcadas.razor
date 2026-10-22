@@ -460,43 +460,7 @@
                         </MudDataGrid>
                     </MudTabPanel>
 
-                    @* SUB-TAB 2: DIFERENCIAS EN DÍAS COMUNES *@
-                    <MudTabPanel Text="@($"Diferencias en Días Comunes ({resultadoConciliacion.DiferenciasDiasComunes.Count})")" Icon="@Icons.Material.Filled.SyncProblem">
-                        <MudDataGrid Items="@resultadoConciliacion.DiferenciasDiasComunes" Dense="true" Hover="true" Striped="true"
-                                     RowsPerPage="10" QuickFilter="@_filterDiferencia">
-                            <ToolBarContent>
-                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-info">Discrepancias de Horas en Días Registrados por Ambos</MudText>
-                                <MudSpacer />
-                                <MudTextField @bind-Value="_searchDiferencia" Placeholder="Buscar discrepancia..." Adornment="Adornment.Start"
-                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
-                            </ToolBarContent>
-                            <Columns>
-                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
-                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
-                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
-                                <PropertyColumn Property="x => x.Area" Title="Área" />
-                                <PropertyColumn Property="x => x.Cargo" Title="Cargo" />
-                                <TemplateColumn Title="Bussersa">
-                                    <CellTemplate><span class="fw-bold text-primary">@context.Item.HorasBussersa.ToString("N2")h</span></CellTemplate>
-                                </TemplateColumn>
-                                <TemplateColumn Title="Cliente">
-                                    <CellTemplate><span class="fw-bold text-dark">@context.Item.HorasCliente.ToString("N2")h</span></CellTemplate>
-                                </TemplateColumn>
-                                <TemplateColumn Title="Diferencia">
-                                    <CellTemplate>
-                                        <span class="badge @(context.Item.DiferenciaHoras > 0 ? "bg-danger text-white" : "bg-success text-white") fw-bold">
-                                            @(context.Item.DiferenciaHoras > 0 ? $"+{context.Item.DiferenciaHoras:N2}h" : $"{context.Item.DiferenciaHoras:N2}h")
-                                        </span>
-                                    </CellTemplate>
-                                </TemplateColumn>
-                                <PropertyColumn Property="x => x.NoFacturaCliente" Title="Factura" />
-                                <PropertyColumn Property="x => x.DetalleDiferencia" Title="Detalle" />
-                            </Columns>
-                            <PagerContent><MudDataGridPager T="DiferenciaDiaComunDto" /></PagerContent>
-                        </MudDataGrid>
-                    </MudTabPanel>
-
-                    @* SUB-TAB 4: RESUMEN POR COLABORADOR *@
+                    @* SUB-TAB 2: RESUMEN POR COLABORADOR *@
                     <MudTabPanel Text="@($"Resumen por Colaborador ({resultadoConciliacion.ResumenColaboradores.Count})")" Icon="@Icons.Material.Filled.PeopleAlt">
                         <MudDataGrid Items="@resultadoConciliacion.ResumenColaboradores" Dense="true" Hover="true" Striped="true"
                                      RowsPerPage="10" QuickFilter="@_filterResumenColab">

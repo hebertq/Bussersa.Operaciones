@@ -1152,23 +1152,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Motivo_Justificacion = x.MotivoJustificacion
                 }).ToList();
 
-                // Hoja 4: Diferencias en Días Comunes
-                var diferenciasExport = resultadoConciliacion.DiferenciasDiasComunes.Select(x => new
-                {
-                    No = x.No,
-                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
-                    Nombre_Colaborador = x.NombreEmpleado,
-                    Area_Bussersa = x.Area,
-                    Cargo_Bussersa = x.Cargo,
-                    Horas_Bussersa = x.HorasBussersa,
-                    Horas_Cliente = x.HorasCliente,
-                    Diferencia_Horas = x.DiferenciaHoras,
-                    No_Factura_Cliente = x.NoFacturaCliente,
-                    Estado_Cliente = x.EstadoCliente,
-                    Detalle_Diferencia = x.DetalleDiferencia
-                }).ToList();
-
-                // Hoja 5: Solo en Cliente
+                // Hoja 4: Solo en Cliente
                 var soloClienteExport = resultadoConciliacion.RegistrosSoloCliente.Select(x => new
                 {
                     No = x.No,
@@ -1191,7 +1175,6 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         new ExcelRequest { Hoja = "Resumen Ejecutivo", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenEjecutivo), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Resumen Colaboradores", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenColabExport), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Detalle Dias Faltantes", Datos = Modelo.Validaciones.Util.ToDictionaryList(faltantesExport), IncludeHeader = true },
-                        new ExcelRequest { Hoja = "Diferencias Horas", Datos = Modelo.Validaciones.Util.ToDictionaryList(diferenciasExport), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Solo en Cliente", Datos = Modelo.Validaciones.Util.ToDictionaryList(soloClienteExport), IncludeHeader = true }
                     }
                 };
