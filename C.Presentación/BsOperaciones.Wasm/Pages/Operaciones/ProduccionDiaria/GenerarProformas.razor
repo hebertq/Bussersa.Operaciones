@@ -83,7 +83,7 @@
                 </MudText>
 
                 <div style="max-width: 400px;" class="mb-4">
-                    <MudSelect T="int?" Label="Seleccione la Operación / Departamento" @bind-Value="selectedOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="Debe seleccionar la operación para la relación en Odoo.">
+                    <MudSelect T="int?" Label="Seleccione la Operación / Departamento" Value="selectedOperacionId" ValueChanged="OnOperacionChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="Debe seleccionar la operación para la relación en Odoo.">
                         <MudSelectItem Value="@((int?)null)">-- Seleccione una Operación --</MudSelectItem>
                         @if (operacionesList != null)
                         {

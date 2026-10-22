@@ -26,8 +26,17 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected bool estaCargandoArchivo = false;
         protected bool estaGenerando = false;
         protected List<ProformaGrupoDto> gruposProformas = new();
+        protected List<(string clienteOriginal, string agrupacion, ProformaItemDto item)> parsedItems = new();
         protected List<Combos> operacionesList = new();
         protected int? selectedOperacionId;
+
+        protected Task OnOperacionChanged(int? newOpId)
+        {
+            selectedOperacionId = newOpId;
+            ReconstruirGruposProformas();
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
 
         protected async Task OnExcelFileSelected(InputFileChangeEventArgs e)
         {
@@ -36,6 +45,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             archivoExcel = file;
             estaCargandoArchivo = true;
             gruposProformas.Clear();
+            parsedItems.Clear();
             StateHasChanged();
 
             try
@@ -106,7 +116,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         return;
                     }
 
-                    var parsedItems = new List<(string cliente, string agrupacion, ProformaItemDto item)>();
+                    parsedItems.Clear();
 
                     for (int r = headerRowIndex + 1; r <= sheet.LastRowNum; r++)
                     {
@@ -161,30 +171,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         parsedItems.Add((cliente, agrupacion, itemDto));
                     }
 
-                    // Group by Cliente + Agrupación and combine items with same characteristics while preserving all IDs
-                    gruposProformas = parsedItems
-                        .GroupBy(x => new { x.cliente, x.agrupacion })
-                        .Select(g => new ProformaGrupoDto
-                        {
-                            Cliente = g.Key.cliente,
-                            Agrupacion = g.Key.agrupacion,
-                            Items = g
-                                .GroupBy(it => new { it.item.Area, it.item.SKU, it.item.Tarifa, it.item.Descripcion })
-                                .Select(ig => new ProformaItemDto
-                                {
-                                    Area = ig.Key.Area,
-                                    SKU = ig.Key.SKU,
-                                    Tarifa = ig.Key.Tarifa,
-                                    Descripcion = ig.Key.Descripcion,
-                                    Cantidad = ig.Sum(x => x.item.Cantidad),
-                                    ProduccionIds = ig.SelectMany(x => x.item.ProduccionIds).Distinct().ToList(),
-                                    IdsDetalle = string.Join(",", ig.SelectMany(x => x.item.ProduccionIds).Distinct())
-                                })
-                                .ToList()
-                        })
-                        .OrderBy(x => x.Cliente)
-                        .ThenBy(x => x.Agrupacion)
-                        .ToList();
+                    ReconstruirGruposProformas();
 
                     if (!gruposProformas.Any())
                     {
@@ -193,7 +180,15 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     else
                     {
                         int totalIds = gruposProformas.Sum(g => g.Items.Sum(i => i.ProduccionIds.Count));
-                        _snackbar.Add($"Se procesó el archivo Excel ({sheet.SheetName}). Detectadas {gruposProformas.Count} proformas con {totalIds} registros vinculados.", Severity.Success);
+                        var opSeleccionada = operacionesList?.FirstOrDefault(x => x.id == selectedOperacionId)?.nombre;
+                        if (!string.IsNullOrEmpty(opSeleccionada))
+                        {
+                            _snackbar.Add($"Se procesó el archivo Excel ({sheet.SheetName}) para '{opSeleccionada}'. Detectada(s) {gruposProformas.Count} proforma(s) con {totalIds} registros vinculados.", Severity.Success);
+                        }
+                        else
+                        {
+                            _snackbar.Add($"Se procesó el archivo Excel ({sheet.SheetName}). Seleccione la Operación / Departamento en el combo para asociar el cliente definitivo.", Severity.Info);
+                        }
                     }
                 }
             }
@@ -259,6 +254,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 {
                     _snackbar.Add("Proformas creadas y asociadas exitosamente en Odoo y el sistema local.", Severity.Success);
                     gruposProformas.Clear();
+                    parsedItems.Clear();
                     archivoExcel = null;
                     _navigationManager.NavigateTo("/operaciones/produccion-diaria");
                 }
@@ -272,6 +268,46 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 estaGenerando = false;
                 StateHasChanged();
             }
+        }
+
+        protected void ReconstruirGruposProformas()
+        {
+            if (parsedItems == null || !parsedItems.Any())
+            {
+                gruposProformas.Clear();
+                return;
+            }
+
+            var selectedOp = operacionesList?.FirstOrDefault(x => x.id == selectedOperacionId);
+            string clienteFinal = !string.IsNullOrWhiteSpace(selectedOp?.nombre) ? selectedOp.nombre.Trim() : "";
+
+            gruposProformas = parsedItems
+                .GroupBy(x => new 
+                { 
+                    Cliente = !string.IsNullOrEmpty(clienteFinal) ? clienteFinal : x.clienteOriginal, 
+                    Agrupacion = x.agrupacion 
+                })
+                .Select(g => new ProformaGrupoDto
+                {
+                    Cliente = g.Key.Cliente,
+                    Agrupacion = g.Key.Agrupacion,
+                    Items = g
+                        .GroupBy(it => new { it.item.Area, it.item.SKU, it.item.Tarifa, it.item.Descripcion })
+                        .Select(ig => new ProformaItemDto
+                        {
+                            Area = ig.Key.Area,
+                            SKU = ig.Key.SKU,
+                            Tarifa = ig.Key.Tarifa,
+                            Descripcion = ig.Key.Descripcion,
+                            Cantidad = ig.Sum(x => x.item.Cantidad),
+                            ProduccionIds = ig.SelectMany(x => x.item.ProduccionIds).Distinct().ToList(),
+                            IdsDetalle = string.Join(",", ig.SelectMany(x => x.item.ProduccionIds).Distinct())
+                        })
+                        .ToList()
+                })
+                .OrderBy(x => x.Cliente)
+                .ThenBy(x => x.Agrupacion)
+                .ToList();
         }
 
         #region Helper Excel parsers
