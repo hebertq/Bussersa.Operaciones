@@ -382,10 +382,10 @@
                         </div>
                     </div>
 
-                    @* TARJETAS KPI COMPARATIVAS *@
+                    @* TARJETAS KPI COMPARATIVAS (4 COLUMNAS BALANCEADAS) *@
                     <MudGrid Spacing="2" Class="mt-3">
                         @* 1. Bussersa Producción Cobrable *@
-                        <MudItem xs="12" sm="6" md="2">
+                        <MudItem xs="12" sm="6" md="3">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 10px;">
                                 <span class="small text-secondary fw-semibold">Producción Bussersa</span>
                                 <div class="fs-5 fw-bold text-primary mt-1">@resultadoConciliacion.TotalHorasBussersa.ToString("N1") h</div>
@@ -393,26 +393,8 @@
                             </MudPaper>
                         </MudItem>
 
-                        @* 2. Cliente Pagado *@
-                        <MudItem xs="12" sm="6" md="2">
-                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;">
-                                <span class="small text-secondary fw-semibold">Cliente Pagado</span>
-                                <div class="fs-5 fw-bold text-success mt-1">@resultadoConciliacion.TotalHorasClientePagado.ToString("N1") h</div>
-                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosClientePagado turnos (@resultadoConciliacion.TotalHorasOrdClientePagado.ToString("N1")o + @resultadoConciliacion.TotalHorasExtClientePagado.ToString("N1")e)</div>
-                            </MudPaper>
-                        </MudItem>
-
-                        @* 3. Cliente Facturas Pendientes *@
-                        <MudItem xs="12" sm="6" md="2">
-                            <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px;">
-                                <span class="small text-secondary fw-semibold">Facturas Pendientes</span>
-                                <div class="fs-5 fw-bold text-warning mt-1">@resultadoConciliacion.TotalHorasClientePendiente.ToString("N1") h</div>
-                                <div class="small text-muted" style="font-size: 11px;">@resultadoConciliacion.TotalTurnosClientePendiente turnos (@resultadoConciliacion.TotalHorasOrdClientePendiente.ToString("N1")o + @resultadoConciliacion.TotalHorasExtClientePendiente.ToString("N1")e)</div>
-                            </MudPaper>
-                        </MudItem>
-
-                        @* 4. Total Registrado Cliente *@
-                        <MudItem xs="12" sm="6" md="2">
+                        @* 2. Total Registrado Cliente *@
+                        <MudItem xs="12" sm="6" md="3">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
                                 <span class="small text-secondary fw-semibold">Total en Cliente</span>
                                 <div class="fs-5 fw-bold text-dark mt-1">@resultadoConciliacion.TotalHorasClienteTotal.ToString("N1") h</div>
@@ -420,17 +402,17 @@
                             </MudPaper>
                         </MudItem>
 
-                        @* 5. Brecha Neta vs Efectivamente Pagado (DIFERENCIA A COBRAR) *@
-                        <MudItem xs="12" sm="6" md="2">
+                        @* 3. Brecha Neta vs Efectivamente Pagado (DIFERENCIA A COBRAR) *@
+                        <MudItem xs="12" sm="6" md="3">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 10px;">
-                                <span class="small fw-bold text-danger">⚠️ Brecha vs Pagado</span>
+                                <span class="small fw-bold text-danger">⚠️ Brecha a Cobrar</span>
                                 <div class="fs-5 fw-bold text-danger mt-1">@resultadoConciliacion.BrechaPagadoTotalHoras.ToString("N1") h</div>
                                 <div class="small text-danger fw-semibold" style="font-size: 11px;">@resultadoConciliacion.BrechaPagadoTurnos turnos pendientes</div>
                             </MudPaper>
                         </MudItem>
 
-                        @* 6. Diferencia Neta Global *@
-                        <MudItem xs="12" sm="6" md="2">
+                        @* 4. Diferencia Neta Global *@
+                        <MudItem xs="12" sm="6" md="3">
                             <MudPaper Elevation="0" Class="pa-3 text-center" Style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;">
                                 <span class="small text-secondary fw-semibold">Diferencia Neta Global</span>
                                 <div class="fs-5 fw-bold text-orange mt-1">@resultadoConciliacion.DiferenciaTotalHorasGlobal.ToString("N1") h</div>
@@ -478,42 +460,7 @@
                         </MudDataGrid>
                     </MudTabPanel>
 
-                    @* SUB-TAB 2: FACTURAS PENDIENTES *@
-                    <MudTabPanel Text="@($"Facturas Pendientes ({resultadoConciliacion.FacturasPendientes.Count})")" Icon="@Icons.Material.Filled.HourglassTop">
-                        <MudDataGrid Items="@resultadoConciliacion.FacturasPendientes" Dense="true" Hover="true" Striped="true"
-                                     RowsPerPage="10" QuickFilter="@_filterPendiente">
-                            <ToolBarContent>
-                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-warning">Registros del Cliente en Estado PENDIENTE</MudText>
-                                <MudSpacer />
-                                <MudTextField @bind-Value="_searchPendiente" Placeholder="Buscar factura o colaborador..." Adornment="Adornment.Start"
-                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
-                            </ToolBarContent>
-                            <Columns>
-                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 50px;" />
-                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
-                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Colaborador" />
-                                <PropertyColumn Property="x => x.Puesto" Title="Puesto" />
-                                <PropertyColumn Property="x => x.Bodega" Title="Bodega" />
-                                <TemplateColumn Title="H. Ord">
-                                    <CellTemplate><span>@context.Item.HorasOrd.ToString("N1")</span></CellTemplate>
-                                </TemplateColumn>
-                                <TemplateColumn Title="H. Ext">
-                                    <CellTemplate><span>@context.Item.HorasExt.ToString("N1")</span></CellTemplate>
-                                </TemplateColumn>
-                                <TemplateColumn Title="Total Horas">
-                                    <CellTemplate><span class="badge bg-warning text-dark fw-bold px-2 py-1">@context.Item.TotalHoras.ToString("N1")h</span></CellTemplate>
-                                </TemplateColumn>
-                                <PropertyColumn Property="x => x.NoFactura" Title="No. Factura" />
-                                <TemplateColumn Title="Estado">
-                                    <CellTemplate><span class="badge bg-danger text-white">PENDIENTE</span></CellTemplate>
-                                </TemplateColumn>
-                                <PropertyColumn Property="x => x.Observacion" Title="Observación" />
-                            </Columns>
-                            <PagerContent><MudDataGridPager T="RegistroPendienteClienteDto" /></PagerContent>
-                        </MudDataGrid>
-                    </MudTabPanel>
-
-                    @* SUB-TAB 3: DIFERENCIAS EN DÍAS COMUNES *@
+                    @* SUB-TAB 2: DIFERENCIAS EN DÍAS COMUNES *@
                     <MudTabPanel Text="@($"Diferencias en Días Comunes ({resultadoConciliacion.DiferenciasDiasComunes.Count})")" Icon="@Icons.Material.Filled.SyncProblem">
                         <MudDataGrid Items="@resultadoConciliacion.DiferenciasDiasComunes" Dense="true" Hover="true" Striped="true"
                                      RowsPerPage="10" QuickFilter="@_filterDiferencia">

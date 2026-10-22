@@ -1090,48 +1090,30 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     },
                     new
                     {
-                        Concepto = $"{resultadoConciliacion.NombreCliente} - Facturado y Pagado (Base Terceros)",
-                        Turnos = resultadoConciliacion.TotalTurnosClientePagado,
-                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClientePagado,
-                        Horas_Extras = resultadoConciliacion.TotalHorasExtClientePagado,
-                        Total_Horas = resultadoConciliacion.TotalHorasClientePagado,
-                        Observaciones = "Horas liquidadas en facturas pagadas."
-                    },
-                    new
-                    {
-                        Concepto = $"{resultadoConciliacion.NombreCliente} - Facturas en Estado PENDIENTE",
-                        Turnos = resultadoConciliacion.TotalTurnosClientePendiente,
-                        Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClientePendiente,
-                        Horas_Extras = resultadoConciliacion.TotalHorasExtClientePendiente,
-                        Total_Horas = resultadoConciliacion.TotalHorasClientePendiente,
-                        Observaciones = "Registrado por el cliente pero retenido en estado PENDIENTE de pago."
-                    },
-                    new
-                    {
                         Concepto = $"{resultadoConciliacion.NombreCliente} - Total Registrado en su Archivo",
                         Turnos = resultadoConciliacion.TotalTurnosClienteTotal,
                         Horas_Ordinarias = resultadoConciliacion.TotalHorasOrdClienteTotal,
                         Horas_Extras = resultadoConciliacion.TotalHorasExtClienteTotal,
                         Total_Horas = resultadoConciliacion.TotalHorasClienteTotal,
-                        Observaciones = "Suma total de registros en archivo del cliente."
+                        Observaciones = "Suma total de registros reportados por el cliente."
                     },
                     new
                     {
-                        Concepto = "DIFERENCIA NETA GLOBAL (Bussersa - Cliente Total)",
-                        Turnos = resultadoConciliacion.DiferenciaTurnosGlobal,
-                        Horas_Ordinarias = resultadoConciliacion.DiferenciaHorasOrdGlobal,
-                        Horas_Extras = resultadoConciliacion.DiferenciaHorasExtGlobal,
-                        Total_Horas = resultadoConciliacion.DiferenciaTotalHorasGlobal,
-                        Observaciones = "Diferencia directa entre ambos archivos."
-                    },
-                    new
-                    {
-                        Concepto = "BRECHA DIRECTA VS LO EFECTIVAMENTE PAGADO",
+                        Concepto = "BRECHA DIRECTA VS LO PAGADO",
                         Turnos = resultadoConciliacion.BrechaPagadoTurnos,
                         Horas_Ordinarias = resultadoConciliacion.BrechaPagadoHorasOrd,
                         Horas_Extras = resultadoConciliacion.BrechaPagadoHorasExt,
                         Total_Horas = resultadoConciliacion.BrechaPagadoTotalHoras,
                         Observaciones = "Faltante real de cobro frente a lo liquidado por el cliente."
+                    },
+                    new
+                    {
+                        Concepto = "DIFERENCIA NETA GLOBAL (Bussersa - Cliente)",
+                        Turnos = resultadoConciliacion.DiferenciaTurnosGlobal,
+                        Horas_Ordinarias = resultadoConciliacion.DiferenciaHorasOrdGlobal,
+                        Horas_Extras = resultadoConciliacion.DiferenciaHorasExtGlobal,
+                        Total_Horas = resultadoConciliacion.DiferenciaTotalHorasGlobal,
+                        Observaciones = "Diferencia directa entre ambos archivos."
                     }
                 };
 
@@ -1170,23 +1152,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Motivo_Justificacion = x.MotivoJustificacion
                 }).ToList();
 
-                // Hoja 4: Facturas Pendientes
-                var pendientesExport = resultadoConciliacion.FacturasPendientes.Select(x => new
-                {
-                    No = x.No,
-                    Fecha = x.Fecha.ToString("yyyy-MM-dd"),
-                    Nombre_en_Cliente = x.NombreEmpleado,
-                    Puesto = x.Puesto,
-                    Bodega = x.Bodega,
-                    Horas_Ord = x.HorasOrd,
-                    Horas_Ext = x.HorasExt,
-                    Total_Horas = x.TotalHoras,
-                    No_Factura = x.NoFactura,
-                    Estado_Pago = x.EstadoPago,
-                    Observacion = x.Observacion
-                }).ToList();
-
-                // Hoja 5: Diferencias en Días Comunes
+                // Hoja 4: Diferencias en Días Comunes
                 var diferenciasExport = resultadoConciliacion.DiferenciasDiasComunes.Select(x => new
                 {
                     No = x.No,
@@ -1202,7 +1168,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Detalle_Diferencia = x.DetalleDiferencia
                 }).ToList();
 
-                // Hoja 6: Solo en Cliente
+                // Hoja 5: Solo en Cliente
                 var soloClienteExport = resultadoConciliacion.RegistrosSoloCliente.Select(x => new
                 {
                     No = x.No,
@@ -1225,7 +1191,6 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         new ExcelRequest { Hoja = "Resumen Ejecutivo", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenEjecutivo), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Resumen Colaboradores", Datos = Modelo.Validaciones.Util.ToDictionaryList(resumenColabExport), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Detalle Dias Faltantes", Datos = Modelo.Validaciones.Util.ToDictionaryList(faltantesExport), IncludeHeader = true },
-                        new ExcelRequest { Hoja = "Facturas Pendientes", Datos = Modelo.Validaciones.Util.ToDictionaryList(pendientesExport), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Diferencias Horas", Datos = Modelo.Validaciones.Util.ToDictionaryList(diferenciasExport), IncludeHeader = true },
                         new ExcelRequest { Hoja = "Solo en Cliente", Datos = Modelo.Validaciones.Util.ToDictionaryList(soloClienteExport), IncludeHeader = true }
                     }
