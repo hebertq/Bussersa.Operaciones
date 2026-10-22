@@ -755,6 +755,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     .OrderBy(x => x.Cliente)
                     .ThenBy(x => x.Area)
                     .ThenBy(x => x.SKU)
+                    .ThenBy(x => x.Tarifa)
                     .ToList();
 
                 var consolidatedData = new List<Dictionary<string, object>>();

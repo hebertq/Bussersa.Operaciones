@@ -292,17 +292,20 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     Cliente = g.Key.Cliente,
                     Agrupacion = g.Key.Agrupacion,
                     Items = g
-                        .GroupBy(it => new { it.item.Area, it.item.SKU, it.item.Tarifa, it.item.Descripcion })
+                        .GroupBy(it => new { it.item.Area, it.item.SKU, it.item.Tarifa })
                         .Select(ig => new ProformaItemDto
                         {
                             Area = ig.Key.Area,
                             SKU = ig.Key.SKU,
                             Tarifa = ig.Key.Tarifa,
-                            Descripcion = ig.Key.Descripcion,
+                            Descripcion = ig.Select(x => x.item.Descripcion).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) ?? ig.Key.SKU,
                             Cantidad = ig.Sum(x => x.item.Cantidad),
                             ProduccionIds = ig.SelectMany(x => x.item.ProduccionIds).Distinct().ToList(),
                             IdsDetalle = string.Join(",", ig.SelectMany(x => x.item.ProduccionIds).Distinct())
                         })
+                        .OrderBy(x => x.Area)
+                        .ThenBy(x => x.SKU)
+                        .ThenBy(x => x.Tarifa)
                         .ToList()
                 })
                 .OrderBy(x => x.Cliente)
