@@ -735,7 +735,6 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         Cliente = x.cliente ?? "", 
                         Area = x.area_cliente ?? "", 
                         SKU = x.servicio_codigo ?? "", 
-                        Descripcion = x.servicio_descripcion ?? "", 
                         Tarifa = x.costo_producto 
                     })
                     .Select(g => new
@@ -743,16 +742,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         g.Key.Cliente,
                         g.Key.Area,
                         g.Key.SKU,
-                        g.Key.Descripcion,
+                        Descripcion = g.Select(x => !string.IsNullOrWhiteSpace(x.nombre_producto) ? x.nombre_producto : x.servicio_descripcion)
+                                       .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) ?? g.Key.SKU,
                         FechaInicio = g.Min(x => x.fecha_inicio),
                         FechaFin = g.Max(x => x.fecha_fin ?? x.fecha_inicio),
                         g.Key.Tarifa,
                         Cantidad = g.Sum(x => x.cantidad_producto),
                         Peso = g.Sum(x => x.peso),
                         Total = g.Sum(x => x.cantidad_producto * x.costo_producto),
-                        Ids = string.Join(",", g.Select(x => x.id))
+                        Ids = string.Join(",", g.Select(x => x.id).Distinct())
                     })
                     .OrderBy(x => x.Cliente)
+                    .ThenBy(x => x.Area)
                     .ThenBy(x => x.SKU)
                     .ToList();
 
