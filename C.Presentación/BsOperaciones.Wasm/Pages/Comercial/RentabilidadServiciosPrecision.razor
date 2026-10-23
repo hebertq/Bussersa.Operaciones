@@ -169,7 +169,7 @@
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">FACTURACIÓN TOTAL</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #2563eb;">C$ @consolidado.TotalIngresos.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs facturables (Tarifa: C$ @consolidado.TarifaPromedioActual.ToString("N2")/hr)</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs facturables (Promedio: C$ @consolidado.TarifaPromedioActual.ToString("N2")/hr)</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem XS="12" SM="6" MD="4" LG="2">
@@ -292,23 +292,48 @@
                         </MudPaper>
                     </MudItem>
 
-                    <!-- Factor 4: Punto de Equilibrio y Ajuste de Tarifa (para quedar en 0) -->
+                    <!-- Factor 4: Diagnóstico de Equilibrio y Cobertura -->
                     <MudItem XS="12" MD="6" LG="3">
-                        <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: #f0fdf4; border: 1px solid #86efac;">
-                            <div class="d-flex align-center gap-2 mb-1">
-                                <MudIcon Icon="@Icons.Material.Filled.Balance" Color="Color.Success" Size="Size.Small" />
-                                <MudText Typo="Typo.caption" Class="font-bold" Style="color: #14532d;">4. AJUSTE DE TARIFA (EQUILIBRIO = C$ 0)</MudText>
-                            </div>
-                            <MudText Typo="Typo.body2" Style="color: #14532d; line-height: 1.35; font-size: 12px;">
-                                <strong>Tarifa Actual:</strong> C$ @consolidado.TarifaPromedioActual.ToString("N2") / hr<br />
-                                <strong>Equilibrio Cuadrilla (0%):</strong> 
-                                <span class="font-bold" style="color: #15803d;">C$ @consolidado.TarifaEquilibrioOperativa.ToString("N2")/hr</span>
-                                <span> (@(consolidado.AjusteTarifaOperativa >= 0 ? "+" : "")C$ @consolidado.AjusteTarifaOperativa.ToString("N2"))</span><br />
-                                <strong>Equilibrio Integral (con Sup):</strong> 
-                                <span class="font-bold" style="color: #047857;">C$ @consolidado.TarifaEquilibrioIntegral.ToString("N2")/hr</span>
-                                <span> (@(consolidado.AjusteTarifaIntegral >= 0 ? "+" : "")C$ @consolidado.AjusteTarifaIntegral.ToString("N2"))</span>
-                            </MudText>
-                        </MudPaper>
+                        @if (consolidado.TotalUtilidadReal >= 0)
+                        {
+                            <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: #f0fdf4; border: 1px solid #86efac;">
+                                <div class="d-flex align-center gap-2 mb-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                    <MudText Typo="Typo.caption" Class="font-bold" Style="color: #14532d;">4. COBERTURA Y MARGEN DE SEGURIDAD</MudText>
+                                </div>
+                                <MudText Typo="Typo.body2" Style="color: #14532d; line-height: 1.35; font-size: 12px;">
+                                    <strong>Facturación Promedio:</strong> C$ @consolidado.TarifaPromedioActual.ToString("N2") / hr<br />
+                                    <strong>Costo Base Cuadrilla:</strong> C$ @consolidado.TarifaEquilibrioOperativa.ToString("N2") / hr
+                                    <span class="font-bold" style="color: #15803d;"> (+C$ @((consolidado.TarifaPromedioActual - consolidado.TarifaEquilibrioOperativa).ToString("N2"))/hr)</span><br />
+                                    <strong>Costo Integral (con Sup):</strong> C$ @consolidado.TarifaEquilibrioIntegral.ToString("N2") / hr
+                                    <span class="font-bold" style="color: #047857;"> (+C$ @((consolidado.TarifaPromedioActual - consolidado.TarifaEquilibrioIntegral).ToString("N2"))/hr)</span><br />
+                                    <span style="font-size: 11px; color: #166534; font-weight: 600;">
+                                        ✓ Operación rentable: margen de seguridad positivo sobre el punto de equilibrio (+@consolidado.MargenGlobalPct.ToString("N1")% neto). No requiere ajuste de tarifa.
+                                    </span>
+                                </MudText>
+                            </MudPaper>
+                        }
+                        else
+                        {
+                            <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: #fef2f2; border: 1px solid #fecaca;">
+                                <div class="d-flex align-center gap-2 mb-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" Size="Size.Small" />
+                                    <MudText Typo="Typo.caption" Class="font-bold" Style="color: #991b1b;">4. AJUSTE REQUERIDO (EQUILIBRIO = C$ 0)</MudText>
+                                </div>
+                                <MudText Typo="Typo.body2" Style="color: #991b1b; line-height: 1.35; font-size: 12px;">
+                                    <strong>Facturación Actual:</strong> C$ @consolidado.TarifaPromedioActual.ToString("N2") / hr<br />
+                                    <strong>Equilibrio Cuadrilla (0%):</strong> 
+                                    <span class="font-bold" style="color: #b91c1c;">C$ @consolidado.TarifaEquilibrioOperativa.ToString("N2")/hr</span>
+                                    <span> (+C$ @consolidado.AjusteTarifaOperativa.ToString("N2")/hr req.)</span><br />
+                                    <strong>Equilibrio Integral (con Sup):</strong> 
+                                    <span class="font-bold" style="color: #7f1d1d;">C$ @consolidado.TarifaEquilibrioIntegral.ToString("N2")/hr</span>
+                                    <span> (+C$ @consolidado.AjusteTarifaIntegral.ToString("N2")/hr req.)</span><br />
+                                    <span style="font-size: 11px; color: #991b1b; font-weight: 600;">
+                                        ⚠️ Requiere incremento de tarifa para cubrir costos y no generar pérdidas.
+                                    </span>
+                                </MudText>
+                            </MudPaper>
+                        }
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -336,8 +361,27 @@
                             </MudButton>
                         </div>
                         
-                        <div style="min-width: 280px;">
-                            <MudTextField @bind-Value="busquedaServicio" Placeholder="Buscar por cliente o cargo..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <div style="min-width: 260px;">
+                                <MudTextField @bind-Value="busquedaServicio" Placeholder="Buscar por cliente o cargo..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                            </div>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       StartIcon="@Icons.Material.Filled.Download" 
+                                       OnClick="ExportarServiciosExcel" 
+                                       Disabled="@(ServiciosFiltrados == null || !ServiciosFiltrados.Any() || isExportingServicios)"
+                                       Class="font-bold py-2"
+                                       Style="border-radius: 8px;">
+                                @if (isExportingServicios)
+                                {
+                                    <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" />
+                                    <span>Exportando...</span>
+                                }
+                                else
+                                {
+                                    <span>Exportar Excel</span>
+                                }
+                            </MudButton>
                         </div>
                     </div>
 
@@ -345,12 +389,13 @@
                         <HeaderContent>
                             <MudTh>Cliente / Operación</MudTh>
                             <MudTh>Cargo / Servicio</MudTh>
-                            <MudTh Style="text-align: right;">Horas Trabajadas</MudTh>
-                            <MudTh Style="text-align: right;">Ingreso Facturado</MudTh>
-                            <MudTh Style="text-align: right; background: #eff6ff;">Tarifa / Hr</MudTh>
+                            <MudTh Style="text-align: right; background: #f8fafc;">Horas Ord.</MudTh>
+                            <MudTh Style="text-align: right; background: #eff6ff; color: #1e40af;">Tarifa Ord.</MudTh>
+                            <MudTh Style="text-align: right; background: #f8fafc;">Horas Ext.</MudTh>
+                            <MudTh Style="text-align: right; background: #fff7ed; color: #c2410c;">Tarifa Ext.</MudTh>
+                            <MudTh Style="text-align: right;">Horas Totales</MudTh>
+                            <MudTh Style="text-align: right; background: #eff6ff; color: #1e40af;">Facturación Total</MudTh>
                             <MudTh Style="text-align: right;">Costo Laboral Real</MudTh>
-                            <MudTh Style="text-align: right; background: #fef2f2;">Costo / Hr</MudTh>
-                            <MudTh Style="text-align: right;">Margen / Hr</MudTh>
                             <MudTh Style="text-align: right;">Utilidad Neta</MudTh>
                             <MudTh Style="text-align: center;">Margen Real %</MudTh>
                             <MudTh Style="text-align: center;">Estado</MudTh>
@@ -366,85 +411,82 @@
                                 }
                                 else
                                 {
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="font-bold">
                                         @context.cargo
                                     </MudChip>
                                 }
                             </MudTd>
-                            <MudTd DataLabel="Horas" Style="text-align: right;">
+                            <MudTd DataLabel="Horas Ord." Style="text-align: right; background: #f8fafc;">
                                 @if (context.es_supervision)
                                 {
-                                    <span style="color: #7c3aed; font-weight: 600;">@(context.horas_trabajadas > 0 ? context.horas_trabajadas.ToString("N2") : "-")</span>
+                                    <span style="color: #7c3aed; font-weight: 600;">@context.horas_trabajadas.ToString("N2")</span>
                                 }
                                 else
                                 {
-                                    <div class="d-flex flex-column align-end">
-                                        <span class="font-bold">@context.horas_trabajadas.ToString("N2")</span>
-                                        @if (context.horas_extras > 0)
-                                        {
-                                            <span class="text-secondary" style="font-size: 11px;">@context.horas_normales.ToString("N1") ord. + @context.horas_extras.ToString("N1") ext.</span>
-                                        }
-                                    </div>
+                                    <span class="font-bold">@context.horas_normales.ToString("N2")</span>
                                 }
                             </MudTd>
-                            <MudTd DataLabel="Facturado" Style="text-align: right; font-weight: 600;">
+                            <MudTd DataLabel="Tarifa Ord." Style="text-align: right; background: #eff6ff; font-weight: 700; color: #1e40af;">
+                                @if (context.es_supervision || context.tarifa_ordinaria_hora == 0)
+                                {
+                                    <span class="text-secondary">-</span>
+                                }
+                                else
+                                {
+                                    <span>C$ @context.tarifa_ordinaria_hora.ToString("N2")</span>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Horas Ext." Style="text-align: right; background: #f8fafc;">
+                                @if (context.es_supervision || context.horas_extras == 0)
+                                {
+                                    <span class="text-secondary">-</span>
+                                }
+                                else
+                                {
+                                    <span class="font-bold" style="color: #c2410c;">@context.horas_extras.ToString("N2")</span>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Tarifa Ext." Style="text-align: right; background: #fff7ed; font-weight: 700; color: #c2410c;">
+                                @if (context.es_supervision || context.tarifa_extra_hora == 0)
+                                {
+                                    <span class="text-secondary">-</span>
+                                }
+                                else
+                                {
+                                    <span>C$ @context.tarifa_extra_hora.ToString("N2")</span>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Horas Totales" Style="text-align: right; font-weight: 700;">
+                                <span style="@(context.es_supervision ? "color: #7c3aed;" : "")">@context.horas_trabajadas.ToString("N2")</span>
+                            </MudTd>
+                            <MudTd DataLabel="Facturación Total" Style="text-align: right; font-weight: 700; color: #1e40af; background: #eff6ff;">
                                 @if (context.es_supervision)
                                 {
                                     <span class="text-secondary">C$ 0.00</span>
                                 }
                                 else
                                 {
-                                    <span>C$ @context.ingreso_total.ToString("N2")</span>
-                                }
-                            </MudTd>
-                            <MudTd DataLabel="Tarifa/Hr" Style="text-align: right; font-weight: 700; color: #1e40af; background: #eff6ff;">
-                                @if (context.es_supervision)
-                                {
-                                    <span class="text-secondary">-</span>
-                                }
-                                else
-                                {
                                     <div class="d-flex flex-column align-end">
-                                        <span>C$ @context.tarifa_promedio_hora.ToString("N2")</span>
-                                        @if (context.tarifa_ordinaria_hora > 0)
-                                        {
-                                            <span style="font-size: 10.5px; color: #475569; font-weight: 600;">
-                                                Ord: C$ @context.tarifa_ordinaria_hora.ToString("N2") | Ext: C$ @context.tarifa_extra_hora.ToString("N2")
-                                            </span>
-                                        }
+                                        <span style="font-size: 13.5px;">C$ @context.ingreso_total.ToString("N2")</span>
+                                        <span class="text-secondary" style="font-size: 10.5px; font-weight: 500;" title="Tarifa promedio ponderada efectiva">
+                                            (Prom: C$ @context.tarifa_promedio_hora.ToString("N2")/hr)
+                                        </span>
                                     </div>
                                 }
                             </MudTd>
-                            <MudTd DataLabel="Costo Laboral" Style="text-align: right; font-weight: 700;">
-                                <span style="@(context.es_supervision ? "color: #7c3aed;" : "")">
-                                    C$ @context.costo_real_total.ToString("N2")
-                                </span>
-                            </MudTd>
-                            <MudTd DataLabel="Costo/Hr" Style="text-align: right; font-weight: 700; color: #991b1b; background: #fef2f2;">
-                                @if (context.es_supervision)
-                                {
-                                    <span style="color: #7c3aed; font-weight: 700;">@(context.costo_real_hora > 0 ? $"C$ {context.costo_real_hora:N2}" : "-")</span>
-                                }
-                                else
-                                {
-                                    <span>C$ @context.costo_real_hora.ToString("N2")</span>
-                                }
-                            </MudTd>
-                            <MudTd DataLabel="Margen/Hr" Style="text-align: right; font-weight: 700;">
-                                @if (context.es_supervision)
-                                {
-                                    <span style="color: #dc2626;">@(context.costo_real_hora > 0 ? $"-C$ {context.costo_real_hora:N2}" : "-")</span>
-                                }
-                                else
-                                {
-                                    <span style="@(context.margen_hora >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
-                                        @(context.margen_hora >= 0 ? "+" : "")C$ @context.margen_hora.ToString("N2")
+                            <MudTd DataLabel="Costo Laboral Real" Style="text-align: right; font-weight: 700;">
+                                <div class="d-flex flex-column align-end">
+                                    <span style="@(context.es_supervision ? "color: #7c3aed;" : "")">
+                                        C$ @context.costo_real_total.ToString("N2")
                                     </span>
-                                }
+                                    <span class="text-secondary" style="font-size: 10.5px; font-weight: 500;">
+                                        C$ @context.costo_real_hora.ToString("N2")/hr
+                                    </span>
+                                </div>
                             </MudTd>
-                            <MudTd DataLabel="Utilidad" Style="text-align: right; font-weight: 600;">
+                            <MudTd DataLabel="Utilidad Neta" Style="text-align: right; font-weight: 700;">
                                 <span style="@(context.utilidad_neta >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
-                                    C$ @context.utilidad_neta.ToString("N2")
+                                    @(context.utilidad_neta >= 0 ? "+" : "")C$ @context.utilidad_neta.ToString("N2")
                                 </span>
                             </MudTd>
                             <MudTd DataLabel="Margen %" Style="text-align: center; font-weight: 700;">
@@ -474,6 +516,33 @@
                                 }
                             </MudTd>
                         </RowTemplate>
+                        <FooterContent>
+                            <MudTd colspan="2" Style="font-weight: 800; text-align: right;">TOTALES:</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800; background: #f8fafc;">
+                                @ServiciosFiltrados.Where(s => !s.es_supervision).Sum(s => s.horas_normales).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align: right; background: #eff6ff;">-</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800; color: #c2410c; background: #f8fafc;">
+                                @ServiciosFiltrados.Where(s => !s.es_supervision).Sum(s => s.horas_extras).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align: right; background: #fff7ed;">-</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800;">
+                                @ServiciosFiltrados.Sum(s => s.horas_trabajadas).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800; color: #1e40af; background: #eff6ff;">
+                                C$ @ServiciosFiltrados.Sum(s => s.ingreso_total).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800;">
+                                C$ @ServiciosFiltrados.Sum(s => s.costo_real_total).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="@($"text-align: right; font-weight: 800; color: {(ServiciosFiltrados.Sum(s => s.utilidad_neta) >= 0 ? "#16a34a" : "#dc2626")};")">
+                                C$ @ServiciosFiltrados.Sum(s => s.utilidad_neta).ToString("N2")
+                            </MudTd>
+                            <MudTd Style="text-align: center; font-weight: 800;">
+                                @((ServiciosFiltrados.Sum(s => s.ingreso_total) > 0 ? (ServiciosFiltrados.Sum(s => s.utilidad_neta) / ServiciosFiltrados.Sum(s => s.ingreso_total) * 100m) : 0m).ToString("N1"))%
+                            </MudTd>
+                            <MudTd Style="text-align: center;">-</MudTd>
+                        </FooterContent>
                     </MudTable>
                 </MudTabPanel>
 
@@ -753,6 +822,7 @@
     // Filtros de tabla
     private string? filtroEstado = null;
     private string busquedaServicio = string.Empty;
+    private bool isExportingServicios = false;
     private string busquedaPrestamo = string.Empty;
     private bool isExportingPrestamos = false;
 
@@ -915,6 +985,229 @@
             }
 
             return q;
+        }
+    }
+
+    private async Task ExportarServiciosExcel()
+    {
+        var data = ServiciosFiltrados.ToList();
+        if (!data.Any())
+        {
+            Snackbar.Add("No hay datos de servicios para exportar.", Severity.Warning);
+            return;
+        }
+
+        isExportingServicios = true;
+        StateHasChanged();
+        await Task.Delay(50);
+
+        try
+        {
+            string nombreCliente = filtroOperacionId.HasValue && filtroOperacionId.Value > 0
+                ? (operacionesList.FirstOrDefault(o => o.id == filtroOperacionId.Value)?.nombre ?? $"Op_{filtroOperacionId.Value}")
+                : "Todas_las_Operaciones";
+
+            string nombreLimpio = string.Concat(nombreCliente.Split(System.IO.Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName = $"Rentabilidad_Servicios_{nombreLimpio}_{ObtenerNombreMes(mesSeleccionado)}_{anioSeleccionado}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+            var sheet = workbook.CreateSheet("Rentabilidad_Servicios");
+
+            // Estilos
+            var titleFont = workbook.CreateFont();
+            titleFont.IsBold = true;
+            titleFont.FontHeightInPoints = 14;
+            var titleStyle = workbook.CreateCellStyle();
+            titleStyle.SetFont(titleFont);
+
+            var subtitleFont = workbook.CreateFont();
+            subtitleFont.IsItalic = true;
+            subtitleFont.FontHeightInPoints = 10;
+            var subtitleStyle = workbook.CreateCellStyle();
+            subtitleStyle.SetFont(subtitleFont);
+
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerFont.FontHeightInPoints = 11;
+            headerFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+            var headerStyle = workbook.CreateCellStyle();
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.RoyalBlue.Index;
+            headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+            headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+
+            var dataFormat = workbook.CreateDataFormat();
+
+            var moneyStyle = workbook.CreateCellStyle();
+            moneyStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            moneyStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var hoursStyle = workbook.CreateCellStyle();
+            hoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            hoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var pctStyle = workbook.CreateCellStyle();
+            pctStyle.DataFormat = dataFormat.GetFormat("0.0%");
+            pctStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+
+            var totalMoneyStyle = workbook.CreateCellStyle();
+            var totalFont = workbook.CreateFont();
+            totalFont.IsBold = true;
+            totalMoneyStyle.SetFont(totalFont);
+            totalMoneyStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            totalMoneyStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var totalHoursStyle = workbook.CreateCellStyle();
+            totalHoursStyle.SetFont(totalFont);
+            totalHoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            totalHoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            // Titulo
+            var titleRow = sheet.CreateRow(0);
+            var titleCell = titleRow.CreateCell(0);
+            titleCell.SetCellValue("REPORTE DE RENTABILIDAD POR SERVICIO Y CARGO");
+            titleCell.CellStyle = titleStyle;
+
+            var subRow = sheet.CreateRow(1);
+            var subCell = subRow.CreateCell(0);
+            subCell.SetCellValue($"Operación: {nombreCliente} | Período: {ObtenerNombreMes(mesSeleccionado)} {anioSeleccionado}");
+            subCell.CellStyle = subtitleStyle;
+
+            // Encabezados
+            var headRow = sheet.CreateRow(3);
+            string[] headers = {
+                "Cliente / Operación", "Cargo / Servicio", "Horas Ord.", "Tarifa Ord. (C$)", 
+                "Horas Ext.", "Tarifa Ext. (C$)", "Horas Totales", "Facturación Total (C$)", 
+                "Tarifa Prom. (C$/hr)", "Costo Real (C$)", "Costo / Hr (C$)", "Utilidad Neta (C$)", 
+                "Margen %", "Estado"
+            };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = headRow.CreateCell(i);
+                cell.SetCellValue(headers[i]);
+                cell.CellStyle = headerStyle;
+            }
+
+            int rowIdx = 4;
+            foreach (var item in data)
+            {
+                var row = sheet.CreateRow(rowIdx++);
+                row.CreateCell(0).SetCellValue(item.cliente_nombre);
+                row.CreateCell(1).SetCellValue(item.cargo);
+
+                var c2 = row.CreateCell(2);
+                c2.SetCellValue((double)(item.es_supervision ? item.horas_trabajadas : item.horas_normales));
+                c2.CellStyle = hoursStyle;
+
+                var c3 = row.CreateCell(3);
+                c3.SetCellValue((double)item.tarifa_ordinaria_hora);
+                c3.CellStyle = moneyStyle;
+
+                var c4 = row.CreateCell(4);
+                c4.SetCellValue((double)(item.es_supervision ? 0 : item.horas_extras));
+                c4.CellStyle = hoursStyle;
+
+                var c5 = row.CreateCell(5);
+                c5.SetCellValue((double)item.tarifa_extra_hora);
+                c5.CellStyle = moneyStyle;
+
+                var c6 = row.CreateCell(6);
+                c6.SetCellValue((double)item.horas_trabajadas);
+                c6.CellStyle = hoursStyle;
+
+                var c7 = row.CreateCell(7);
+                c7.SetCellValue((double)item.ingreso_total);
+                c7.CellStyle = moneyStyle;
+
+                var c8 = row.CreateCell(8);
+                c8.SetCellValue((double)item.tarifa_promedio_hora);
+                c8.CellStyle = moneyStyle;
+
+                var c9 = row.CreateCell(9);
+                c9.SetCellValue((double)item.costo_real_total);
+                c9.CellStyle = moneyStyle;
+
+                var c10 = row.CreateCell(10);
+                c10.SetCellValue((double)item.costo_real_hora);
+                c10.CellStyle = moneyStyle;
+
+                var c11 = row.CreateCell(11);
+                c11.SetCellValue((double)item.utilidad_neta);
+                c11.CellStyle = moneyStyle;
+
+                var c12 = row.CreateCell(12);
+                c12.SetCellValue((double)(item.margen_porcentaje / 100m));
+                c12.CellStyle = pctStyle;
+
+                row.CreateCell(13).SetCellValue(item.estado_rentabilidad);
+            }
+
+            // Fila de Totales
+            var totalRow = sheet.CreateRow(rowIdx);
+            var labelCell = totalRow.CreateCell(0);
+            labelCell.SetCellValue("TOTALES:");
+            labelCell.CellStyle = totalHoursStyle;
+
+            var tOrd = totalRow.CreateCell(2);
+            tOrd.SetCellValue((double)data.Where(s => !s.es_supervision).Sum(s => s.horas_normales));
+            tOrd.CellStyle = totalHoursStyle;
+
+            var tExt = totalRow.CreateCell(4);
+            tExt.SetCellValue((double)data.Where(s => !s.es_supervision).Sum(s => s.horas_extras));
+            tExt.CellStyle = totalHoursStyle;
+
+            var tHrs = totalRow.CreateCell(6);
+            tHrs.SetCellValue((double)data.Sum(s => s.horas_trabajadas));
+            tHrs.CellStyle = totalHoursStyle;
+
+            var tIng = totalRow.CreateCell(7);
+            tIng.SetCellValue((double)data.Sum(s => s.ingreso_total));
+            tIng.CellStyle = totalMoneyStyle;
+
+            var tCst = totalRow.CreateCell(9);
+            tCst.SetCellValue((double)data.Sum(s => s.costo_real_total));
+            tCst.CellStyle = totalMoneyStyle;
+
+            var tUtl = totalRow.CreateCell(11);
+            tUtl.SetCellValue((double)data.Sum(s => s.utilidad_neta));
+            tUtl.CellStyle = totalMoneyStyle;
+
+            // Anchos
+            sheet.SetColumnWidth(0, 22 * 256);
+            sheet.SetColumnWidth(1, 30 * 256);
+            sheet.SetColumnWidth(2, 14 * 256);
+            sheet.SetColumnWidth(3, 18 * 256);
+            sheet.SetColumnWidth(4, 14 * 256);
+            sheet.SetColumnWidth(5, 18 * 256);
+            sheet.SetColumnWidth(6, 16 * 256);
+            sheet.SetColumnWidth(7, 24 * 256);
+            sheet.SetColumnWidth(8, 20 * 256);
+            sheet.SetColumnWidth(9, 22 * 256);
+            sheet.SetColumnWidth(10, 18 * 256);
+            sheet.SetColumnWidth(11, 20 * 256);
+            sheet.SetColumnWidth(12, 14 * 256);
+            sheet.SetColumnWidth(13, 16 * 256);
+
+            using var ms = new System.IO.MemoryStream();
+            workbook.Write(ms);
+            workbook.Close();
+            byte[] bytes = ms.ToArray();
+            string base64 = Convert.ToBase64String(bytes);
+
+            await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+            Snackbar.Add("Reporte de Rentabilidad por Servicio descargado con éxito.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar a Excel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isExportingServicios = false;
+            StateHasChanged();
         }
     }
 
