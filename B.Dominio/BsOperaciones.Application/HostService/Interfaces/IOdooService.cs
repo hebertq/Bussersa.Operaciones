@@ -165,6 +165,11 @@ namespace HostService.Interfaces
         // --- GASTOS OPERATIVOS REDMINE ---
         Task<IListResponse<Modelo.ClasesGenericas.GastoOperativoDto>> GetGastosOperativosMensuales(int? anio = null, int? mes = null, int? periodo = null, int? operacionId = null);
         Task<ISingleResponse<Modelo.ClasesGenericas.SincronizarGastosOperativosResponseDto>> SincronizarGastosOperativosRedmine(int? anio = null, int? mes = null);
+
+        // --- CATÁLOGO DE TARIFAS Y COSTOS POR CLIENTE Y PUESTO ---
+        Task<IListResponse<Modelo.Comercial.TarifaClientePuestoDto>> GetTarifasClientePuesto(int? operacionId = null);
+        Task<IResponse> SaveTarifaClientePuesto(Modelo.Comercial.TarifaClientePuestoDto dto);
+        Task<IResponse> DeleteTarifaClientePuesto(int id);
     }
 }
 

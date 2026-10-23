@@ -1,0 +1,332 @@
+@using MudBlazor
+@using Modelo.Comercial
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Large" FullWidth="true">
+    <TitleContent>
+        <div class="d-flex align-center justify-space-between">
+            <MudText Typo="Typo.h6" Class="d-flex align-center font-bold">
+                <MudIcon Icon="@Icons.Material.Filled.PriceCheck" Color="Color.Primary" Class="mr-2" />
+                Catálogo de Tarifas y Costos por Puesto y Cliente
+            </MudText>
+            @if (operacionSeleccionada > 0)
+            {
+                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled">
+                    @(OperacionesList.FirstOrDefault(x => x.id == operacionSeleccionada)?.nombre ?? $"Operación #{operacionSeleccionada}")
+                </MudChip>
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Class="mb-3">
+            <MudItem xs="12" sm="6">
+                <MudSelect T="int" Label="Filtrar / Seleccionar Cliente u Operación" 
+                           Value="@operacionSeleccionada" 
+                           ValueChanged="OnOperacionChanged" 
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense" 
+                           Dense="true">
+                    <MudSelectItem Value="0">-- Todos los Clientes --</MudSelectItem>
+                    @foreach (var op in OperacionesList)
+                    {
+                        <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" Class="d-flex align-center justify-end">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.AddCircle" 
+                           OnClick="IniciarNuevaTarifa"
+                           Disabled="@(operacionSeleccionada <= 0)">
+                    Agregar Tarifa a este Cliente
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (mostrarFormulario)
+        {
+            <MudCard Elevation="3" Class="pa-4 mb-4 border-2 border-solid mud-border-primary rounded-lg">
+                <MudText Typo="Typo.subtitle1" Class="font-bold mb-3 d-flex align-center text-primary">
+                    <MudIcon Icon="@(editingItem.id > 0 ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-2" />
+                    @(editingItem.id > 0 ? "Modificar Tarifa y Costo" : "Nueva Tarifa para el Cliente")
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="editingItem.cargo" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="@("Operador de almacen")">Operador de almacen</MudSelectItem>
+                            <MudSelectItem Value="@("Operador de montacarga")">Operador de montacarga</MudSelectItem>
+                            <MudSelectItem Value="@("Conductor")">Conductor</MudSelectItem>
+                            <MudSelectItem Value="@("Supervisor de personal")">Supervisor de personal</MudSelectItem>
+                            <MudSelectItem Value="@("Holler")">Holler</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField Label="Tarifa Venta / Hora (C$)" 
+                                         @bind-Value="editingItem.tarifa_venta_hora" 
+                                         Format="N2" 
+                                         Variant="Variant.Outlined" 
+                                         Margin="Margin.Dense" 
+                                         Min="0m" 
+                                         Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField Label="Costo Real / Hora (C$)" 
+                                         @bind-Value="editingItem.costo_real_hora" 
+                                         Format="N2" 
+                                         Variant="Variant.Outlined" 
+                                         Margin="Margin.Dense" 
+                                         Min="0m" 
+                                         Required="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="8">
+                        <MudTextField Label="Notas / Justificación Comercial" @bind-Value="editingItem.notas" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4" Class="d-flex align-center justify-space-between">
+                        <div class="d-flex flex-column">
+                            <MudText Typo="Typo.caption" Class="text-secondary">Margen Calculado:</MudText>
+                            <MudText Typo="Typo.body2" Class="@GetMargenClass(editingItem.margen_porcentaje)">
+                                C$ @editingItem.utilidad_hora.ToString("N2")/hr (@editingItem.margen_porcentaje.ToString("N1")%)
+                            </MudText>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelarEdicion">Cancelar</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="GuardarTarifa" Disabled="estaGuardando">
+                                @(estaGuardando ? "Guardando..." : "Guardar")
+                            </MudButton>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudCard>
+        }
+
+        @if (cargando)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            </div>
+        }
+        else if (!tarifasList.Any())
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4">
+                No se han configurado tarifas específicas para este cliente aún. Al registrar una tarifa, el sistema la aplicará automáticamente como fuente de verdad en el cálculo de rentabilidad.
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@tarifasList" Dense="true" Hover="true" Striped="true" Elevation="1" Class="rounded-lg">
+                <HeaderContent>
+                    <MudTh>Cliente / Operación</MudTh>
+                    <MudTh>Cargo / Puesto</MudTh>
+                    <MudTh Style="text-align: right;">Tarifa Venta (C$/hr)</MudTh>
+                    <MudTh Style="text-align: right;">Costo Real (C$/hr)</MudTh>
+                    <MudTh Style="text-align: right;">Utilidad / Hora (C$)</MudTh>
+                    <MudTh Style="text-align: right;">Margen %</MudTh>
+                    <MudTh>Estado</MudTh>
+                    <MudTh Style="text-align: center;">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Cliente">
+                        <MudText Typo="Typo.body2" Class="font-bold">@context.cliente_nombre</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Cargo">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">
+                            @context.cargo
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Tarifa Venta" Style="text-align: right;" Class="font-bold text-primary">
+                        C$ @context.tarifa_venta_hora.ToString("N2")
+                    </MudTd>
+                    <MudTd DataLabel="Costo Real" Style="text-align: right;" Class="font-semibold text-secondary">
+                        C$ @context.costo_real_hora.ToString("N2")
+                    </MudTd>
+                    <MudTd DataLabel="Utilidad / Hora" Style="text-align: right;" Class="@(context.utilidad_hora >= 0 ? "font-bold text-success" : "font-bold text-danger")">
+                        C$ @context.utilidad_hora.ToString("N2")
+                    </MudTd>
+                    <MudTd DataLabel="Margen %" Style="text-align: right;">
+                        <MudChip T="string" Size="Size.Small" Color="@(context.margen_porcentaje >= 20 ? Color.Success : (context.margen_porcentaje >= 0 ? Color.Warning : Color.Error))" Variant="Variant.Filled">
+                            @context.margen_porcentaje.ToString("N1")%
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Estado">
+                        <MudChip T="string" Size="Size.Small" Color="@(context.activo ? Color.Success : Color.Dark)" Variant="Variant.Text">
+                            @(context.activo ? "Activo" : "Inactivo")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Acciones" Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Info" OnClick="@(() => EditarTarifa(context))" Title="Editar Tarifa" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => EliminarTarifa(context.id))" Title="Eliminar Tarifa" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Default" OnClick="Cerrar">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int? InitialOperacionId { get; set; }
+    [Parameter] public List<Combos> OperacionesList { get; set; } = new();
+
+    private int operacionSeleccionada = 0;
+    private bool cargando = false;
+    private bool estaGuardando = false;
+    private bool mostrarFormulario = false;
+    private List<TarifaClientePuestoDto> tarifasList = new();
+    private TarifaClientePuestoDto editingItem = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (InitialOperacionId.HasValue && InitialOperacionId.Value > 0)
+        {
+            operacionSeleccionada = InitialOperacionId.Value;
+        }
+        await CargarTarifas();
+    }
+
+    private string GetMargenClass(decimal margenPct)
+    {
+        if (margenPct >= 20m) return "font-bold text-success";
+        if (margenPct >= 0m) return "font-bold text-warning";
+        return "font-bold text-danger";
+    }
+
+    private async Task OnOperacionChanged(int nuevaOperacion)
+    {
+        operacionSeleccionada = nuevaOperacion;
+        mostrarFormulario = false;
+        await CargarTarifas();
+    }
+
+    private async Task CargarTarifas()
+    {
+        cargando = true;
+        StateHasChanged();
+        try
+        {
+            var res = await OdooService.GetTarifasClientePuesto(operacionSeleccionada > 0 ? operacionSeleccionada : null);
+            tarifasList = res.Model?.ToList() ?? new List<TarifaClientePuestoDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error cargando tarifas: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void IniciarNuevaTarifa()
+    {
+        editingItem = new TarifaClientePuestoDto
+        {
+            operacion_id = operacionSeleccionada,
+            cargo = "Operador de almacen",
+            tipo_tarifa = "HORA_NORMAL",
+            tarifa_venta_hora = 0m,
+            costo_real_hora = 0m,
+            margen_objetivo_pct = 25m,
+            activo = true
+        };
+        mostrarFormulario = true;
+    }
+
+    private void EditarTarifa(TarifaClientePuestoDto item)
+    {
+        editingItem = new TarifaClientePuestoDto
+        {
+            id = item.id,
+            operacion_id = item.operacion_id,
+            cliente_nombre = item.cliente_nombre,
+            cargo = item.cargo,
+            tipo_tarifa = item.tipo_tarifa,
+            tarifa_venta_hora = item.tarifa_venta_hora,
+            costo_real_hora = item.costo_real_hora,
+            margen_objetivo_pct = item.margen_objetivo_pct,
+            activo = item.activo,
+            notas = item.notas
+        };
+        mostrarFormulario = true;
+    }
+
+    private void CancelarEdicion()
+    {
+        mostrarFormulario = false;
+        editingItem = new();
+    }
+
+    private async Task GuardarTarifa()
+    {
+        if (editingItem.operacion_id <= 0)
+        {
+            Snackbar.Add("Debe seleccionar una operación/cliente válido.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(editingItem.cargo))
+        {
+            Snackbar.Add("Debe especificar el cargo o puesto.", Severity.Warning);
+            return;
+        }
+
+        estaGuardando = true;
+        StateHasChanged();
+
+        try
+        {
+            var res = await OdooService.SaveTarifaClientePuesto(editingItem);
+            if (res.Respuesta.ExisteError)
+            {
+                Snackbar.Add($"Error al guardar tarifa: {res.Respuesta.MensajeError}", Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Tarifa guardada con éxito en el catálogo.", Severity.Success);
+                mostrarFormulario = false;
+                await CargarTarifas();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            estaGuardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EliminarTarifa(int id)
+    {
+        try
+        {
+            var res = await OdooService.DeleteTarifaClientePuesto(id);
+            if (res.Respuesta.ExisteError)
+            {
+                Snackbar.Add($"Error al eliminar tarifa: {res.Respuesta.MensajeError}", Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add("Tarifa eliminada del catálogo.", Severity.Success);
+                await CargarTarifas();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cerrar()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+}

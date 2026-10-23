@@ -6,6 +6,7 @@
 @inject IOdooService _OdooService
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject IDialogService DialogService
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <style>
@@ -90,6 +91,9 @@
         </div>
         
         <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.PriceCheck" OnClick="AbrirModalTarifas" Class="font-bold">
+                Tarifas y Costos por Puesto
+            </MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="CargarIndicadores" Class="font-bold">
                 Actualizar Indicadores
             </MudButton>
@@ -1232,5 +1236,21 @@
             9 => "Septiembre", 10 => "Octubre", 11 => "Noviembre", 12 => "Diciembre",
             _ => ""
         };
+    }
+
+    private async Task AbrirModalTarifas()
+    {
+        var parameters = new DialogParameters
+        {
+            ["InitialOperacionId"] = filtroOperacionId,
+            ["OperacionesList"] = operacionesList
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var dialog = DialogService.Show<CatalogoTarifasClienteDialog>("Catálogo de Tarifas y Costos por Puesto", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await CargarIndicadores();
+        }
     }
 }
