@@ -49,6 +49,7 @@ namespace Modelo.Comercial
         public string supervisor_nombre { get; set; } = string.Empty;
         public string cargo { get; set; } = string.Empty;
         public decimal costo_supervision { get; set; }
+        public decimal horas_supervision { get; set; }
     }
 
     public class ConciliacionPrestamoPersonalDto
@@ -90,6 +91,7 @@ namespace Modelo.Comercial
         // Desglose Operativo Directo vs Supervisión
         public decimal TotalCostoOperativo { get; set; }
         public decimal TotalCostoSupervision { get; set; }
+        public decimal TotalHorasSupervision { get; set; }
         public decimal MargenOperativoPct { get; set; }
         public int TotalSupervisores { get; set; }
 

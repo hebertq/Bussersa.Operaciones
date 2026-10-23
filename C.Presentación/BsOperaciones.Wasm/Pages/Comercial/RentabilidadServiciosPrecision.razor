@@ -165,7 +165,7 @@
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">FACTURACIÓN TOTAL</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #2563eb;">C$ @consolidado.TotalIngresos.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs (Tarifa C$ @consolidado.TarifaPromedioActual.ToString("N2")/hr)</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs facturables (Tarifa: C$ @consolidado.TarifaPromedioActual.ToString("N2")/hr)</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem XS="12" SM="6" MD="4" LG="2">
@@ -186,7 +186,7 @@
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #7c3aed;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">SUPERVISIÓN / MANDO</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #7c3aed;">C$ @consolidado.TotalCostoSupervision.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalSupervisores supervisor@(consolidado.TotalSupervisores == 1 ? "" : "es") asignado@(consolidado.TotalSupervisores == 1 ? "" : "s")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasSupervision.ToString("N1") hrs (@consolidado.TotalSupervisores supervisor@(consolidado.TotalSupervisores == 1 ? "" : "es"))</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem XS="12" SM="6" MD="4" LG="2">
@@ -370,7 +370,7 @@
                             <MudTd DataLabel="Horas" Style="text-align: right;">
                                 @if (context.es_supervision)
                                 {
-                                    <span class="text-secondary">-</span>
+                                    <span style="color: #7c3aed; font-weight: 600;">@(context.horas_trabajadas > 0 ? context.horas_trabajadas.ToString("N2") : "-")</span>
                                 }
                                 else
                                 {
@@ -405,7 +405,7 @@
                             <MudTd DataLabel="Costo/Hr" Style="text-align: right; font-weight: 700; color: #991b1b; background: #fef2f2;">
                                 @if (context.es_supervision)
                                 {
-                                    <span class="text-secondary">-</span>
+                                    <span style="color: #7c3aed; font-weight: 700;">@(context.costo_real_hora > 0 ? $"C$ {context.costo_real_hora:N2}" : "-")</span>
                                 }
                                 else
                                 {
@@ -415,7 +415,7 @@
                             <MudTd DataLabel="Margen/Hr" Style="text-align: right; font-weight: 700;">
                                 @if (context.es_supervision)
                                 {
-                                    <span class="text-secondary">-</span>
+                                    <span style="color: #dc2626;">@(context.costo_real_hora > 0 ? $"-C$ {context.costo_real_hora:N2}" : "-")</span>
                                 }
                                 else
                                 {
