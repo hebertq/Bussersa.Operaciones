@@ -159,30 +159,44 @@
     }
     else
     {
-        <!-- KPI Cards con Datos Reales y Desglose de Supervisión -->
+        <!-- KPI Cards con Datos Reales, Headcount y Desglose de Supervisión -->
         <MudGrid Class="mb-6">
-            <MudItem XS="12" SM="6" MD="4" LG="3">
+            <MudItem XS="12" SM="6" MD="4" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #2563eb;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">FACTURACIÓN TOTAL</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #2563eb;">C$ @consolidado.TotalIngresos.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs facturables</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasTrabajadas.ToString("N1") hrs (Tarifa C$ @consolidado.TarifaPromedioActual.ToString("N2")/hr)</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="4" LG="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #0284c7;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">PERSONAL ACTIVO EN EL MES</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #0284c7;">@consolidado.TotalEmpleados colaboradores</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.PromedioHorasColaborador.ToString("N1") hrs / pers. (laboraron)</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem XS="12" SM="6" MD="4" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #d97706;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">COSTO OPERATIVO DIRECTO</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #d97706;">C$ @consolidado.TotalCostoOperativo.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">Margen Op: @consolidado.MargenOperativoPct.ToString("N1")%</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">Margen Cuadrilla: @consolidado.MargenOperativoPct.ToString("N1")%</MudText>
                 </MudPaper>
             </MudItem>
             <MudItem XS="12" SM="6" MD="4" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #7c3aed;" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">SUPERVISIÓN / MANDO</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #7c3aed;">C$ @consolidado.TotalCostoSupervision.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalSupervisores supervisores asignados</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalSupervisores supervisor@(consolidado.TotalSupervisores == 1 ? "" : "es") asignado@(consolidado.TotalSupervisores == 1 ? "" : "s")</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem XS="12" SM="6" MD="6" LG="3">
+            <MudItem XS="12" SM="6" MD="4" LG="2">
+                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #0891b2;" Elevation="2">
+                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">PRÉSTAMOS INTER-CLIENTE</MudText>
+                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #0891b2;">C$ @consolidado.TotalCostoTransferido.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasPrestadas.ToString("N1") hrs cedidas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem XS="12" SM="6" MD="4" LG="2">
                 <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="@(consolidado.TotalUtilidadReal >= 0 ? "border-left: 5px solid #16a34a;" : "border-left: 5px solid #dc2626;")" Elevation="2">
                     <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">UTILIDAD NETA REAL</MudText>
                     <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="@(consolidado.TotalUtilidadReal >= 0 ? "color: #16a34a;" : "color: #dc2626;")">
@@ -191,16 +205,9 @@
                     <MudText Typo="Typo.caption" Class="text-secondary">Margen Neto: @consolidado.MargenGlobalPct.ToString("N1")%</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem XS="12" SM="6" MD="6" LG="2">
-                <MudPaper Class="pa-4 text-center border-l-4 panel-card" Style="border-left: 5px solid #0891b2;" Elevation="2">
-                    <MudText Typo="Typo.caption" Class="text-muted d-block font-bold">PRÉSTAMOS INTER-CLIENTE</MudText>
-                    <MudText Typo="Typo.h5" Class="font-bold mt-1" Style="color: #0891b2;">C$ @consolidado.TotalCostoTransferido.ToString("N2")</MudText>
-                    <MudText Typo="Typo.caption" Class="text-secondary">@consolidado.TotalHorasPrestadas.ToString("N1") hrs prestadas</MudText>
-                </MudPaper>
-            </MudItem>
         </MudGrid>
 
-        @if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0 && consolidado.Supervisores.Any(s => s.operacion_id == filtroOperacionId.Value))
+        @if (filtroOperacionId.HasValue && filtroOperacionId.Value > 0)
         {
             var opSup = consolidado.Supervisores.Where(s => s.operacion_id == filtroOperacionId.Value).ToList();
             var clienteActual = consolidado.Clientes.FirstOrDefault(c => c.operacion_id == filtroOperacionId.Value);
@@ -209,70 +216,93 @@
                 : 0m;
 
             <MudPaper Class="pa-4 mb-6 panel-card" Elevation="2" Style="border-left: 6px solid #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);">
-                <div class="d-flex align-center gap-2 mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Color="Color.Warning" Size="Size.Medium" />
-                    <MudText Typo="Typo.subtitle1" Class="font-bold" Style="color: #92400e;">
-                        DIAGNÓSTICO FINANCIERO EJECUTIVO: @(clienteActual?.cliente_nombre ?? "OPERACIÓN SELECCIONADA")
-                    </MudText>
+                <div class="d-flex align-center justify-between flex-wrap gap-2 mb-3">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Color="Color.Warning" Size="Size.Medium" />
+                        <MudText Typo="Typo.subtitle1" Class="font-bold" Style="color: #92400e;">
+                            DIAGNÓSTICO FINANCIERO EJECUTIVO: @(clienteActual?.cliente_nombre ?? "OPERACIÓN SELECCIONADA")
+                        </MudText>
+                    </div>
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.PeopleAlt">
+                        Headcount: @consolidado.TotalEmpleados colaboradores activos
+                    </MudChip>
                 </div>
                 
                 <MudGrid>
                     <!-- Factor 1: Supervisión -->
-                    <MudItem XS="12" MD="4">
+                    <MudItem XS="12" MD="6" LG="3">
                         <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: white; border: 1px solid #fde68a;">
                             <div class="d-flex align-center gap-2 mb-1">
                                 <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Color="Color.Secondary" Size="Size.Small" />
                                 <MudText Typo="Typo.caption" Class="font-bold" Style="color: #78350f;">1. SUPERVISIÓN NO FACTURADA</MudText>
                             </div>
                             <MudText Typo="Typo.body2" Style="color: #451a03; line-height: 1.4;">
-                                <strong>Supervisor en nómina:</strong> @string.Join(", ", opSup.Select(s => $"{s.supervisor_nombre} (C$ {s.costo_supervision:N2})"))<br />
-                                Este costo <strong>no se cobra en las facturas</strong> al cliente.
+                                @if (opSup.Any())
+                                {
+                                    <span><strong>En nómina:</strong> @string.Join(", ", opSup.Select(s => $"{s.supervisor_nombre} (C$ {s.costo_supervision:N2})"))<br /></span>
+                                }
+                                else
+                                {
+                                    <span>No tiene supervisores asignados en nómina directa.<br /></span>
+                                }
+                                Costo no cobrado en facturas.
                                 @if (pctSupDePerdida > 0)
                                 {
-                                    <span> Explica el <strong>@pctSupDePerdida%</strong> del déficit total de esta operación.</span>
+                                    <span> Explica el <strong>@pctSupDePerdida%</strong> del déficit total de la operación.</span>
                                 }
                             </MudText>
                         </MudPaper>
                     </MudItem>
 
                     <!-- Factor 2: Margen Operativo Directo de Cuadrilla -->
-                    <MudItem XS="12" MD="4">
+                    <MudItem XS="12" MD="6" LG="3">
                         <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: white; border: 1px solid #fde68a;">
                             <div class="d-flex align-center gap-2 mb-1">
                                 <MudIcon Icon="@Icons.Material.Filled.Engineering" Color="Color.Warning" Size="Size.Small" />
                                 <MudText Typo="Typo.caption" Class="font-bold" Style="color: #78350f;">2. CUADRILLA OPERATIVA DIRECTA</MudText>
                             </div>
                             <MudText Typo="Typo.body2" Style="color: #451a03; line-height: 1.4;">
-                                <strong>Costo Directo Operativo:</strong> C$ @consolidado.TotalCostoOperativo.ToString("N2")<br />
+                                <strong>Costo Cuadrilla:</strong> C$ @consolidado.TotalCostoOperativo.ToString("N2")<br />
+                                <strong>Costo/Hr Cuadrilla:</strong> C$ @consolidado.TarifaEquilibrioOperativa.ToString("N2") / hr<br />
                                 <strong>Margen Operativo Puro:</strong> 
                                 <span style="@(consolidado.MargenOperativoPct >= 0 ? "color: #16a34a; font-weight: 700;" : "color: #dc2626; font-weight: 700;")">
                                     @consolidado.MargenOperativoPct.ToString("N1")%
-                                </span> (aislando el costo de supervisión).
+                                </span> (aislando supervisión).
                             </MudText>
                         </MudPaper>
                     </MudItem>
 
-                    <!-- Factor 3: Brecha de Horas Reloj vs Tareas -->
-                    <MudItem XS="12" MD="4">
+                    <!-- Factor 3: Personal que colaboró en los movimientos -->
+                    <MudItem XS="12" MD="6" LG="3">
                         <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: white; border: 1px solid #fde68a;">
                             <div class="d-flex align-center gap-2 mb-1">
-                                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Error" Size="Size.Small" />
-                                <MudText Typo="Typo.caption" Class="font-bold" Style="color: #78350f;">3. BRECHA DE ASISTENCIA VS FACTURACIÓN</MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Info" Size="Size.Small" />
+                                <MudText Typo="Typo.caption" Class="font-bold" Style="color: #78350f;">3. PERSONAL EFECTIVO EN MOVIMIENTOS</MudText>
                             </div>
                             <MudText Typo="Typo.body2" Style="color: #451a03; line-height: 1.4;">
-                                @if (filtroOperacionId == 25)
-                                {
-                                    <span>
-                                        Reloj biométrico registró <strong>2,139.7 hrs</strong> presenciales vs <strong>1,806.7 hrs</strong> facturadas. 
-                                        Hay <strong>328 hrs</strong> trabajadas (C$ 26,607.56) no cobradas en proformas. Facturándolas, la cuadrilla tendría <strong>+5.9% de utilidad</strong>.
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span>
-                                        Verifique en la conciliación de asistencias que todas las horas del reloj biométrico hayan sido liquidadas en las tareas operativas.
-                                    </span>
-                                }
+                                <strong>@consolidado.TotalEmpleados colaboradores</strong> registraron asistencia en el mes (@consolidado.TotalHorasTrabajadas.ToString("N1") hrs totales, prom. @consolidado.PromedioHorasColaborador.ToString("N1") hrs/persona).<br />
+                                <span style="font-size: 11px; color: #78350f;">
+                                    * Se excluyen colaboradores en nómina que no laboraron en este cliente.
+                                </span>
+                            </MudText>
+                        </MudPaper>
+                    </MudItem>
+
+                    <!-- Factor 4: Punto de Equilibrio y Ajuste de Tarifa (para quedar en 0) -->
+                    <MudItem XS="12" MD="6" LG="3">
+                        <MudPaper Elevation="0" Class="pa-3 rounded h-100" Style="background: #f0fdf4; border: 1px solid #86efac;">
+                            <div class="d-flex align-center gap-2 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Balance" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.caption" Class="font-bold" Style="color: #14532d;">4. AJUSTE DE TARIFA (EQUILIBRIO = C$ 0)</MudText>
+                            </div>
+                            <MudText Typo="Typo.body2" Style="color: #14532d; line-height: 1.35; font-size: 12px;">
+                                <strong>Tarifa Actual:</strong> C$ @consolidado.TarifaPromedioActual.ToString("N2") / hr<br />
+                                <strong>Equilibrio Cuadrilla (0%):</strong> 
+                                <span class="font-bold" style="color: #15803d;">C$ @consolidado.TarifaEquilibrioOperativa.ToString("N2")/hr</span>
+                                <span> (@(consolidado.AjusteTarifaOperativa >= 0 ? "+" : "")C$ @consolidado.AjusteTarifaOperativa.ToString("N2"))</span><br />
+                                <strong>Equilibrio Integral (con Sup):</strong> 
+                                <span class="font-bold" style="color: #047857;">C$ @consolidado.TarifaEquilibrioIntegral.ToString("N2")/hr</span>
+                                <span> (@(consolidado.AjusteTarifaIntegral >= 0 ? "+" : "")C$ @consolidado.AjusteTarifaIntegral.ToString("N2"))</span>
                             </MudText>
                         </MudPaper>
                     </MudItem>
@@ -585,6 +615,108 @@
                     </MudTable>
                 </MudTabPanel>
 
+                <!-- TAB 4: Personal Activo en el Mes (Colaboradores en Movimientos) -->
+                <MudTabPanel Text="Personal Activo en el Mes" Icon="@Icons.Material.Filled.Badge">
+                    <div class="d-flex justify-between align-center flex-wrap mb-4 gap-3">
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="font-bold" Color="Color.Primary">
+                                Colaboradores Efectivos que Laboraron en los Movimientos del Cliente (@consolidado.Colaboradores.Count)
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="text-secondary">
+                                Muestra exclusivamente a los trabajadores que registraron asistencia y laboraron en este cliente en el mes. No incluye empleados en nómina sin labores operativas.
+                            </MudText>
+                        </div>
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <div class="d-flex align-center gap-1">
+                                <MudButton Variant="@(filtroRolColaborador == null ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Default" OnClick="@(() => SetFiltroRolColaborador(null))">
+                                    Todos (@consolidado.Colaboradores.Count)
+                                </MudButton>
+                                <MudButton Variant="@(filtroRolColaborador == "CUADRILLA" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SetFiltroRolColaborador("CUADRILLA"))">
+                                    👷 Cuadrilla (@consolidado.Colaboradores.Count(c => !c.es_supervisor))
+                                </MudButton>
+                                <MudButton Variant="@(filtroRolColaborador == "SUPERVISION" ? Variant.Filled : Variant.Outlined)" Size="Size.Small" Color="Color.Secondary" OnClick="@(() => SetFiltroRolColaborador("SUPERVISION"))">
+                                    🛡️ Supervisión (@consolidado.Colaboradores.Count(c => c.es_supervisor))
+                                </MudButton>
+                            </div>
+                            <div style="min-width: 240px;">
+                                <MudTextField @bind-Value="busquedaColaborador" Placeholder="Buscar colaborador o cargo..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Immediate="true" />
+                            </div>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       StartIcon="@Icons.Material.Filled.Download" 
+                                       OnClick="ExportarColaboradoresExcel" 
+                                       Disabled="@(ColaboradoresFiltrados == null || !ColaboradoresFiltrados.Any() || isExportingColaboradores)"
+                                       Class="font-bold py-2"
+                                       Style="border-radius: 8px;">
+                                @if (isExportingColaboradores)
+                                {
+                                    <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" />
+                                    <span>Exportando...</span>
+                                }
+                                else
+                                {
+                                    <span>Exportar Excel</span>
+                                }
+                            </MudButton>
+                        </div>
+                    </div>
+
+                    <MudTable Items="@ColaboradoresFiltrados" Hover="true" Striped="true" Dense="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">No.</MudTh>
+                            <MudTh>Colaborador</MudTh>
+                            <MudTh>Cargo</MudTh>
+                            <MudTh>Nómina de Procedencia</MudTh>
+                            <MudTh Style="text-align: center;">Rol / Clasificación</MudTh>
+                            <MudTh Style="text-align: right;">Horas Trabajadas</MudTh>
+                            <MudTh Style="text-align: right;">Costo / Hr (C$)</MudTh>
+                            <MudTh Style="text-align: right; background: #eff6ff;">Costo Total Imputable (C$)</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="No.">@(ColaboradoresFiltrados.ToList().IndexOf(context) + 1)</MudTd>
+                            <MudTd DataLabel="Colaborador"><strong>@context.nombre_empleado</strong></MudTd>
+                            <MudTd DataLabel="Cargo">@context.cargo</MudTd>
+                            <MudTd DataLabel="Procedencia">
+                                @if (context.es_nomina_propia)
+                                {
+                                    <span class="effect-badge-absorbe">Nómina Propia (@context.nomina_origen)</span>
+                                }
+                                else
+                                {
+                                    <span class="effect-badge-subsidia">Préstamo Recibido (@context.nomina_origen)</span>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Rol" Style="text-align: center;">
+                                @if (context.es_supervisor)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Secondary" Class="font-bold">
+                                        🛡️ Supervisión
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                                        👷 Cuadrilla
+                                    </MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Horas" Style="text-align: right; font-weight: 600;">@context.horas_trabajadas.ToString("N2") hrs</MudTd>
+                            <MudTd DataLabel="Costo/Hr" Style="text-align: right;">C$ @context.costo_por_hora.ToString("N2")</MudTd>
+                            <MudTd DataLabel="Costo Total" Style="text-align: right; font-weight: 700; color: #1e40af; background: #eff6ff;">
+                                C$ @context.costo_total.ToString("N2")
+                            </MudTd>
+                        </RowTemplate>
+                        <FooterContent>
+                            <MudTd colspan="5" Style="font-weight: 800; text-align: right;">TOTALES:</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800;">@ColaboradoresFiltrados.Sum(c => c.horas_trabajadas).ToString("N2") hrs</MudTd>
+                            <MudTd Style="text-align: right;">-</MudTd>
+                            <MudTd Style="text-align: right; font-weight: 800; color: #1e40af; background: #eff6ff;">
+                                C$ @ColaboradoresFiltrados.Sum(c => c.costo_total).ToString("N2")
+                            </MudTd>
+                        </FooterContent>
+                    </MudTable>
+                </MudTabPanel>
+
             </MudTabs>
         </MudCard>
     }
@@ -605,6 +737,44 @@
     private string busquedaServicio = string.Empty;
     private string busquedaPrestamo = string.Empty;
     private bool isExportingPrestamos = false;
+
+    private string busquedaColaborador = string.Empty;
+    private string? filtroRolColaborador = null;
+    private bool isExportingColaboradores = false;
+
+    private void SetFiltroRolColaborador(string? rol)
+    {
+        filtroRolColaborador = rol;
+    }
+
+    private IEnumerable<ColaboradorActivoMesDto> ColaboradoresFiltrados
+    {
+        get
+        {
+            if (consolidado?.Colaboradores == null) return Enumerable.Empty<ColaboradorActivoMesDto>();
+
+            var q = consolidado.Colaboradores.AsEnumerable();
+
+            if (filtroRolColaborador == "SUPERVISION")
+            {
+                q = q.Where(c => c.es_supervisor);
+            }
+            else if (filtroRolColaborador == "CUADRILLA")
+            {
+                q = q.Where(c => !c.es_supervisor);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busquedaColaborador))
+            {
+                var term = busquedaColaborador.Trim().ToLower();
+                q = q.Where(c => (c.nombre_empleado?.ToLower().Contains(term) ?? false) ||
+                                 (c.cargo?.ToLower().Contains(term) ?? false) ||
+                                 (c.nomina_origen?.ToLower().Contains(term) ?? false));
+            }
+
+            return q;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -891,6 +1061,164 @@
         finally
         {
             isExportingPrestamos = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ExportarColaboradoresExcel()
+    {
+        var data = ColaboradoresFiltrados.ToList();
+        if (!data.Any())
+        {
+            Snackbar.Add("No hay datos de colaboradores para exportar.", Severity.Warning);
+            return;
+        }
+
+        isExportingColaboradores = true;
+        StateHasChanged();
+        await Task.Delay(50);
+
+        try
+        {
+            string nombreCliente = filtroOperacionId.HasValue && filtroOperacionId.Value > 0
+                ? (operacionesList.FirstOrDefault(o => o.id == filtroOperacionId.Value)?.nombre ?? $"Op_{filtroOperacionId.Value}")
+                : "Todas_las_Operaciones";
+
+            string nombreLimpio = string.Concat(nombreCliente.Split(System.IO.Path.GetInvalidFileNameChars())).Replace(" ", "_");
+            string fileName = $"Personal_Activo_{nombreLimpio}_{ObtenerNombreMes(mesSeleccionado)}_{anioSeleccionado}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+            var sheet = workbook.CreateSheet("Personal_Activo");
+
+            var titleFont = workbook.CreateFont();
+            titleFont.IsBold = true;
+            titleFont.FontHeightInPoints = 14;
+            var titleStyle = workbook.CreateCellStyle();
+            titleStyle.SetFont(titleFont);
+
+            var subtitleFont = workbook.CreateFont();
+            subtitleFont.IsItalic = true;
+            subtitleFont.FontHeightInPoints = 10;
+            var subtitleStyle = workbook.CreateCellStyle();
+            subtitleStyle.SetFont(subtitleFont);
+
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerFont.FontHeightInPoints = 11;
+            headerFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+            var headerStyle = workbook.CreateCellStyle();
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.RoyalBlue.Index;
+            headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+            headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+
+            var dataFormat = workbook.CreateDataFormat();
+
+            var moneyStyle = workbook.CreateCellStyle();
+            moneyStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            moneyStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var hoursStyle = workbook.CreateCellStyle();
+            hoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            hoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var totalStyle = workbook.CreateCellStyle();
+            var totalFont = workbook.CreateFont();
+            totalFont.IsBold = true;
+            totalStyle.SetFont(totalFont);
+            totalStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00");
+            totalStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var totalHoursStyle = workbook.CreateCellStyle();
+            totalHoursStyle.SetFont(totalFont);
+            totalHoursStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
+            totalHoursStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Right;
+
+            var rTitle = sheet.CreateRow(0);
+            rTitle.CreateCell(0).SetCellValue("BUSSERSA - COLABORADORES QUE LABORARON EN EL MES (HEADCOUNT)");
+            rTitle.GetCell(0).CellStyle = titleStyle;
+
+            var rSub = sheet.CreateRow(1);
+            rSub.CreateCell(0).SetCellValue($"Período: {ObtenerNombreMes(mesSeleccionado)} {anioSeleccionado} | Cliente: {nombreCliente.Replace("_", " ")} | Total Colaboradores: {data.Count} | Generado: {DateTime.Now:dd/MM/yyyy HH:mm}");
+            rSub.GetCell(0).CellStyle = subtitleStyle;
+
+            var rHeader = sheet.CreateRow(3);
+            string[] headers = new[] {
+                "No.", "Colaborador", "Cargo", "Nómina de Procedencia",
+                "Rol", "Horas Trabajadas", "Costo / Hr (C$)", "Costo Total Imputable (C$)"
+            };
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var cell = rHeader.CreateCell(i);
+                cell.SetCellValue(headers[i]);
+                cell.CellStyle = headerStyle;
+            }
+
+            int rowIdx = 4;
+            int counter = 1;
+            foreach (var item in data)
+            {
+                var row = sheet.CreateRow(rowIdx++);
+                row.CreateCell(0).SetCellValue(counter++);
+                row.CreateCell(1).SetCellValue(item.nombre_empleado ?? "");
+                row.CreateCell(2).SetCellValue(item.cargo ?? "");
+                row.CreateCell(3).SetCellValue(item.es_nomina_propia ? $"Nómina Propia ({item.nomina_origen})" : $"Préstamo Recibido ({item.nomina_origen})");
+                row.CreateCell(4).SetCellValue(item.es_supervisor ? "Supervisión" : "Cuadrilla");
+
+                var cHours = row.CreateCell(5);
+                cHours.SetCellValue((double)item.horas_trabajadas);
+                cHours.CellStyle = hoursStyle;
+
+                var cCostHr = row.CreateCell(6);
+                cCostHr.SetCellValue((double)item.costo_por_hora);
+                cCostHr.CellStyle = moneyStyle;
+
+                var cTotal = row.CreateCell(7);
+                cTotal.SetCellValue((double)item.costo_total);
+                cTotal.CellStyle = moneyStyle;
+            }
+
+            var rTotal = sheet.CreateRow(rowIdx);
+            var cTotalLabel = rTotal.CreateCell(4);
+            cTotalLabel.SetCellValue("TOTALES:");
+            cTotalLabel.CellStyle = totalStyle;
+
+            var cSumHours = rTotal.CreateCell(5);
+            cSumHours.SetCellValue((double)data.Sum(c => c.horas_trabajadas));
+            cSumHours.CellStyle = totalHoursStyle;
+
+            var cSumCost = rTotal.CreateCell(7);
+            cSumCost.SetCellValue((double)data.Sum(c => c.costo_total));
+            cSumCost.CellStyle = totalStyle;
+
+            sheet.SetColumnWidth(0, 8 * 256);
+            sheet.SetColumnWidth(1, 35 * 256);
+            sheet.SetColumnWidth(2, 28 * 256);
+            sheet.SetColumnWidth(3, 30 * 256);
+            sheet.SetColumnWidth(4, 18 * 256);
+            sheet.SetColumnWidth(5, 18 * 256);
+            sheet.SetColumnWidth(6, 20 * 256);
+            sheet.SetColumnWidth(7, 24 * 256);
+
+            using var ms = new System.IO.MemoryStream();
+            workbook.Write(ms);
+            workbook.Close();
+            byte[] bytes = ms.ToArray();
+            string base64 = Convert.ToBase64String(bytes);
+
+            await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+            Snackbar.Add("Reporte de Personal Activo descargado con éxito.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al exportar a Excel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isExportingColaboradores = false;
             StateHasChanged();
         }
     }

@@ -71,6 +71,7 @@ namespace Modelo.Comercial
         public List<RentabilidadClienteRedistribuidaDto> Clientes { get; set; } = new List<RentabilidadClienteRedistribuidaDto>();
         public List<ConciliacionPrestamoPersonalDto> Prestamos { get; set; } = new List<ConciliacionPrestamoPersonalDto>();
         public List<RentabilidadSupervisorDto> Supervisores { get; set; } = new List<RentabilidadSupervisorDto>();
+        public List<ColaboradorActivoMesDto> Colaboradores { get; set; } = new List<ColaboradorActivoMesDto>();
 
         // Resumen KPIs Reales
         public decimal TotalIngresos { get; set; }
@@ -78,6 +79,9 @@ namespace Modelo.Comercial
         public decimal TotalUtilidadReal { get; set; }
         public decimal MargenGlobalPct { get; set; }
         public decimal TotalHorasTrabajadas { get; set; }
+        public decimal TarifaPromedioActual { get; set; }
+        public int TotalEmpleados { get; set; }
+        public decimal PromedioHorasColaborador { get; set; }
         public int ServiciosEnPerdida { get; set; }
         public int ServiciosRentables { get; set; }
         public decimal TotalCostoTransferido { get; set; }
@@ -88,6 +92,27 @@ namespace Modelo.Comercial
         public decimal TotalCostoSupervision { get; set; }
         public decimal MargenOperativoPct { get; set; }
         public int TotalSupervisores { get; set; }
+
+        // Diagnóstico de Tarifa para Punto de Equilibrio (Utilidad = C$ 0)
+        public decimal TarifaEquilibrioOperativa { get; set; }
+        public decimal AjusteTarifaOperativa { get; set; }
+        public decimal AjusteTarifaOperativaPct { get; set; }
+        public decimal TarifaEquilibrioIntegral { get; set; }
+        public decimal AjusteTarifaIntegral { get; set; }
+        public decimal AjusteTarifaIntegralPct { get; set; }
+    }
+
+    public class ColaboradorActivoMesDto
+    {
+        public int id_empleado { get; set; }
+        public string nombre_empleado { get; set; } = string.Empty;
+        public string cargo { get; set; } = string.Empty;
+        public string nomina_origen { get; set; } = string.Empty;
+        public bool es_nomina_propia { get; set; }
+        public bool es_supervisor { get; set; }
+        public decimal horas_trabajadas { get; set; }
+        public decimal costo_por_hora { get; set; }
+        public decimal costo_total { get; set; }
     }
 
     public class RentabilidadCargoConsolidadoDto
