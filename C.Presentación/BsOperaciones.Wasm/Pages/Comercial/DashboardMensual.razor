@@ -180,7 +180,6 @@
                     <MudTh>Empresa / Operación</MudTh>
                     <MudTh Style="text-align:center;">Personal Nómina</MudTh>
                     <MudTh Style="text-align:center;">Servicios</MudTh>
-                    <MudTh Style="text-align:center;">Proformas / Facturas</MudTh>
                     <MudTh Style="text-align:right;">Ingreso Total (C$)</MudTh>
                     <MudTh Style="text-align:right;">Costo Nómina Real (C$)</MudTh>
                     <MudTh Style="text-align:right;">Gastos Operativos (C$)</MudTh>
@@ -205,10 +204,6 @@
                         <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@context.TotalEmpleadosNomina emp.</MudChip>
                     </MudTd>
                     <MudTd Style="text-align:center;">@context.CantidadServicios</MudTd>
-                    <MudTd Style="text-align:center;">
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info">P: @context.TotalProformas</MudChip>
-                        <MudChip T="string" Size="Size.Small" Color="Color.Success">F: @context.TotalFacturas</MudChip>
-                    </MudTd>
                     <MudTd Style="text-align:right; font-weight:600;">C$ @context.IngresosTotales.ToString("N2")</MudTd>
                     <MudTd Style="text-align:right; color:#d32f2f; font-weight:600;">
                         C$ @context.CostoNominaReal.ToString("N2")
