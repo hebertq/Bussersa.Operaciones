@@ -65,8 +65,8 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudNumericField Label="Tarifa Venta / Hora (C$)" 
-                                         @bind-Value="editingItem.tarifa_venta_hora" 
+                        <MudNumericField Label="Tarifa Ordinaria / Hora (C$)" 
+                                         @bind-Value="editingItem.tarifa_ordinaria_hora" 
                                          Format="N2" 
                                          Variant="Variant.Outlined" 
                                          Margin="Margin.Dense" 
@@ -74,8 +74,8 @@
                                          Required="true" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudNumericField Label="Costo Real / Hora (C$)" 
-                                         @bind-Value="editingItem.costo_real_hora" 
+                        <MudNumericField Label="Tarifa Hora Extra / Hora (C$)" 
+                                         @bind-Value="editingItem.tarifa_extra_hora" 
                                          Format="N2" 
                                          Variant="Variant.Outlined" 
                                          Margin="Margin.Dense" 
@@ -85,13 +85,7 @@
                     <MudItem xs="12" sm="8">
                         <MudTextField Label="Notas / Justificación Comercial" @bind-Value="editingItem.notas" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
-                    <MudItem xs="12" sm="4" Class="d-flex align-center justify-space-between">
-                        <div class="d-flex flex-column">
-                            <MudText Typo="Typo.caption" Class="text-secondary">Margen Calculado:</MudText>
-                            <MudText Typo="Typo.body2" Class="@GetMargenClass(editingItem.margen_porcentaje)">
-                                C$ @editingItem.utilidad_hora.ToString("N2")/hr (@editingItem.margen_porcentaje.ToString("N1")%)
-                            </MudText>
-                        </div>
+                    <MudItem xs="12" sm="4" Class="d-flex align-center justify-end">
                         <div class="d-flex gap-2">
                             <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelarEdicion">Cancelar</MudButton>
                             <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="GuardarTarifa" Disabled="estaGuardando">
@@ -121,10 +115,8 @@
                 <HeaderContent>
                     <MudTh>Cliente / Operación</MudTh>
                     <MudTh>Cargo / Puesto</MudTh>
-                    <MudTh Style="text-align: right;">Tarifa Venta (C$/hr)</MudTh>
-                    <MudTh Style="text-align: right;">Costo Real (C$/hr)</MudTh>
-                    <MudTh Style="text-align: right;">Utilidad / Hora (C$)</MudTh>
-                    <MudTh Style="text-align: right;">Margen %</MudTh>
+                    <MudTh Style="text-align: right;">Tarifa Ordinaria (C$/hr)</MudTh>
+                    <MudTh Style="text-align: right;">Tarifa Hora Extra (C$/hr)</MudTh>
                     <MudTh>Estado</MudTh>
                     <MudTh Style="text-align: center;">Acciones</MudTh>
                 </HeaderContent>
@@ -137,19 +129,11 @@
                             @context.cargo
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Tarifa Venta" Style="text-align: right;" Class="font-bold text-primary">
-                        C$ @context.tarifa_venta_hora.ToString("N2")
+                    <MudTd DataLabel="Tarifa Ordinaria" Style="text-align: right;" Class="font-bold text-primary">
+                        C$ @context.tarifa_ordinaria_hora.ToString("N2")
                     </MudTd>
-                    <MudTd DataLabel="Costo Real" Style="text-align: right;" Class="font-semibold text-secondary">
-                        C$ @context.costo_real_hora.ToString("N2")
-                    </MudTd>
-                    <MudTd DataLabel="Utilidad / Hora" Style="text-align: right;" Class="@(context.utilidad_hora >= 0 ? "font-bold text-success" : "font-bold text-danger")">
-                        C$ @context.utilidad_hora.ToString("N2")
-                    </MudTd>
-                    <MudTd DataLabel="Margen %" Style="text-align: right;">
-                        <MudChip T="string" Size="Size.Small" Color="@(context.margen_porcentaje >= 20 ? Color.Success : (context.margen_porcentaje >= 0 ? Color.Warning : Color.Error))" Variant="Variant.Filled">
-                            @context.margen_porcentaje.ToString("N1")%
-                        </MudChip>
+                    <MudTd DataLabel="Tarifa Hora Extra" Style="text-align: right;" Class="font-bold text-warning">
+                        C$ @context.tarifa_extra_hora.ToString("N2")
                     </MudTd>
                     <MudTd DataLabel="Estado">
                         <MudChip T="string" Size="Size.Small" Color="@(context.activo ? Color.Success : Color.Dark)" Variant="Variant.Text">
@@ -231,8 +215,8 @@
             operacion_id = operacionSeleccionada,
             cargo = "Operador de almacen",
             tipo_tarifa = "HORA_NORMAL",
-            tarifa_venta_hora = 0m,
-            costo_real_hora = 0m,
+            tarifa_ordinaria_hora = 0m,
+            tarifa_extra_hora = 0m,
             margen_objetivo_pct = 25m,
             activo = true
         };
@@ -248,8 +232,8 @@
             cliente_nombre = item.cliente_nombre,
             cargo = item.cargo,
             tipo_tarifa = item.tipo_tarifa,
-            tarifa_venta_hora = item.tarifa_venta_hora,
-            costo_real_hora = item.costo_real_hora,
+            tarifa_ordinaria_hora = item.tarifa_ordinaria_hora,
+            tarifa_extra_hora = item.tarifa_extra_hora,
             margen_objetivo_pct = item.margen_objetivo_pct,
             activo = item.activo,
             notas = item.notas
