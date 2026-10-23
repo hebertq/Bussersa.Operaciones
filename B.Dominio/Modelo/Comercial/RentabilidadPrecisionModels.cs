@@ -8,10 +8,14 @@ namespace Modelo.Comercial
         public int operacion_id { get; set; }
         public string cliente_nombre { get; set; } = string.Empty;
         public string cargo { get; set; } = string.Empty;
+        public decimal horas_normales { get; set; }
+        public decimal horas_extras { get; set; }
         public decimal horas_trabajadas { get; set; }
         public decimal costo_real_total { get; set; }
         public decimal costo_real_hora { get; set; }
         public decimal ingreso_total { get; set; }
+        public decimal tarifa_ordinaria_hora { get; set; }
+        public decimal tarifa_extra_hora { get; set; }
         public decimal tarifa_promedio_hora { get; set; }
         public decimal utilidad_neta { get; set; }
         public decimal margen_porcentaje { get; set; }

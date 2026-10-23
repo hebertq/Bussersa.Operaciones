@@ -378,7 +378,13 @@
                                 }
                                 else
                                 {
-                                    <span>@context.horas_trabajadas.ToString("N2")</span>
+                                    <div class="d-flex flex-column align-end">
+                                        <span class="font-bold">@context.horas_trabajadas.ToString("N2")</span>
+                                        @if (context.horas_extras > 0)
+                                        {
+                                            <span class="text-secondary" style="font-size: 11px;">@context.horas_normales.ToString("N1") ord. + @context.horas_extras.ToString("N1") ext.</span>
+                                        }
+                                    </div>
                                 }
                             </MudTd>
                             <MudTd DataLabel="Facturado" Style="text-align: right; font-weight: 600;">
@@ -398,7 +404,15 @@
                                 }
                                 else
                                 {
-                                    <span>C$ @context.tarifa_promedio_hora.ToString("N2")</span>
+                                    <div class="d-flex flex-column align-end">
+                                        <span>C$ @context.tarifa_promedio_hora.ToString("N2")</span>
+                                        @if (context.tarifa_ordinaria_hora > 0)
+                                        {
+                                            <span style="font-size: 10.5px; color: #475569; font-weight: 600;">
+                                                Ord: C$ @context.tarifa_ordinaria_hora.ToString("N2") | Ext: C$ @context.tarifa_extra_hora.ToString("N2")
+                                            </span>
+                                        }
+                                    </div>
                                 }
                             </MudTd>
                             <MudTd DataLabel="Costo Laboral" Style="text-align: right; font-weight: 700;">
