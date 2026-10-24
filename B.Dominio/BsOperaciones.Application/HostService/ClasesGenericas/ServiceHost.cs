@@ -49,6 +49,10 @@ namespace HostService.ClasesGenericas
             {
                 Result.SetErrorExep(ex, metodo);
             }
+            catch (Exception ex)
+            {
+                Result.SetErroAcces("Error de comunicación o tiempo de espera con el servidor: " + ex.Message, metodo, "NetworkError");
+            }
 
             return Result;
         }
@@ -82,6 +86,10 @@ namespace HostService.ClasesGenericas
             catch (CoreException ex)
             {
                 Result.SetErrorExep(ex, metodo);
+            }
+            catch (Exception ex)
+            {
+                Result.SetErroAcces("Error de comunicación o tiempo de espera con el servidor: " + ex.Message, metodo, "NetworkError");
             }
             
             return await Task.FromResult(Result);
@@ -123,6 +131,10 @@ namespace HostService.ClasesGenericas
             catch (CoreException ex)
             {
                 Result.SetErrorExep(ex, metodo);
+            }
+            catch (Exception ex)
+            {
+                Result.SetErroAcces("Error de comunicación o tiempo de espera con el servidor: " + ex.Message, metodo, "NetworkError");
             }
 
             return Result;
@@ -257,6 +269,7 @@ namespace HostService.ClasesGenericas
             _httpClient.DefaultRequestHeaders.Remove("userIP");
             _httpClient.DefaultRequestHeaders.Add("userIP", "192.168.1.1");
             _httpClient.BaseAddress = new Uri(_Util.BaseUrlApiLog);
+            _httpClient.Timeout = TimeSpan.FromMinutes(5);
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             _httpClient.DefaultRequestHeaders.ConnectionClose = false;
