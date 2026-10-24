@@ -3551,6 +3551,221 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        #region Asignacion de Asistencia a Produccion y Catalogo de Variantes
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto>> GetCatalogoServicioPuestoArea(int operacionId)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto> response = new ListResponse<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetCatalogoServicioPuestoArea", $"operacionId={operacionId}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveCatalogoServicioPuestoArea(Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto dto)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveCatalogoServicioPuestoArea");
+                var registro = await PostAsync(requestUrl, dto);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteCatalogoServicioPuestoArea(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/DeleteCatalogoServicioPuestoArea/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto> response = new ListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>();
+            try
+            {
+                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}";
+                var requestUrl = CreateRequestUri("Operaciones/GetMarcadasSemanalesAsignacion", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto> response = new ListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>();
+            try
+            {
+                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}";
+                var requestUrl = CreateRequestUri("Operaciones/GetGrillaProduccionSemanal", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> AsignarMarcadasProduccion(Modelo.Entidades.Operaciones.AsignarMarcadasProduccionRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/AsignarMarcadasProduccion");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/DesasignarMarcadasProduccion", $"numeroAsignacion={Uri.EscapeDataString(numeroAsignacion ?? "")}");
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto> response = new ListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>();
+            try
+            {
+                string queryString = $"operacionId={operacionId}&anio={anio}";
+                var requestUrl = CreateRequestUri("Operaciones/GetHistoricoAsignacionesProduccion", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        #endregion
     }
 }
 

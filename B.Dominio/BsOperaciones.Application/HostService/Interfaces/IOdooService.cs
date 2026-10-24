@@ -170,6 +170,16 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Comercial.TarifaClientePuestoDto>> GetTarifasClientePuesto(int? operacionId = null);
         Task<IResponse> SaveTarifaClientePuesto(Modelo.Comercial.TarifaClientePuestoDto dto);
         Task<IResponse> DeleteTarifaClientePuesto(int id);
+
+        // --- ASIGNACIÓN DE ASISTENCIA A PRODUCCIÓN Y CATÁLOGO DE VARIANTES ---
+        Task<IListResponse<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto>> GetCatalogoServicioPuestoArea(int operacionId);
+        Task<IResponse> SaveCatalogoServicioPuestoArea(Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto dto);
+        Task<IResponse> DeleteCatalogoServicioPuestoArea(int id);
+        Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false);
+        Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false);
+        Task<IResponse> AsignarMarcadasProduccion(Modelo.Entidades.Operaciones.AsignarMarcadasProduccionRequest request);
+        Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion);
+        Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio);
     }
 }
 

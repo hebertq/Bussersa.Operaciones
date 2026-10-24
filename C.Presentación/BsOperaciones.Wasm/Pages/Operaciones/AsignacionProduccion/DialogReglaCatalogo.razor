@@ -1,0 +1,182 @@
+@using MudBlazor
+@using Modelo.Entidades.Operaciones
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="d-flex align-center">
+            <MudIcon Icon="@(Item.id > 0 ? Icons.Material.Filled.Edit : Icons.Material.Filled.AddCircle)" Color="Color.Primary" Class="mr-2" />
+            @(Item.id > 0 ? "Editar Regla de Tarifa y Variante" : "Nueva Regla de Tarifa y Variante")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="isValid">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="item.operacion_id" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @foreach (var op in OperacionesList)
+                        {
+                            <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Área (* para todas las áreas)" @bind-Value="item.area_nombre" Required="true"
+                                  HelperText="Ingrese el nombre exacto o * para aplicar a nivel general"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudAutocomplete T="string" Label="Cargo / Puesto" @bind-Value="item.cargo"
+                                     SearchFunc="@SearchCargos"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="true"
+                                     CoerceValue="true"
+                                     Required="true"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Tipo de Hora" @bind-Value="item.tipo_hora" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@("ORDINARIA")">ORDINARIA</MudSelectItem>
+                        <MudSelectItem Value="@("EXTRA")">EXTRA</MudSelectItem>
+                        <MudSelectItem Value="@("DOMINGO_FERIADO")">DOMINGO / FERIADO</MudSelectItem>
+                        <MudSelectItem Value="@("NOCTURNA")">NOCTURNA</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudAutocomplete T="OdooVariantDto" Label="Buscar Variante de Servicio Odoo (SKU o Descripción)"
+                                     Value="selectedVariant"
+                                     ValueChanged="OnVariantChanged"
+                                     SearchFunc="@SearchVariants"
+                                     ToStringFunc="@(v => v == null ? string.Empty : $"[{v.default_code}] {v.nombre} - ${v.precio:N2}")"
+                                     ResetValueOnEmptyText="true"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     Placeholder="Escriba para buscar variantes del catálogo..." />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudTextField Label="Código / SKU Odoo" @bind-Value="item.servicio_codigo" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="8">
+                    <MudTextField Label="Descripción del Servicio" @bind-Value="item.servicio_descripcion" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" Label="Unidad de Medida" @bind-Value="item.unidad_medida" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@("HORAS")">HORAS</MudSelectItem>
+                        <MudSelectItem Value="@("DIAS")">DÍAS</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal" Label="Tarifa Venta ($ / C$)" @bind-Value="item.tarifa_venta"
+                                     Format="N2" Min="0m" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                    <MudSwitch T="bool" @bind-Value="item.activo" Color="Color.Success" Label="Regla Activa" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!isValid || string.IsNullOrWhiteSpace(item.cargo) || string.IsNullOrWhiteSpace(item.servicio_codigo))" StartIcon="@Icons.Material.Filled.Save">
+            Guardar Regla
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public CatalogoServicioPuestoAreaDto Item { get; set; } = new();
+    [Parameter] public List<Combos> OperacionesList { get; set; } = new();
+    [Parameter] public List<Combos> HrJobsList { get; set; } = new();
+    [Parameter] public List<OdooVariantDto> VariantsList { get; set; } = new();
+
+    private CatalogoServicioPuestoAreaDto item = new();
+    private OdooVariantDto? selectedVariant;
+    private bool isValid;
+    private MudForm form = null!;
+
+    protected override void OnInitialized()
+    {
+        item = new CatalogoServicioPuestoAreaDto
+        {
+            id = Item.id,
+            operacion_id = Item.operacion_id,
+            cliente_nombre = Item.cliente_nombre,
+            area_nombre = string.IsNullOrWhiteSpace(Item.area_nombre) ? "*" : Item.area_nombre,
+            cargo = Item.cargo,
+            tipo_hora = string.IsNullOrWhiteSpace(Item.tipo_hora) ? "ORDINARIA" : Item.tipo_hora,
+            servicio_codigo = Item.servicio_codigo,
+            servicio_descripcion = Item.servicio_descripcion,
+            unidad_medida = string.IsNullOrWhiteSpace(Item.unidad_medida) ? "HORAS" : Item.unidad_medida,
+            factor_conversion_dias = Item.factor_conversion_dias > 0 ? Item.factor_conversion_dias : 8.00m,
+            tarifa_venta = Item.tarifa_venta,
+            activo = Item.id == 0 || Item.activo
+        };
+
+        if (!string.IsNullOrWhiteSpace(item.servicio_codigo) && VariantsList != null)
+        {
+            selectedVariant = VariantsList.FirstOrDefault(v => v.default_code?.Equals(item.servicio_codigo, StringComparison.OrdinalIgnoreCase) == true);
+        }
+    }
+
+    private Task<IEnumerable<string>> SearchCargos(string value, CancellationToken token)
+    {
+        var list = HrJobsList?.Select(j => j.nombre) ?? Enumerable.Empty<string>();
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(list);
+
+        return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
+    private Task<IEnumerable<OdooVariantDto>> SearchVariants(string value, CancellationToken token)
+    {
+        if (VariantsList == null || !VariantsList.Any())
+            return Task.FromResult(Enumerable.Empty<OdooVariantDto>());
+
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(VariantsList.Take(30));
+
+        var filtered = VariantsList
+            .Where(x => (x.default_code != null && x.default_code.Contains(value, StringComparison.InvariantCultureIgnoreCase)) ||
+                        (x.nombre != null && x.nombre.Contains(value, StringComparison.InvariantCultureIgnoreCase)))
+            .Take(30);
+
+        return Task.FromResult(filtered);
+    }
+
+    private void OnVariantChanged(OdooVariantDto? variant)
+    {
+        selectedVariant = variant;
+        if (variant != null)
+        {
+            item.servicio_codigo = variant.default_code ?? string.Empty;
+            item.servicio_descripcion = variant.nombre ?? string.Empty;
+            if (item.tarifa_venta <= 0 && variant.precio > 0)
+            {
+                item.tarifa_venta = variant.precio;
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Save()
+    {
+        item.cargo = item.cargo?.Trim() ?? string.Empty;
+        item.area_nombre = item.area_nombre?.Trim() ?? "*";
+        item.servicio_codigo = item.servicio_codigo?.Trim() ?? string.Empty;
+        item.servicio_descripcion = item.servicio_descripcion?.Trim() ?? string.Empty;
+
+        MudDialog.Close(DialogResult.Ok(item));
+    }
+}

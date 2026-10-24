@@ -1,0 +1,61 @@
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.LockClock" Color="Color.Primary" Class="mr-2" />
+            Sellar y Asignar Lote a Producción
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
+            Se asignarán <b>@CantidadMarcadas</b> registros de asistencia correspondientes a <b>@TotalHoras.ToString("N2") horas</b> al lote de producción.
+            Esto bloqueará estas horas para evitar duplicados en futuras facturaciones.
+        </MudAlert>
+
+        <MudForm @ref="form" @bind-IsValid="isValid">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="NumeroAsignacion"
+                                  Label="Número de Asignación / Lote (Ej: SINSA-SEM38-2026)"
+                                  Required="true"
+                                  RequiredError="El número de asignación es obligatorio"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        * Ingrese un código único y representativo (por ejemplo: CLIENTE-SEMANA-AÑO). Si con posterioridad se registran movimientos de personal o correcciones retroactivas, el sistema identificará qué horas no formaban parte de este lote.
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="@(!isValid || string.IsNullOrWhiteSpace(NumeroAsignacion))" StartIcon="@Icons.Material.Filled.CheckCircle">
+            Confirmar y Sellar Lote
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string NumeroAsignacion { get; set; } = string.Empty;
+    [Parameter] public int CantidadMarcadas { get; set; }
+    [Parameter] public decimal TotalHoras { get; set; }
+
+    private bool isValid;
+    private MudForm form = null!;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(NumeroAsignacion)) return;
+        MudDialog.Close(DialogResult.Ok(NumeroAsignacion.Trim().ToUpper()));
+    }
+}
