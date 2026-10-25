@@ -144,6 +144,23 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 var varRes = await varTask;
                 variantsList = varRes.Model?.OrderBy(x => x.default_code).ToList() ?? new();
 
+                // Fallback preventivo si GetAllProductVariants no trajo datos: traer la plantilla de horas laborales (id: 9)
+                if (!variantsList.Any())
+                {
+                    try
+                    {
+                        var fallbackVarRes = await _odooService.GetProductVariants(9);
+                        if (fallbackVarRes.Model != null && fallbackVarRes.Model.Any())
+                        {
+                            variantsList = fallbackVarRes.Model.OrderBy(x => x.default_code).ToList();
+                        }
+                    }
+                    catch (Exception exVar)
+                    {
+                        Console.WriteLine("Advertencia fallback variantes: " + exVar.Message);
+                    }
+                }
+
                 var tmplRes = await tmplTask;
                 templatesList = tmplRes.Model?.OrderBy(x => x.nombre).ToList() ?? new();
             }
