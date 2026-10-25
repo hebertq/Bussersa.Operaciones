@@ -1,4 +1,5 @@
 @using MudBlazor
+@using Modelo.Entidades.Operaciones
 
 <MudDialog>
     <TitleContent>
@@ -8,34 +9,75 @@
         </MudText>
     </TitleContent>
     <DialogContent>
-        <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
-            Se asignarán <b>@CantidadMarcadas</b> registros de asistencia correspondientes a <b>@TotalHoras.ToString("N2") horas</b> al lote de producción.
-            Esto bloqueará estas horas para evitar duplicados en futuras facturaciones.
-        </MudAlert>
+        @if (EsEncajonada)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.DateRange">
+                <b>Semana Encajonada:</b> Se asignarán lotes separados por mes calendario para que cada período mantenga su cierre contable independiente:
+                <br />• <b>@NombreMesAnterior (@PeriodoMesAnterior):</b> @CantidadMarcadasMesAnterior marcadas (@TotalHorasMesAnterior.ToString("N2") h)
+                <br />• <b>@NombreMesActual (@PeriodoMesActual):</b> @CantidadMarcadasMesActual marcadas (@TotalHorasMesActual.ToString("N2") h)
+            </MudAlert>
 
-        <MudForm @ref="form" @bind-IsValid="isValid">
-            <MudGrid>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="NumeroAsignacion"
-                                  Label="Número de Asignación / Lote (Ej: SINSA-SEM38-2026)"
-                                  Required="true"
-                                  RequiredError="El número de asignación es obligatorio"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        * Ingrese un código único y representativo (por ejemplo: CLIENTE-SEMANA-AÑO). Si con posterioridad se registran movimientos de personal o correcciones retroactivas, el sistema identificará qué horas no formaban parte de este lote.
-                    </MudText>
-                </MudItem>
-            </MudGrid>
-        </MudForm>
+            <MudForm @ref="form" @bind-IsValid="isValid">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="NumeroAsignacionMesAnterior"
+                                      Label="@($"Lote Mes Anterior ({NombreMesAnterior})")"
+                                      Required="true"
+                                      RequiredError="El número de lote del mes anterior es obligatorio"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="NumeroAsignacionMesActual"
+                                      Label="@($"Lote Mes Actual ({NombreMesActual})")"
+                                      Required="true"
+                                      RequiredError="El número de lote del mes actual es obligatorio"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            * Al confirmar se sellarán las marcadas de cada mes con su identificador correspondiente para que la facturación y proformas se generen sin solapamientos.
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
+                Se asignarán <b>@CantidadMarcadas</b> registros de asistencia correspondientes a <b>@TotalHoras.ToString("N2") horas</b> al lote de producción.
+                Esto bloqueará estas horas para evitar duplicados en futuras facturaciones.
+            </MudAlert>
+
+            <MudForm @ref="form" @bind-IsValid="isValid">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="NumeroAsignacion"
+                                      Label="Número de Asignación / Lote (Ej: SINSA-SEM38-2026)"
+                                      Required="true"
+                                      RequiredError="El número de asignación es obligatorio"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            * Ingrese un código único y representativo (por ejemplo: CLIENTE-SEMANA-AÑO). Si con posterioridad se registran movimientos de personal o correcciones retroactivas, el sistema identificará qué horas no formaban parte de este lote.
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
-        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="@(!isValid || string.IsNullOrWhiteSpace(NumeroAsignacion))" StartIcon="@Icons.Material.Filled.CheckCircle">
+        <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="@IsSubmitDisabled" StartIcon="@Icons.Material.Filled.CheckCircle">
             Confirmar y Sellar Lote
         </MudButton>
     </DialogActions>
@@ -44,18 +86,64 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
 
+    // Parámetros estándar (Semana normal)
     [Parameter] public string NumeroAsignacion { get; set; } = string.Empty;
     [Parameter] public int CantidadMarcadas { get; set; }
     [Parameter] public decimal TotalHoras { get; set; }
 
+    // Parámetros para Semana Encajonada
+    [Parameter] public bool EsEncajonada { get; set; }
+    [Parameter] public string NumeroAsignacionMesAnterior { get; set; } = string.Empty;
+    [Parameter] public int CantidadMarcadasMesAnterior { get; set; }
+    [Parameter] public decimal TotalHorasMesAnterior { get; set; }
+    [Parameter] public string NombreMesAnterior { get; set; } = string.Empty;
+    [Parameter] public string PeriodoMesAnterior { get; set; } = string.Empty;
+
+    [Parameter] public string NumeroAsignacionMesActual { get; set; } = string.Empty;
+    [Parameter] public int CantidadMarcadasMesActual { get; set; }
+    [Parameter] public decimal TotalHorasMesActual { get; set; }
+    [Parameter] public string NombreMesActual { get; set; } = string.Empty;
+    [Parameter] public string PeriodoMesActual { get; set; } = string.Empty;
+
     private bool isValid;
     private MudForm form = null!;
+
+    private bool IsSubmitDisabled
+    {
+        get
+        {
+            if (EsEncajonada)
+            {
+                return string.IsNullOrWhiteSpace(NumeroAsignacionMesAnterior) || string.IsNullOrWhiteSpace(NumeroAsignacionMesActual);
+            }
+            return string.IsNullOrWhiteSpace(NumeroAsignacion);
+        }
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
     private void Submit()
     {
-        if (string.IsNullOrWhiteSpace(NumeroAsignacion)) return;
-        MudDialog.Close(DialogResult.Ok(NumeroAsignacion.Trim().ToUpper()));
+        if (EsEncajonada)
+        {
+            if (string.IsNullOrWhiteSpace(NumeroAsignacionMesAnterior) || string.IsNullOrWhiteSpace(NumeroAsignacionMesActual)) return;
+            var res = new ResultadoSellarLoteDto
+            {
+                EsEncajonada = true,
+                LoteMesAnterior = NumeroAsignacionMesAnterior.Trim().ToUpper(),
+                LoteMesActual = NumeroAsignacionMesActual.Trim().ToUpper()
+            };
+            MudDialog.Close(DialogResult.Ok(res));
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(NumeroAsignacion)) return;
+            var res = new ResultadoSellarLoteDto
+            {
+                EsEncajonada = false,
+                LoteUnico = NumeroAsignacion.Trim().ToUpper()
+            };
+            MudDialog.Close(DialogResult.Ok(res));
+        }
     }
 }

@@ -69,6 +69,10 @@ namespace Modelo.Entidades.Operaciones
         public decimal subtotal_facturable { get; set; }
         public int cantidad_empleados { get; set; }
         public int cantidad_registros { get; set; }
+        public DateTime? fecha_inicio_corte { get; set; }
+        public DateTime? fecha_fin_corte { get; set; }
+        public string? periodo_mes { get; set; }
+        public bool es_mes_anterior { get; set; }
     }
 
     public class AsignarMarcadasProduccionRequest
@@ -91,5 +95,13 @@ namespace Modelo.Entidades.Operaciones
         public DateTime? fecha_asignacion { get; set; }
         public decimal horas_pendientes_en_rango { get; set; }
         public int marcadas_pendientes_en_rango { get; set; }
+    }
+
+    public class ResultadoSellarLoteDto
+    {
+        public bool EsEncajonada { get; set; }
+        public string LoteUnico { get; set; } = string.Empty;
+        public string LoteMesAnterior { get; set; } = string.Empty;
+        public string LoteMesActual { get; set; } = string.Empty;
     }
 }

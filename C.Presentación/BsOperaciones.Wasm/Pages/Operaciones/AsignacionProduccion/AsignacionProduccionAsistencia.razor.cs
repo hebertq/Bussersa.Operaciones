@@ -1,3 +1,4 @@
+using BsOperaciones.Application.Features.Odoo.Commands;
 using BsOperaciones.Application.Features.Odoo.Queries;
 using BsOperaciones.Application.Features.Operaciones.Commands;
 using BsOperaciones.Application.Features.Operaciones.Queries;
@@ -51,22 +52,66 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected List<GrillaProduccionSemanalDto> grillaProduccion = new();
         protected List<MarcadaAsistenciaProduccionDto> marcadasList = new();
 
-        // Totales calculados
+        // Propiedades de Semana Encajonada (corte bimensual)
+        protected bool EsSemanaEncajonada => fchaInicioSemana.Month != fchaFinSemana.Month;
+        protected DateTime FechaFinMesAnterior => new DateTime(fchaInicioSemana.Year, fchaInicioSemana.Month, DateTime.DaysInMonth(fchaInicioSemana.Year, fchaInicioSemana.Month));
+        protected DateTime FechaInicioMesActual => new DateTime(fchaFinSemana.Year, fchaFinSemana.Month, 1);
+        protected string NombreMesAnterior => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(fchaInicioSemana.ToString("MMMM", CultureInfo.GetCultureInfo("es-ES")));
+        protected string NombreMesActual => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(fchaFinSemana.ToString("MMMM", CultureInfo.GetCultureInfo("es-ES")));
+        protected string PeriodoMesAnteriorTexto => $"{fchaInicioSemana:dd/MM} al {FechaFinMesAnterior:dd/MM}";
+        protected string PeriodoMesActualTexto => $"{FechaInicioMesActual:dd/MM} al {fchaFinSemana:dd/MM}";
+
+        // Filtro de visualización temporal: "TODOS", "MES_ANTERIOR", "MES_ACTUAL"
+        protected string filtroPeriodoCorte = "TODOS";
+
+        protected IEnumerable<GrillaProduccionSemanalDto> GrillaFiltrada
+        {
+            get
+            {
+                if (grillaProduccion == null) return Enumerable.Empty<GrillaProduccionSemanalDto>();
+                if (!EsSemanaEncajonada || filtroPeriodoCorte == "TODOS") return grillaProduccion;
+                if (filtroPeriodoCorte == "MES_ANTERIOR") return grillaProduccion.Where(g => g.es_mes_anterior);
+                if (filtroPeriodoCorte == "MES_ACTUAL") return grillaProduccion.Where(g => !g.es_mes_anterior);
+                return grillaProduccion;
+            }
+        }
+
+        // Totales calculados generales
         protected decimal TotalHorasOrdinarias => grillaProduccion?.Where(g => g.tipo_hora == "ORDINARIA").Sum(g => g.cantidad_horas) ?? 0;
         protected decimal TotalHorasExtras => grillaProduccion?.Where(g => g.tipo_hora == "EXTRA").Sum(g => g.cantidad_horas) ?? 0;
         protected decimal TotalHorasFacturables => grillaProduccion?.Sum(g => g.cantidad_horas) ?? 0;
         protected decimal TotalMontoVenta => grillaProduccion?.Sum(g => g.subtotal_facturable) ?? 0;
 
+        // Desglose de Totales por Mes para Semanas Encajonadas
+        protected decimal TotalHorasMesAnterior => grillaProduccion?.Where(g => g.es_mes_anterior).Sum(g => g.cantidad_horas) ?? 0;
+        protected decimal TotalMontoMesAnterior => grillaProduccion?.Where(g => g.es_mes_anterior).Sum(g => g.subtotal_facturable) ?? 0;
+        protected decimal TotalHorasMesActual => grillaProduccion?.Where(g => !g.es_mes_anterior).Sum(g => g.cantidad_horas) ?? 0;
+        protected decimal TotalMontoMesActual => grillaProduccion?.Where(g => !g.es_mes_anterior).Sum(g => g.subtotal_facturable) ?? 0;
+
         protected IEnumerable<MarcadaAsistenciaProduccionDto> MarcadasFiltradas
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(filtroDetalle)) return marcadasList;
-                return marcadasList.Where(m =>
-                    (m.nombre_empleado != null && m.nombre_empleado.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
-                    (m.cargo != null && m.cargo.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
-                    (m.area_nombre != null && m.area_nombre.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
-                    (m.numero_asignacion_produccion != null && m.numero_asignacion_produccion.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)));
+                var query = marcadasList.AsEnumerable();
+                if (EsSemanaEncajonada && filtroPeriodoCorte == "MES_ANTERIOR")
+                {
+                    query = query.Where(m => m.fecha_asistencia.Month == fchaInicioSemana.Month);
+                }
+                else if (EsSemanaEncajonada && filtroPeriodoCorte == "MES_ACTUAL")
+                {
+                    query = query.Where(m => m.fecha_asistencia.Month == fchaFinSemana.Month);
+                }
+
+                if (!string.IsNullOrWhiteSpace(filtroDetalle))
+                {
+                    query = query.Where(m =>
+                        (m.nombre_empleado != null && m.nombre_empleado.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
+                        (m.cargo != null && m.cargo.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
+                        (m.area_nombre != null && m.area_nombre.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)) ||
+                        (m.numero_asignacion_produccion != null && m.numero_asignacion_produccion.Contains(filtroDetalle, StringComparison.InvariantCultureIgnoreCase)));
+                }
+
+                return query;
             }
         }
 
@@ -224,19 +269,69 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             try
             {
                 string? supExcluidosParam = supervisoresIds.Any() ? string.Join(",", supervisoresIds) : null;
-                var queryGrilla = new GetGrillaProduccionSemanalQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
-                var queryMarcadas = new GetMarcadasSemanalesAsignacionQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
 
-                var taskGrilla = _mediator.Send(queryGrilla);
-                var taskMarcadas = _mediator.Send(queryMarcadas);
+                if (EsSemanaEncajonada)
+                {
+                    // Semana Encajonada: Consultar período 1 (días del mes anterior) y período 2 (días del mes actual)
+                    var queryGrillaP1 = new GetGrillaProduccionSemanalQuery(operacionId, fchaInicioSemana, FechaFinMesAnterior, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
+                    var queryGrillaP2 = new GetGrillaProduccionSemanalQuery(operacionId, FechaInicioMesActual, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
+                    var queryMarcadas = new GetMarcadasSemanalesAsignacionQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
 
-                await Task.WhenAll(taskGrilla, taskMarcadas);
+                    var taskGrillaP1 = _mediator.Send(queryGrillaP1);
+                    var taskGrillaP2 = _mediator.Send(queryGrillaP2);
+                    var taskMarcadas = _mediator.Send(queryMarcadas);
 
-                var resGrilla = await taskGrilla;
-                grillaProduccion = resGrilla.Model?.ToList() ?? new();
+                    await Task.WhenAll(taskGrillaP1, taskGrillaP2, taskMarcadas);
 
-                var resMarcadas = await taskMarcadas;
-                marcadasList = resMarcadas.Model?.ToList() ?? new();
+                    var resGrillaP1 = await taskGrillaP1;
+                    var resGrillaP2 = await taskGrillaP2;
+
+                    var itemsP1 = resGrillaP1.Model?.ToList() ?? new();
+                    foreach (var item in itemsP1)
+                    {
+                        item.fecha_inicio_corte = fchaInicioSemana;
+                        item.fecha_fin_corte = FechaFinMesAnterior;
+                        item.periodo_mes = $"{NombreMesAnterior} ({PeriodoMesAnteriorTexto})";
+                        item.es_mes_anterior = true;
+                    }
+
+                    var itemsP2 = resGrillaP2.Model?.ToList() ?? new();
+                    foreach (var item in itemsP2)
+                    {
+                        item.fecha_inicio_corte = FechaInicioMesActual;
+                        item.fecha_fin_corte = fchaFinSemana;
+                        item.periodo_mes = $"{NombreMesActual} ({PeriodoMesActualTexto})";
+                        item.es_mes_anterior = false;
+                    }
+
+                    grillaProduccion = itemsP1.Concat(itemsP2).ToList();
+
+                    var resMarcadas = await taskMarcadas;
+                    marcadasList = resMarcadas.Model?.ToList() ?? new();
+                }
+                else
+                {
+                    var queryGrilla = new GetGrillaProduccionSemanalQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
+                    var queryMarcadas = new GetMarcadasSemanalesAsignacionQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
+
+                    var taskGrilla = _mediator.Send(queryGrilla);
+                    var taskMarcadas = _mediator.Send(queryMarcadas);
+
+                    await Task.WhenAll(taskGrilla, taskMarcadas);
+
+                    var resGrilla = await taskGrilla;
+                    grillaProduccion = resGrilla.Model?.ToList() ?? new();
+                    foreach (var item in grillaProduccion)
+                    {
+                        item.fecha_inicio_corte = fchaInicioSemana;
+                        item.fecha_fin_corte = fchaFinSemana;
+                        item.periodo_mes = $"{NombreMesActual} ({fchaInicioSemana:dd/MM} al {fchaFinSemana:dd/MM})";
+                        item.es_mes_anterior = false;
+                    }
+
+                    var resMarcadas = await taskMarcadas;
+                    marcadasList = resMarcadas.Model?.ToList() ?? new();
+                }
 
                 // Marcar seleccionados por defecto los pendientes
                 foreach (var m in marcadasList)
@@ -262,9 +357,27 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
 
         protected void SeleccionarTodasMarcadas()
         {
-            foreach (var m in marcadasList)
+            foreach (var m in MarcadasFiltradas)
             {
                 if (!m.asignado_produccion)
+                    m.IsSelected = true;
+            }
+        }
+
+        protected void SeleccionarMarcadasMesAnterior()
+        {
+            foreach (var m in marcadasList)
+            {
+                if (!m.asignado_produccion && m.fecha_asistencia.Month == fchaInicioSemana.Month)
+                    m.IsSelected = true;
+            }
+        }
+
+        protected void SeleccionarMarcadasMesActual()
+        {
+            foreach (var m in marcadasList)
+            {
+                if (!m.asignado_produccion && m.fecha_asistencia.Month == fchaFinSemana.Month)
                     m.IsSelected = true;
             }
         }
@@ -290,43 +403,123 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             string clienteCodigo = string.Concat(clienteNombre.Where(char.IsLetterOrDigit)).ToUpper();
             if (clienteCodigo.Length > 8) clienteCodigo = clienteCodigo.Substring(0, 8);
 
+            var pendientesMesAnterior = pendientesSeleccionados.Where(m => m.fecha_asistencia.Month == fchaInicioSemana.Month).ToList();
+            var pendientesMesActual = pendientesSeleccionados.Where(m => m.fecha_asistencia.Month == fchaFinSemana.Month).ToList();
+            bool esDual = EsSemanaEncajonada && pendientesMesAnterior.Any() && pendientesMesActual.Any();
+
             string defaultLote = $"{clienteCodigo}-SEM{numeroSemana:D2}-{fchaInicioSemana.Year}";
+            string defaultLoteP1 = $"{clienteCodigo}-SEM{numeroSemana:D2}-{fchaInicioSemana:MMM.ToUpper()}-{fchaInicioSemana.Year}";
+            string defaultLoteP2 = $"{clienteCodigo}-SEM{numeroSemana:D2}-{fchaFinSemana:MMM.ToUpper()}-{fchaFinSemana.Year}";
 
             var parameters = new DialogParameters
             {
                 { "NumeroAsignacion", defaultLote },
                 { "CantidadMarcadas", pendientesSeleccionados.Count },
-                { "TotalHoras", pendientesSeleccionados.Sum(m => m.horas_totales) }
+                { "TotalHoras", pendientesSeleccionados.Sum(m => m.horas_totales) },
+                { "EsEncajonada", esDual },
+                { "NumeroAsignacionMesAnterior", defaultLoteP1 },
+                { "CantidadMarcadasMesAnterior", pendientesMesAnterior.Count },
+                { "TotalHorasMesAnterior", pendientesMesAnterior.Sum(m => m.horas_totales) },
+                { "NombreMesAnterior", NombreMesAnterior },
+                { "PeriodoMesAnterior", PeriodoMesAnteriorTexto },
+                { "NumeroAsignacionMesActual", defaultLoteP2 },
+                { "CantidadMarcadasMesActual", pendientesMesActual.Count },
+                { "TotalHorasMesActual", pendientesMesActual.Sum(m => m.horas_totales) },
+                { "NombreMesActual", NombreMesActual },
+                { "PeriodoMesActual", PeriodoMesActualTexto }
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
             var dialog = _dialogService.Show<DialogSellarLote>("Sellar Lote de Producción", parameters, options);
             var result = await dialog.Result;
 
-            if (!result.Canceled && result.Data is string numeroLote && !string.IsNullOrWhiteSpace(numeroLote))
+            if (!result.Canceled && result.Data != null)
             {
                 estaCargando = true;
-                mensajeCarga = $"Sellando lote {numeroLote}...";
                 StateHasChanged();
                 try
                 {
-                    var req = new AsignarMarcadasProduccionRequest
+                    if (result.Data is ResultadoSellarLoteDto resLote)
                     {
-                        ids = pendientesSeleccionados.Select(m => m.id_cierre).ToList(),
-                        numero_asignacion = numeroLote,
-                        usuario_id = 0
-                    };
+                        if (resLote.EsEncajonada)
+                        {
+                            mensajeCarga = $"Sellando lotes {resLote.LoteMesAnterior} y {resLote.LoteMesActual}...";
+                            StateHasChanged();
 
-                    var response = await _mediator.Send(new AsignarMarcadasProduccionCommand(req));
-                    if (response.Respuesta.ExisteError)
-                    {
-                        _snackbar.Add($"Error al sellar lote: {response.Respuesta.MensajeError}", Severity.Error);
+                            var reqP1 = new AsignarMarcadasProduccionRequest
+                            {
+                                ids = pendientesMesAnterior.Select(m => m.id_cierre).ToList(),
+                                numero_asignacion = resLote.LoteMesAnterior,
+                                usuario_id = 0
+                            };
+                            var respP1 = await _mediator.Send(new AsignarMarcadasProduccionCommand(reqP1));
+
+                            var reqP2 = new AsignarMarcadasProduccionRequest
+                            {
+                                ids = pendientesMesActual.Select(m => m.id_cierre).ToList(),
+                                numero_asignacion = resLote.LoteMesActual,
+                                usuario_id = 0
+                            };
+                            var respP2 = await _mediator.Send(new AsignarMarcadasProduccionCommand(reqP2));
+
+                            if (respP1.Respuesta.ExisteError || respP2.Respuesta.ExisteError)
+                            {
+                                string err = respP1.Respuesta.MensajeError ?? respP2.Respuesta.MensajeError ?? "Error desconocido";
+                                _snackbar.Add($"Error al sellar lotes: {err}", Severity.Error);
+                            }
+                            else
+                            {
+                                _snackbar.Add($"¡Lotes sellados exitosamente: {resLote.LoteMesAnterior} ({pendientesMesAnterior.Count} marcadas) y {resLote.LoteMesActual} ({pendientesMesActual.Count} marcadas)!", Severity.Success);
+                                await ConsultarSemana();
+                                await CargarHistorico();
+                            }
+                        }
+                        else
+                        {
+                            mensajeCarga = $"Sellando lote {resLote.LoteUnico}...";
+                            StateHasChanged();
+
+                            var req = new AsignarMarcadasProduccionRequest
+                            {
+                                ids = pendientesSeleccionados.Select(m => m.id_cierre).ToList(),
+                                numero_asignacion = resLote.LoteUnico,
+                                usuario_id = 0
+                            };
+                            var response = await _mediator.Send(new AsignarMarcadasProduccionCommand(req));
+                            if (response.Respuesta.ExisteError)
+                            {
+                                _snackbar.Add($"Error al sellar lote: {response.Respuesta.MensajeError}", Severity.Error);
+                            }
+                            else
+                            {
+                                _snackbar.Add($"¡Lote {resLote.LoteUnico} sellado exitosamente con {req.ids.Count} marcadas!", Severity.Success);
+                                await ConsultarSemana();
+                                await CargarHistorico();
+                            }
+                        }
                     }
-                    else
+                    else if (result.Data is string strLote && !string.IsNullOrWhiteSpace(strLote))
                     {
-                        _snackbar.Add($"¡Lote {numeroLote} sellado exitosamente con {req.ids.Count} marcadas!", Severity.Success);
-                        await ConsultarSemana();
-                        await CargarHistorico();
+                        mensajeCarga = $"Sellando lote {strLote}...";
+                        StateHasChanged();
+
+                        var req = new AsignarMarcadasProduccionRequest
+                        {
+                            ids = pendientesSeleccionados.Select(m => m.id_cierre).ToList(),
+                            numero_asignacion = strLote,
+                            usuario_id = 0
+                        };
+                        var response = await _mediator.Send(new AsignarMarcadasProduccionCommand(req));
+                        if (response.Respuesta.ExisteError)
+                        {
+                            _snackbar.Add($"Error al sellar lote: {response.Respuesta.MensajeError}", Severity.Error);
+                        }
+                        else
+                        {
+                            _snackbar.Add($"¡Lote {strLote} sellado exitosamente con {req.ids.Count} marcadas!", Severity.Success);
+                            await ConsultarSemana();
+                            await CargarHistorico();
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -338,6 +531,91 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                     estaCargando = false;
                     StateHasChanged();
                 }
+            }
+        }
+
+        protected async Task IngresarProduccionDiariaDirecto()
+        {
+            if (grillaProduccion == null || !grillaProduccion.Any())
+            {
+                _snackbar.Add("No hay registros en la grilla para ingresar a producción.", Severity.Warning);
+                return;
+            }
+
+            string clienteNombre = operacionesList.FirstOrDefault(o => o.id == operacionId)?.nombre ?? "Cliente";
+
+            var msgs = new List<string>();
+            if (EsSemanaEncajonada)
+            {
+                var p1 = grillaProduccion.Where(g => g.es_mes_anterior).ToList();
+                var p2 = grillaProduccion.Where(g => !g.es_mes_anterior).ToList();
+                msgs.Add($"<b>Semana Encajonada:</b> Se ingresarán <b>{grillaProduccion.Count} registros</b> de producción divididos en sus dos meses correspondientes:");
+                msgs.Add($"• <b>{NombreMesAnterior} ({PeriodoMesAnteriorTexto}):</b> {p1.Count} ítems, {p1.Sum(x => x.cantidad_horas):N2} horas, $ {p1.Sum(x => x.subtotal_facturable):N2}");
+                msgs.Add($"• <b>{NombreMesActual} ({PeriodoMesActualTexto}):</b> {p2.Count} ítems, {p2.Sum(x => x.cantidad_horas):N2} horas, $ {p2.Sum(x => x.subtotal_facturable):N2}");
+            }
+            else
+            {
+                msgs.Add($"Se ingresarán <b>{grillaProduccion.Count} registros</b> de producción para {clienteNombre} ({fchaInicioSemana:dd/MM/yyyy} - {fchaFinSemana:dd/MM/yyyy}), totalizando {TotalHorasFacturables:N2} horas.");
+            }
+
+            bool? confirmar = await _dialogService.ShowMessageBox(
+                "Confirmar Ingreso a Producción Diaria",
+                (MarkupString)string.Join("<br/>", msgs),
+                yesText: "Ingresar Producción", cancelText: "Cancelar");
+
+            if (confirmar != true) return;
+
+            estaCargando = true;
+            mensajeCarga = "Ingresando producción a Odoo/Producción Diaria...";
+            StateHasChanged();
+            try
+            {
+                var items = new List<ProduccionDiariaDto>();
+                foreach (var g in grillaProduccion)
+                {
+                    DateTime fInicio = g.fecha_inicio_corte ?? fchaInicioSemana;
+                    DateTime fFin = g.fecha_fin_corte ?? fchaFinSemana;
+
+                    string clienteCodigo = string.Concat(clienteNombre.Where(char.IsLetterOrDigit)).ToUpper();
+                    if (clienteCodigo.Length > 8) clienteCodigo = clienteCodigo.Substring(0, 8);
+                    string mesTag = fInicio.ToString("MMM", CultureInfo.InvariantCulture).ToUpper();
+                    string loteSugerido = $"{clienteCodigo}-SEM{numeroSemana:D2}-{mesTag}-{fInicio.Year}";
+
+                    items.Add(new ProduccionDiariaDto
+                    {
+                        cliente = g.cliente_nombre,
+                        area_cliente = g.area_cliente,
+                        fecha_inicio = fInicio,
+                        fecha_fin = fFin,
+                        servicio_codigo = g.servicio_codigo,
+                        servicio_descripcion = g.servicio_descripcion,
+                        nombre_producto = g.servicio_descripcion,
+                        cantidad_producto = g.cantidad_horas,
+                        costo_producto = g.tarifa_venta,
+                        no_lote = loteSugerido,
+                        operacion_id = operacionId,
+                        actividad = $"{g.cargo} ({g.turno}) - {g.tipo_hora}"
+                    });
+                }
+
+                var response = await _mediator.Send(new ImportarProduccionDiariaCommand(items));
+                if (response.Respuesta.ExisteError)
+                {
+                    _snackbar.Add($"Error al registrar producción: {response.Respuesta.MensajeError}", Severity.Error);
+                }
+                else
+                {
+                    _snackbar.Add($"¡Se ingresaron {items.Count} registros de producción exitosamente!", Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error en el registro de producción: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaCargando = false;
+                StateHasChanged();
             }
         }
 
@@ -371,9 +649,14 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 var numberStyle = workbook.CreateCellStyle();
                 numberStyle.DataFormat = dataFormat.GetFormat("#,##0.00");
 
-                // Hoja 1: Resumen Producción
+                // Hoja 1: Resumen Producción Segregado por Período de Corte
                 var sheetProd = workbook.CreateSheet("Produccion_Semanal");
-                var headers1 = new[] { "Cliente", "Área", "Cargo", "Turno", "Tipo Hora", "SKU Servicio", "Descripción Servicio", "Unidad Medida", "Tarifa Venta ($)", "Horas", "Total Venta ($)", "Cant. Empleados" };
+                var headers1 = new[] { 
+                    "Fecha Inicio (YYYY-MM-DD)", "Fecha Fin (YYYY-MM-DD)", "Mes Corte", "Cliente", "Área de Cliente", 
+                    "Cargo", "Turno", "Tipo Hora", "Código Servicio (SKU)", "Descripción Servicio", 
+                    "Unidad Medida", "Tarifa Venta ($)", "Horas", "Total Venta ($)", "Cant. Empleados" 
+                };
+
                 var rowH1 = sheetProd.CreateRow(0);
                 for (int i = 0; i < headers1.Length; i++)
                 {
@@ -386,35 +669,48 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 foreach (var g in grillaProduccion)
                 {
                     var row = sheetProd.CreateRow(r1++);
-                    row.CreateCell(0).SetCellValue(g.cliente_nombre);
-                    row.CreateCell(1).SetCellValue(g.area_cliente);
-                    row.CreateCell(2).SetCellValue(g.cargo);
-                    row.CreateCell(3).SetCellValue(g.turno ?? "Diurno");
-                    row.CreateCell(4).SetCellValue(g.tipo_hora);
-                    row.CreateCell(5).SetCellValue(g.servicio_codigo);
-                    row.CreateCell(6).SetCellValue(g.servicio_descripcion);
-                    row.CreateCell(7).SetCellValue(g.unidad_medida);
+                    DateTime fIni = g.fecha_inicio_corte ?? fchaInicioSemana;
+                    DateTime fFin = g.fecha_fin_corte ?? fchaFinSemana;
+                    string periodo = g.periodo_mes ?? (g.es_mes_anterior ? NombreMesAnterior : NombreMesActual);
 
-                    var c8 = row.CreateCell(8);
-                    c8.SetCellValue((double)g.tarifa_venta);
-                    c8.CellStyle = currencyStyle;
+                    row.CreateCell(0).SetCellValue(fIni.ToString("yyyy-MM-dd"));
+                    row.CreateCell(1).SetCellValue(fFin.ToString("yyyy-MM-dd"));
+                    row.CreateCell(2).SetCellValue(periodo);
+                    row.CreateCell(3).SetCellValue(g.cliente_nombre);
+                    row.CreateCell(4).SetCellValue(g.area_cliente);
+                    row.CreateCell(5).SetCellValue(g.cargo);
+                    row.CreateCell(6).SetCellValue(g.turno ?? "Diurno");
+                    row.CreateCell(7).SetCellValue(g.tipo_hora);
+                    row.CreateCell(8).SetCellValue(g.servicio_codigo);
+                    row.CreateCell(9).SetCellValue(g.servicio_descripcion);
+                    row.CreateCell(10).SetCellValue(g.unidad_medida);
 
-                    var c9 = row.CreateCell(9);
-                    c9.SetCellValue((double)g.cantidad_horas);
-                    c9.CellStyle = numberStyle;
+                    var c11 = row.CreateCell(11);
+                    c11.SetCellValue((double)g.tarifa_venta);
+                    c11.CellStyle = currencyStyle;
 
-                    var c10 = row.CreateCell(10);
-                    c10.SetCellValue((double)g.subtotal_facturable);
-                    c10.CellStyle = currencyStyle;
+                    var c12 = row.CreateCell(12);
+                    c12.SetCellValue((double)g.cantidad_horas);
+                    c12.CellStyle = numberStyle;
 
-                    row.CreateCell(11).SetCellValue(g.cantidad_empleados);
+                    var c13 = row.CreateCell(13);
+                    c13.SetCellValue((double)g.subtotal_facturable);
+                    c13.CellStyle = currencyStyle;
+
+                    row.CreateCell(14).SetCellValue(g.cantidad_empleados);
                 }
 
                 for (int i = 0; i < headers1.Length; i++) sheetProd.AutoSizeColumn(i);
 
                 // Hoja 2: Detalle Marcadas Asistencia
                 var sheetMarcadas = workbook.CreateSheet("Detalle_Asistencias");
-                var headers2 = new[] { "ID Cierre", "Fecha", "Empleado", "Es Supervisor", "Cargo", "Área", "Tipo Empleado", "Turno", "Entrada", "Salida", "Horas Ord", "Tarifa Ord", "Horas Ext", "Tarifa Ext", "Total Horas", "Regla Cobro", "Asignado Producción", "N° Asignación / Lote", "Tiene Regla" };
+                var headers2 = new[] { 
+                    "ID Cierre", "Fecha", "Mes Corte", "Empleado", "Es Supervisor", "Cargo", "Área", 
+                    "Tipo Empleado", "Turno", "Entrada", "Salida", "Horas Ord", "Tarifa Ord", 
+                    "Horas Ext", "Tarifa Ext", "Total Horas", "Regla Cobro", "Asignado Producción", 
+                    "N° Asignación / Lote", "Tiene Regla" 
+                };
+
                 var rowH2 = sheetMarcadas.CreateRow(0);
                 for (int i = 0; i < headers2.Length; i++)
                 {
@@ -427,41 +723,44 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 foreach (var m in marcadasList)
                 {
                     var row = sheetMarcadas.CreateRow(r2++);
+                    string mesMarcada = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(m.fecha_asistencia.ToString("MMMM", CultureInfo.GetCultureInfo("es-ES")));
+
                     row.CreateCell(0).SetCellValue(m.id_cierre);
                     row.CreateCell(1).SetCellValue(m.fecha_asistencia.ToString("dd/MM/yyyy"));
-                    row.CreateCell(2).SetCellValue(m.nombre_empleado);
-                    row.CreateCell(3).SetCellValue(m.es_supervisor ? "SÍ" : "NO");
-                    row.CreateCell(4).SetCellValue(m.cargo);
-                    row.CreateCell(5).SetCellValue(m.area_nombre);
-                    row.CreateCell(6).SetCellValue(m.tipo_empleado);
-                    row.CreateCell(7).SetCellValue(m.turno ?? "Diurno");
-                    row.CreateCell(8).SetCellValue(m.entrada_movimiento);
-                    row.CreateCell(9).SetCellValue(m.salida_movimiento);
-
-                    var c10 = row.CreateCell(10);
-                    c10.SetCellValue((double)m.horas_ordinarias);
-                    c10.CellStyle = numberStyle;
+                    row.CreateCell(2).SetCellValue(mesMarcada);
+                    row.CreateCell(3).SetCellValue(m.nombre_empleado);
+                    row.CreateCell(4).SetCellValue(m.es_supervisor ? "SÍ" : "NO");
+                    row.CreateCell(5).SetCellValue(m.cargo);
+                    row.CreateCell(6).SetCellValue(m.area_nombre);
+                    row.CreateCell(7).SetCellValue(m.tipo_empleado);
+                    row.CreateCell(8).SetCellValue(m.turno ?? "Diurno");
+                    row.CreateCell(9).SetCellValue(m.entrada_movimiento);
+                    row.CreateCell(10).SetCellValue(m.salida_movimiento);
 
                     var c11 = row.CreateCell(11);
-                    c11.SetCellValue((double)m.tarifa_ord);
-                    c11.CellStyle = currencyStyle;
+                    c11.SetCellValue((double)m.horas_ordinarias);
+                    c11.CellStyle = numberStyle;
 
                     var c12 = row.CreateCell(12);
-                    c12.SetCellValue((double)m.horas_extras);
-                    c12.CellStyle = numberStyle;
+                    c12.SetCellValue((double)m.tarifa_ord);
+                    c12.CellStyle = currencyStyle;
 
                     var c13 = row.CreateCell(13);
-                    c13.SetCellValue((double)m.tarifa_ext);
-                    c13.CellStyle = currencyStyle;
+                    c13.SetCellValue((double)m.horas_extras);
+                    c13.CellStyle = numberStyle;
 
                     var c14 = row.CreateCell(14);
-                    c14.SetCellValue((double)m.horas_totales);
-                    c14.CellStyle = numberStyle;
+                    c14.SetCellValue((double)m.tarifa_ext);
+                    c14.CellStyle = currencyStyle;
 
-                    row.CreateCell(15).SetCellValue(m.regla_aplicada ?? "");
-                    row.CreateCell(16).SetCellValue(m.asignado_produccion ? "SÍ" : "NO");
-                    row.CreateCell(17).SetCellValue(m.numero_asignacion_produccion ?? "");
-                    row.CreateCell(18).SetCellValue(m.tiene_regla_catalogo ? "SÍ" : "NO");
+                    var c15 = row.CreateCell(15);
+                    c15.SetCellValue((double)m.horas_totales);
+                    c15.CellStyle = numberStyle;
+
+                    row.CreateCell(16).SetCellValue(m.regla_aplicada ?? "");
+                    row.CreateCell(17).SetCellValue(m.asignado_produccion ? "SÍ" : "NO");
+                    row.CreateCell(18).SetCellValue(m.numero_asignacion_produccion ?? "");
+                    row.CreateCell(19).SetCellValue(m.tiene_regla_catalogo ? "SÍ" : "NO");
                 }
 
                 for (int i = 0; i < headers2.Length; i++) sheetMarcadas.AutoSizeColumn(i);

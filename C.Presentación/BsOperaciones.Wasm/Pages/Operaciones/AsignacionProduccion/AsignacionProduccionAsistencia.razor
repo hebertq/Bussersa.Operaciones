@@ -120,6 +120,28 @@
             </div>
         </MudPaper>
 
+        @* Alerta de Semana Encajonada *@
+        @if (EsSemanaEncajonada)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Icon="@Icons.Material.Filled.DateRange">
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                    <div>
+                        <b>Semana Encajonada (Mes Dividido):</b> Contiene días de 
+                        <b>@NombreMesAnterior (@PeriodoMesAnteriorTexto)</b> y <b>@NombreMesActual (@PeriodoMesActualTexto)</b>.
+                        Se generaron los ítems separados por corte mensual para asegurar la correcta facturación y cierre contable.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled">
+                            @NombreMesAnterior: @TotalHorasMesAnterior.ToString("N2") h ($ @TotalMontoMesAnterior.ToString("N2"))
+                        </MudChip>
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled">
+                            @NombreMesActual: @TotalHorasMesActual.ToString("N2") h ($ @TotalMontoMesActual.ToString("N2"))
+                        </MudChip>
+                    </div>
+                </div>
+            </MudAlert>
+        }
+
         @* Tarjetas KPI *@
         @if (grillaProduccion != null && grillaProduccion.Any())
         {
@@ -165,30 +187,56 @@
 
         @* Barra de Acciones *@
         <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
-            <div class="d-flex align-center gap-2">
+            <div class="d-flex align-center gap-2 flex-wrap">
                 <MudText Typo="Typo.subtitle1" Class="fw-bold">
                     Resumen Consolidado de Producción
                 </MudText>
                 @if (grillaProduccion != null)
                 {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@grillaProduccion.Count líneas</MudChip>
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@GrillaFiltrada.Count() líneas</MudChip>
+                }
+
+                @if (EsSemanaEncajonada)
+                {
+                    <div class="d-flex align-center gap-1 ml-2">
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "TODOS" ? Color.Primary : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "TODOS"; StateHasChanged(); })" Size="Size.Small">
+                            Todos (@grillaProduccion.Count)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "MES_ANTERIOR" ? Color.Warning : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "MES_ANTERIOR" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "MES_ANTERIOR"; StateHasChanged(); })" Size="Size.Small">
+                            @NombreMesAnterior (@PeriodoMesAnteriorTexto)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "MES_ACTUAL" ? Color.Info : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "MES_ACTUAL" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "MES_ACTUAL"; StateHasChanged(); })" Size="Size.Small">
+                            @NombreMesActual (@PeriodoMesActualTexto)
+                        </MudChip>
+                    </div>
                 }
             </div>
-            <div class="d-flex align-center gap-2">
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.CloudUpload"
+                           OnClick="IngresarProduccionDiariaDirecto" Disabled="@(grillaProduccion == null || !grillaProduccion.Any())">
+                    Ingresar a Producción
+                </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download"
                            OnClick="ExportarExcel" Disabled="@(grillaProduccion == null || !grillaProduccion.Any())">
-                    Exportar Excel Producción
+                    Exportar Excel
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock"
                            OnClick="AbrirModalSellarLote" Disabled="@(marcadasList == null || !marcadasList.Any(m => m.IsSelected && !m.asignado_produccion))">
-                    Sellar y Asignar Lote (@(marcadasList?.Count(m => m.IsSelected && !m.asignado_produccion) ?? 0))
+                    Sellar Lote (@(marcadasList?.Count(m => m.IsSelected && !m.asignado_produccion) ?? 0))
                 </MudButton>
             </div>
         </div>
 
-        @* Tabla 1: Grilla de Producción Semanal *@
-        <MudTable Items="@grillaProduccion" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1" Class="mb-4">
+        @* Tabla 1: Grilla de Producción Semanal Segregada *@
+        <MudTable Items="@GrillaFiltrada" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1" Class="mb-4">
             <HeaderContent>
+                <MudTh>Corte / Período</MudTh>
                 <MudTh>Cliente</MudTh>
                 <MudTh>Área</MudTh>
                 <MudTh>Cargo / Puesto</MudTh>
@@ -202,6 +250,24 @@
                 <MudTh Style="text-align: center;">Empleados</MudTh>
             </HeaderContent>
             <RowTemplate>
+                <MudTd DataLabel="Corte">
+                    @if (context.es_mes_anterior)
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                            📅 @context.periodo_mes
+                        </MudChip>
+                    }
+                    else if (EsSemanaEncajonada)
+                    {
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                            📅 @context.periodo_mes
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <span style="font-size: 11px; color: #64748b;">@context.periodo_mes</span>
+                    }
+                </MudTd>
                 <MudTd DataLabel="Cliente">@context.cliente_nombre</MudTd>
                 <MudTd DataLabel="Área">
                     <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@context.area_cliente</MudChip>
@@ -242,7 +308,7 @@
                 <MudTd DataLabel="Empleados" Style="text-align: center;">@context.cantidad_empleados</MudTd>
             </RowTemplate>
             <FooterContent>
-                <MudTh Class="fw-bold" colspan="8">TOTALES SEMANA</MudTh>
+                <MudTh Class="fw-bold" colspan="9">TOTALES SEMANA</MudTh>
                 <MudTh Class="fw-bold" Style="text-align: right;">@TotalHorasFacturables.ToString("N2") h</MudTh>
                 <MudTh Class="fw-bold" Style="text-align: right; color: #16a34a;">$ @TotalMontoVenta.ToString("N2")</MudTh>
                 <MudTh></MudTh>
@@ -258,10 +324,19 @@
         <MudExpansionPanels MultiExpansion="true" Elevation="1" Class="mt-4">
             <MudExpansionPanel Text="@($"Detalle Individual de Asistencias ({marcadasList.Count} registros - {(marcadasList.Count(m => !m.asignado_produccion))} pendientes)")" Expanded="true">
                 <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
-                    <div class="d-flex align-center gap-2">
+                    <div class="d-flex align-center gap-2 flex-wrap">
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="SeleccionarTodasMarcadas" StartIcon="@Icons.Material.Filled.SelectAll">
                             Seleccionar Pendientes
                         </MudButton>
+                        @if (EsSemanaEncajonada)
+                        {
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning" OnClick="SeleccionarMarcadasMesAnterior">
+                                Sel. @NombreMesAnterior
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" OnClick="SeleccionarMarcadasMesActual">
+                                Sel. @NombreMesActual
+                            </MudButton>
+                        }
                         <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="DeseleccionarTodasMarcadas" StartIcon="@Icons.Material.Filled.Deselect">
                             Deseleccionar Todo
                         </MudButton>

@@ -444,9 +444,72 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             costo_producto = GetDecimalVal(row, colIndices, "costo_producto", evaluator),
                             asignado_a = GetStringVal(row, colIndices, "asignado_a", evaluator)
                         };
-                        dto.operacion_id = operacionCargaId;
+                        // Regla de Semana Encajonada: Si el rango cruza el límite de mes, dividir en dos registros mensuales
+                        if (fInicio.HasValue && fFin.HasValue && (fInicio.Value.Year != fFin.Value.Year || fInicio.Value.Month != fFin.Value.Month))
+                        {
+                            var finMes1 = new DateTime(fInicio.Value.Year, fInicio.Value.Month, DateTime.DaysInMonth(fInicio.Value.Year, fInicio.Value.Month));
+                            var iniMes2 = new DateTime(fFin.Value.Year, fFin.Value.Month, 1);
 
-                        items.Add(dto);
+                            int diasTotales = (int)(fFin.Value.Date - fInicio.Value.Date).TotalDays + 1;
+                            int diasMes1 = (int)(finMes1.Date - fInicio.Value.Date).TotalDays + 1;
+
+                            decimal totalQty = dto.cantidad_producto;
+                            decimal qtyMes1 = diasTotales > 0 ? Math.Round(totalQty * diasMes1 / diasTotales, 2) : totalQty;
+                            decimal qtyMes2 = totalQty - qtyMes1;
+
+                            var dto1 = new ProduccionDiariaDto
+                            {
+                                hoja_servicio = dto.hoja_servicio,
+                                servicio_codigo = dto.servicio_codigo,
+                                actividad = dto.actividad,
+                                cliente = dto.cliente,
+                                area_cliente = dto.area_cliente,
+                                fecha_inicio = fInicio,
+                                fecha_fin = finMes1,
+                                hora_inicio = dto.hora_inicio,
+                                hora_fin = dto.hora_fin,
+                                nombre_producto = dto.nombre_producto,
+                                servicio_descripcion = dto.servicio_descripcion,
+                                no_lote = !string.IsNullOrEmpty(dto.no_lote) ? $"{dto.no_lote}-{fInicio.Value:MMM.ToUpper()}" : dto.no_lote,
+                                oc = dto.oc,
+                                no_marchamo = dto.no_marchamo,
+                                peso = dto.peso,
+                                cantidad_producto = qtyMes1,
+                                costo_producto = dto.costo_producto,
+                                asignado_a = dto.asignado_a,
+                                operacion_id = operacionCargaId
+                            };
+
+                            var dto2 = new ProduccionDiariaDto
+                            {
+                                hoja_servicio = dto.hoja_servicio,
+                                servicio_codigo = dto.servicio_codigo,
+                                actividad = dto.actividad,
+                                cliente = dto.cliente,
+                                area_cliente = dto.area_cliente,
+                                fecha_inicio = iniMes2,
+                                fecha_fin = fFin,
+                                hora_inicio = dto.hora_inicio,
+                                hora_fin = dto.hora_fin,
+                                nombre_producto = dto.nombre_producto,
+                                servicio_descripcion = dto.servicio_descripcion,
+                                no_lote = !string.IsNullOrEmpty(dto.no_lote) ? $"{dto.no_lote}-{fFin.Value:MMM.ToUpper()}" : dto.no_lote,
+                                oc = dto.oc,
+                                no_marchamo = dto.no_marchamo,
+                                peso = dto.peso,
+                                cantidad_producto = qtyMes2,
+                                costo_producto = dto.costo_producto,
+                                asignado_a = dto.asignado_a,
+                                operacion_id = operacionCargaId
+                            };
+
+                            items.Add(dto1);
+                            items.Add(dto2);
+                        }
+                        else
+                        {
+                            items.Add(dto);
+                        }
                     }
                 }
 
