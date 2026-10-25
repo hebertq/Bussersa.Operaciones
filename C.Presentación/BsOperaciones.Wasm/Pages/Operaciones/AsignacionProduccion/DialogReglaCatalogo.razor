@@ -28,7 +28,7 @@
                                   Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
-                <MudItem xs="12" sm="6">
+                <MudItem xs="12" sm="4">
                     <MudAutocomplete T="string" Label="Cargo / Puesto" @bind-Value="item.cargo"
                                      SearchFunc="@SearchCargos"
                                      ResetValueOnEmptyText="false"
@@ -38,7 +38,16 @@
                                      Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
-                <MudItem xs="12" sm="6">
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" Label="Turno" @bind-Value="item.turno" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelectItem Value="@("*")">* (Todos los Turnos)</MudSelectItem>
+                        <MudSelectItem Value="@("Diurno")">☀️ Diurno</MudSelectItem>
+                        <MudSelectItem Value="@("Nocturno")">🌙 Nocturno</MudSelectItem>
+                        <MudSelectItem Value="@("Mixto")">⚖️ Mixto</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
                     <MudSelect T="string" Label="Tipo de Hora" @bind-Value="item.tipo_hora" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                         <MudSelectItem Value="@("ORDINARIA")">ORDINARIA</MudSelectItem>
                         <MudSelectItem Value="@("EXTRA")">EXTRA</MudSelectItem>
@@ -114,6 +123,7 @@
             cliente_nombre = Item.cliente_nombre,
             area_nombre = string.IsNullOrWhiteSpace(Item.area_nombre) ? "*" : Item.area_nombre,
             cargo = Item.cargo,
+            turno = string.IsNullOrWhiteSpace(Item.turno) ? "*" : Item.turno,
             tipo_hora = string.IsNullOrWhiteSpace(Item.tipo_hora) ? "ORDINARIA" : Item.tipo_hora,
             servicio_codigo = Item.servicio_codigo,
             servicio_descripcion = Item.servicio_descripcion,

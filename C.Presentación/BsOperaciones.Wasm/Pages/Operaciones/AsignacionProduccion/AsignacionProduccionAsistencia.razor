@@ -73,6 +73,51 @@
                     </MudButton>
                 </MudItem>
             </MudGrid>
+
+            @* Fila 2: Filtros de Facturación y Reglas de Negocio *@
+            <div class="d-flex align-center justify-between mt-3 pt-3 border-top flex-wrap gap-3">
+                <div class="d-flex align-center gap-4 flex-wrap">
+                    <div class="d-flex align-center gap-1">
+                        <MudCheckBox T="bool" Value="@aplicarReglasCobro" ValueChanged="@((bool val) => { aplicarReglasCobro = val; _ = ConsultarSemana(); })" Color="Color.Success" Dense="true">
+                            <span class="fw-bold" style="font-size: 13px;">Reglas de Cobro</span>
+                        </MudCheckBox>
+                        <MudTooltip Text="Calcula las horas normales y extras según los convenios del cliente (12h Montacarga, Equivalencia Nocturna 7h->8h, Fijo 8h Conductor, etc.) o estándar 8h.">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
+                        </MudTooltip>
+                    </div>
+
+                    <div class="d-flex align-center gap-1">
+                        <MudCheckBox T="bool" Value="@excluirSupervisores" ValueChanged="@((bool val) => { excluirSupervisores = val; _ = ConsultarSemana(); })" Color="Color.Error" Dense="true">
+                            <span class="fw-bold" style="font-size: 13px;">Excluir Supervisores</span>
+                        </MudCheckBox>
+                        <MudTooltip Text="Al activar esta opción, las horas de puestos de supervisión se excluyen de la producción para no ser facturadas al cliente.">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
+                        </MudTooltip>
+                    </div>
+                </div>
+
+                <div class="d-flex align-center gap-2">
+                    @if (aplicarReglasCobro)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined">
+                            ⚖️ Reglas de Cobro Activas
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">
+                            ⏱️ Marcación Real (Sin Reglas)
+                        </MudChip>
+                    }
+
+                    @if (excluirSupervisores)
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">
+                            🚫 Supervisores Excluidos
+                        </MudChip>
+                    }
+                </div>
+            </div>
         </MudPaper>
 
         @* Tarjetas KPI *@
@@ -147,6 +192,7 @@
                 <MudTh>Cliente</MudTh>
                 <MudTh>Área</MudTh>
                 <MudTh>Cargo / Puesto</MudTh>
+                <MudTh>Turno</MudTh>
                 <MudTh>Tipo Hora</MudTh>
                 <MudTh>SKU Odoo</MudTh>
                 <MudTh>Descripción de Servicio</MudTh>
@@ -161,6 +207,24 @@
                     <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@context.area_cliente</MudChip>
                 </MudTd>
                 <MudTd DataLabel="Cargo"><b>@context.cargo</b></MudTd>
+                <MudTd DataLabel="Turno">
+                    @if (context.turno == "Diurno")
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">☀️ Diurno</MudChip>
+                    }
+                    else if (context.turno == "Nocturno")
+                    {
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold text-white" Style="font-size: 11px; background-color: #34495e;">🌙 Nocturno</MudChip>
+                    }
+                    else if (context.turno == "Mixto")
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">⚖️ Mixto</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text" Style="font-size: 11px;">@context.turno</MudChip>
+                    }
+                </MudTd>
                 <MudTd DataLabel="Tipo Hora">
                     <MudChip T="string" Size="Size.Small" Color="@(context.tipo_hora == "EXTRA" ? Color.Warning : Color.Primary)">
                         @context.tipo_hora
@@ -178,7 +242,7 @@
                 <MudTd DataLabel="Empleados" Style="text-align: center;">@context.cantidad_empleados</MudTd>
             </RowTemplate>
             <FooterContent>
-                <MudTh Class="fw-bold" colspan="7">TOTALES SEMANA</MudTh>
+                <MudTh Class="fw-bold" colspan="8">TOTALES SEMANA</MudTh>
                 <MudTh Class="fw-bold" Style="text-align: right;">@TotalHorasFacturables.ToString("N2") h</MudTh>
                 <MudTh Class="fw-bold" Style="text-align: right; color: #16a34a;">$ @TotalMontoVenta.ToString("N2")</MudTh>
                 <MudTh></MudTh>
@@ -217,6 +281,7 @@
                         <MudTh>Empleado</MudTh>
                         <MudTh>Cargo</MudTh>
                         <MudTh>Área</MudTh>
+                        <MudTh>Turno</MudTh>
                         <MudTh Style="text-align: right;">Horas Ord</MudTh>
                         <MudTh Style="text-align: right;">Horas Ext</MudTh>
                         <MudTh Style="text-align: right;">Total Horas</MudTh>
@@ -236,9 +301,33 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Fecha">@context.fecha_asistencia.ToString("dd/MM/yyyy")</MudTd>
-                        <MudTd DataLabel="Empleado"><b>@context.nombre_empleado</b></MudTd>
+                        <MudTd DataLabel="Empleado">
+                            <b>@context.nombre_empleado</b>
+                            @if (context.es_supervisor)
+                            {
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Filled" Class="ml-1" Style="font-size: 10px;">SUPERVISOR</MudChip>
+                            }
+                        </MudTd>
                         <MudTd DataLabel="Cargo">@context.cargo</MudTd>
                         <MudTd DataLabel="Área">@context.area_nombre</MudTd>
+                        <MudTd DataLabel="Turno">
+                            @if (context.turno == "Diurno")
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">☀️ Diurno</MudChip>
+                            }
+                            else if (context.turno == "Nocturno")
+                            {
+                                <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold text-white" Style="font-size: 11px; background-color: #34495e;">🌙 Nocturno</MudChip>
+                            }
+                            else if (context.turno == "Mixto")
+                            {
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">⚖️ Mixto</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text" Style="font-size: 11px;">@context.turno</MudChip>
+                            }
+                        </MudTd>
                         <MudTd DataLabel="Horas Ord" Style="text-align: right;">@context.horas_ordinarias.ToString("N2")</MudTd>
                         <MudTd DataLabel="Horas Ext" Style="text-align: right;">@context.horas_extras.ToString("N2")</MudTd>
                         <MudTd DataLabel="Total" Style="text-align: right; font-weight: bold;">@context.horas_totales.ToString("N2")</MudTd>
@@ -265,13 +354,13 @@
                         <MudTd DataLabel="Regla" Style="text-align: center;">
                             @if (context.tiene_regla_catalogo)
                             {
-                                <MudTooltip Text="Regla de variante configurada">
+                                <MudTooltip Text="@($"Regla variante catálogo asignada | Cobro: {context.regla_aplicada}")">
                                     <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" />
                                 </MudTooltip>
                             }
                             else
                             {
-                                <MudTooltip Text="Sin regla específica en catálogo">
+                                <MudTooltip Text="@($"Sin regla de SKU en catálogo | Cobro: {context.regla_aplicada}")">
                                     <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Small" />
                                 </MudTooltip>
                             }
@@ -315,6 +404,7 @@
                 <MudTh>Cliente</MudTh>
                 <MudTh>Área</MudTh>
                 <MudTh>Cargo / Puesto</MudTh>
+                <MudTh>Turno</MudTh>
                 <MudTh>Tipo Hora</MudTh>
                 <MudTh>SKU Odoo</MudTh>
                 <MudTh>Descripción de Servicio Odoo</MudTh>
@@ -331,6 +421,24 @@
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="Cargo"><b>@context.cargo</b></MudTd>
+                <MudTd DataLabel="Turno">
+                    @if (context.turno == "Diurno")
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">☀️ Diurno</MudChip>
+                    }
+                    else if (context.turno == "Nocturno")
+                    {
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold text-white" Style="font-size: 11px; background-color: #34495e;">🌙 Nocturno</MudChip>
+                    }
+                    else if (context.turno == "Mixto")
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">⚖️ Mixto</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text" Style="font-size: 11px;">@context.turno</MudChip>
+                    }
+                </MudTd>
                 <MudTd DataLabel="Tipo Hora">
                     <MudChip T="string" Size="Size.Small" Color="@(context.tipo_hora == "EXTRA" ? Color.Warning : Color.Primary)">
                         @context.tipo_hora

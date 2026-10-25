@@ -38,7 +38,7 @@ namespace BsOperaciones.Application.Features.Operaciones.Handlers
         private readonly IOdooService _odooService;
         public GetMarcadasSemanalesAsignacionHandler(IOdooService odooService) => _odooService = odooService;
         public async Task<IListResponse<MarcadaAsistenciaProduccionDto>> Handle(GetMarcadasSemanalesAsignacionQuery request, CancellationToken cancellationToken)
-            => await _odooService.GetMarcadasSemanalesAsignacion(request.OperacionId, request.Inicio, request.Fin, request.SoloPendientes);
+            => await _odooService.GetMarcadasSemanalesAsignacion(request.OperacionId, request.Inicio, request.Fin, request.SoloPendientes, request.ExcluirSupervisores, request.SupervisoresExcluidos, request.AplicarReglas);
     }
 
     public class GetGrillaProduccionSemanalHandler : IRequestHandler<GetGrillaProduccionSemanalQuery, IListResponse<GrillaProduccionSemanalDto>>
@@ -46,7 +46,7 @@ namespace BsOperaciones.Application.Features.Operaciones.Handlers
         private readonly IOdooService _odooService;
         public GetGrillaProduccionSemanalHandler(IOdooService odooService) => _odooService = odooService;
         public async Task<IListResponse<GrillaProduccionSemanalDto>> Handle(GetGrillaProduccionSemanalQuery request, CancellationToken cancellationToken)
-            => await _odooService.GetGrillaProduccionSemanal(request.OperacionId, request.Inicio, request.Fin, request.SoloPendientes);
+            => await _odooService.GetGrillaProduccionSemanal(request.OperacionId, request.Inicio, request.Fin, request.SoloPendientes, request.ExcluirSupervisores, request.SupervisoresExcluidos, request.AplicarReglas);
     }
 
     public class AsignarMarcadasProduccionHandler : IRequestHandler<AsignarMarcadasProduccionCommand, IResponse>

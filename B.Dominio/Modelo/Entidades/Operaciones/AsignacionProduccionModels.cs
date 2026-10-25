@@ -10,6 +10,7 @@ namespace Modelo.Entidades.Operaciones
         public string cliente_nombre { get; set; } = string.Empty;
         public string area_nombre { get; set; } = string.Empty;
         public string cargo { get; set; } = string.Empty;
+        public string turno { get; set; } = "*"; // *, Diurno, Nocturno, Mixto
         public string tipo_hora { get; set; } = "ORDINARIA"; // ORDINARIA, EXTRA, DOMINGO_FERIADO, NOCTURNA
         public string servicio_codigo { get; set; } = string.Empty;
         public string servicio_descripcion { get; set; } = string.Empty;
@@ -30,12 +31,15 @@ namespace Modelo.Entidades.Operaciones
         public DateTime fecha_asistencia { get; set; }
         public string cargo { get; set; } = string.Empty;
         public string area_nombre { get; set; } = string.Empty;
+        public string turno { get; set; } = "Diurno"; // Diurno, Nocturno, Mixto, Sin Turno
         public string tipo_empleado { get; set; } = string.Empty;
         public string entrada_movimiento { get; set; } = string.Empty;
         public string salida_movimiento { get; set; } = string.Empty;
         public decimal horas_totales { get; set; }
         public decimal horas_ordinarias { get; set; }
         public decimal horas_extras { get; set; }
+        public bool es_supervisor { get; set; }
+        public string regla_aplicada { get; set; } = "Estándar";
         public bool asignado_produccion { get; set; }
         public string? numero_asignacion_produccion { get; set; }
         public DateTime? fecha_asignacion_produccion { get; set; }
@@ -54,6 +58,7 @@ namespace Modelo.Entidades.Operaciones
         public string cliente_nombre { get; set; } = string.Empty;
         public string area_cliente { get; set; } = string.Empty;
         public string cargo { get; set; } = string.Empty;
+        public string turno { get; set; } = "*";
         public string tipo_hora { get; set; } = string.Empty;
         public string servicio_codigo { get; set; } = string.Empty;
         public string servicio_descripcion { get; set; } = string.Empty;

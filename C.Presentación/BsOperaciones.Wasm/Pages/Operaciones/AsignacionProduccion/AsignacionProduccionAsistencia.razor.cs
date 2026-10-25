@@ -43,6 +43,9 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected int numeroSemana;
         protected bool soloPendientes = true;
         protected string filtroDetalle = string.Empty;
+        protected bool excluirSupervisores = true;
+        protected bool aplicarReglasCobro = true;
+        protected HashSet<int> supervisoresIds = new();
 
         protected List<GrillaProduccionSemanalDto> grillaProduccion = new();
         protected List<MarcadaAsistenciaProduccionDto> marcadasList = new();
@@ -86,6 +89,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         {
             SetSemana(DateTime.Today);
             await CargarCombosIniciales();
+            await CargarSupervisoresConfig();
             await CargarCatalogo();
             await CargarHistorico();
 
@@ -95,6 +99,23 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 catalogoClienteId = operacionId;
                 historicoClienteId = operacionId;
                 await ConsultarSemana();
+            }
+        }
+
+        private async Task CargarSupervisoresConfig()
+        {
+            try
+            {
+                string? json = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "catalogo_supervisores_ids");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var ids = System.Text.Json.JsonSerializer.Deserialize<List<int>>(json);
+                    supervisoresIds = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al cargar catalogo_supervisores_ids: " + ex.Message);
             }
         }
 
@@ -179,8 +200,9 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             StateHasChanged();
             try
             {
-                var queryGrilla = new GetGrillaProduccionSemanalQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes);
-                var queryMarcadas = new GetMarcadasSemanalesAsignacionQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes);
+                string? supExcluidosParam = supervisoresIds.Any() ? string.Join(",", supervisoresIds) : null;
+                var queryGrilla = new GetGrillaProduccionSemanalQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
+                var queryMarcadas = new GetMarcadasSemanalesAsignacionQuery(operacionId, fchaInicioSemana, fchaFinSemana, soloPendientes, excluirSupervisores, supExcluidosParam, aplicarReglasCobro);
 
                 var taskGrilla = _mediator.Send(queryGrilla);
                 var taskMarcadas = _mediator.Send(queryMarcadas);
@@ -328,7 +350,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
 
                 // Hoja 1: Resumen Producción
                 var sheetProd = workbook.CreateSheet("Produccion_Semanal");
-                var headers1 = new[] { "Cliente", "Área", "Cargo", "Tipo Hora", "SKU Servicio", "Descripción Servicio", "Unidad Medida", "Tarifa Venta ($)", "Horas", "Total Venta ($)", "Cant. Empleados" };
+                var headers1 = new[] { "Cliente", "Área", "Cargo", "Turno", "Tipo Hora", "SKU Servicio", "Descripción Servicio", "Unidad Medida", "Tarifa Venta ($)", "Horas", "Total Venta ($)", "Cant. Empleados" };
                 var rowH1 = sheetProd.CreateRow(0);
                 for (int i = 0; i < headers1.Length; i++)
                 {
@@ -344,31 +366,32 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                     row.CreateCell(0).SetCellValue(g.cliente_nombre);
                     row.CreateCell(1).SetCellValue(g.area_cliente);
                     row.CreateCell(2).SetCellValue(g.cargo);
-                    row.CreateCell(3).SetCellValue(g.tipo_hora);
-                    row.CreateCell(4).SetCellValue(g.servicio_codigo);
-                    row.CreateCell(5).SetCellValue(g.servicio_descripcion);
-                    row.CreateCell(6).SetCellValue(g.unidad_medida);
-
-                    var c7 = row.CreateCell(7);
-                    c7.SetCellValue((double)g.tarifa_venta);
-                    c7.CellStyle = currencyStyle;
+                    row.CreateCell(3).SetCellValue(g.turno ?? "Diurno");
+                    row.CreateCell(4).SetCellValue(g.tipo_hora);
+                    row.CreateCell(5).SetCellValue(g.servicio_codigo);
+                    row.CreateCell(6).SetCellValue(g.servicio_descripcion);
+                    row.CreateCell(7).SetCellValue(g.unidad_medida);
 
                     var c8 = row.CreateCell(8);
-                    c8.SetCellValue((double)g.cantidad_horas);
-                    c8.CellStyle = numberStyle;
+                    c8.SetCellValue((double)g.tarifa_venta);
+                    c8.CellStyle = currencyStyle;
 
                     var c9 = row.CreateCell(9);
-                    c9.SetCellValue((double)g.subtotal_facturable);
-                    c9.CellStyle = currencyStyle;
+                    c9.SetCellValue((double)g.cantidad_horas);
+                    c9.CellStyle = numberStyle;
 
-                    row.CreateCell(10).SetCellValue(g.cantidad_empleados);
+                    var c10 = row.CreateCell(10);
+                    c10.SetCellValue((double)g.subtotal_facturable);
+                    c10.CellStyle = currencyStyle;
+
+                    row.CreateCell(11).SetCellValue(g.cantidad_empleados);
                 }
 
                 for (int i = 0; i < headers1.Length; i++) sheetProd.AutoSizeColumn(i);
 
                 // Hoja 2: Detalle Marcadas Asistencia
                 var sheetMarcadas = workbook.CreateSheet("Detalle_Asistencias");
-                var headers2 = new[] { "ID Cierre", "Fecha", "Empleado", "Cargo", "Área", "Tipo Empleado", "Entrada", "Salida", "Horas Ord", "Tarifa Ord", "Horas Ext", "Tarifa Ext", "Total Horas", "Asignado Producción", "N° Asignación / Lote", "Tiene Regla" };
+                var headers2 = new[] { "ID Cierre", "Fecha", "Empleado", "Es Supervisor", "Cargo", "Área", "Tipo Empleado", "Turno", "Entrada", "Salida", "Horas Ord", "Tarifa Ord", "Horas Ext", "Tarifa Ext", "Total Horas", "Regla Cobro", "Asignado Producción", "N° Asignación / Lote", "Tiene Regla" };
                 var rowH2 = sheetMarcadas.CreateRow(0);
                 for (int i = 0; i < headers2.Length; i++)
                 {
@@ -384,35 +407,38 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                     row.CreateCell(0).SetCellValue(m.id_cierre);
                     row.CreateCell(1).SetCellValue(m.fecha_asistencia.ToString("dd/MM/yyyy"));
                     row.CreateCell(2).SetCellValue(m.nombre_empleado);
-                    row.CreateCell(3).SetCellValue(m.cargo);
-                    row.CreateCell(4).SetCellValue(m.area_nombre);
-                    row.CreateCell(5).SetCellValue(m.tipo_empleado);
-                    row.CreateCell(6).SetCellValue(m.entrada_movimiento);
-                    row.CreateCell(7).SetCellValue(m.salida_movimiento);
-
-                    var c8 = row.CreateCell(8);
-                    c8.SetCellValue((double)m.horas_ordinarias);
-                    c8.CellStyle = numberStyle;
-
-                    var c9 = row.CreateCell(9);
-                    c9.SetCellValue((double)m.tarifa_ord);
-                    c9.CellStyle = currencyStyle;
+                    row.CreateCell(3).SetCellValue(m.es_supervisor ? "SÍ" : "NO");
+                    row.CreateCell(4).SetCellValue(m.cargo);
+                    row.CreateCell(5).SetCellValue(m.area_nombre);
+                    row.CreateCell(6).SetCellValue(m.tipo_empleado);
+                    row.CreateCell(7).SetCellValue(m.turno ?? "Diurno");
+                    row.CreateCell(8).SetCellValue(m.entrada_movimiento);
+                    row.CreateCell(9).SetCellValue(m.salida_movimiento);
 
                     var c10 = row.CreateCell(10);
-                    c10.SetCellValue((double)m.horas_extras);
+                    c10.SetCellValue((double)m.horas_ordinarias);
                     c10.CellStyle = numberStyle;
 
                     var c11 = row.CreateCell(11);
-                    c11.SetCellValue((double)m.tarifa_ext);
+                    c11.SetCellValue((double)m.tarifa_ord);
                     c11.CellStyle = currencyStyle;
 
                     var c12 = row.CreateCell(12);
-                    c12.SetCellValue((double)m.horas_totales);
+                    c12.SetCellValue((double)m.horas_extras);
                     c12.CellStyle = numberStyle;
 
-                    row.CreateCell(13).SetCellValue(m.asignado_produccion ? "SÍ" : "NO");
-                    row.CreateCell(14).SetCellValue(m.numero_asignacion_produccion ?? "");
-                    row.CreateCell(15).SetCellValue(m.tiene_regla_catalogo ? "SÍ" : "NO");
+                    var c13 = row.CreateCell(13);
+                    c13.SetCellValue((double)m.tarifa_ext);
+                    c13.CellStyle = currencyStyle;
+
+                    var c14 = row.CreateCell(14);
+                    c14.SetCellValue((double)m.horas_totales);
+                    c14.CellStyle = numberStyle;
+
+                    row.CreateCell(15).SetCellValue(m.regla_aplicada ?? "");
+                    row.CreateCell(16).SetCellValue(m.asignado_produccion ? "SÍ" : "NO");
+                    row.CreateCell(17).SetCellValue(m.numero_asignacion_produccion ?? "");
+                    row.CreateCell(18).SetCellValue(m.tiene_regla_catalogo ? "SÍ" : "NO");
                 }
 
                 for (int i = 0; i < headers2.Length; i++) sheetMarcadas.AutoSizeColumn(i);
@@ -488,6 +514,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             {
                 operacion_id = catalogoClienteId > 0 ? catalogoClienteId : (operacionesList.FirstOrDefault()?.id ?? 0),
                 area_nombre = "*",
+                turno = "*",
                 tipo_hora = "ORDINARIA",
                 unidad_medida = "HORAS",
                 factor_conversion_dias = 8.00m,

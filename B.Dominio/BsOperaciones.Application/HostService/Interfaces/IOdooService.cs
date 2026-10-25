@@ -175,8 +175,8 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto>> GetCatalogoServicioPuestoArea(int operacionId);
         Task<IResponse> SaveCatalogoServicioPuestoArea(Modelo.Entidades.Operaciones.CatalogoServicioPuestoAreaDto dto);
         Task<IResponse> DeleteCatalogoServicioPuestoArea(int id);
-        Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false);
-        Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false);
+        Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false, bool excluirSupervisores = true, string? supervisoresExcluidos = null, bool aplicarReglas = true);
+        Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false, bool excluirSupervisores = true, string? supervisoresExcluidos = null, bool aplicarReglas = true);
         Task<IResponse> AsignarMarcadasProduccion(Modelo.Entidades.Operaciones.AsignarMarcadasProduccionRequest request);
         Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion);
         Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio);

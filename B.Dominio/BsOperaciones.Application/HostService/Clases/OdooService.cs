@@ -3632,13 +3632,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false)
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>> GetMarcadasSemanalesAsignacion(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false, bool excluirSupervisores = true, string? supervisoresExcluidos = null, bool aplicarReglas = true)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto> response = new ListResponse<Modelo.Entidades.Operaciones.MarcadaAsistenciaProduccionDto>();
             try
             {
-                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}";
+                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}&excluirSupervisores={excluirSupervisores}&supervisoresExcluidos={Uri.EscapeDataString(supervisoresExcluidos ?? string.Empty)}&aplicarReglas={aplicarReglas}";
                 var requestUrl = CreateRequestUri("Operaciones/GetMarcadasSemanalesAsignacion", queryString);
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
@@ -3659,13 +3659,13 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false)
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>> GetGrillaProduccionSemanal(int operacionId, DateTime inicio, DateTime fin, bool soloPendientes = false, bool excluirSupervisores = true, string? supervisoresExcluidos = null, bool aplicarReglas = true)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto> response = new ListResponse<Modelo.Entidades.Operaciones.GrillaProduccionSemanalDto>();
             try
             {
-                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}";
+                string queryString = $"operacionId={operacionId}&inicio={inicio:yyyy-MM-dd}&fin={fin:yyyy-MM-dd}&soloPendientes={soloPendientes}&excluirSupervisores={excluirSupervisores}&supervisoresExcluidos={Uri.EscapeDataString(supervisoresExcluidos ?? string.Empty)}&aplicarReglas={aplicarReglas}";
                 var requestUrl = CreateRequestUri("Operaciones/GetGrillaProduccionSemanal", queryString);
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
