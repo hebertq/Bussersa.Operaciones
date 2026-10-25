@@ -32,6 +32,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected List<Combos> operacionesList = new();
         protected List<Combos> hrJobsList = new();
         protected List<OdooVariantDto> variantsList = new();
+        protected List<Combos> templatesList = new();
 
         protected bool estaCargando;
         protected string mensajeCarga = "Cargando...";
@@ -129,8 +130,9 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 var opTask = _mediator.Send(new GetAllCombosQuery("Operaciones"));
                 var jobTask = _odooService.GetHrJobs();
                 var varTask = _odooService.GetAllProductVariants();
+                var tmplTask = _mediator.Send(new GetAllCombosQuery("Plantillas"));
 
-                await Task.WhenAll(opTask, jobTask, varTask);
+                await Task.WhenAll(opTask, jobTask, varTask, tmplTask);
 
                 var opRes = await opTask;
                 operacionesList = opRes.Model?.OrderBy(x => x.nombre).ToList() ?? new();
@@ -140,6 +142,9 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
 
                 var varRes = await varTask;
                 variantsList = varRes.Model?.OrderBy(x => x.default_code).ToList() ?? new();
+
+                var tmplRes = await tmplTask;
+                templatesList = tmplRes.Model?.OrderBy(x => x.nombre).ToList() ?? new();
             }
             catch (Exception ex)
             {
@@ -526,7 +531,8 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 { "Item", nuevaRegla },
                 { "OperacionesList", operacionesList },
                 { "HrJobsList", hrJobsList },
-                { "VariantsList", variantsList }
+                { "VariantsList", variantsList },
+                { "TemplatesList", templatesList }
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
@@ -546,7 +552,8 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 { "Item", item },
                 { "OperacionesList", operacionesList },
                 { "HrJobsList", hrJobsList },
-                { "VariantsList", variantsList }
+                { "VariantsList", variantsList },
+                { "TemplatesList", templatesList }
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };

@@ -180,6 +180,7 @@ namespace HostService.Interfaces
         Task<IResponse> AsignarMarcadasProduccion(Modelo.Entidades.Operaciones.AsignarMarcadasProduccionRequest request);
         Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion);
         Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio);
+        Task<IListResponse<string>> GetAreasOperacion(int operacionId);
     }
 }
 
