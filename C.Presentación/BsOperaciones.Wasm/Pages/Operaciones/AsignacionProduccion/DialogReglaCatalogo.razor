@@ -6,6 +6,7 @@
 @using System.Text
 @using System.Globalization
 @inject IOdooService _odooService
+@inject ISnackbar _snackbar
 
 <MudDialog>
     <TitleContent>
@@ -225,7 +226,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Cancelar</MudButton>
-        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!isValid || string.IsNullOrWhiteSpace(item.cargo) || string.IsNullOrWhiteSpace(item.servicio_codigo))" StartIcon="@Icons.Material.Filled.Save">
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(string.IsNullOrWhiteSpace(item.cargo) || string.IsNullOrWhiteSpace(item.servicio_codigo))" StartIcon="@Icons.Material.Filled.Save">
             Guardar Regla
         </MudButton>
     </DialogActions>
@@ -800,10 +801,37 @@
         return sb.ToString().ToLowerInvariant().Trim();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && form != null)
+        {
+            await form.Validate();
+            StateHasChanged();
+        }
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
-    private void Save()
+    private async Task Save()
     {
+        if (form != null)
+        {
+            await form.Validate();
+            if (!form.IsValid) return;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.cargo))
+        {
+            _snackbar.Add("Debe ingresar o seleccionar un Cargo / Puesto.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.servicio_codigo))
+        {
+            _snackbar.Add("Debe seleccionar o ingresar el Código / SKU de la variante.", Severity.Warning);
+            return;
+        }
+
         item.cargo = item.cargo?.Trim() ?? string.Empty;
         item.area_nombre = string.IsNullOrWhiteSpace(item.area_nombre) ? "*" : item.area_nombre.Trim();
         item.servicio_codigo = item.servicio_codigo?.Trim() ?? string.Empty;
