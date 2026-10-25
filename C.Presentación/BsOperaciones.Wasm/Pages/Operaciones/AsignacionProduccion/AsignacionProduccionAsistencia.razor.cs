@@ -69,6 +69,13 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         // Pestaña 2: Catálogo de Variantes
         protected int catalogoClienteId;
         protected List<CatalogoServicioPuestoAreaDto> catalogoList = new();
+        protected List<CatalogoServicioPuestoAreaDto> masterCatalogoList = new();
+
+        protected List<Combos> OperacionesConfiguradas =>
+            operacionesList
+                .Where(op => masterCatalogoList.Any(c => c.operacion_id == op.id && c.activo))
+                .OrderBy(op => op.nombre)
+                .ToList();
 
         // Pestaña 3: Histórico y Fugas
         protected int historicoClienteId;
@@ -81,6 +88,14 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             await CargarCombosIniciales();
             await CargarCatalogo();
             await CargarHistorico();
+
+            if (OperacionesConfiguradas.Any())
+            {
+                operacionId = OperacionesConfiguradas.First().id;
+                catalogoClienteId = operacionId;
+                historicoClienteId = operacionId;
+                await ConsultarSemana();
+            }
         }
 
         private async Task CargarCombosIniciales()
@@ -104,15 +119,6 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
 
                 var varRes = await varTask;
                 variantsList = varRes.Model?.OrderBy(x => x.default_code).ToList() ?? new();
-
-                // Si hay operaciones, seleccionar Sinsa o la primera por defecto
-                if (operacionesList.Any())
-                {
-                    var sinsa = operacionesList.FirstOrDefault(o => o.id == 23 || o.nombre.Contains("Sinsa", StringComparison.OrdinalIgnoreCase));
-                    operacionId = sinsa?.id ?? operacionesList.First().id;
-                    catalogoClienteId = operacionId;
-                    historicoClienteId = operacionId;
-                }
             }
             catch (Exception ex)
             {
@@ -445,8 +451,25 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             StateHasChanged();
             try
             {
-                var res = await _mediator.Send(new GetCatalogoServicioPuestoAreaQuery(catalogoClienteId));
-                catalogoList = res.Model?.OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList() ?? new();
+                var res = await _mediator.Send(new GetCatalogoServicioPuestoAreaQuery(0));
+                masterCatalogoList = res.Model?.Where(c => c.activo).ToList() ?? new();
+
+                if (catalogoClienteId > 0)
+                {
+                    catalogoList = masterCatalogoList
+                        .Where(c => c.operacion_id == catalogoClienteId)
+                        .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+                }
+                else
+                {
+                    catalogoList = masterCatalogoList
+                        .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+                }
+
+                if (OperacionesConfiguradas.Any() && !OperacionesConfiguradas.Any(o => o.id == operacionId))
+                {
+                    operacionId = OperacionesConfiguradas.First().id;
+                }
             }
             catch (Exception ex)
             {

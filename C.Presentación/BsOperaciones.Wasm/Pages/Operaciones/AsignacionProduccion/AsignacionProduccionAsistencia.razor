@@ -34,8 +34,8 @@
                 <MudItem xs="12" sm="12" md="3">
                     <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId"
                                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="0">Seleccione un cliente...</MudSelectItem>
-                        @foreach (var op in operacionesList)
+                        <MudSelectItem Value="0">Seleccione un cliente configurado...</MudSelectItem>
+                        @foreach (var op in OperacionesConfiguradas)
                         {
                             <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
                         }
@@ -294,8 +294,8 @@
                 <MudSelect T="int" Label="Filtrar por Cliente" Value="catalogoClienteId"
                            ValueChanged="OnCatalogoClienteChanged"
                            Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width: 250px;">
-                    <MudSelectItem Value="0">Todas las operaciones...</MudSelectItem>
-                    @foreach (var op in operacionesList)
+                    <MudSelectItem Value="0">Todas las operaciones configuradas...</MudSelectItem>
+                    @foreach (var op in OperacionesConfiguradas)
                     {
                         <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
                     }
@@ -377,8 +377,8 @@
                 <MudItem xs="12" sm="5">
                     <MudSelect T="int" Label="Operación / Cliente" @bind-Value="historicoClienteId"
                                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="0">Todas las operaciones...</MudSelectItem>
-                        @foreach (var op in operacionesList)
+                        <MudSelectItem Value="0">Todas las operaciones configuradas...</MudSelectItem>
+                        @foreach (var op in OperacionesConfiguradas)
                         {
                             <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
                         }
