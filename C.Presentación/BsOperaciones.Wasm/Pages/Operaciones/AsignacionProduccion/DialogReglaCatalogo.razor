@@ -3,6 +3,8 @@
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
+@using System.Text
+@using System.Globalization
 @inject IOdooService _odooService
 
 <MudDialog>
@@ -26,7 +28,7 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudSelect T="string" Label="Área de Cliente*" @bind-Value="item.area_nombre" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                    <MudSelect T="string" Label="Área de Cliente*" Value="item.area_nombre" ValueChanged="OnAreaChanged" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
                                HelperText="Seleccione 'Todas las áreas' (*) para aplicar de forma universal">
                         <MudSelectItem Value="@("*")">
                             <div class="d-flex align-center gap-1">
@@ -53,7 +55,8 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
-                    <MudAutocomplete T="string" Label="Cargo / Puesto*" @bind-Value="item.cargo"
+                    <MudAutocomplete T="string" Label="Cargo / Puesto*" Value="item.cargo"
+                                     ValueChanged="OnCargoChanged"
                                      SearchFunc="@SearchCargos"
                                      ResetValueOnEmptyText="false"
                                      CoerceText="true"
@@ -64,7 +67,7 @@
 
                 @* Fila 3: Turno, Tipo de Hora y Unidad de Medida *@
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" Label="Turno*" @bind-Value="item.turno" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelect T="string" Label="Turno*" Value="item.turno" ValueChanged="OnTurnoChanged" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                         <MudSelectItem Value="@("*")">* (Todos los Turnos)</MudSelectItem>
                         <MudSelectItem Value="@("Diurno")">☀️ Diurno</MudSelectItem>
                         <MudSelectItem Value="@("Nocturno")">🌙 Nocturno</MudSelectItem>
@@ -73,7 +76,7 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" Label="Tipo de Hora*" @bind-Value="item.tipo_hora" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelect T="string" Label="Tipo de Hora*" Value="item.tipo_hora" ValueChanged="OnTipoHoraChanged" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense">
                         <MudSelectItem Value="@("ORDINARIA")">ORDINARIA</MudSelectItem>
                         <MudSelectItem Value="@("EXTRA")">EXTRA</MudSelectItem>
                         <MudSelectItem Value="@("DOMINGO_FERIADO")">DOMINGO / FERIADO</MudSelectItem>
@@ -88,17 +91,53 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Fila 4: Selector de Variante de la Plantilla de Horas Laborales *@
+                @* Fila 4: Selector Dinámico de Variante de Servicio en Cascada *@
                 <MudItem xs="12">
-                    <MudAutocomplete T="OdooVariantDto" Label="Variante de la Plantilla (SKU o Descripción)*"
-                                     Value="selectedVariant"
-                                     ValueChanged="OnVariantChanged"
-                                     SearchFunc="@SearchVariants"
-                                     ToStringFunc="@(v => v == null ? string.Empty : $"[{v.default_code}] {v.nombre} - ${(v.precio > 0 ? v.precio.ToString("N2") : "0.00")}")"
-                                     ResetValueOnEmptyText="false"
-                                     Variant="Variant.Outlined" Margin="Margin.Dense"
-                                     Placeholder="Seleccione o busque la variante de horas laborales para este cliente..."
-                                     HelperText="Filtra automáticamente por la plantilla seleccionada y sugiere variantes del cliente" />
+                    <div class="d-flex align-center justify-space-between mb-1">
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.caption" Color="Color.Primary">
+                                <b>Variantes disponibles (@VariantesDisponibles.Count)</b> para @(string.IsNullOrWhiteSpace(item.cliente_nombre) ? "este cliente" : item.cliente_nombre)
+                                @if (!verTodasLasVariantes)
+                                {
+                                    <span> • Área: <b>@(item.area_nombre == "*" ? "Todas" : item.area_nombre)</b> • Turno: <b>@item.turno</b> • Tipo: <b>@item.tipo_hora</b></span>
+                                }
+                            </MudText>
+                        </div>
+                        <MudCheckBox T="bool" Value="verTodasLasVariantes" ValueChanged="OnToggleVerTodas" Label="Ver todas sin filtrar" Dense="true" Size="Size.Small" Color="Color.Secondary" />
+                    </div>
+
+                    @if (VariantesDisponibles.Any())
+                    {
+                        <MudSelect T="string" Label="Variante de Servicio Odoo (SKU y Descripción)*"
+                                   Value="item.servicio_codigo"
+                                   ValueChanged="OnServicioCodigoSelected"
+                                   Required="true"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                                   HelperText="Filtrado dinámico en cascada según Turno, Área y Tipo de Hora (idéntico al formato Excel de producción)">
+                            @foreach (var v in VariantesDisponibles)
+                            {
+                                <MudSelectItem Value="@v.default_code">
+                                    <div class="d-flex align-center justify-space-between gap-2 py-1">
+                                        <div class="d-flex align-center gap-2 text-truncate">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">@v.default_code</MudChip>
+                                            <span style="font-size: 0.85rem;" class="text-truncate">@v.nombre</span>
+                                        </div>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined" Class="ml-2">
+                                            $@(v.precio > 0 ? v.precio.ToString("N2") : "0.00")
+                                        </MudChip>
+                                    </div>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="my-1">
+                            No se encontraron variantes coincidentes con los filtros actuales (Cliente: @item.cliente_nombre, Área: @item.area_nombre, Turno: @item.turno, Tipo: @item.tipo_hora).
+                            Marque la casilla <b>'Ver todas sin filtrar'</b> para explorar y seleccionar manualmente cualquier variante disponible.
+                        </MudAlert>
+                    }
                 </MudItem>
 
                 @* Fila 5: Código / SKU y Descripción del Servicio *@
@@ -113,7 +152,8 @@
                 @* Fila 6: Tarifa de Venta y Estado *@
                 <MudItem xs="12" sm="6">
                     <MudNumericField T="decimal" Label="Tarifa Venta ($ / C$)*" @bind-Value="item.tarifa_venta"
-                                     Format="N2" Min="0m" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                     Format="N2" Min="0m" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     HelperText="Precio base obtenido automáticamente de Odoo ERP" />
                 </MudItem>
 
                 <MudItem xs="12" sm="6" Class="d-flex align-center">
@@ -140,12 +180,13 @@
     [Parameter] public List<Combos> TemplatesList { get; set; } = new();
 
     private CatalogoServicioPuestoAreaDto item = new();
-    private OdooVariantDto? selectedVariant;
     private bool isValid;
     private MudForm form = null!;
 
     private List<string> areasOperacionList = new();
     private int selectedTemplateId = 0;
+    private List<OdooVariantDto> VariantesDisponibles = new();
+    private bool verTodasLasVariantes = false;
 
     private List<Combos> ListaPlantillas
     {
@@ -181,6 +222,11 @@
             activo = Item.id == 0 || Item.activo
         };
 
+        if (string.IsNullOrWhiteSpace(item.cliente_nombre))
+        {
+            item.cliente_nombre = OperacionesList.FirstOrDefault(o => o.id == item.operacion_id)?.nombre ?? string.Empty;
+        }
+
         // Identificar plantilla: prioritariamente 'Servicio de horas laborales' (id = 9 o por nombre)
         var tmplHoras = ListaPlantillas.FirstOrDefault(t => t.nombre != null && t.nombre.Contains("horas laborab", StringComparison.OrdinalIgnoreCase))
                         ?? ListaPlantillas.FirstOrDefault(t => t.id == 9);
@@ -197,14 +243,18 @@
         // Si ya hay SKU configurado, buscar la variante y asignar su plantilla
         if (!string.IsNullOrWhiteSpace(item.servicio_codigo) && VariantsList != null)
         {
-            selectedVariant = VariantsList.FirstOrDefault(v => v.default_code?.Equals(item.servicio_codigo, StringComparison.OrdinalIgnoreCase) == true);
-            if (selectedVariant != null && selectedVariant.template_id > 0)
+            var matchVar = VariantsList.FirstOrDefault(v => v.default_code?.Equals(item.servicio_codigo, StringComparison.OrdinalIgnoreCase) == true);
+            if (matchVar != null && matchVar.template_id > 0)
             {
-                selectedTemplateId = selectedVariant.template_id;
+                selectedTemplateId = matchVar.template_id;
             }
         }
 
         await CargarAreasOperacion(item.operacion_id);
+
+        // Actualizar variantes disponibles
+        // Si es una regla nueva (id == 0) o no tiene SKU, auto-seleccionar la mejor coincidencia
+        ActualizarVariantes(autoSelect: item.id == 0 || string.IsNullOrWhiteSpace(item.servicio_codigo));
     }
 
     private async Task CargarAreasOperacion(int operacionId)
@@ -239,20 +289,159 @@
         item.operacion_id = newOpId;
         var op = OperacionesList.FirstOrDefault(o => o.id == newOpId);
         item.cliente_nombre = op?.nombre ?? string.Empty;
-
-        // Mantener '*' si ya estaba en todas, o resetear
-        if (item.area_nombre != "*")
-        {
-            item.area_nombre = "*";
-        }
+        item.area_nombre = "*";
 
         await CargarAreasOperacion(newOpId);
+        ActualizarVariantes(autoSelect: true);
+    }
+
+    private void OnAreaChanged(string newArea)
+    {
+        item.area_nombre = newArea;
+        ActualizarVariantes(autoSelect: true);
     }
 
     private void OnTemplateChanged(int newTmplId)
     {
         selectedTemplateId = newTmplId;
-        selectedVariant = null;
+        ActualizarVariantes(autoSelect: true);
+    }
+
+    private void OnCargoChanged(string newCargo)
+    {
+        item.cargo = newCargo;
+        ActualizarVariantes(autoSelect: true);
+    }
+
+    private void OnTurnoChanged(string newTurno)
+    {
+        item.turno = newTurno;
+        ActualizarVariantes(autoSelect: true);
+    }
+
+    private void OnTipoHoraChanged(string newTipoHora)
+    {
+        item.tipo_hora = newTipoHora;
+        ActualizarVariantes(autoSelect: true);
+    }
+
+    private void OnToggleVerTodas(bool verTodas)
+    {
+        verTodasLasVariantes = verTodas;
+        ActualizarVariantes(autoSelect: false);
+    }
+
+    private void ActualizarVariantes(bool autoSelect = true)
+    {
+        if (VariantsList == null || !VariantsList.Any())
+        {
+            VariantesDisponibles = new();
+            StateHasChanged();
+            return;
+        }
+
+        var query = VariantsList.AsEnumerable();
+
+        if (selectedTemplateId > 0)
+        {
+            query = query.Where(v => v.template_id == selectedTemplateId);
+        }
+
+        string opName = OperacionesList.FirstOrDefault(o => o.id == item.operacion_id)?.nombre ?? item.cliente_nombre ?? "";
+        query = query.Where(v => IsClientMatch(opName, v));
+
+        if (!verTodasLasVariantes)
+        {
+            if (item.area_nombre != "*")
+            {
+                query = query.Where(v => IsAreaMatch(v, item.area_nombre));
+            }
+
+            query = query.Where(v => IsTurnoTipoHoraMatch(v, item.turno, item.tipo_hora));
+        }
+
+        // Priorizar coincidencias por Cargo si el usuario ha seleccionado un puesto
+        if (!string.IsNullOrWhiteSpace(item.cargo))
+        {
+            query = query.OrderByDescending(v => IsCargoMatch(v, item.cargo));
+        }
+
+        VariantesDisponibles = query.ToList();
+
+        if (autoSelect)
+        {
+            if (VariantesDisponibles.Count == 1)
+            {
+                AplicarVariante(VariantesDisponibles[0]);
+            }
+            else if (VariantesDisponibles.Count > 1)
+            {
+                var actual = VariantesDisponibles.FirstOrDefault(v => v.default_code?.Equals(item.servicio_codigo, StringComparison.OrdinalIgnoreCase) == true);
+                if (actual != null)
+                {
+                    AplicarVariante(actual);
+                }
+                else
+                {
+                    var cargoMatch = VariantesDisponibles.FirstOrDefault(v => IsCargoMatch(v, item.cargo));
+                    if (cargoMatch != null)
+                    {
+                        AplicarVariante(cargoMatch);
+                    }
+                    else if (item.id == 0 || string.IsNullOrWhiteSpace(item.servicio_codigo))
+                    {
+                        AplicarVariante(VariantesDisponibles[0]);
+                    }
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnServicioCodigoSelected(string codigo)
+    {
+        item.servicio_codigo = codigo;
+        var variant = VariantsList?.FirstOrDefault(x => x.default_code == codigo);
+        if (variant != null)
+        {
+            AplicarVariante(variant);
+
+            // Inferencia contextual de Turno y Tipo de Hora según código o descripción de la variante
+            string upperCode = (variant.default_code ?? "").ToUpperInvariant();
+            string upperName = (variant.nombre ?? "").ToUpperInvariant();
+
+            if (upperCode.Contains("EXT") || upperName.Contains("EXTRAS") || upperName.Contains("FERIADOS"))
+            {
+                item.tipo_hora = "EXTRA";
+            }
+            else if (upperCode.Contains("DIU") || upperName.Contains("DIURNO"))
+            {
+                item.turno = "Diurno";
+                if (item.tipo_hora == "EXTRA") item.tipo_hora = "ORDINARIA";
+            }
+            else if (upperCode.Contains("NOC") || upperName.Contains("NOCTURNO"))
+            {
+                item.turno = "Nocturno";
+            }
+
+            // Inferencia de cargo si no está definido
+            string varPuesto = ExtractAttribute(variant.nombre, "Puesto");
+            if (!string.IsNullOrWhiteSpace(varPuesto) && string.IsNullOrWhiteSpace(item.cargo))
+            {
+                item.cargo = varPuesto;
+            }
+        }
+    }
+
+    private void AplicarVariante(OdooVariantDto v)
+    {
+        item.servicio_codigo = v.default_code ?? string.Empty;
+        item.servicio_descripcion = v.nombre ?? string.Empty;
+        if (v.precio > 0)
+        {
+            item.tarifa_venta = v.precio;
+        }
     }
 
     private Task<IEnumerable<string>> SearchCargos(string value, CancellationToken token)
@@ -264,92 +453,181 @@
         return Task.FromResult(list.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
     }
 
-    private Task<IEnumerable<OdooVariantDto>> SearchVariants(string value, CancellationToken token)
+    private bool IsClientMatch(string opName, OdooVariantDto v)
     {
-        if (VariantsList == null || !VariantsList.Any())
-            return Task.FromResult(Enumerable.Empty<OdooVariantDto>());
+        if (string.IsNullOrWhiteSpace(opName)) return true;
 
-        var query = VariantsList.AsEnumerable();
-        if (selectedTemplateId > 0)
-        {
-            query = query.Where(v => v.template_id == selectedTemplateId);
-        }
+        string cleanOp = Normalize(opName);
+        string clientAttr = ExtractAttribute(v.nombre, "Cliente");
+        string cleanAttr = Normalize(string.IsNullOrWhiteSpace(clientAttr) ? v.nombre : clientAttr);
+        string code = (v.default_code ?? "").ToUpperInvariant();
 
-        string clientName = OperacionesList.FirstOrDefault(o => o.id == item.operacion_id)?.nombre ?? "";
-        string cleanClient = Normalize(clientName);
+        if (cleanOp.Contains("disagro") && (cleanAttr.Contains("disagro") || code.StartsWith("DIS"))) return true;
+        if (cleanOp.Contains("glacial") && (cleanAttr.Contains("glacial") || code.StartsWith("GLA"))) return true;
+        if ((cleanOp.Contains("cbc") || cleanOp.Contains("pepsi")) && (cleanAttr.Contains("cbc") || cleanAttr.Contains("pepsi") || code.StartsWith("CBC") || code.StartsWith("PEP"))) return true;
+        if (cleanOp.Contains("cefa") && (cleanAttr.Contains("cefa") || code.StartsWith("CEF"))) return true;
+        if (cleanOp.Contains("sinsa") && (cleanAttr.Contains("sinsa") || code.StartsWith("SIN"))) return true;
+        if (cleanOp.Contains("walmart") && (cleanAttr.Contains("walmart") || code.StartsWith("WMT") || code.StartsWith("WAL"))) return true;
+        if (cleanOp.Contains("dinant") && (cleanAttr.Contains("dinant") || code.StartsWith("DIN"))) return true;
+        if (cleanOp.Contains("monge") && (cleanAttr.Contains("monge") || code.StartsWith("MON"))) return true;
+        if (cleanOp.Contains("aje") && (cleanAttr.Contains("aje") || code.StartsWith("AJE"))) return true;
+        if (cleanOp.Contains("lafise") && (cleanAttr.Contains("lafise") || code.StartsWith("LAF"))) return true;
+        if (cleanOp.Contains("alaska") && (cleanAttr.Contains("alaska") || code.StartsWith("ALA"))) return true;
+        if (cleanOp.Contains("carnic") && (cleanAttr.Contains("carnic") || code.StartsWith("CAR"))) return true;
+        if (cleanOp.Contains("santo domingo") && (cleanAttr.Contains("santo domingo") || cleanAttr.Contains("esd") || code.StartsWith("ESD"))) return true;
+        if (cleanOp.Contains("reyes") && (cleanAttr.Contains("reyes") || code.StartsWith("REY"))) return true;
+        if (cleanOp.Contains("cdi") && (cleanAttr.Contains("cdi") || code.StartsWith("CDI"))) return true;
+        if (cleanOp.Contains("tla") && (cleanAttr.Contains("tla") || code.StartsWith("TLA"))) return true;
+        if ((cleanOp.Contains("cafe") || cleanOp.Contains("soluble")) && (cleanAttr.Contains("cafe") || cleanAttr.Contains("soluble") || code.StartsWith("SOL") || code.StartsWith("CAF"))) return true;
 
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            // Si no hay texto escrito, sugerir primero las variantes del cliente actual
-            var clientMatches = query.Where(v => IsVariantMatchClient(v, cleanClient)).ToList();
-            if (clientMatches.Any())
-            {
-                return Task.FromResult<IEnumerable<OdooVariantDto>>(clientMatches);
-            }
-            return Task.FromResult<IEnumerable<OdooVariantDto>>(query.Take(30));
-        }
+        if (cleanOp.Contains(cleanAttr) || cleanAttr.Contains(cleanOp)) return true;
 
-        var filtered = query
-            .Where(x => (x.default_code != null && x.default_code.Contains(value, StringComparison.InvariantCultureIgnoreCase)) ||
-                        (x.nombre != null && x.nombre.Contains(value, StringComparison.InvariantCultureIgnoreCase)))
-            .OrderByDescending(x => IsVariantMatchClient(x, cleanClient))
-            .Take(30);
+        var opTokens = cleanOp.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var attrTokens = cleanAttr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (opTokens.Any(t => t.Length > 2 && attrTokens.Contains(t))) return true;
 
-        return Task.FromResult<IEnumerable<OdooVariantDto>>(filtered);
+        return false;
     }
 
-    private bool IsVariantMatchClient(OdooVariantDto v, string cleanClient)
+    private bool IsAreaMatch(OdooVariantDto v, string area)
     {
-        if (string.IsNullOrWhiteSpace(cleanClient)) return true;
-        string text = Normalize($"{v.default_code} {v.nombre}");
-        return text.Contains(cleanClient);
+        if (string.IsNullOrWhiteSpace(area) || area == "*") return true;
+
+        string varArea = ExtractAttribute(v.nombre, "Area");
+        string cleanArea = Normalize(area);
+        string code = (v.default_code ?? "").ToUpperInvariant();
+
+        if (!string.IsNullOrWhiteSpace(varArea))
+        {
+            string cleanVarArea = Normalize(varArea);
+            if (cleanVarArea.Contains(cleanArea) || cleanArea.Contains(cleanVarArea)) return true;
+        }
+
+        // Abreviaciones comunes en códigos SKU
+        if (cleanArea.Contains("matagalpa") && (code.Contains("CMT") || code.Contains("MAT"))) return true;
+        if ((cleanArea.Contains("operacion") || cleanArea.Contains("centro") || cleanArea.Contains("cde")) && (code.Contains("CDE") || code.Contains("OPE"))) return true;
+        if (cleanArea.Contains("chinandega") && (code.Contains("CCH") || code.Contains("CHI"))) return true;
+        if (cleanArea.Contains("esteli") && (code.Contains("CES") || code.Contains("EST"))) return true;
+        if (cleanArea.Contains("juigalpa") && (code.Contains("CJU") || code.Contains("JUI"))) return true;
+        if (cleanArea.Contains("rivas") && (code.Contains("CRI") || code.Contains("RIV"))) return true;
+
+        // Fallback: Si no tiene atributo de Área o es "General", aplica universalmente
+        if (string.IsNullOrWhiteSpace(varArea) || varArea.Equals("General", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private bool IsTurnoTipoHoraMatch(OdooVariantDto v, string turno, string tipoHora)
+    {
+        string varTurno = ExtractAttribute(v.nombre, "Turno");
+        string code = (v.default_code ?? "").ToUpperInvariant();
+        string normTurno = Normalize(varTurno);
+
+        bool isVarExtra = normTurno.Contains("extra") || normTurno.Contains("domingo") || normTurno.Contains("feriado") || code.Contains("EXT");
+        bool isVarDiurno = normTurno.Contains("diurno") || code.Contains("DIU");
+        bool isVarNocturno = normTurno.Contains("nocturno") || code.Contains("NOC");
+
+        // Caso 1: EXTRA o DOMINGO_FERIADO
+        if (tipoHora == "EXTRA" || tipoHora == "DOMINGO_FERIADO")
+        {
+            return isVarExtra;
+        }
+
+        // Caso 2: NOCTURNA
+        if (tipoHora == "NOCTURNA")
+        {
+            return isVarNocturno && !isVarExtra;
+        }
+
+        // Caso 3: ORDINARIA - no debe ser variante de horas extras ni feriados
+        if (isVarExtra)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(turno) || turno == "*")
+        {
+            return true;
+        }
+
+        if (turno.Equals("Diurno", StringComparison.OrdinalIgnoreCase))
+        {
+            return isVarDiurno;
+        }
+
+        if (turno.Equals("Nocturno", StringComparison.OrdinalIgnoreCase))
+        {
+            return isVarNocturno;
+        }
+
+        if (turno.Equals("Mixto", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return true;
+    }
+
+    private bool IsCargoMatch(OdooVariantDto v, string cargo)
+    {
+        if (string.IsNullOrWhiteSpace(cargo)) return true;
+
+        string varPuesto = ExtractAttribute(v.nombre, "Puesto");
+        if (string.IsNullOrWhiteSpace(varPuesto)) return true;
+
+        string cleanCargo = Normalize(cargo);
+        string cleanPuesto = Normalize(varPuesto);
+
+        if (cleanCargo.Contains(cleanPuesto) || cleanPuesto.Contains(cleanCargo)) return true;
+
+        if ((cleanCargo.Contains("operador") || cleanCargo.Contains("operario") || cleanCargo.Contains("almacen") || cleanCargo.Contains("bodega")) &&
+            (cleanPuesto.Contains("operario") || cleanPuesto.Contains("ayudante"))) return true;
+
+        if (cleanCargo.Contains("montacarga") && (cleanPuesto.Contains("montacarg") || cleanPuesto.Contains("monnta"))) return true;
+        if (cleanCargo.Contains("chofer") && cleanPuesto.Contains("chofer")) return true;
+
+        return false;
+    }
+
+    private static string ExtractAttribute(string text, string attributeName)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+        var pairs = text.Split(',');
+        foreach (var rawPair in pairs)
+        {
+            var pair = rawPair.Trim().Trim('(', ')');
+            var parts = pair.Split(':');
+            if (parts.Length >= 2)
+            {
+                var key = parts[0].Trim();
+                int pIndex = key.LastIndexOf('(');
+                if (pIndex >= 0) key = key.Substring(pIndex + 1).Trim();
+
+                var val = string.Join(":", parts.Skip(1)).Trim().TrimEnd(')').Trim();
+                if (string.Equals(key, attributeName, StringComparison.OrdinalIgnoreCase) ||
+                    (attributeName.Equals("Area", StringComparison.OrdinalIgnoreCase) && key.Equals("Área", StringComparison.OrdinalIgnoreCase)) ||
+                    (attributeName.Equals("Área", StringComparison.OrdinalIgnoreCase) && key.Equals("Area", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return val;
+                }
+            }
+        }
+        return string.Empty;
     }
 
     private static string Normalize(string str)
     {
         if (string.IsNullOrWhiteSpace(str)) return string.Empty;
-        var normalized = str.Normalize(System.Text.NormalizationForm.FormD);
-        var sb = new System.Text.StringBuilder();
+        var normalized = str.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder();
         foreach (var c in normalized)
         {
-            var uc = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c);
-            if (uc != System.Globalization.UnicodeCategory.NonSpacingMark)
+            var uc = CharUnicodeInfo.GetUnicodeCategory(c);
+            if (uc != UnicodeCategory.NonSpacingMark)
                 sb.Append(c);
         }
         return sb.ToString().ToLowerInvariant().Trim();
-    }
-
-    private void OnVariantChanged(OdooVariantDto? variant)
-    {
-        selectedVariant = variant;
-        if (variant != null)
-        {
-            item.servicio_codigo = variant.default_code ?? string.Empty;
-            item.servicio_descripcion = variant.nombre ?? string.Empty;
-            if (variant.precio > 0)
-            {
-                item.tarifa_venta = variant.precio;
-            }
-
-            // Inferencia de Turno y Tipo de Hora según código o descripción de la variante
-            string upperCode = (variant.default_code ?? "").ToUpperInvariant();
-            string upperName = (variant.nombre ?? "").ToUpperInvariant();
-
-            if (upperCode.Contains("DIU") || upperName.Contains("DIURNO"))
-            {
-                item.turno = "Diurno";
-                if (item.tipo_hora == "EXTRA") item.tipo_hora = "ORDINARIA";
-            }
-            else if (upperCode.Contains("NOC") || upperName.Contains("NOCTURNO"))
-            {
-                item.turno = "Nocturno";
-            }
-
-            if (upperCode.Contains("EXT") || upperName.Contains("EXTRAS") || upperName.Contains("FERIADOS"))
-            {
-                item.tipo_hora = "EXTRA";
-            }
-        }
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -364,3 +642,4 @@
         MudDialog.Close(DialogResult.Ok(item));
     }
 }
+
