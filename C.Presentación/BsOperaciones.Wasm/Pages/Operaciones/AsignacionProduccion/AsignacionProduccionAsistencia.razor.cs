@@ -97,7 +97,8 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             if (OperacionesConfiguradas.Any())
             {
                 operacionId = OperacionesConfiguradas.First().id;
-                catalogoClienteId = operacionId;
+                catalogoClienteId = 0; // Inicia mostrando 'Todas las operaciones configuradas...'
+                FiltrarCatalogo();
                 historicoClienteId = operacionId;
                 await ConsultarSemana();
             }
@@ -469,10 +470,26 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
 
         #region Pestaña 2: Catálogo de Variantes
 
-        protected async Task OnCatalogoClienteChanged(int newClientId)
+        protected void OnCatalogoClienteChanged(int newClientId)
         {
             catalogoClienteId = newClientId;
-            await CargarCatalogo();
+            FiltrarCatalogo();
+            StateHasChanged();
+        }
+
+        private void FiltrarCatalogo()
+        {
+            if (catalogoClienteId > 0)
+            {
+                catalogoList = masterCatalogoList
+                    .Where(c => c.operacion_id == catalogoClienteId)
+                    .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+            }
+            else
+            {
+                catalogoList = masterCatalogoList
+                    .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+            }
         }
 
         protected async Task CargarCatalogo()
@@ -485,17 +502,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 var res = await _mediator.Send(new GetCatalogoServicioPuestoAreaQuery(0));
                 masterCatalogoList = res.Model?.Where(c => c.activo).ToList() ?? new();
 
-                if (catalogoClienteId > 0)
-                {
-                    catalogoList = masterCatalogoList
-                        .Where(c => c.operacion_id == catalogoClienteId)
-                        .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
-                }
-                else
-                {
-                    catalogoList = masterCatalogoList
-                        .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
-                }
+                FiltrarCatalogo();
 
                 if (OperacionesConfiguradas.Any() && !OperacionesConfiguradas.Any(o => o.id == operacionId))
                 {

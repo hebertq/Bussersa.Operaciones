@@ -389,7 +389,16 @@
                         <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
                     }
                 </MudSelect>
-                <MudChip T="string" Color="Color.Info" Size="Size.Small">@catalogoList.Count reglas configuradas</MudChip>
+                <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                    @if (catalogoClienteId > 0)
+                    {
+                        <span>@catalogoList.Count reglas configuradas (@(OperacionesConfiguradas.FirstOrDefault(o => o.id == catalogoClienteId)?.nombre ?? "Cliente"))</span>
+                    }
+                    else
+                    {
+                        <span>@catalogoList.Count reglas configuradas (Todas las operaciones)</span>
+                    }
+                </MudChip>
             </div>
             <div>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
