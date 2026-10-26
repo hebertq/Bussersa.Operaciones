@@ -246,6 +246,36 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected void OnExcelFileSelected(InputFileChangeEventArgs e)
         {
             archivoExcel = e.File;
+            if (archivoExcel != null)
+            {
+                AutoDetectarOperacion(archivoExcel.Name);
+            }
+        }
+
+        private void AutoDetectarOperacion(string fileName)
+        {
+            if (operacionesList == null || !operacionesList.Any()) return;
+
+            string normalized = fileName.Replace("_", " ").Replace("-", " ").ToLowerInvariant();
+            var match = operacionesList.FirstOrDefault(op => 
+                !string.IsNullOrWhiteSpace(op.nombre) && 
+                normalized.Contains(op.nombre.Trim().ToLowerInvariant())
+            );
+
+            if (match == null)
+            {
+                var words = normalized.Split(new[] { ' ', '.', '(', ')', '[', ']' }, StringSplitOptions.RemoveEmptyEntries);
+                match = operacionesList.FirstOrDefault(op =>
+                    words.Any(w => w.Length >= 4 && op.nombre.ToLowerInvariant().Contains(w))
+                );
+            }
+
+            if (match != null)
+            {
+                operacionCargaId = match.id;
+                _snackbar.Add($"Operación detectada automáticamente: {match.nombre}", Severity.Info);
+                StateHasChanged();
+            }
         }
 
         protected async Task EliminarRegistro(ProduccionDiariaDto item)
@@ -406,6 +436,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         return;
                     }
 
+                    var selectedOp = operacionesList?.FirstOrDefault(x => x.id == operacionCargaId);
+                    string defaultClientName = selectedOp?.nombre ?? string.Empty;
+
                     for (int r = 1; r <= sheet.LastRowNum; r++)
                     {
                         IRow row = sheet.GetRow(r);
@@ -423,26 +456,42 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                             fFin = fInicio;
                         }
 
+                        var clientVal = GetStringVal(row, colIndices, "cliente", evaluator);
+                        var descVal = GetStringVal(row, colIndices, "servicio_descripcion", evaluator);
+                        if (string.IsNullOrWhiteSpace(clientVal))
+                        {
+                            clientVal = defaultClientName;
+                        }
+                        if (string.IsNullOrWhiteSpace(clientVal) && !string.IsNullOrWhiteSpace(descVal))
+                        {
+                            var matchDesc = System.Text.RegularExpressions.Regex.Match(descVal, @"Cliente:\s*([^,;]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            if (matchDesc.Success)
+                            {
+                                clientVal = matchDesc.Groups[1].Value.Trim();
+                            }
+                        }
+
                         var dto = new ProduccionDiariaDto
                         {
                             hoja_servicio = hs,
                             servicio_codigo = sc,
                             actividad = GetStringVal(row, colIndices, "actividad", evaluator),
-                            cliente = GetStringVal(row, colIndices, "cliente", evaluator),
+                            cliente = clientVal,
                             area_cliente = GetStringVal(row, colIndices, "area_cliente", evaluator),
                             fecha_inicio = fInicio,
                             fecha_fin = fFin,
                             hora_inicio = GetStringVal(row, colIndices, "hora_inicio", evaluator),
                             hora_fin = GetStringVal(row, colIndices, "hora_fin", evaluator),
-                            nombre_producto = GetStringVal(row, colIndices, "servicio_descripcion", evaluator),
-                            servicio_descripcion = GetStringVal(row, colIndices, "servicio_descripcion", evaluator),
+                            nombre_producto = descVal,
+                            servicio_descripcion = descVal,
                             no_lote = GetStringVal(row, colIndices, "no_lote", evaluator),
                             oc = GetStringVal(row, colIndices, "oc", evaluator),
                             no_marchamo = GetStringVal(row, colIndices, "no_marchamo", evaluator),
                             peso = GetDecimalVal(row, colIndices, "peso", evaluator),
                             cantidad_producto = GetDecimalVal(row, colIndices, "cantidad", evaluator),
                             costo_producto = GetDecimalVal(row, colIndices, "costo_producto", evaluator),
-                            asignado_a = GetStringVal(row, colIndices, "asignado_a", evaluator)
+                            asignado_a = GetStringVal(row, colIndices, "asignado_a", evaluator),
+                            operacion_id = operacionCargaId
                         };
                         // Regla de Semana Encajonada: Si el rango cruza el límite de mes, dividir en dos registros mensuales
                         if (fInicio.HasValue && fFin.HasValue && (fInicio.Value.Year != fFin.Value.Year || fInicio.Value.Month != fFin.Value.Month))
@@ -462,7 +511,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                                 hoja_servicio = dto.hoja_servicio,
                                 servicio_codigo = dto.servicio_codigo,
                                 actividad = dto.actividad,
-                                cliente = dto.cliente,
+                                cliente = clientVal,
                                 area_cliente = dto.area_cliente,
                                 fecha_inicio = fInicio,
                                 fecha_fin = finMes1,
@@ -485,7 +534,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                                 hoja_servicio = dto.hoja_servicio,
                                 servicio_codigo = dto.servicio_codigo,
                                 actividad = dto.actividad,
-                                cliente = dto.cliente,
+                                cliente = clientVal,
                                 area_cliente = dto.area_cliente,
                                 fecha_inicio = iniMes2,
                                 fecha_fin = fFin,
@@ -529,6 +578,21 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 {
                     _snackbar.Add($"Se procesaron {items.Count} registros correctamente.", Severity.Success);
                     archivoExcel = null;
+
+                    var minDate = items.Where(x => x.fecha_inicio.HasValue).Min(x => x.fecha_inicio);
+                    var maxDate = items.Where(x => x.fecha_fin.HasValue).Max(x => x.fecha_fin) ?? minDate;
+                    if (minDate.HasValue && maxDate.HasValue)
+                    {
+                        dateRange = new DateRange(
+                            !dateRange.Start.HasValue || minDate.Value < dateRange.Start.Value ? minDate.Value : dateRange.Start.Value,
+                            !dateRange.End.HasValue || maxDate.Value > dateRange.End.Value ? maxDate.Value : dateRange.End.Value
+                        );
+                    }
+                    if (operacionCargaId > 0)
+                    {
+                        filtroOperacionId = operacionCargaId;
+                    }
+
                     await CargarProduccion();
                 }
             }
