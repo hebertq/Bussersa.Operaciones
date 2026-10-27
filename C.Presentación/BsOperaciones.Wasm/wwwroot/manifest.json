@@ -1,0 +1,24 @@
+{
+  "name": "BUSSERSA - Control Operativo",
+  "short_name": "Busser Tablet",
+  "description": "Portal Operativo de Asistencia, Cuadrillas y Viáticos de BUSSERSA para Tablets y Dispositivos Móviles",
+  "start_url": "./operaciones/registro-movimientos-supervisor",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#013161",
+  "theme_color": "#013161",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

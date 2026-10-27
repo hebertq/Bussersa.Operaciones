@@ -1,6 +1,8 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <MudThemeProvider Theme="_bussersaTheme" @bind-IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
@@ -58,6 +60,20 @@
                        Class="mr-1"
                        Title="Alternar Modo Oscuro" />
 
+        @* Botón de Instalación PWA (Visible en navegadores que soportan instalación si no está instalada) *@
+        @if (_canInstallPwa && !_isAlreadyInstalled)
+        {
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Warning" 
+                       Size="Size.Small" 
+                       StartIcon="@Icons.Material.Filled.InstallMobile" 
+                       OnClick="@InstalarPwa" 
+                       Class="mr-2" 
+                       Style="font-weight: 800; border-radius: 8px; font-size: 0.75rem; letter-spacing: 0.3px; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);">
+                Instalar App
+            </MudButton>
+        }
+
         @* Perfil del Supervisor *@
         <div class="d-flex align-center ml-1 py-1 px-2 supervisor-pill">
             <MudAvatar Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 0.75rem; font-weight: 700;">
@@ -95,6 +111,29 @@
         },
         isFullscreen: function () {
             return !!document.fullscreenElement;
+        },
+        isStandalone: function () {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        },
+        initPwa: function (dotNetHelper) {
+            window._tabletDotNetHelper = dotNetHelper;
+            window.addEventListener('pwa-installable', function () {
+                if (window._tabletDotNetHelper) {
+                    window._tabletDotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
+                }
+            });
+            if (window.deferredPrompt) {
+                dotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
+            }
+        },
+        installPwa: async function () {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const choice = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
+                return choice.outcome === 'accepted';
+            }
+            return false;
         }
     };
 </script>
@@ -143,6 +182,54 @@
 @code {
     private bool _isDarkMode = false;
     private bool _isFullscreen = false;
+    private bool _canInstallPwa = false;
+    private bool _isAlreadyInstalled = false;
+    private DotNetObjectReference<TabletLayout>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _isAlreadyInstalled = await JS.InvokeAsync<bool>("tabletLayoutInterop.isStandalone");
+                if (!_isAlreadyInstalled)
+                {
+                    _dotNetRef = DotNetObjectReference.Create(this);
+                    await JS.InvokeVoidAsync("tabletLayoutInterop.initPwa", _dotNetRef);
+                }
+            }
+            catch { }
+        }
+    }
+
+    [JSInvokable]
+    public void SetCanInstallPwa(bool canInstall)
+    {
+        _canInstallPwa = canInstall;
+        StateHasChanged();
+    }
+
+    private async Task InstalarPwa()
+    {
+        try
+        {
+            bool accepted = await JS.InvokeAsync<bool>("tabletLayoutInterop.installPwa");
+            if (accepted)
+            {
+                _canInstallPwa = false;
+                _isAlreadyInstalled = true;
+                Snackbar.Add("¡Aplicación Busser Tablet instalada con éxito!", Severity.Success);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
+    }
 
     private void ToggleDarkMode()
     {

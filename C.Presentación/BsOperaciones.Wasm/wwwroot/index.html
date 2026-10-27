@@ -9,6 +9,17 @@
     <meta name="keywords" content="operaciones, asistencia, personal, logistica, bussersa" />
     <base href="/" />
 
+    <!-- Configuración PWA (Progressive Web App) para Tablets y Móviles -->
+    <link href="manifest.json" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" href="icon-192.png" />
+    <meta name="theme-color" content="#013161" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Busser Tablet" />
+
     <link rel="stylesheet" href="https://unpkg.com/@tabler/core@1.0.0-beta2/dist/css/tabler.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
@@ -42,6 +53,37 @@
     <script src="js/site.js"></script>
     <script src="js/app.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
+
+    <!-- Registro de Service Worker PWA y Detección de Instalación -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(reg => console.log('Service Worker Busser Tablet registrado con éxito:', reg.scope))
+                .catch(err => console.warn('Error al registrar Service Worker:', err));
+        }
+
+        window.deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            console.log('PWA Busser Tablet: Evento beforeinstallprompt capturado. Lista para instalar.');
+            window.dispatchEvent(new CustomEvent('pwa-installable'));
+        });
+
+        window.installPwaApp = async () => {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const choiceResult = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
+                return choiceResult.outcome === 'accepted';
+            }
+            return false;
+        };
+
+        window.isAppInstalled = () => {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        };
+    </script>
 </body>
 
 </html>
