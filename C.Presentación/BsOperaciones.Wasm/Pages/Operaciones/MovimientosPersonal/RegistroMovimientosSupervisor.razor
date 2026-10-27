@@ -359,7 +359,15 @@
                                            Variant="Variant.Outlined" 
                                            Placeholder="Seleccione..."
                                            AnchorOrigin="Origin.BottomCenter"
-                                           SelectedValuesChanged="@(() => { context.Modificado = true; ActualizarGruposConsolidados(); })">
+                                           SelectedValuesChanged="@(() => { 
+                                               context.Modificado = true; 
+                                               var areasNuevas = GetAreasParaCliente(context.Cliente);
+                                               if (!areasNuevas.Contains(context.Area, StringComparer.OrdinalIgnoreCase))
+                                               {
+                                                   context.Area = areasNuevas.FirstOrDefault() ?? "Operaciones";
+                                               }
+                                               ActualizarGruposConsolidados(); 
+                                           })">
                                     @foreach (var op in operacionesList)
                                     {
                                         <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
@@ -385,13 +393,14 @@
                                 {
                                     <MudAutocomplete T="string" 
                                                      @bind-Value="@context.Area"
-                                                     SearchFunc="@((val, token) => Task.FromResult(areasSugeridas.Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
+                                                     SearchFunc="@((val, token) => Task.FromResult(GetAreasParaCliente(context.Cliente).Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
                                                      ResetValueOnEmptyText="false"
                                                      CoerceText="true"
                                                      CoerceValue="true"
                                                      Dense="true" 
                                                      Margin="Margin.Dense" 
                                                      Variant="Variant.Outlined" 
+                                                     MaxItems="100"
                                                      TextChanged="@(() => { context.Modificado = true; ActualizarGruposConsolidados(); })" />
                                 }
                                 else
@@ -852,7 +861,15 @@
                                            Dense="true" 
                                            Margin="Margin.Dense" 
                                            Variant="Variant.Outlined"
-                                           ValueChanged="@(async (val) => { context.ClienteDefault = val; await GuardarItemPlantilla(context); })">
+                                           ValueChanged="@(async (val) => { 
+                                               context.ClienteDefault = val; 
+                                               var areasCli = GetAreasParaCliente(val);
+                                               if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                               {
+                                                   context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
+                                               }
+                                               await GuardarItemPlantilla(context); 
+                                           })">
                                     @foreach (var op in operacionesList)
                                     {
                                         <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
@@ -860,11 +877,17 @@
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
-                                <MudTextField @bind-Value="@context.AreaDefault" 
-                                              Dense="true" 
-                                              Margin="Margin.Dense" 
-                                              Variant="Variant.Outlined"
-                                              OnBlur="@(async () => await GuardarItemPlantilla(context))" />
+                                <MudAutocomplete T="string" 
+                                                 @bind-Value="@context.AreaDefault"
+                                                 SearchFunc="@((val, token) => Task.FromResult(GetAreasParaCliente(context.ClienteDefault).Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
+                                                 ResetValueOnEmptyText="false"
+                                                 CoerceText="true"
+                                                 CoerceValue="true"
+                                                 Dense="true" 
+                                                 Margin="Margin.Dense" 
+                                                 Variant="Variant.Outlined"
+                                                 MaxItems="100"
+                                                 OnBlur="@(async () => await GuardarItemPlantilla(context))" />
                             </MudTd>
                             <MudTd>
                                 <MudSelect T="string" 
@@ -896,6 +919,109 @@
                                                Title="Quitar de mi plantilla" />
                             </MudTd>
                         </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudTabPanel>
+
+        @* ==========================================
+           TAB 5: CONFIGURACIÓN DE ÁREAS POR CLIENTE
+           ========================================== *@
+        <MudTabPanel Text="Configuración de Áreas  " Icon="@Icons.Material.Filled.Settings" BadgeData="@catalogoClienteAreas.Count" BadgeColor="Color.Dark">
+            <MudPaper Class="pa-4 mt-2" Elevation="0">
+                <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Tune">
+                    Gestiona el catálogo de <b>Áreas Operativas correspondientes a cada Cliente / Operación</b>. 
+                    Las áreas registradas aquí se cargan automáticamente en la grilla diaria, en la ventana de agregar colaborador y en la plantilla del supervisor.
+                </MudAlert>
+
+                @* Formulario rápido para agregar nueva área *@
+                <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="2" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-2 text-primary">
+                        <MudIcon Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small" Class="mr-1" />
+                        Registrar Nueva Área para un Cliente
+                    </MudText>
+                    <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                        <MudItem xs="12" sm="5">
+                            <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="nuevoClienteAreaOpId" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione el cliente --</MudSelectItem>
+                                @foreach (var op in operacionesList)
+                                {
+                                    <MudSelectItem T="int?" Value="@op.id">@op.nombre</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="5">
+                            <MudTextField @bind-Value="nuevaAreaNombre" Label="Nombre del Área Operativa (ej. Despacho, DCC, Embotellado)" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarNuevaAreaCliente">
+                                Guardar
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                @* Filtros de búsqueda de catálogo *@
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudItem xs="12" sm="5">
+                        <MudSelect T="int?" Label="Filtrar por Cliente" @bind-Value="filtroClienteAreaId" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                            <MudSelectItem T="int?" Value="@((int?)null)">-- Todos los Clientes (@catalogoClienteAreas.Count áreas) --</MudSelectItem>
+                            @foreach (var op in operacionesList)
+                            {
+                                int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id);
+                                <MudSelectItem T="int?" Value="@op.id">@op.nombre (@count)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="5">
+                        <MudTextField @bind-Value="filtroTextoArea" Placeholder="Buscar por área o cliente..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="2" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="@CargarCatalogoClienteAreas" Disabled="@cargandoAreas">
+                            Actualizar
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+
+                @if (cargandoAreas)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+                }
+                else
+                {
+                    <MudTable Items="@CatalogoAreasFiltrado" Dense="true" Hover="true" Striped="true" Elevation="1" Class="rounded-lg" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="width: 250px;">Cliente / Operación</MudTh>
+                            <MudTh>Área Operativa</MudTh>
+                            <MudTh Style="width: 140px;">Registrado por</MudTh>
+                            <MudTh Style="width: 140px;">Fecha</MudTh>
+                            <MudTh Style="width: 60px;"></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
+                                    @context.ClienteNombre
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                                    @context.AreaNombre
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? "Sistema" : context.Usuario)</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy") : "-")</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarAreaCliente(context))" Title="Eliminar área" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                        </PagerContent>
                     </MudTable>
                 }
             </MudPaper>

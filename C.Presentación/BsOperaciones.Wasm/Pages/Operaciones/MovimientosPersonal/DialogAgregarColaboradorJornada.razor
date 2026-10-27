@@ -50,7 +50,7 @@
 
                 @* Cliente y Área *@
                 <MudItem xs="12" md="6">
-                    <MudSelect T="string" Label="Cliente / Operación" @bind-Value="Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelect T="string" Label="Cliente / Operación" Value="Cliente" ValueChanged="@OnClienteChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                         @foreach (var op in OperacionesDisponibles)
                         {
                             <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
@@ -67,7 +67,8 @@
                                      CoerceValue="true"
                                      Variant="Variant.Outlined"
                                      Margin="Margin.Dense"
-                                     Dense="true" />
+                                     Dense="true"
+                                     MaxItems="100" />
                 </MudItem>
 
                 @* Puesto y Turno *@
@@ -123,11 +124,13 @@
 
     [Parameter] public List<Combos> OperacionesDisponibles { get; set; } = new();
     [Parameter] public List<string> AreasDisponibles { get; set; } = new();
+    [Parameter] public Dictionary<string, List<string>> AreasPorCliente { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     [Parameter] public List<string> CargosDisponibles { get; set; } = new();
     [Parameter] public string OperacionDefecto { get; set; } = string.Empty;
     [Parameter] public string AreaDefecto { get; set; } = "Operaciones";
     [Parameter] public string TextoBusquedaInicial { get; set; } = string.Empty;
 
+    private List<string> areasActuales = new();
     private List<OdooEmployeeDto> catalogoOdooCompleto = new();
     private OdooEmployeeDto? empleadoSeleccionado;
 
@@ -147,7 +150,16 @@
     protected override async Task OnInitializedAsync()
     {
         Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) ? OperacionDefecto : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? "WalMart");
-        Area = !string.IsNullOrWhiteSpace(AreaDefecto) ? AreaDefecto : "Operaciones";
+        ActualizarAreasParaCliente(Cliente);
+
+        if (!string.IsNullOrWhiteSpace(AreaDefecto) && areasActuales.Contains(AreaDefecto, StringComparer.OrdinalIgnoreCase))
+        {
+            Area = AreaDefecto;
+        }
+        else
+        {
+            Area = areasActuales.FirstOrDefault() ?? "Operaciones";
+        }
 
         // Cargar catálogo de Odoo para búsqueda rápida
         try
@@ -175,6 +187,44 @@
                 if (match != null) OnEmpleadoOdooSeleccionado(match);
             }
         }
+    }
+
+    private void OnClienteChanged(string nuevoCliente)
+    {
+        Cliente = nuevoCliente;
+        ActualizarAreasParaCliente(nuevoCliente);
+        if (!areasActuales.Contains(Area, StringComparer.OrdinalIgnoreCase))
+        {
+            Area = areasActuales.FirstOrDefault() ?? "Operaciones";
+        }
+    }
+
+    private void ActualizarAreasParaCliente(string? cliente)
+    {
+        if (string.IsNullOrWhiteSpace(cliente))
+        {
+            areasActuales = AreasDisponibles.Any() ? AreasDisponibles : new List<string> { "Operaciones" };
+            return;
+        }
+
+        string limpio = cliente.Trim();
+        if (AreasPorCliente.TryGetValue(limpio, out var list) && list.Any())
+        {
+            areasActuales = list;
+            return;
+        }
+
+        var match = AreasPorCliente.FirstOrDefault(kvp =>
+            kvp.Key.Contains(limpio, StringComparison.OrdinalIgnoreCase) ||
+            limpio.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
+
+        if (match.Value != null && match.Value.Any())
+        {
+            areasActuales = match.Value;
+            return;
+        }
+
+        areasActuales = AreasDisponibles.Any() ? AreasDisponibles : new List<string> { "Operaciones" };
     }
 
     private Task<IEnumerable<OdooEmployeeDto>> BuscarColaboradorOdoo(string valor, CancellationToken token)
@@ -219,9 +269,9 @@
     private Task<IEnumerable<string>> BuscarAreas(string valor, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(valor))
-            return Task.FromResult<IEnumerable<string>>(AreasDisponibles);
+            return Task.FromResult<IEnumerable<string>>(areasActuales);
 
-        return Task.FromResult(AreasDisponibles.Where(x => x.Contains(valor, StringComparison.OrdinalIgnoreCase)));
+        return Task.FromResult(areasActuales.Where(x => x.Contains(valor, StringComparison.OrdinalIgnoreCase)));
     }
 
     private void Cancelar() => MudDialog.Cancel();

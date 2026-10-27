@@ -143,6 +143,34 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.AreaDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
                     x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase));
 
+        // Catálogo de Áreas por Cliente (Tab 5)
+        protected List<ClienteAreaDto> catalogoClienteAreas = new();
+        protected Dictionary<string, List<string>> areasPorCliente = new(StringComparer.OrdinalIgnoreCase);
+        protected int? filtroClienteAreaId = null;
+        protected string filtroTextoArea = string.Empty;
+        protected bool cargandoAreas = false;
+        protected string nuevaAreaNombre = string.Empty;
+        protected int? nuevoClienteAreaOpId = null;
+
+        protected IEnumerable<ClienteAreaDto> CatalogoAreasFiltrado
+        {
+            get
+            {
+                var list = catalogoClienteAreas.AsEnumerable();
+                if (filtroClienteAreaId.HasValue && filtroClienteAreaId.Value > 0)
+                {
+                    list = list.Where(x => x.OperacionId == filtroClienteAreaId.Value);
+                }
+                if (!string.IsNullOrWhiteSpace(filtroTextoArea))
+                {
+                    list = list.Where(x =>
+                        (x.AreaNombre != null && x.AreaNombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)) ||
+                        (x.ClienteNombre != null && x.ClienteNombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)));
+                }
+                return list.OrderBy(x => x.ClienteNombre).ThenBy(x => x.AreaNombre);
+            }
+        }
+
         // Totales calculados
         protected int TotalColaboradores => empleadosJornada.Count;
         protected int TotalPresentes => empleadosJornada.Count(x => x.Asistio);
@@ -179,6 +207,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 await PurgarBorradoresLocales();
                 await CargarOperaciones();
+                await CargarCatalogoClienteAreas();
                 await RecuperarOperacionPrevia();
                 await CargarMiPlantilla();
                 await CargarJornadaActual();
@@ -693,14 +722,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
+            var firstClient = seleccionados.FirstOrDefault()?.Cliente;
+            var clientAreas = GetAreasParaCliente(firstClient);
+
             var parameters = new DialogParameters
             {
                 ["CantidadSeleccionada"] = seleccionados.Count,
-                ["AreasDisponibles"] = areasSugeridas,
+                ["OperacionesDisponibles"] = operacionesList,
+                ["AreasPorCliente"] = areasPorCliente,
+                ["AreasDisponibles"] = clientAreas,
                 ["CargosDisponibles"] = cargosDisponibles,
                 ["AreaInicial"] = seleccionados.First().Area,
                 ["PuestoInicial"] = seleccionados.First().Puesto,
-                ["ClienteInicial"] = seleccionados.First().Cliente
+                ["ClienteInicial"] = firstClient ?? string.Empty
             };
 
             var dialog = await _dialogService.ShowAsync<DialogAsignacionMasivaTurno>("Asignación Masiva", parameters);
@@ -732,13 +766,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- AGREGAR COLABORADOR MANUAL O DESDE ODOO ---
         protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "")
         {
+            string defaultOp = selectedOperacionId.HasValue 
+                ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "") 
+                : (operacionesList.FirstOrDefault()?.nombre ?? "WalMart");
+            var defaultAreas = GetAreasParaCliente(defaultOp);
+
             var parameters = new DialogParameters
             {
                 ["OperacionesDisponibles"] = operacionesList,
-                ["AreasDisponibles"] = areasSugeridas,
+                ["AreasDisponibles"] = defaultAreas,
+                ["AreasPorCliente"] = areasPorCliente,
                 ["CargosDisponibles"] = cargosDisponibles,
-                ["OperacionDefecto"] = selectedOperacionId.HasValue ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "") : "",
-                ["AreaDefecto"] = areasSugeridas.FirstOrDefault() ?? "Operaciones",
+                ["OperacionDefecto"] = defaultOp,
+                ["AreaDefecto"] = defaultAreas.FirstOrDefault() ?? "Operaciones",
                 ["TextoBusquedaInicial"] = textoInicial
             };
 
@@ -1307,6 +1347,130 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ");
             }
             catch { }
+        }
+
+        // --- CATÁLOGO DE ÁREAS POR CLIENTE ---
+        public List<string> GetAreasParaCliente(string? cliente)
+        {
+            if (string.IsNullOrWhiteSpace(cliente))
+                return areasSugeridas.Any() ? areasSugeridas : new List<string> { "Operaciones" };
+
+            string limpio = cliente.Trim();
+            if (areasPorCliente.TryGetValue(limpio, out var exactList) && exactList.Any())
+                return exactList;
+
+            var match = areasPorCliente.FirstOrDefault(kvp =>
+                kvp.Key.Contains(limpio, StringComparison.OrdinalIgnoreCase) ||
+                limpio.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
+
+            if (match.Value != null && match.Value.Any())
+                return match.Value;
+
+            return new List<string> { "Operaciones" };
+        }
+
+        protected async Task CargarCatalogoClienteAreas()
+        {
+            cargandoAreas = true;
+            try
+            {
+                var resp = await _odooService.GetAllClienteAreas();
+                if (resp?.Model != null && resp.Model.Any())
+                {
+                    catalogoClienteAreas = resp.Model.ToList();
+                    areasPorCliente.Clear();
+
+                    foreach (var item in catalogoClienteAreas.Where(x => x.Activo))
+                    {
+                        if (!string.IsNullOrWhiteSpace(item.ClienteNombre))
+                        {
+                            var cName = item.ClienteNombre.Trim();
+                            if (!areasPorCliente.ContainsKey(cName))
+                                areasPorCliente[cName] = new List<string>();
+
+                            if (!areasPorCliente[cName].Contains(item.AreaNombre.Trim(), StringComparer.OrdinalIgnoreCase))
+                                areasPorCliente[cName].Add(item.AreaNombre.Trim());
+                        }
+                    }
+
+                    if (selectedOperacionId.HasValue)
+                    {
+                        var op = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value);
+                        if (op != null)
+                        {
+                            areasSugeridas = GetAreasParaCliente(op.nombre);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando catalogo cliente areas: {ex.Message}");
+            }
+            finally
+            {
+                cargandoAreas = false;
+            }
+        }
+
+        protected async Task GuardarNuevaAreaCliente()
+        {
+            if (!nuevoClienteAreaOpId.HasValue || nuevoClienteAreaOpId.Value <= 0)
+            {
+                _snackbar.Add("Seleccione el cliente para la nueva área.", Severity.Warning);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(nuevaAreaNombre))
+            {
+                _snackbar.Add("Ingrese el nombre del área operativa.", Severity.Warning);
+                return;
+            }
+
+            var op = operacionesList.FirstOrDefault(x => x.id == nuevoClienteAreaOpId.Value);
+            string cName = op?.nombre ?? $"Cliente #{nuevoClienteAreaOpId.Value}";
+
+            var req = new GuardarClienteAreaRequest
+            {
+                OperacionId = nuevoClienteAreaOpId.Value,
+                ClienteNombre = cName,
+                AreaNombre = nuevaAreaNombre.Trim(),
+                Usuario = currentUserName
+            };
+
+            var res = await _odooService.GuardarClienteArea(req);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Área '{nuevaAreaNombre}' guardada exitosamente para '{cName}'.", Severity.Success);
+                nuevaAreaNombre = string.Empty;
+                await CargarCatalogoClienteAreas();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar el área.", Severity.Error);
+            }
+        }
+
+        protected async Task EliminarAreaCliente(ClienteAreaDto item)
+        {
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Eliminar Área",
+                $"¿Está seguro de eliminar el área '{item.AreaNombre}' del cliente '{item.ClienteNombre}'?",
+                yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+            if (confirm == true)
+            {
+                var res = await _odooService.EliminarClienteArea(item.Id);
+                if (res?.Respuesta?.ExisteError == false)
+                {
+                    _snackbar.Add($"Área '{item.AreaNombre}' eliminada.", Severity.Info);
+                    await CargarCatalogoClienteAreas();
+                }
+                else
+                {
+                    _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar área.", Severity.Error);
+                }
+            }
         }
 
         private async Task GuardarBorradorLocal() => await Task.CompletedTask;

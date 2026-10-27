@@ -127,4 +127,24 @@ namespace Modelo.ClasesGenericas
         public string Usuario { get; set; } = string.Empty;
         public List<SupervisorPlantillaItemDto> Items { get; set; } = new();
     }
+
+    public class ClienteAreaDto
+    {
+        public int Id { get; set; }
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string AreaNombre { get; set; } = string.Empty;
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public string? Usuario { get; set; }
+    }
+
+    public class GuardarClienteAreaRequest
+    {
+        public int Id { get; set; }
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string AreaNombre { get; set; } = string.Empty;
+        public string Usuario { get; set; } = "Supervisor";
+    }
 }
