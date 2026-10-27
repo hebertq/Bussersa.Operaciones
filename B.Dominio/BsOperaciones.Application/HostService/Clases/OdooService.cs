@@ -3791,13 +3791,17 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId)
+        public async Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId = 0, string usuario = "")
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> response = new ListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>();
             try
             {
-                var requestUrl = CreateRequestUri("Operaciones/GetMovimientosPersonalDiario", $"fecha={fecha:yyyy-MM-dd}&operacionId={operacionId}");
+                var queryParams = $"fecha={fecha:yyyy-MM-dd}&operacionId={operacionId}";
+                if (!string.IsNullOrWhiteSpace(usuario))
+                    queryParams += $"&usuario={Uri.EscapeDataString(usuario)}";
+
+                var requestUrl = CreateRequestUri("Operaciones/GetMovimientosPersonalDiario", queryParams);
                 var registro = await GetAsync(requestUrl);
                 if (registro.IsSuccess)
                 {

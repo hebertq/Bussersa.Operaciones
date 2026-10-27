@@ -43,9 +43,12 @@
             @* Operación / Cliente *@
             <MudItem xs="12" sm="6" md="4">
                 <MudSelect T="int?" 
-                           Label="Operación / Cliente" 
+                           Label="Operación / Cliente a Precargar" 
                            Value="@selectedOperacionId" 
                            ValueChanged="@OnOperacionChanged"
+                           Placeholder="Seleccione de la lista..."
+                           ToStringFunc="@(id => id.HasValue && id.Value > 0 ? (operacionesList.FirstOrDefault(x => x.id == id.Value)?.nombre ?? id.Value.ToString()) : string.Empty)"
+                           Clearable="true"
                            Variant="Variant.Outlined" 
                            Margin="Margin.Dense"
                            Adornment="Adornment.Start" 
@@ -114,18 +117,23 @@
                 </MudChip>
             </MudStack>
 
-            @if (HayCambiosSinGuardar)
-            {
-                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
-                    Cambios sin guardar en BD
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
+                    Supervisor: <b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
                 </MudChip>
-            }
-            else if (empleadosJornada.Any())
-            {
-                <MudChip T="string" Color="Color.Success" Variant="Variant.Text" Size="Size.Small" Icon="@Icons.Material.Filled.CloudDone">
-                    Sincronizado con BD
-                </MudChip>
-            }
+                @if (HayCambiosSinGuardar)
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                        Cambios sin guardar en BD
+                    </MudChip>
+                }
+                else if (empleadosJornada.Any())
+                {
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Text" Size="Size.Small" Icon="@Icons.Material.Filled.CloudDone">
+                        Sincronizado con BD
+                    </MudChip>
+                }
+            </MudStack>
         </MudStack>
     </MudPaper>
 
@@ -289,12 +297,12 @@
                                              Color="Color.Primary" />
                             </MudTh>
                             <MudTh>Colaborador</MudTh>
+                            <MudTh Style="width: 140px;">Cliente / Op.</MudTh>
                             <MudTh Style="width: 110px;">Asistencia</MudTh>
                             <MudTh>Área Operativa</MudTh>
                             <MudTh>Cargo / Puesto</MudTh>
                             <MudTh Style="width: 140px;">Turno / Horas</MudTh>
                             <MudTh Style="width: 130px;">Viáticos</MudTh>
-                            <MudTh Style="width: 100px;">Subcliente</MudTh>
                             <MudTh Style="width: 60px;"></MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -319,6 +327,21 @@
                                         </div>
                                     </div>
                                 </MudStack>
+                            </MudTd>
+
+                            @* Cliente / Operación *@
+                            <MudTd>
+                                <MudAutocomplete T="string" 
+                                                 @bind-Value="@context.Cliente" 
+                                                 SearchFunc="@((val, token) => Task.FromResult(operacionesList.Select(o => o.nombre).Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
+                                                 ResetValueOnEmptyText="false"
+                                                 CoerceText="true"
+                                                 CoerceValue="true"
+                                                 Dense="true" 
+                                                 Margin="Margin.Dense" 
+                                                 Variant="Variant.Outlined" 
+                                                 Placeholder="Cliente..."
+                                                 TextChanged="@(() => { context.Modificado = true; ActualizarGruposConsolidados(); })" />
                             </MudTd>
 
                             @* Asistencia (Touch Switch) *@
@@ -432,21 +455,6 @@
                                 }
                             </MudTd>
 
-                            @* Subcliente *@
-                            <MudTd>
-                                @if (context.Asistio)
-                                {
-                                    <MudTextField @bind-Value="@context.Cliente" 
-                                                  Margin="Margin.Dense" 
-                                                  Variant="Variant.Outlined" 
-                                                  Placeholder="Subcliente"
-                                                  TextChanged="@(() => { context.Modificado = true; ActualizarGruposConsolidados(); })" />
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
-                                }
-                            </MudTd>
 
                             @* Acciones *@
                             <MudTd>
@@ -509,9 +517,17 @@
                                         </MudAvatar>
                                     </CardHeaderAvatar>
                                     <CardHeaderContent>
-                                        <MudText Typo="Typo.subtitle1" Class="fw-bold text-truncate">
-                                            @grupo.Area
-                                        </MudText>
+                                        <div class="d-flex align-center gap-1 mb-1">
+                                            @if (!string.IsNullOrWhiteSpace(grupo.Cliente))
+                                            {
+                                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.7rem;">
+                                                    @grupo.Cliente
+                                                </MudChip>
+                                            }
+                                            <MudText Typo="Typo.subtitle1" Class="fw-bold text-truncate">
+                                                @grupo.Area
+                                            </MudText>
+                                        </div>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             @grupo.Puesto • @grupo.TurnoNombre (@grupo.HoraInicio - @grupo.HoraFin)
                                         </MudText>

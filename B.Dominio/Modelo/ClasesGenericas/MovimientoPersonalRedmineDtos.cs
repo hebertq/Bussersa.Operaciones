@@ -29,6 +29,7 @@ namespace Modelo.ClasesGenericas
         public string EsOperacionMixta { get; set; } = "0";
         public string? VtcoTrasp { get; set; } = "0";
         public string? VtcoAlim { get; set; } = "0";
+        public string? Cliente { get; set; } = string.Empty;
     }
 
     public class ResultadoCreacionMovimientosDto
