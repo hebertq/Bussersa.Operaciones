@@ -1,0 +1,580 @@
+@page "/operaciones/registro-movimientos-supervisor"
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Admin
+@using System.Globalization
+@attribute [Authorize]
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-8 px-2 px-sm-4">
+
+    @* Barra Superior de Control de la Tablet *@
+    <MudPaper Elevation="2" Class="pa-3 mb-3" Style="border-left: 5px solid #1E88E5; border-radius: 12px;">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap gap-2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                    <MudIcon Icon="@Icons.Material.Filled.TabletAndroid" Size="Size.Small" />
+                </MudAvatar>
+                <div>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.h6" Class="fw-bold mb-0">Movimientos de Personal</MudText>
+                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Class="d-none d-sm-inline-flex">
+                            Tablet Supervisores
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Registro táctil directo en campo sin hojas de cálculo
+                    </MudText>
+                </div>
+            </MudStack>
+
+            @* Estadísticas Rápidas de la Jornada *@
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap">
+                <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Groups">
+                    @TotalPersonalRegistrado personas
+                </MudChip>
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FormatListNumbered">
+                    @TotalMovimientos grupos
+                </MudChip>
+                @if (TotalSincronizados > 0)
+                {
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                        @TotalSincronizados enviados
+                    </MudChip>
+                }
+                @if (TotalPendientesEnvio > 0)
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Pending">
+                        @TotalPendientesEnvio pendientes
+                    </MudChip>
+                }
+                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="LimpiarTodaLaJornada">
+                    Reiniciar
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        @* Selectores Principales: Fecha y Operación *@
+        <MudDivider Class="my-2" />
+        <MudGrid Spacing="2" Class="align-center">
+            <MudItem xs="12" sm="4" md="3">
+                <MudDatePicker Label="Fecha de la Jornada" 
+                               @bind-Date="fechaSeleccionada" 
+                               DateFormat="dd/MM/yyyy" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.CalendarToday"
+                               AdornmentColor="Color.Primary" />
+            </MudItem>
+            <MudItem xs="12" sm="8" md="5">
+                <MudSelect T="int?" 
+                           Label="Operación / Cliente" 
+                           Value="@selectedOperacionId" 
+                           ValueChanged="OnOperacionChanged"
+                           ToStringFunc="ObtenerNombreOperacion"
+                           Placeholder="Seleccione la operación..."
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense"
+                           Adornment="Adornment.Start"
+                           AdornmentIcon="@Icons.Material.Filled.Business" 
+                           AdornmentColor="Color.Primary">
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)op.id)">@($"{op.id}-{op.nombre}")</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex align-center">
+                @if (!string.IsNullOrEmpty(clienteRedmineIdentificador))
+                {
+                    <MudAlert Severity="Severity.Normal" Dense="true" Class="py-1 w-100" Icon="@Icons.Material.Filled.Link">
+                        Redmine: <strong>@clienteRedmineIdentificador</strong>
+                    </MudAlert>
+                }
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* Cuadrícula Principal: Formulario Táctil (Izquierda) + Resumen de Jornada (Derecha) *@
+    <MudGrid Spacing="3">
+
+        @* COLUMNA IZQUIERDA: Formulario Táctil de Registro *@
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Style="border-radius: 12px;">
+                <MudCardHeader Class="pb-2">
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="@(editandoItemId.HasValue ? Color.Warning : Color.Primary)" Variant="Variant.Filled" Size="Size.Small">
+                            <MudIcon Icon="@(editandoItemId.HasValue ? Icons.Material.Filled.Edit : Icons.Material.Filled.AddCircle)" Size="Size.Small" />
+                        </MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                            @(editandoItemId.HasValue ? "Editar Movimiento de Personal" : "Nuevo Movimiento de Personal")
+                        </MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        @if (editandoItemId.HasValue)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Default" Size="Size.Small" OnClick="CancelarEdicion">
+                                Cancelar
+                            </MudButton>
+                        }
+                    </CardHeaderActions>
+                </MudCardHeader>
+
+                <MudCardContent Class="pt-0">
+                    <MudStack Spacing="3">
+
+                        @* 1. Presets de Turno Táctiles *@
+                        <div>
+                            <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">
+                                1. Turno y Horario
+                            </MudText>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <MudButton Variant="@(turnoSeleccionado == "Diurno" ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SeleccionarTurno("Diurno"))"
+                                           StartIcon="@Icons.Material.Filled.WbSunny">
+                                    Diurno (06-14)
+                                </MudButton>
+                                <MudButton Variant="@(turnoSeleccionado == "DCC" ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SeleccionarTurno("DCC"))"
+                                           StartIcon="@Icons.Material.Filled.Store">
+                                    DCC (07-17)
+                                </MudButton>
+                                <MudButton Variant="@(turnoSeleccionado == "Mixto" ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Secondary"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SeleccionarTurno("Mixto"))"
+                                           StartIcon="@Icons.Material.Filled.WbTwilight">
+                                    Mixto (14-22)
+                                </MudButton>
+                                <MudButton Variant="@(turnoSeleccionado == "Nocturno" ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Dark"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SeleccionarTurno("Nocturno"))"
+                                           StartIcon="@Icons.Material.Filled.NightsStay">
+                                    Nocturno (22-06)
+                                </MudButton>
+                                <MudButton Variant="@(turnoSeleccionado == "Personalizado" ? Variant.Filled : Variant.Outlined)"
+                                           Color="Color.Default"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SeleccionarTurno("Personalizado"))"
+                                           StartIcon="@Icons.Material.Filled.Tune">
+                                    Manual
+                                </MudButton>
+                            </div>
+
+                            @* Selectores de Horas *@
+                            <MudGrid Spacing="2" Class="mt-1">
+                                <MudItem xs="6">
+                                    <MudTimePicker Label="Hora Inicio" 
+                                                   @bind-Time="horaInicio" 
+                                                   Variant="Variant.Outlined" 
+                                                   Margin="Margin.Dense"
+                                                   Adornment="Adornment.Start"
+                                                   AdornmentIcon="@Icons.Material.Filled.AccessTime" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTimePicker Label="Hora Fin" 
+                                                   @bind-Time="horaFin" 
+                                                   Variant="Variant.Outlined" 
+                                                   Margin="Margin.Dense"
+                                                   Adornment="Adornment.Start"
+                                                   AdornmentIcon="@Icons.Material.Filled.AccessTimeFilled" />
+                                </MudItem>
+                            </MudGrid>
+                        </div>
+
+                        <MudDivider />
+
+                        @* 2. Área y Cargo *@
+                        <div>
+                            <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">
+                                2. Área y Cargo
+                            </MudText>
+                            <MudGrid Spacing="2" Class="mt-1">
+                                <MudItem xs="12" sm="7">
+                                    <MudAutocomplete T="string"
+                                                     Label="Área Operativa"
+                                                     @bind-Value="areaInput"
+                                                     SearchFunc="BuscarArea"
+                                                     ResetValueOnEmptyText="false"
+                                                     CoerceText="true"
+                                                     CoerceValue="true"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Placeholder="Ej. WalMart Importado DCC"
+                                                     Adornment="Adornment.Start"
+                                                     AdornmentIcon="@Icons.Material.Filled.Place"
+                                                     AdornmentColor="Color.Primary" />
+                                </MudItem>
+                                <MudItem xs="12" sm="5">
+                                    <MudSelect T="string"
+                                               Label="Cargo / Puesto"
+                                               @bind-Value="cargoInput"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense"
+                                               Adornment="Adornment.Start"
+                                               AdornmentIcon="@Icons.Material.Filled.Badge"
+                                               AdornmentColor="Color.Primary">
+                                        @foreach (var c in cargosDisponibles)
+                                        {
+                                            <MudSelectItem T="string" Value="@c">@c</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+                        </div>
+
+                        <MudDivider />
+
+                        @* 3. Selección Inteligente de Personal *@
+                        <div>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">
+                                    3. Personal Asignado (@empleadosSeleccionados.Count)
+                                </MudText>
+                                <MudButton Variant="Variant.Text" 
+                                           Color="Color.Primary" 
+                                           Size="Size.Small" 
+                                           StartIcon="@Icons.Material.Filled.LibraryAdd" 
+                                           OnClick="AbrirDialogoCatalogo">
+                                    Abrir Catálogo Masivo
+                                </MudButton>
+                            </MudStack>
+
+                            @* Buscador Rápido de Empleado (Autocompletado con un toque) *@
+                            <MudAutocomplete T="OdooEmployeeDto"
+                                             Label="Buscar empleado por nombre o código..."
+                                             Value="@empleadoAutocompletado"
+                                             ValueChanged="OnEmpleadoSeleccionadoDesdeAutocomplete"
+                                             SearchFunc="BuscarEmpleado"
+                                             ToStringFunc="@(e => e != null ? $"#{e.CodigoEmpleado ?? e.Id} - {e.Name}" : string.Empty)"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Placeholder="Escribe nombre o número de carnet..."
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.PersonSearch"
+                                             AdornmentColor="Color.Primary"
+                                             Class="mt-1"
+                                             Clearable="true">
+                                <ItemTemplate Context="emp">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudChip T="string" Color="Color.Default" Variant="Variant.Filled" Size="Size.Small" Style="font-family: monospace; font-weight: 700;">
+                                            #@(emp.CodigoEmpleado ?? emp.Id)
+                                        </MudChip>
+                                        <div>
+                                            <MudText Typo="Typo.body2" Class="fw-bold">@emp.Name</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @(string.IsNullOrEmpty(emp.JobTitle) ? "Operador" : emp.JobTitle)
+                                            </MudText>
+                                        </div>
+                                    </MudStack>
+                                </ItemTemplate>
+                            </MudAutocomplete>
+
+                            @* Chips de Empleados Seleccionados *@
+                            @if (empleadosSeleccionados.Any())
+                            {
+                                <MudPaper Outlined="true" Class="pa-2 mt-2 rounded-lg" Style="max-height: 180px; overflow-y: auto; background-color: #f8fafc;">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-1">
+                                        <MudText Typo="Typo.caption" Class="fw-bold" Color="Color.Primary">
+                                            @empleadosSeleccionados.Count Empleados en este grupo:
+                                        </MudText>
+                                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="LimpiarEmpleadosSeleccionados">
+                                            Quitar todos
+                                        </MudButton>
+                                    </MudStack>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var emp in empleadosSeleccionados)
+                                        {
+                                            <MudChip T="string"
+                                                     Color="Color.Primary"
+                                                     Variant="Variant.Filled"
+                                                     Size="Size.Small"
+                                                     OnClose="@(() => RemoverEmpleadoDeLista(emp))"
+                                                     CloseIcon="@Icons.Material.Filled.Close">
+                                                <strong>#@(emp.CodigoEmpleado ?? emp.Id)</strong> @emp.Name.Split(' ').FirstOrDefault()
+                                            </MudChip>
+                                        }
+                                    </div>
+                                </MudPaper>
+                            }
+
+                            @* Entrada de Códigos Manuales (opcional) *@
+                            <MudTextField @bind-Value="idsManualesInput"
+                                          Label="Códigos adicionales manuales (opcional, separados por coma)"
+                                          Placeholder="Ej. 3424, 1538, 3511"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Class="mt-2"
+                                          HelperText="Úsalo para agregar carnets rápidos no encontrados en el catálogo" />
+                        </div>
+
+                        <MudDivider />
+
+                        @* 4. Viáticos e Incidencias *@
+                        <div>
+                            <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">
+                                4. Viáticos y Observaciones
+                            </MudText>
+                            <MudGrid Spacing="2" Class="mt-1">
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="viaticoTransporte"
+                                                     Label="Vtco. Transporte (C$)"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Min="0m"
+                                                     Format="N2"
+                                                     Adornment="Adornment.Start"
+                                                     AdornmentText="C$" />
+                                    <div class="d-flex gap-1 mt-1">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default" OnClick="@(() => AsignarViaticoTransporte(0m))">C$0</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="@(() => AsignarViaticoTransporte(50m))">+50</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="@(() => AsignarViaticoTransporte(100m))">+100</MudButton>
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="viaticoAlimentacion"
+                                                     Label="Vtco. Alimentación (C$)"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Min="0m"
+                                                     Format="N2"
+                                                     Adornment="Adornment.Start"
+                                                     AdornmentText="C$" />
+                                    <div class="d-flex gap-1 mt-1">
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default" OnClick="@(() => AsignarViaticoAlimentacion(0m))">C$0</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="@(() => AsignarViaticoAlimentacion(50m))">+50</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" OnClick="@(() => AsignarViaticoAlimentacion(100m))">+100</MudButton>
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudTextField @bind-Value="observacionesInput"
+                                          Label="Observaciones del movimiento (opcional)"
+                                          Placeholder="Detalles de la labor, motivo de asignación..."
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Lines="2"
+                                          Class="mt-2" />
+
+                            @* Desplegable de Opciones Avanzadas (Bonos, Doble Turno, etc.) *@
+                            <MudExpansionPanels Class="mt-2" Dense="true" Elevation="0">
+                                <MudExpansionPanel Text="Opciones Avanzadas (Bonos, Doble Turno, Asunto Redmine)">
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="6">
+                                            <MudTextField @bind-Value="bonosInput" Label="Bonos (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudCheckBox @bind-Value="esDobleTurno" Label="Doble Turno" Color="Color.Warning" Dense="true" />
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudTextField @bind-Value="tiempoComidaInput" Label="Tiempo Comida (Horas)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudCheckBox @bind-Value="esOperacionMixta" Label="Operación Mixta" Color="Color.Secondary" Dense="true" />
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            <MudTextField @bind-Value="asuntoPersonalizado"
+                                                          Label="Asunto Personalizado para Redmine"
+                                                          Placeholder="Por defecto: [Área] - [Cargo]"
+                                                          Variant="Variant.Outlined"
+                                                          Margin="Margin.Dense" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudExpansionPanel>
+                            </MudExpansionPanels>
+                        </div>
+
+                        @* Botón Principal de Agregar *@
+                        <MudButton Variant="Variant.Filled"
+                                   Color="@(editandoItemId.HasValue ? Color.Warning : Color.Primary)"
+                                   Size="Size.Large"
+                                   StartIcon="@(editandoItemId.HasValue ? Icons.Material.Filled.Save : Icons.Material.Filled.AddCircle)"
+                                   OnClick="AgregarOActualizarMovimiento"
+                                   Style="border-radius: 10px; font-weight: 700; height: 50px;">
+                            @(editandoItemId.HasValue ? "Actualizar Movimiento" : "Agregar Movimiento a la Jornada")
+                        </MudButton>
+
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* COLUMNA DERECHA: Lista de Movimientos Registrados en la Jornada *@
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Style="border-radius: 12px; height: 100%; display: flex; flex-direction: column;">
+                <MudCardHeader Class="pb-2">
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
+                            <MudIcon Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" />
+                        </MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                            Jornada Actual (@TotalMovimientos grupos • @TotalPersonalRegistrado personas)
+                        </MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Color="Color.Default" Variant="Variant.Filled" Size="Size.Small">
+                            @((fechaSeleccionada ?? DateTime.Today).ToString("dd/MM/yyyy"))
+                        </MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+
+                <MudCardContent Class="pt-0 flex-grow-1 overflow-auto" Style="max-height: 650px;">
+                    @if (!movimientosJornada.Any())
+                    {
+                        <div class="d-flex flex-column align-center justify-center py-12 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.PostAdd" Color="Color.Secondary" Size="Size.Large" Class="mb-3" />
+                            <MudText Typo="Typo.h6" Color="Color.Secondary">No hay movimientos agregados</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1" Style="max-width: 320px;">
+                                Utilice el formulario de la izquierda para agregar los grupos de personal trabajados en el turno.
+                            </MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            @foreach (var mov in movimientosJornada)
+                            {
+                                <MudPaper Elevation="1" Class="pa-3 rounded-lg" Style="@(mov.Estado == EstadoMovimientoSupervisor.Sincronizado ? "border-left: 4px solid #4CAF50;" : (mov.Estado == EstadoMovimientoSupervisor.Error ? "border-left: 4px solid #F44336;" : "border-left: 4px solid #1E88E5;"))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                        <div>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudChip T="string" Color="Color.Default" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 700;">
+                                                    #@mov.FilaIndex
+                                                </MudChip>
+                                                <MudText Typo="Typo.subtitle2" Class="fw-bold">@mov.Area</MudText>
+                                            </MudStack>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+                                                <strong>@mov.Cargo</strong> • Horario: <strong>@mov.HoraInicio - @mov.HoraFin</strong> (@mov.TurnoPreset)
+                                            </MudText>
+                                        </div>
+
+                                        @* Estado y Acciones *@
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            @if (mov.Estado == EstadoMovimientoSupervisor.Sincronizado)
+                                            {
+                                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Check">
+                                                    Redmine #@mov.RedmineIssueId
+                                                </MudChip>
+                                            }
+                                            else if (mov.Estado == EstadoMovimientoSupervisor.Enviando)
+                                            {
+                                                <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+                                            }
+                                            else if (mov.Estado == EstadoMovimientoSupervisor.Error)
+                                            {
+                                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Error">
+                                                    Error
+                                                </MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">
+                                                    Borrador
+                                                </MudChip>
+                                            }
+
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Default" 
+                                                           OnClick="@(() => CargarParaEditar(mov))"
+                                                           Disabled="@estaEnviando" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Error" 
+                                                           OnClick="@(() => EliminarMovimiento(mov))"
+                                                           Disabled="@estaEnviando" />
+                                        </MudStack>
+                                    </MudStack>
+
+                                    @* Detalle de Personal y Viáticos *@
+                                    <div class="mt-2 pt-2" style="border-top: 1px dashed #e2e8f0;">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                                    @mov.CantidadEmpleados personas:
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Dark" Class="text-truncate" Style="max-width: 250px;">
+                                                    @mov.IdsEmpleadosTexto
+                                                </MudText>
+                                            </MudStack>
+
+                                            @* Viáticos *@
+                                            <MudStack Row="true" Spacing="1">
+                                                @if (decimal.TryParse(mov.VtcoTrasp, NumberStyles.Any, CultureInfo.InvariantCulture, out var vt) && vt > 0)
+                                                {
+                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                                        Trasp: C$ @vt.ToString("N0")
+                                                    </MudChip>
+                                                }
+                                                @if (decimal.TryParse(mov.VtcoAlim, NumberStyles.Any, CultureInfo.InvariantCulture, out var va) && va > 0)
+                                                {
+                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                                        Alim: C$ @va.ToString("N0")
+                                                    </MudChip>
+                                                }
+                                            </MudStack>
+                                        </MudStack>
+
+                                        @if (!string.IsNullOrEmpty(mov.Observaciones))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block font-italic">
+                                                " @mov.Observaciones "
+                                            </MudText>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(mov.MensajeError))
+                                        {
+                                            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-1 py-0">
+                                                @mov.MensajeError
+                                            </MudAlert>
+                                        }
+                                    </div>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                </MudCardContent>
+
+                @* Pie de Tarjeta: Resumen y Botón de Envío a Redmine *@
+                <MudCardActions Class="pa-3 mud-theme-primary-lighten d-flex flex-column gap-2" Style="border-top: 1px solid #cbd5e1;">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="w-100">
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">Totales Jornada:</MudText>
+                            <MudText Typo="Typo.body2" Class="fw-bold">
+                                @TotalPersonalRegistrado personas en @TotalMovimientos grupos
+                            </MudText>
+                        </div>
+                        <div class="text-right">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">Viáticos Totales:</MudText>
+                            <MudText Typo="Typo.body2" Class="fw-bold" Color="Color.Info">
+                                C$ @((TotalViaticosTrasp + TotalViaticosAlim).ToString("N2"))
+                            </MudText>
+                        </div>
+                    </MudStack>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               Size="Size.Large"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.CloudUpload"
+                               OnClick="EnviarJornadaARedmine"
+                               Disabled="@(estaEnviando || !movimientosJornada.Any() || TotalPendientesEnvio == 0)"
+                               Style="border-radius: 10px; font-weight: 700; height: 50px;">
+                        @(estaEnviando ? "Enviando a Redmine..." : (TotalPendientesEnvio > 0 ? $"🚀 Enviar {TotalPendientesEnvio} Movimientos a Redmine" : "✅ Todos los movimientos están en Redmine"))
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+
+    </MudGrid>
+
+</MudContainer>

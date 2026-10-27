@@ -1,0 +1,207 @@
+@using Modelo.Entidades.Entradas.Odoo
+@using MudBlazor
+
+<MudDialog Style="border-radius: 16px; overflow: hidden; max-height: 90vh; max-width: 720px; width: 100%;">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Size="Size.Small" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h6" Class="fw-bold">Seleccionar Personal</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @(string.IsNullOrEmpty(NombreOperacion) ? "Catálogo General" : $"Operación: {NombreOperacion}")
+                    </MudText>
+                </div>
+            </MudStack>
+            <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Medium">
+                @SelectedEmployees.Count seleccionados
+            </MudChip>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        <MudStack Spacing="3" Class="py-2">
+            @* Filtros de Búsqueda y Switch *@
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" sm="7">
+                    <MudTextField @bind-Value="searchString"
+                                  Placeholder="Buscar por nombre, código o cargo..."
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true"
+                                  Clearable="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    @if (OperacionId.HasValue && OperacionId.Value > 0)
+                    {
+                        <MudSwitch @bind-Value="filtrarSoloOperacion" 
+                                   Color="Color.Primary" 
+                                   Label="Solo de esta operación" 
+                                   Dense="true" />
+                    }
+                </MudItem>
+            </MudGrid>
+
+            @* Botones de Acción Rápida *@
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Mostrando @ListaFiltrada.Count empleados activos
+                </MudText>
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="SeleccionarVisibles">
+                        Seleccionar visibles
+                    </MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" OnClick="LimpiarSeleccion">
+                        Deseleccionar todo
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+
+            @* Lista Táctil de Empleados *@
+            <MudPaper Outlined="true" Class="rounded-lg overflow-auto" Style="height: 380px;">
+                @if (!ListaFiltrada.Any())
+                {
+                    <div class="d-flex flex-column align-center justify-center h-100 pa-4 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonOff" Color="Color.Secondary" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            No se encontraron empleados con el criterio de búsqueda.
+                        </MudText>
+                        @if (filtrarSoloOperacion)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="@(() => filtrarSoloOperacion = false)" Class="mt-2">
+                                Ver personal de todas las operaciones
+                            </MudButton>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <MudList T="OdooEmployeeDto" Dense="true" Clickable="true">
+                        @foreach (var emp in ListaFiltrada)
+                        {
+                            bool isSelected = SelectedEmployees.Any(x => (x.CodigoEmpleado ?? x.Id) == (emp.CodigoEmpleado ?? emp.Id));
+                            <MudListItem T="OdooEmployeeDto" OnClick="@(() => ToggleEmployee(emp))" Class="@(isSelected ? "mud-theme-primary-lighten pa-2" : "pa-2")" Style="cursor: pointer; border-bottom: 1px solid #f1f5f9;">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudCheckBox T="bool" Value="@isSelected" ValueChanged="@((b) => ToggleEmployee(emp))" Color="Color.Primary" StopClickPropagation="true" Dense="true" />
+                                        <div>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudChip T="string" Color="Color.Default" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 700; font-family: monospace;">
+                                                    #@(emp.CodigoEmpleado ?? emp.Id)
+                                                </MudChip>
+                                                <MudText Typo="Typo.body2" Class="fw-bold">@emp.Name</MudText>
+                                            </MudStack>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                                                @(string.IsNullOrEmpty(emp.JobTitle) ? "Operario" : emp.JobTitle) • @(string.IsNullOrEmpty(emp.DepartmentName) ? "Sin depto" : emp.DepartmentName)
+                                            </MudText>
+                                        </div>
+                                    </MudStack>
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <div class="px-4 pb-3 d-flex justify-end gap-2 w-100">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default" Size="Size.Medium">
+                Cancelar
+            </MudButton>
+            <MudButton OnClick="Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" StartIcon="@Icons.Material.Filled.Check" Style="border-radius: 8px; font-weight: 600;">
+                Confirmar (@SelectedEmployees.Count)
+            </MudButton>
+        </div>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<OdooEmployeeDto> TodosLosEmpleados { get; set; } = new();
+    [Parameter] public List<OdooEmployeeDto> EmpleadosPreseleccionados { get; set; } = new();
+    [Parameter] public int? OperacionId { get; set; }
+    [Parameter] public string NombreOperacion { get; set; } = string.Empty;
+
+    private List<OdooEmployeeDto> SelectedEmployees = new();
+    private string searchString = string.Empty;
+    private bool filtrarSoloOperacion = true;
+
+    protected override void OnInitialized()
+    {
+        SelectedEmployees = EmpleadosPreseleccionados.ToList();
+        filtrarSoloOperacion = OperacionId.HasValue && OperacionId.Value > 0;
+    }
+
+    private List<OdooEmployeeDto> ListaFiltrada
+    {
+        get
+        {
+            var query = TodosLosEmpleados.AsEnumerable();
+
+            if (filtrarSoloOperacion && OperacionId.HasValue && OperacionId.Value > 0)
+            {
+                query = query.Where(x => x.DepartmentId == OperacionId.Value || 
+                                         (x.DepartmentName != null && !string.IsNullOrEmpty(NombreOperacion) && x.DepartmentName.Contains(NombreOperacion, StringComparison.OrdinalIgnoreCase)) ||
+                                         x.JobTitle == "Supervisor de personal");
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchString))
+            {
+                string s = searchString.Trim();
+                query = query.Where(x => 
+                    (x.Name != null && x.Name.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.CodigoEmpleado.HasValue && x.CodigoEmpleado.Value.ToString().Contains(s)) ||
+                    (x.Id.ToString().Contains(s)) ||
+                    (x.JobTitle != null && x.JobTitle.Contains(s, StringComparison.OrdinalIgnoreCase))
+                );
+            }
+
+            return query.OrderBy(x => x.Name).ToList();
+        }
+    }
+
+    private void ToggleEmployee(OdooEmployeeDto emp)
+    {
+        int code = emp.CodigoEmpleado ?? emp.Id;
+        var existing = SelectedEmployees.FirstOrDefault(x => (x.CodigoEmpleado ?? x.Id) == code);
+        if (existing != null)
+        {
+            SelectedEmployees.Remove(existing);
+        }
+        else
+        {
+            SelectedEmployees.Add(emp);
+        }
+    }
+
+    private void SeleccionarVisibles()
+    {
+        foreach (var emp in ListaFiltrada)
+        {
+            int code = emp.CodigoEmpleado ?? emp.Id;
+            if (!SelectedEmployees.Any(x => (x.CodigoEmpleado ?? x.Id) == code))
+            {
+                SelectedEmployees.Add(emp);
+            }
+        }
+    }
+
+    private void LimpiarSeleccion()
+    {
+        SelectedEmployees.Clear();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(SelectedEmployees));
+    }
+}
