@@ -129,6 +129,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected List<MovimientoPersonalDiarioDto> listaHistorial = new();
         protected bool cargandoHistorial = false;
 
+        // Plantilla Personal del Supervisor (Tab 4)
+        protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
+        protected bool cargandoPlantilla = false;
+        protected string textoBusquedaPlantilla = string.Empty;
+        protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
+            string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
+                ? miPlantillaPersonal
+                : miPlantillaPersonal.Where(x =>
+                    x.NombreEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                    x.CodigoEmpleado.ToString().Contains(textoBusquedaPlantilla) ||
+                    x.ClienteDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                    x.AreaDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                    x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase));
+
         // Totales calculados
         protected int TotalColaboradores => empleadosJornada.Count;
         protected int TotalPresentes => empleadosJornada.Count(x => x.Asistio);
@@ -165,6 +179,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 await CargarOperaciones();
                 await RecuperarOperacionPrevia();
+                await CargarMiPlantilla();
                 await CargarJornadaActual();
             }
             catch (Exception ex)
@@ -355,6 +370,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (!cargoBorrador)
                     {
                         empleadosJornada.Clear();
+                        // 3. Si no hay registros previos para hoy, precargar automáticamente la plantilla definida por el supervisor
+                        if (miPlantillaPersonal.Any())
+                        {
+                            await PrecargarDesdeMiPlantilla(forzarCarga: true);
+                        }
                     }
                 }
 
@@ -370,72 +390,188 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- PRECARGA DE EMPLEADOS ACTIVOS DE ODOO ---
-        protected async Task PrecargarEmpleadosActivos()
+        // --- GESTIÓN DE PLANTILLA DE PERSONAL DEL SUPERVISOR ---
+        protected async Task CargarMiPlantilla()
         {
-            if (!selectedOperacionId.HasValue || selectedOperacionId.Value <= 0)
-            {
-                _snackbar.Add("Por favor, seleccione una operación / cliente de la lista para precargar colaboradores.", Severity.Warning);
-                return;
-            }
-
-            estaCargando = true;
+            cargandoPlantilla = true;
             try
             {
-                var op = operacionesList.FirstOrDefault(x => x.id == selectedOperacionId.Value);
-                string opNombre = op?.nombre ?? $"Operación {selectedOperacionId.Value}";
-
-                var resp = await _odooService.GetEmployeesForRotation(selectedOperacionId.Value);
-                if (resp?.Model != null && resp.Model.Any())
+                var resp = await _odooService.GetSupervisorPlantilla(currentUserName);
+                if (resp?.Model != null)
                 {
-                    catalogoEmpleadosOdoo = resp.Model.ToList();
-
-                    // Combinar: Mantener los que ya estaban y añadir los nuevos
-                    var existentesIds = empleadosJornada.Select(x => x.CodigoEmpleado).ToHashSet();
-                    string defaultArea = areasSugeridas.FirstOrDefault() ?? "Operaciones";
-                    int nuevos = 0;
-
-                    foreach (var emp in catalogoEmpleadosOdoo)
-                    {
-                        int codigo = emp.CodigoEmpleado ?? emp.Id;
-                        if (!existentesIds.Contains(codigo))
-                        {
-                            empleadosJornada.Add(new EmpleadoJornadaItem
-                            {
-                                Id = 0,
-                                IdEmpleado = emp.Id,
-                                CodigoEmpleado = codigo,
-                                NombreEmpleado = emp.Name,
-                                Area = defaultArea,
-                                Puesto = string.IsNullOrWhiteSpace(emp.JobTitle) ? "6-Operador de almacen" : emp.JobTitle,
-                                TurnoNombre = "Diurno",
-                                HoraEntrada = "06:00",
-                                HoraSalida = "14:00",
-                                Cliente = opNombre,
-                                Asistio = true,
-                                Estado = "BORRADOR",
-                                Modificado = true
-                            });
-                            nuevos++;
-                        }
-                    }
-
-                    _snackbar.Add($"Se agregaron {nuevos} colaboradores de '{opNombre}' a la jornada. (Total: {empleadosJornada.Count})", Severity.Success);
-                    await GuardarBorradorLocal();
-                    ActualizarGruposConsolidados();
-                }
-                else
-                {
-                    _snackbar.Add($"No se encontraron colaboradores activos para '{opNombre}'.", Severity.Info);
+                    miPlantillaPersonal = resp.Model.ToList();
                 }
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error al precargar empleados: {ex.Message}", Severity.Error);
+                _snackbar.Add($"Error al consultar plantilla: {ex.Message}", Severity.Warning);
             }
             finally
             {
-                estaCargando = false;
+                cargandoPlantilla = false;
+            }
+        }
+
+        protected async Task PrecargarDesdeMiPlantilla(bool forzarCarga = false)
+        {
+            if (!miPlantillaPersonal.Any())
+            {
+                await CargarMiPlantilla();
+            }
+
+            if (!miPlantillaPersonal.Any())
+            {
+                _snackbar.Add("No tienes colaboradores en tu plantilla. Puedes configurarlos en la pestaña 'Mi Personal' o guardar la jornada actual como tu plantilla.", Severity.Info);
+                activeTabIndex = 3; // Cambiar a pestaña Mi Personal
+                return;
+            }
+
+            if (!forzarCarga && empleadosJornada.Any())
+            {
+                bool? confirm = await _dialogService.ShowMessageBox(
+                    "Cargar Mi Personal",
+                    $"La grilla actual ya contiene {empleadosJornada.Count} colaboradores. ¿Deseas reemplazarla con tu plantilla de {miPlantillaPersonal.Count} colaboradores o añadir los faltantes?",
+                    yesText: "Reemplazar Grilla",
+                    noText: "Añadir Faltantes",
+                    cancelText: "Cancelar");
+
+                if (confirm == null) return;
+
+                if (confirm == true)
+                {
+                    empleadosJornada.Clear();
+                }
+            }
+
+            var existentes = empleadosJornada.Select(x => x.CodigoEmpleado).ToHashSet();
+            int agregados = 0;
+
+            foreach (var item in miPlantillaPersonal)
+            {
+                if (!existentes.Contains(item.CodigoEmpleado))
+                {
+                    string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) 
+                        ? item.ClienteDefault 
+                        : (operacionesList.FirstOrDefault()?.nombre ?? "General");
+
+                    empleadosJornada.Add(new EmpleadoJornadaItem
+                    {
+                        Id = 0,
+                        IdEmpleado = item.IdEmpleado,
+                        CodigoEmpleado = item.CodigoEmpleado,
+                        NombreEmpleado = item.NombreEmpleado,
+                        Cliente = clienteDefault,
+                        Area = !string.IsNullOrWhiteSpace(item.AreaDefault) ? item.AreaDefault : "Operaciones",
+                        Puesto = !string.IsNullOrWhiteSpace(item.PuestoDefault) ? item.PuestoDefault : "6-Operador de almacen",
+                        TurnoNombre = !string.IsNullOrWhiteSpace(item.TurnoDefault) ? item.TurnoDefault : "Diurno",
+                        HoraEntrada = !string.IsNullOrWhiteSpace(item.HoraEntradaDefault) ? item.HoraEntradaDefault : "06:00",
+                        HoraSalida = !string.IsNullOrWhiteSpace(item.HoraSalidaDefault) ? item.HoraSalidaDefault : "14:00",
+                        VtcoTrasp = item.VtcoTraspDefault,
+                        VtcoAlim = item.VtcoAlimDefault,
+                        BonoBnc = item.BonoBncDefault,
+                        Asistio = true,
+                        Estado = "BORRADOR",
+                        Modificado = true
+                    });
+                    agregados++;
+                }
+            }
+
+            ActualizarGruposConsolidados();
+            await GuardarBorradorLocal();
+            _snackbar.Add($"Se cargaron {agregados} colaboradores de tu plantilla con sus clientes iniciales.", Severity.Success);
+        }
+
+        protected async Task GuardarJornadaComoMiPlantilla()
+        {
+            if (!empleadosJornada.Any())
+            {
+                _snackbar.Add("No hay colaboradores en la grilla para guardar en la plantilla.", Severity.Warning);
+                return;
+            }
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Guardar como Mi Plantilla Permanente",
+                $"¿Deseas guardar los {empleadosJornada.Count} colaboradores de la grilla como tu plantilla habitual de trabajo con sus clientes iniciales asignados?",
+                yesText: "Sí, Guardar en Mi Plantilla",
+                cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaGuardando = true;
+            try
+            {
+                var items = empleadosJornada.Select(e => new SupervisorPlantillaItemDto
+                {
+                    UsuarioSupervisor = currentUserName,
+                    IdEmpleado = e.IdEmpleado,
+                    CodigoEmpleado = e.CodigoEmpleado,
+                    NombreEmpleado = e.NombreEmpleado,
+                    ClienteDefault = e.Cliente,
+                    AreaDefault = e.Area,
+                    PuestoDefault = e.Puesto,
+                    TurnoDefault = e.TurnoNombre,
+                    HoraEntradaDefault = e.HoraEntrada,
+                    HoraSalidaDefault = e.HoraSalida,
+                    VtcoTraspDefault = e.VtcoTrasp,
+                    VtcoAlimDefault = e.VtcoAlim,
+                    BonoBncDefault = e.BonoBnc,
+                    Activo = true
+                }).ToList();
+
+                var req = new GuardarSupervisorPlantillaRequest
+                {
+                    Usuario = currentUserName,
+                    Items = items
+                };
+
+                await _odooService.SaveSupervisorPlantillaMasivo(req);
+                await CargarMiPlantilla();
+                _snackbar.Add($"✅ {items.Count} colaboradores guardados exitosamente en tu plantilla.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al guardar plantilla: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaGuardando = false;
+            }
+        }
+
+        protected async Task GuardarItemPlantilla(SupervisorPlantillaItemDto item)
+        {
+            try
+            {
+                item.UsuarioSupervisor = currentUserName;
+                await _odooService.SaveSupervisorPlantillaItem(item);
+                _snackbar.Add($"Actualizado #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault}).", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al actualizar: {ex.Message}", Severity.Warning);
+            }
+        }
+
+        protected async Task EliminarItemPlantilla(SupervisorPlantillaItemDto item)
+        {
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Quitar Colaborador de Mi Plantilla",
+                $"¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de tu plantilla permanente?",
+                yesText: "Sí, Quitar",
+                cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            try
+            {
+                await _odooService.DeleteSupervisorPlantillaItem(item.Id, currentUserName);
+                miPlantillaPersonal.Remove(item);
+                _snackbar.Add($"#{item.CodigoEmpleado} {item.NombreEmpleado} removido de tu plantilla.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al remover: {ex.Message}", Severity.Error);
             }
         }
 
@@ -631,6 +767,31 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 empleadosJornada.Insert(0, nuevo);
                 _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
+
+                // Guardar también en la plantilla del supervisor si aún no estaba
+                if (!miPlantillaPersonal.Any(p => p.CodigoEmpleado == nuevo.CodigoEmpleado))
+                {
+                    var itemP = new SupervisorPlantillaItemDto
+                    {
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = nuevo.IdEmpleado,
+                        CodigoEmpleado = nuevo.CodigoEmpleado,
+                        NombreEmpleado = nuevo.NombreEmpleado,
+                        ClienteDefault = nuevo.Cliente,
+                        AreaDefault = nuevo.Area,
+                        PuestoDefault = nuevo.Puesto,
+                        TurnoDefault = nuevo.TurnoNombre,
+                        HoraEntradaDefault = nuevo.HoraEntrada,
+                        HoraSalidaDefault = nuevo.HoraSalida,
+                        VtcoTraspDefault = nuevo.VtcoTrasp,
+                        VtcoAlimDefault = nuevo.VtcoAlim,
+                        BonoBncDefault = nuevo.BonoBnc,
+                        Activo = true
+                    };
+                    await _odooService.SaveSupervisorPlantillaItem(itemP);
+                    miPlantillaPersonal.Add(itemP);
+                }
+
                 await GuardarBorradorLocal();
                 ActualizarGruposConsolidados();
             }

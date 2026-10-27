@@ -187,6 +187,12 @@ namespace HostService.Interfaces
         Task<IResponse> SaveMovimientosPersonalDiario(Modelo.ClasesGenericas.GuardarMovimientosPersonalDiarioRequest request);
         Task<IResponse> ClonarMovimientosDiaAnterior(Modelo.ClasesGenericas.ClonarMovimientosDiaAnteriorRequest request);
         Task<IResponse> UpdateSyncHelpdeskMovimientos(Modelo.ClasesGenericas.ActualizarSyncHelpdeskRequest request);
+
+        // --- PLANTILLA DE PERSONAL DEL SUPERVISOR ---
+        Task<IListResponse<Modelo.ClasesGenericas.SupervisorPlantillaItemDto>> GetSupervisorPlantilla(string usuario = "");
+        Task<IResponse> SaveSupervisorPlantillaItem(Modelo.ClasesGenericas.SupervisorPlantillaItemDto item);
+        Task<IResponse> SaveSupervisorPlantillaMasivo(Modelo.ClasesGenericas.GuardarSupervisorPlantillaRequest request);
+        Task<IResponse> DeleteSupervisorPlantillaItem(int id, string usuario = "");
     }
 }
 

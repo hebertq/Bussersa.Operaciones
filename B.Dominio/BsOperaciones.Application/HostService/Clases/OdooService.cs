@@ -3899,6 +3899,115 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<Modelo.ClasesGenericas.SupervisorPlantillaItemDto>> GetSupervisorPlantilla(string usuario = "")
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.ClasesGenericas.SupervisorPlantillaItemDto> response = new ListResponse<Modelo.ClasesGenericas.SupervisorPlantillaItemDto>();
+            try
+            {
+                string queryString = !string.IsNullOrWhiteSpace(usuario) ? $"usuario={Uri.EscapeDataString(usuario)}" : "";
+                var requestUrl = CreateRequestUri("Operaciones/GetSupervisorPlantilla", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.SupervisorPlantillaItemDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveSupervisorPlantillaItem(Modelo.ClasesGenericas.SupervisorPlantillaItemDto item)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveSupervisorPlantillaItem");
+                var registro = await PostAsync(requestUrl, item);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveSupervisorPlantillaMasivo(Modelo.ClasesGenericas.GuardarSupervisorPlantillaRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveSupervisorPlantillaMasivo");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteSupervisorPlantillaItem(int id, string usuario = "")
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                string queryString = !string.IsNullOrWhiteSpace(usuario) ? $"usuario={Uri.EscapeDataString(usuario)}" : "";
+                var requestUrl = CreateRequestUri($"Operaciones/DeleteSupervisorPlantillaItem/{id}", queryString);
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         #endregion
     }
 }

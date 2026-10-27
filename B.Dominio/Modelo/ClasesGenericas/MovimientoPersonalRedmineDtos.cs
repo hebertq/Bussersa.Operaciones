@@ -100,4 +100,31 @@ namespace Modelo.ClasesGenericas
         public int? TicketViaticoId { get; set; }
         public string Estado { get; set; } = "SINCRONIZADO";
     }
+
+    public class SupervisorPlantillaItemDto
+    {
+        public int Id { get; set; }
+        public string UsuarioSupervisor { get; set; } = string.Empty;
+        public int IdEmpleado { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public string ClienteDefault { get; set; } = string.Empty;
+        public string AreaDefault { get; set; } = "Operaciones";
+        public string PuestoDefault { get; set; } = "6-Operador de almacen";
+        public string TurnoDefault { get; set; } = "Diurno";
+        public string HoraEntradaDefault { get; set; } = "06:00";
+        public string HoraSalidaDefault { get; set; } = "14:00";
+        public decimal VtcoTraspDefault { get; set; }
+        public decimal VtcoAlimDefault { get; set; }
+        public decimal BonoBncDefault { get; set; }
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
+    }
+
+    public class GuardarSupervisorPlantillaRequest
+    {
+        public string Usuario { get; set; } = string.Empty;
+        public List<SupervisorPlantillaItemDto> Items { get; set; } = new();
+    }
 }
