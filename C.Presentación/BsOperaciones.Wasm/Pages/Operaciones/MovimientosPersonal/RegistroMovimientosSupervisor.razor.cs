@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using HostService.Interfaces;
 using Microsoft.AspNetCore.Components;
@@ -15,43 +14,48 @@ using MudBlazor;
 
 namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 {
-    public class MovimientoSupervisorItem
+    public class EmpleadoJornadaItem
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
-        public int FilaIndex { get; set; }
-        public string Fecha { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public int Id { get; set; }
+        public int IdEmpleado { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
         public string Area { get; set; } = string.Empty;
-        public string Cargo { get; set; } = string.Empty;
-        public string TurnoPreset { get; set; } = "Diurno";
-        public string HoraInicio { get; set; } = "06:00";
-        public string HoraFin { get; set; } = "14:00";
-        public List<OdooEmployeeDto> Empleados { get; set; } = new();
-        public string IdsManuales { get; set; } = string.Empty;
-        public string IdsEmpleadosTexto { get; set; } = string.Empty;
-        public int CantidadEmpleados => Empleados.Count > 0 ? Empleados.Count : (int.TryParse(CantidadManual, out int c) ? c : 0);
-        public string CantidadManual { get; set; } = "1";
-        public string? VtcoTrasp { get; set; } = "0";
-        public string? VtcoAlim { get; set; } = "0";
+        public string Puesto { get; set; } = "6-Operador de almacen";
+        public string TurnoNombre { get; set; } = "Diurno";
+        public string HoraEntrada { get; set; } = "06:00";
+        public string HoraSalida { get; set; } = "14:00";
+        public string Cliente { get; set; } = string.Empty;
+        public string Bnc { get; set; } = string.Empty;
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
         public string Observaciones { get; set; } = string.Empty;
-        public string Asunto { get; set; } = string.Empty;
-        public string Bonos { get; set; } = "0.00";
-        public string DobleTurno { get; set; } = "0";
-        public string TiempoComida { get; set; } = "0.00";
-        public string EsOperacionMixta { get; set; } = "0";
-
-        public EstadoMovimientoSupervisor Estado { get; set; } = EstadoMovimientoSupervisor.Borrador;
-        public int? RedmineIssueId { get; set; }
-        public int? RedmineViaticosIssueId { get; set; }
-        public string? MensajeError { get; set; }
-        public DateTime FechaRegistroLocal { get; set; } = DateTime.Now;
+        public bool Asistio { get; set; } = true;
+        public string Estado { get; set; } = "GUARDADO";
+        public int? TicketRedmineId { get; set; }
+        public int? TicketViaticoId { get; set; }
+        public bool Seleccionado { get; set; }
+        public bool Modificado { get; set; }
     }
 
-    public enum EstadoMovimientoSupervisor
+    public class ConsolidadoHelpdeskItem
     {
-        Borrador,
-        Enviando,
-        Sincronizado,
-        Error
+        public int GrupoIndex { get; set; }
+        public string Cliente { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string TurnoNombre { get; set; } = string.Empty;
+        public string HoraInicio { get; set; } = string.Empty;
+        public string HoraFin { get; set; } = string.Empty;
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+        public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
+        public int Cantidad => Empleados.Count;
+        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
+        public string NombresResumen => string.Join(", ", Empleados.Take(3).Select(e => e.NombreEmpleado)) + (Empleados.Count > 3 ? $" y {Empleados.Count - 3} más..." : "");
+        public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
+        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
+        public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
     }
 
     public partial class RegistroMovimientosSupervisor : ComponentBase
@@ -64,14 +68,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         // Estado general
         protected bool estaCargando = true;
-        protected bool estaEnviando = false;
+        protected bool estaGuardando = false;
+        protected bool estaEnviandoHelpdesk = false;
+        protected int activeTabIndex = 0;
+
         protected List<Combos> operacionesList = new();
         protected int? selectedOperacionId;
         protected string clienteRedmineIdentificador = string.Empty;
         protected DateTime? fechaSeleccionada = DateTime.Today;
 
         // Catálogos
-        protected List<OdooEmployeeDto> todosLosEmpleados = new();
+        protected List<OdooEmployeeDto> catalogoEmpleadosOdoo = new();
         protected List<string> cargosDisponibles = new()
         {
             "6-Operador de almacen",
@@ -83,40 +90,32 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         };
         protected List<string> areasSugeridas = new();
 
-        // Formulario de Entrada Rápida
-        protected string turnoSeleccionado = "Diurno";
-        protected TimeSpan? horaInicio = new TimeSpan(6, 0, 0);
-        protected TimeSpan? horaFin = new TimeSpan(14, 0, 0);
-        protected string areaInput = string.Empty;
-        protected string cargoInput = "6-Operador de almacen";
-        protected List<OdooEmployeeDto> empleadosSeleccionados = new();
-        protected string idsManualesInput = string.Empty;
-        protected decimal viaticoTransporte = 0m;
-        protected decimal viaticoAlimentacion = 0m;
-        protected string observacionesInput = string.Empty;
-        protected string asuntoPersonalizado = string.Empty;
-        protected string bonosInput = "0.00";
-        protected bool esDobleTurno = false;
-        protected string tiempoComidaInput = "0.00";
-        protected bool esOperacionMixta = false;
-        protected bool mostrarOpcionesAvanzadas = false;
+        // Lista de empleados de la jornada activa (Grilla Tab 1)
+        protected List<EmpleadoJornadaItem> empleadosJornada = new();
 
-        // Búsqueda de empleado en el autocomplete
-        protected OdooEmployeeDto? empleadoAutocompletado;
+        // Filtro rápido de búsqueda en la grilla
+        protected string textoBusqueda = string.Empty;
+        protected string filtroAsistencia = "TODOS"; // "TODOS", "PRESENTES", "AUSENTES"
 
-        // Edición de un movimiento existente en la lista
-        protected Guid? editandoItemId;
+        // Lista de grupos consolidados para Helpdesk (Tab 2)
+        protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
 
-        // Lista de movimientos de la jornada actual
-        protected List<MovimientoSupervisorItem> movimientosJornada = new();
+        // Historial (Tab 3)
+        protected DateTime? fechaHistorial = DateTime.Today.AddDays(-1);
+        protected List<MovimientoPersonalDiarioDto> listaHistorial = new();
+        protected bool cargandoHistorial = false;
 
-        // Estadísticas de la jornada
-        protected int TotalMovimientos => movimientosJornada.Count;
-        protected int TotalPersonalRegistrado => movimientosJornada.Sum(x => x.CantidadEmpleados);
-        protected decimal TotalViaticosTrasp => movimientosJornada.Sum(x => decimal.TryParse(x.VtcoTrasp, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : 0m);
-        protected decimal TotalViaticosAlim => movimientosJornada.Sum(x => decimal.TryParse(x.VtcoAlim, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : 0m);
-        protected int TotalPendientesEnvio => movimientosJornada.Count(x => x.Estado != EstadoMovimientoSupervisor.Sincronizado);
-        protected int TotalSincronizados => movimientosJornada.Count(x => x.Estado == EstadoMovimientoSupervisor.Sincronizado);
+        // Totales calculados
+        protected int TotalColaboradores => empleadosJornada.Count;
+        protected int TotalPresentes => empleadosJornada.Count(x => x.Asistio);
+        protected int TotalAusentes => empleadosJornada.Count(x => !x.Asistio);
+        protected decimal TotalViaticosTrasp => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoTrasp);
+        protected decimal TotalViaticosAlim => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoAlim);
+        protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
+        protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
+
+        // Clave de LocalStorage para borrador de seguridad
+        private string DraftStorageKey => $"supervisor_jornada_draft_{selectedOperacionId}_{fechaSeleccionada:yyyyMMdd}";
 
         protected override async Task OnInitializedAsync()
         {
@@ -124,9 +123,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             try
             {
                 await CargarOperaciones();
-                await CargarCatalogoEmpleados();
                 await RecuperarOperacionPrevia();
-                await CargarBorradorLocal();
+                await CargarJornadaActual();
             }
             catch (Exception ex)
             {
@@ -150,23 +148,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"No se pudieron cargar operaciones: {ex.Message}", Severity.Warning);
-            }
-        }
-
-        private async Task CargarCatalogoEmpleados()
-        {
-            try
-            {
-                var resp = await _odooService.GetAllActiveEmployeesForRotation();
-                if (resp?.Model != null)
-                {
-                    todosLosEmpleados = resp.Model.ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                _snackbar.Add($"Catálogo de empleados no disponible offline: {ex.Message}", Severity.Info);
+                _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Warning);
             }
         }
 
@@ -174,632 +156,725 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             try
             {
-                string? guardado = await _js.InvokeAsync<string>("localStorage.getItem", "supervisor_last_operacion_id");
-                if (int.TryParse(guardado, out int opId) && operacionesList.Any(x => x.id == opId))
+                var opGuardada = await _js.InvokeAsync<string?>("localStorage.getItem", "supervisor_last_operacion_id");
+                if (!string.IsNullOrEmpty(opGuardada) && int.TryParse(opGuardada, out int opId))
                 {
-                    selectedOperacionId = opId;
-                    ActualizarIdentificadorCliente(opId);
-                    ActualizarAreasSugeridas();
+                    if (operacionesList.Any(x => x.id == opId))
+                    {
+                        selectedOperacionId = opId;
+                    }
                 }
-                else if (operacionesList.Any())
+
+                if (!selectedOperacionId.HasValue && operacionesList.Any())
                 {
-                    var defecto = operacionesList.FirstOrDefault(x => x.nombre.Contains("WalMart", StringComparison.OrdinalIgnoreCase)) ?? operacionesList.First();
-                    selectedOperacionId = defecto.id;
-                    ActualizarIdentificadorCliente(defecto.id);
-                    ActualizarAreasSugeridas();
+                    var walmart = operacionesList.FirstOrDefault(x => x.nombre.Contains("Walmart", StringComparison.OrdinalIgnoreCase));
+                    selectedOperacionId = walmart?.id ?? operacionesList.First().id;
                 }
+
+                ActualizarIdentificadorRedmine();
+                await CargarAreasOperacion();
             }
-            catch { }
+            catch
+            {
+                if (operacionesList.Any())
+                    selectedOperacionId = operacionesList.First().id;
+            }
         }
 
-        protected void OnOperacionChanged(int? operacionId)
+        protected async Task OnOperacionChanged(int? newOpId)
         {
-            selectedOperacionId = operacionId;
-            if (operacionId.HasValue)
+            selectedOperacionId = newOpId;
+            if (newOpId.HasValue)
             {
-                ActualizarIdentificadorCliente(operacionId.Value);
-                _ = _js.InvokeVoidAsync("localStorage.setItem", "supervisor_last_operacion_id", operacionId.Value.ToString());
-                ActualizarAreasSugeridas();
+                await _js.InvokeVoidAsync("localStorage.setItem", "supervisor_last_operacion_id", newOpId.Value.ToString());
             }
-            else
+            ActualizarIdentificadorRedmine();
+            await CargarAreasOperacion();
+            await CargarJornadaActual();
+        }
+
+        private void ActualizarIdentificadorRedmine()
+        {
+            if (!selectedOperacionId.HasValue)
             {
                 clienteRedmineIdentificador = string.Empty;
-                areasSugeridas.Clear();
+                return;
             }
-            StateHasChanged();
+
+            var op = operacionesList.FirstOrDefault(x => x.id == selectedOperacionId.Value);
+            if (op == null)
+            {
+                clienteRedmineIdentificador = $"{selectedOperacionId}-General";
+                return;
+            }
+
+            string nombreLimpio = op.nombre.Trim();
+            if (nombreLimpio.StartsWith($"{op.id}-", StringComparison.OrdinalIgnoreCase))
+                clienteRedmineIdentificador = nombreLimpio;
+            else
+                clienteRedmineIdentificador = $"{op.id}-{nombreLimpio}";
         }
 
-        private void ActualizarIdentificadorCliente(int operacionId)
+        private async Task CargarAreasOperacion()
         {
-            var op = operacionesList.FirstOrDefault(x => x.id == operacionId);
-            clienteRedmineIdentificador = op != null ? $"{op.id}-{op.nombre}" : $"Operacion_{operacionId}";
-        }
-
-        private void ActualizarAreasSugeridas()
-        {
-            areasSugeridas.Clear();
             if (!selectedOperacionId.HasValue) return;
 
-            var opNombre = operacionesList.FirstOrDefault(x => x.id == selectedOperacionId.Value)?.nombre ?? "";
-
-            // Áreas estándar según el cliente
-            if (opNombre.Contains("WalMart", StringComparison.OrdinalIgnoreCase) || opNombre.Contains("Walmart", StringComparison.OrdinalIgnoreCase))
+            try
+            {
+                var resp = await _odooService.GetAreasOperacion(selectedOperacionId.Value);
+                if (resp?.Model != null && resp.Model.Any())
+                {
+                    areasSugeridas = resp.Model.Distinct().ToList();
+                }
+                else
+                {
+                    areasSugeridas = new List<string>
+                    {
+                        "WalMart Importado DCC",
+                        "WalMart Importado descarga",
+                        "WalMart Nestle",
+                        "WalMart Despacho",
+                        "WalMart Devoluciones",
+                        "WalMart Farmacia",
+                        "WalMart Operaciones",
+                        "Comodin",
+                        "Holler alisto",
+                        "Holler movimientos",
+                        "Tarima importado"
+                    };
+                }
+            }
+            catch
             {
                 areasSugeridas = new List<string>
                 {
                     "WalMart Importado DCC",
                     "WalMart Nestle",
-                    "WalMart Importado descarga",
                     "WalMart Despacho",
-                    "WalMart Holler despacho",
-                    "WalMart Mantenimiento",
-                    "WalMart Operaciones",
-                    "WalMart Alisto",
-                    "WalMart Bodega",
-                    "WalMart Cedis",
-                    "WalMart Canastas",
-                    "WalMart Crosdosk",
-                    "WalMart Farmacia",
-                    "WalMart Tarima",
-                    "WalMart Grano",
-                    "WalMart Importado",
-                    "WalMart BH",
-                    "WalMart Devoluciones",
-                    "WalMart Estantería",
-                    "WalMart Movimientos",
-                    "WalMart Transporte",
-                    "WalMart BH DCC",
-                    "WalMart Momotombo",
-                    "WalMart Auditoria",
-                    "WalMart Congesa",
-                    "WalMart Industrias cárnicas",
-                    "WalMart Retornable",
-                    "WalMart Torre de control",
-                    "WalMart Trafico",
-                    "WalMart Cargue cestas",
                     "Comodin"
                 };
             }
-            else if (opNombre.Contains("Food", StringComparison.OrdinalIgnoreCase))
-            {
-                areasSugeridas = new List<string> { "FoServ CD", "CS Food Services", "OPM Food Services", "CD", "Comodin" };
-            }
-            else if (opNombre.Contains("Cafe", StringComparison.OrdinalIgnoreCase) || opNombre.Contains("Café", StringComparison.OrdinalIgnoreCase))
-            {
-                areasSugeridas = new List<string> { "CS CD", "CS Suministro", "CS Transporte", "CC CD", "CS Food Services", "OPM Cafe Soluble", "Comodin" };
-            }
-            else if (opNombre.Contains("Condes", StringComparison.OrdinalIgnoreCase))
-            {
-                areasSugeridas = new List<string> { "Las Condes Importaciones", "Las Condes Operaciones", "Las Condes Transporte", "Las Condes Congesa", "Las Condes Cargill", "Las Condes Descargue de cestas", "OPM Las Condes", "Comodin" };
-            }
-            else if (opNombre.Contains("Sinsa", StringComparison.OrdinalIgnoreCase))
-            {
-                areasSugeridas = new List<string> { "Ceramica", "Construcción", "Rampa", "Despacho Operaciones", "Despacho Ceramica", "PVC", "Logistica", "Alta y Baja tención", "Control de calidad", "Dequipo", "Axis", "Matagalpa", "Comodin" };
-            }
-            else if (opNombre.Contains("Horti", StringComparison.OrdinalIgnoreCase))
-            {
-                areasSugeridas = new List<string> { "HTF CD", "HTF Ayudantes de entrega", "HTF Ayudantes de recolección", "OPM Hortifruti", "Comodin" };
-            }
-            else
-            {
-                areasSugeridas = new List<string> { "CD", "Bodega", "Operaciones", "Despacho", "Alisto", "Transporte", "Comodin" };
-            }
-
-            if (string.IsNullOrEmpty(areaInput) && areasSugeridas.Any())
-            {
-                areaInput = areasSugeridas.First();
-            }
         }
 
-        protected string ObtenerNombreOperacion(int? id)
+        protected async Task CambiarFecha(int dias)
         {
-            if (!id.HasValue) return "-- Seleccione la operación --";
-            var op = operacionesList.FirstOrDefault(x => x.id == id.Value);
-            return op != null ? $"{op.id}-{op.nombre}" : $"Operación #{id.Value}";
+            if (!fechaSeleccionada.HasValue) fechaSeleccionada = DateTime.Today;
+            fechaSeleccionada = fechaSeleccionada.Value.AddDays(dias);
+            await CargarJornadaActual();
         }
 
-        #region Manejo de Turnos y Presets
-
-        protected void SeleccionarTurno(string turno)
+        protected async Task OnFechaSeleccionadaChanged(DateTime? nuevaFecha)
         {
-            turnoSeleccionado = turno;
-            switch (turno)
-            {
-                case "Diurno":
-                    horaInicio = new TimeSpan(6, 0, 0);
-                    horaFin = new TimeSpan(14, 0, 0);
-                    break;
-                case "DCC":
-                    horaInicio = new TimeSpan(7, 0, 0);
-                    horaFin = new TimeSpan(17, 0, 0);
-                    break;
-                case "Mixto":
-                    horaInicio = new TimeSpan(14, 0, 0);
-                    horaFin = new TimeSpan(22, 0, 0);
-                    break;
-                case "Nocturno":
-                    horaInicio = new TimeSpan(22, 0, 0);
-                    horaFin = new TimeSpan(6, 0, 0);
-                    break;
-                case "Personalizado":
-                    break;
-            }
+            fechaSeleccionada = nuevaFecha;
+            await CargarJornadaActual();
         }
 
-        #endregion
-
-        #region Búsqueda y Selección de Empleados
-
-        protected Task<IEnumerable<OdooEmployeeDto>> BuscarEmpleado(string value, CancellationToken token)
+        // --- CARGA DE LA JORNADA (Desde BD o Borrador) ---
+        protected async Task CargarJornadaActual()
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (!fechaSeleccionada.HasValue || !selectedOperacionId.HasValue) return;
+
+            estaCargando = true;
+            try
             {
-                // Sugerir primeros 10 empleados de la operación actual
-                var depto = todosLosEmpleados
-                    .Where(x => selectedOperacionId.HasValue && x.DepartmentId == selectedOperacionId.Value)
-                    .Take(10);
-                return Task.FromResult<IEnumerable<OdooEmployeeDto>>(depto);
-            }
-
-            string s = value.Trim();
-            var resultados = todosLosEmpleados
-                .Where(x => (x.Name != null && x.Name.Contains(s, StringComparison.OrdinalIgnoreCase)) ||
-                            (x.CodigoEmpleado.HasValue && x.CodigoEmpleado.Value.ToString().Contains(s)) ||
-                            (x.Id.ToString().Contains(s)))
-                .Take(15);
-
-            return Task.FromResult<IEnumerable<OdooEmployeeDto>>(resultados);
-        }
-
-        protected void OnEmpleadoSeleccionadoDesdeAutocomplete(OdooEmployeeDto? emp)
-        {
-            if (emp == null) return;
-            AgregarEmpleadoALista(emp);
-            empleadoAutocompletado = null;
-        }
-
-        private void AgregarEmpleadoALista(OdooEmployeeDto emp)
-        {
-            int code = emp.CodigoEmpleado ?? emp.Id;
-            if (empleadosSeleccionados.Any(x => (x.CodigoEmpleado ?? x.Id) == code))
-            {
-                _snackbar.Add($"{emp.Name} ya está en la lista.", Severity.Info);
-                return;
-            }
-            empleadosSeleccionados.Add(emp);
-        }
-
-        protected void RemoverEmpleadoDeLista(OdooEmployeeDto emp)
-        {
-            int code = emp.CodigoEmpleado ?? emp.Id;
-            var item = empleadosSeleccionados.FirstOrDefault(x => (x.CodigoEmpleado ?? x.Id) == code);
-            if (item != null)
-            {
-                empleadosSeleccionados.Remove(item);
-            }
-        }
-
-        protected void LimpiarEmpleadosSeleccionados()
-        {
-            empleadosSeleccionados.Clear();
-            idsManualesInput = string.Empty;
-        }
-
-        protected async Task AbrirDialogoCatalogo()
-        {
-            var opNombre = operacionesList.FirstOrDefault(x => x.id == selectedOperacionId)?.nombre ?? "";
-            var parameters = new DialogParameters
-            {
-                ["TodosLosEmpleados"] = todosLosEmpleados,
-                ["EmpleadosPreseleccionados"] = empleadosSeleccionados,
-                ["OperacionId"] = selectedOperacionId,
-                ["NombreOperacion"] = opNombre
-            };
-
-            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-            var dialog = await _dialogService.ShowAsync<DialogCatalogoEmpleadosTablet>("Catálogo de Personal", parameters, options);
-            var result = await dialog.Result;
-
-            if (result != null && !result.Canceled && result.Data is List<OdooEmployeeDto> seleccionados)
-            {
-                empleadosSeleccionados = seleccionados;
-                StateHasChanged();
-            }
-        }
-
-        protected Task<IEnumerable<string>> BuscarArea(string value, CancellationToken token)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return Task.FromResult<IEnumerable<string>>(areasSugeridas);
-
-            var result = areasSugeridas
-                .Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (!result.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))
-            {
-                result.Insert(0, value); // Permitir libre entrada
-            }
-
-            return Task.FromResult<IEnumerable<string>>(result);
-        }
-
-        #endregion
-
-        #region Viáticos Rápido
-
-        protected void AsignarViaticoTransporte(decimal monto)
-        {
-            viaticoTransporte = monto;
-        }
-
-        protected void AsignarViaticoAlimentacion(decimal monto)
-        {
-            viaticoAlimentacion = monto;
-        }
-
-        #endregion
-
-        #region Gestión de Movimientos (Agregar, Editar, Eliminar)
-
-        protected async Task AgregarOActualizarMovimiento()
-        {
-            if (!selectedOperacionId.HasValue || selectedOperacionId.Value <= 0)
-            {
-                _snackbar.Add("Seleccione la Operación / Cliente.", Severity.Warning);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(areaInput))
-            {
-                _snackbar.Add("Indique el Área operativa del movimiento.", Severity.Warning);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(cargoInput))
-            {
-                _snackbar.Add("Seleccione el Puesto / Cargo.", Severity.Warning);
-                return;
-            }
-
-            // Ensamblar IDs de empleados
-            var listaIds = new List<string>();
-            foreach (var emp in empleadosSeleccionados)
-            {
-                listaIds.Add((emp.CodigoEmpleado ?? emp.Id).ToString());
-            }
-
-            if (!string.IsNullOrWhiteSpace(idsManualesInput))
-            {
-                var manuales = idsManualesInput.Split(new[] { ',', ';', ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var m in manuales)
+                // 1. Consultar en la base de datos PostgreSQL
+                var resp = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, selectedOperacionId.Value);
+                if (resp?.Model != null && resp.Model.Any())
                 {
-                    var limpio = m.Trim();
-                    if (!string.IsNullOrEmpty(limpio) && !listaIds.Contains(limpio))
+                    empleadosJornada = resp.Model.Select(m => new EmpleadoJornadaItem
                     {
-                        listaIds.Add(limpio);
+                        Id = m.Id,
+                        IdEmpleado = m.IdEmpleado,
+                        CodigoEmpleado = m.CodigoEmpleado,
+                        NombreEmpleado = m.NombreEmpleado,
+                        Area = m.Area,
+                        Puesto = m.Puesto,
+                        TurnoNombre = m.TurnoNombre,
+                        HoraEntrada = m.HoraEntrada,
+                        HoraSalida = m.HoraSalida,
+                        Cliente = m.Cliente,
+                        Bnc = m.Bnc ?? string.Empty,
+                        VtcoTrasp = m.VtcoTrasp,
+                        VtcoAlim = m.VtcoAlim,
+                        Observaciones = m.Observaciones ?? string.Empty,
+                        Asistio = m.Asistio,
+                        Estado = m.Estado,
+                        TicketRedmineId = m.TicketRedmineId,
+                        TicketViaticoId = m.TicketViaticoId,
+                        Seleccionado = false,
+                        Modificado = false
+                    }).ToList();
+
+                    _snackbar.Add($"Jornada del {fechaSeleccionada:dd/MM/yyyy} cargada ({empleadosJornada.Count} registros).", Severity.Info);
+                }
+                else
+                {
+                    // 2. Si no hay en BD, verificar si hay un borrador local no guardado
+                    bool cargoBorrador = await RecuperarBorradorLocal();
+                    if (!cargoBorrador)
+                    {
+                        empleadosJornada.Clear();
                     }
                 }
-            }
 
-            if (!listaIds.Any())
+                ActualizarGruposConsolidados();
+            }
+            catch (Exception ex)
             {
-                _snackbar.Add("Debe agregar al menos un empleado (por catálogo o escribiendo códigos).", Severity.Warning);
+                _snackbar.Add($"Error al cargar jornada: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaCargando = false;
+            }
+        }
+
+        // --- PRECARGA DE EMPLEADOS ACTIVOS DE ODOO ---
+        protected async Task PrecargarEmpleadosActivos()
+        {
+            if (!selectedOperacionId.HasValue)
+            {
+                _snackbar.Add("Selecciona una operación primero.", Severity.Warning);
                 return;
             }
 
-            string hIni = horaInicio.HasValue ? $"{(int)horaInicio.Value.TotalHours:D2}:{horaInicio.Value.Minutes:D2}" : "06:00";
-            string hFin = horaFin.HasValue ? $"{(int)horaFin.Value.TotalHours:D2}:{horaFin.Value.Minutes:D2}" : "14:00";
-            string fechaStr = (fechaSeleccionada ?? DateTime.Today).ToString("yyyy-MM-dd");
-            string asunto = !string.IsNullOrWhiteSpace(asuntoPersonalizado) ? asuntoPersonalizado.Trim() : $"{areaInput.Trim()} - {cargoInput.Trim()}";
-
-            if (editandoItemId.HasValue)
+            estaCargando = true;
+            try
             {
-                var existente = movimientosJornada.FirstOrDefault(x => x.Id == editandoItemId.Value);
-                if (existente != null)
+                var resp = await _odooService.GetEmployeesForRotation(selectedOperacionId.Value);
+                if (resp?.Model != null && resp.Model.Any())
                 {
-                    existente.Fecha = fechaStr;
-                    existente.TurnoPreset = turnoSeleccionado;
-                    existente.HoraInicio = hIni;
-                    existente.HoraFin = hFin;
-                    existente.Area = areaInput.Trim();
-                    existente.Cargo = cargoInput.Trim();
-                    existente.Empleados = empleadosSeleccionados.ToList();
-                    existente.IdsManuales = idsManualesInput.Trim();
-                    existente.IdsEmpleadosTexto = string.Join(", ", listaIds);
-                    existente.CantidadManual = listaIds.Count.ToString();
-                    existente.VtcoTrasp = viaticoTransporte > 0 ? viaticoTransporte.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-                    existente.VtcoAlim = viaticoAlimentacion > 0 ? viaticoAlimentacion.ToString("0.##", CultureInfo.InvariantCulture) : "0";
-                    existente.Observaciones = observacionesInput.Trim();
-                    existente.Asunto = asunto;
-                    existente.Bonos = bonosInput;
-                    existente.DobleTurno = esDobleTurno ? "1" : "0";
-                    existente.TiempoComida = tiempoComidaInput;
-                    existente.EsOperacionMixta = esOperacionMixta ? "1" : "0";
-                    existente.Estado = EstadoMovimientoSupervisor.Borrador;
-                    existente.MensajeError = null;
+                    catalogoEmpleadosOdoo = resp.Model.ToList();
 
-                    _snackbar.Add("Movimiento actualizado exitosamente.", Severity.Success);
+                    // Combinar: Mantener los que ya estaban y añadir los nuevos
+                    var existentesIds = empleadosJornada.Select(x => x.CodigoEmpleado).ToHashSet();
+                    string defaultArea = areasSugeridas.FirstOrDefault() ?? "Operaciones";
+
+                    foreach (var emp in catalogoEmpleadosOdoo)
+                    {
+                        int codigo = emp.CodigoEmpleado ?? emp.Id;
+                        if (!existentesIds.Contains(codigo))
+                        {
+                            empleadosJornada.Add(new EmpleadoJornadaItem
+                            {
+                                Id = 0,
+                                IdEmpleado = emp.Id,
+                                CodigoEmpleado = codigo,
+                                NombreEmpleado = emp.Name,
+                                Area = defaultArea,
+                                Puesto = string.IsNullOrWhiteSpace(emp.JobTitle) ? "6-Operador de almacen" : emp.JobTitle,
+                                TurnoNombre = "Diurno",
+                                HoraEntrada = "06:00",
+                                HoraSalida = "14:00",
+                                Cliente = operacionesList.FirstOrDefault(x => x.id == selectedOperacionId.Value)?.nombre ?? "WalMart",
+                                Asistio = true,
+                                Estado = "BORRADOR",
+                                Modificado = true
+                            });
+                        }
+                    }
+
+                    _snackbar.Add($"Se precargaron {catalogoEmpleadosOdoo.Count} empleados activos de Odoo.", Severity.Success);
+                    await GuardarBorradorLocal();
+                    ActualizarGruposConsolidados();
                 }
-                editandoItemId = null;
+                else
+                {
+                    _snackbar.Add("No se encontraron empleados activos para esta operación.", Severity.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al precargar empleados: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaCargando = false;
+            }
+        }
+
+        // --- CLONAR JORNADA DE AYER ---
+        protected async Task CopiarDeAyer()
+        {
+            if (!fechaSeleccionada.HasValue || !selectedOperacionId.HasValue) return;
+
+            DateTime fechaAyer = fechaSeleccionada.Value.AddDays(-1);
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Copiar Jornada Anterior",
+                $"¿Deseas precargar la jornada del día {fechaAyer:dd/MM/yyyy} para la fecha activa {fechaSeleccionada:dd/MM/yyyy}?",
+                yesText: "Sí, Copiar", cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaCargando = true;
+            try
+            {
+                var req = new ClonarMovimientosDiaAnteriorRequest
+                {
+                    OperacionId = selectedOperacionId.Value,
+                    FechaOrigen = fechaAyer,
+                    FechaDestino = fechaSeleccionada.Value,
+                    Usuario = "Supervisor Tablet"
+                };
+
+                var res = await _odooService.ClonarMovimientosDiaAnterior(req);
+                if (res?.Respuesta != null && !res.Respuesta.ExisteError)
+                {
+                    _snackbar.Add($"Jornada copiada exitosamente de {fechaAyer:dd/MM}.", Severity.Success);
+                    await CargarJornadaActual();
+                }
+                else
+                {
+                    _snackbar.Add($"No se encontraron registros del {fechaAyer:dd/MM} para copiar.", Severity.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al copiar jornada: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaCargando = false;
+            }
+        }
+
+        // --- GUARDAR EN BASE DE DATOS ---
+        protected async Task GuardarEnBaseDatos()
+        {
+            if (!fechaSeleccionada.HasValue || !selectedOperacionId.HasValue) return;
+
+            if (!empleadosJornada.Any())
+            {
+                _snackbar.Add("No hay movimientos para guardar.", Severity.Warning);
+                return;
+            }
+
+            estaGuardando = true;
+            try
+            {
+                var dtos = empleadosJornada.Select(e => new MovimientoPersonalDiarioDto
+                {
+                    Id = e.Id,
+                    Fecha = fechaSeleccionada.Value,
+                    OperacionId = selectedOperacionId.Value,
+                    Cliente = string.IsNullOrWhiteSpace(e.Cliente) 
+                        ? (operacionesList.FirstOrDefault(x => x.id == selectedOperacionId.Value)?.nombre ?? "WalMart") 
+                        : e.Cliente,
+                    IdEmpleado = e.IdEmpleado,
+                    CodigoEmpleado = e.CodigoEmpleado,
+                    NombreEmpleado = e.NombreEmpleado,
+                    Puesto = e.Puesto,
+                    Area = e.Area,
+                    HoraEntrada = e.HoraEntrada,
+                    HoraSalida = e.HoraSalida,
+                    TurnoNombre = e.TurnoNombre,
+                    Bnc = e.Bnc,
+                    VtcoTrasp = e.VtcoTrasp,
+                    VtcoAlim = e.VtcoAlim,
+                    Observaciones = e.Observaciones,
+                    Asistio = e.Asistio,
+                    Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO"
+                }).ToList();
+
+                var request = new GuardarMovimientosPersonalDiarioRequest
+                {
+                    OperacionId = selectedOperacionId.Value,
+                    Fecha = fechaSeleccionada.Value,
+                    Usuario = "Supervisor Tablet",
+                    Movimientos = dtos
+                };
+
+                var res = await _odooService.SaveMovimientosPersonalDiario(request);
+                if (res?.Respuesta != null && !res.Respuesta.ExisteError)
+                {
+                    _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
+                    await LimpiarBorradorLocal();
+                    await CargarJornadaActual();
+                }
+                else
+                {
+                    _snackbar.Add($"Error al guardar: {res?.Respuesta?.MensajeError}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al guardar movimientos: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaGuardando = false;
+            }
+        }
+
+        // --- ASIGNACIÓN MASIVA RÁPIDA ---
+        protected async Task AbrirAsignacionMasiva()
+        {
+            var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
+            if (!seleccionados.Any())
+            {
+                _snackbar.Add("Selecciona al menos un empleado con la casilla de verificación.", Severity.Info);
+                return;
+            }
+
+            var parameters = new DialogParameters
+            {
+                ["CantidadSeleccionada"] = seleccionados.Count,
+                ["AreasDisponibles"] = areasSugeridas,
+                ["CargosDisponibles"] = cargosDisponibles,
+                ["AreaInicial"] = seleccionados.First().Area,
+                ["PuestoInicial"] = seleccionados.First().Puesto,
+                ["ClienteInicial"] = seleccionados.First().Cliente
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogAsignacionMasivaTurno>("Asignación Masiva", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogAsignacionMasivaTurno.ResultadoAsignacionMasiva data)
+            {
+                foreach (var emp in seleccionados)
+                {
+                    emp.TurnoNombre = data.TurnoNombre;
+                    emp.HoraEntrada = data.HoraEntrada;
+                    emp.HoraSalida = data.HoraSalida;
+                    if (!string.IsNullOrWhiteSpace(data.Area)) emp.Area = data.Area;
+                    if (!string.IsNullOrWhiteSpace(data.Puesto)) emp.Puesto = data.Puesto;
+                    if (!string.IsNullOrWhiteSpace(data.Cliente)) emp.Cliente = data.Cliente;
+                    emp.VtcoTrasp = data.VtcoTrasp;
+                    emp.VtcoAlim = data.VtcoAlim;
+                    emp.Asistio = true;
+                    emp.Modificado = true;
+                    emp.Seleccionado = false;
+                }
+
+                _snackbar.Add($"Asignado turno y área a {seleccionados.Count} colaboradores.", Severity.Success);
+                await GuardarBorradorLocal();
+                ActualizarGruposConsolidados();
+            }
+        }
+
+        // --- SELECCIÓN Y EDICIÓN RÁPIDA EN GRILLA ---
+        protected void MarcarTodos(bool marcar)
+        {
+            foreach (var e in EmpleadosFiltrados)
+            {
+                e.Seleccionado = marcar;
+            }
+        }
+
+        protected void MarcarAsistenciaSeleccionados(bool asistio)
+        {
+            var sel = empleadosJornada.Where(x => x.Seleccionado).ToList();
+            if (!sel.Any()) return;
+
+            foreach (var e in sel)
+            {
+                e.Asistio = asistio;
+                e.Modificado = true;
+                e.Seleccionado = false;
+            }
+
+            _snackbar.Add($"Marcados {sel.Count} colaboradores como {(asistio ? "Presentes" : "Ausentes")}.", Severity.Info);
+            ActualizarGruposConsolidados();
+        }
+
+        protected void AlternarTurnoRapido(EmpleadoJornadaItem item)
+        {
+            if (item.TurnoNombre == "Diurno")
+            {
+                item.TurnoNombre = "DCC";
+                item.HoraEntrada = "06:00";
+                item.HoraSalida = "15:30";
+            }
+            else if (item.TurnoNombre == "DCC")
+            {
+                item.TurnoNombre = "Mixto";
+                item.HoraEntrada = "14:00";
+                item.HoraSalida = "22:00";
+            }
+            else if (item.TurnoNombre == "Mixto")
+            {
+                item.TurnoNombre = "Nocturno";
+                item.HoraEntrada = "22:00";
+                item.HoraSalida = "06:00";
             }
             else
             {
-                var nuevo = new MovimientoSupervisorItem
+                item.TurnoNombre = "Diurno";
+                item.HoraEntrada = "06:00";
+                item.HoraSalida = "14:00";
+            }
+            item.Modificado = true;
+            ActualizarGruposConsolidados();
+        }
+
+        protected void AlternarViaticoRapido(EmpleadoJornadaItem item, string tipo)
+        {
+            if (tipo == "Trasp")
+            {
+                if (item.VtcoTrasp == 0) item.VtcoTrasp = 50;
+                else if (item.VtcoTrasp == 50) item.VtcoTrasp = 100;
+                else if (item.VtcoTrasp == 100) item.VtcoTrasp = 150;
+                else item.VtcoTrasp = 0;
+            }
+            else if (tipo == "Alim")
+            {
+                if (item.VtcoAlim == 0) item.VtcoAlim = 50;
+                else if (item.VtcoAlim == 50) item.VtcoAlim = 70;
+                else if (item.VtcoAlim == 70) item.VtcoAlim = 100;
+                else item.VtcoAlim = 0;
+            }
+            item.Modificado = true;
+            ActualizarGruposConsolidados();
+        }
+
+        protected void EliminarEmpleadoDeJornada(EmpleadoJornadaItem item)
+        {
+            empleadosJornada.Remove(item);
+            ActualizarGruposConsolidados();
+        }
+
+        // --- FILTRADO DE LA GRILLA ---
+        protected IEnumerable<EmpleadoJornadaItem> EmpleadosFiltrados
+        {
+            get
+            {
+                var query = empleadosJornada.AsEnumerable();
+
+                if (!string.IsNullOrWhiteSpace(textoBusqueda))
                 {
-                    Id = Guid.NewGuid(),
-                    FilaIndex = movimientosJornada.Count + 1,
-                    Fecha = fechaStr,
-                    TurnoPreset = turnoSeleccionado,
-                    HoraInicio = hIni,
-                    HoraFin = hFin,
-                    Area = areaInput.Trim(),
-                    Cargo = cargoInput.Trim(),
-                    Empleados = empleadosSeleccionados.ToList(),
-                    IdsManuales = idsManualesInput.Trim(),
-                    IdsEmpleadosTexto = string.Join(", ", listaIds),
-                    CantidadManual = listaIds.Count.ToString(),
-                    VtcoTrasp = viaticoTransporte > 0 ? viaticoTransporte.ToString("0.##", CultureInfo.InvariantCulture) : "0",
-                    VtcoAlim = viaticoAlimentacion > 0 ? viaticoAlimentacion.ToString("0.##", CultureInfo.InvariantCulture) : "0",
-                    Observaciones = observacionesInput.Trim(),
-                    Asunto = asunto,
-                    Bonos = bonosInput,
-                    DobleTurno = esDobleTurno ? "1" : "0",
-                    TiempoComida = tiempoComidaInput,
-                    EsOperacionMixta = esOperacionMixta ? "1" : "0",
-                    Estado = EstadoMovimientoSupervisor.Borrador
+                    query = query.Where(x =>
+                        x.NombreEmpleado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                        x.CodigoEmpleado.ToString().Contains(textoBusqueda) ||
+                        x.Area.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                        x.Puesto.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (filtroAsistencia == "PRESENTES")
+                    query = query.Where(x => x.Asistio);
+                else if (filtroAsistencia == "AUSENTES")
+                    query = query.Where(x => !x.Asistio);
+
+                return query.OrderBy(x => x.Area).ThenBy(x => x.NombreEmpleado);
+            }
+        }
+
+        // --- CONSOLIDADO HELPDESK (Tab 2) ---
+        private void ActualizarGruposConsolidados()
+        {
+            // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
+            var presentes = empleadosJornada.Where(x => x.Asistio).ToList();
+
+            var grupos = presentes
+                .GroupBy(x => new
+                {
+                    Cliente = string.IsNullOrWhiteSpace(x.Cliente) ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId)?.nombre ?? "WalMart") : x.Cliente,
+                    Area = string.IsNullOrWhiteSpace(x.Area) ? "Operaciones" : x.Area,
+                    Puesto = string.IsNullOrWhiteSpace(x.Puesto) ? "6-Operador de almacen" : x.Puesto,
+                    HoraInicio = x.HoraEntrada,
+                    HoraFin = x.HoraSalida,
+                    x.TurnoNombre,
+                    x.VtcoTrasp,
+                    x.VtcoAlim
+                })
+                .Select((g, idx) => new ConsolidadoHelpdeskItem
+                {
+                    GrupoIndex = idx + 1,
+                    Cliente = g.Key.Cliente,
+                    Area = g.Key.Area,
+                    Puesto = g.Key.Puesto,
+                    TurnoNombre = g.Key.TurnoNombre,
+                    HoraInicio = g.Key.HoraInicio,
+                    HoraFin = g.Key.HoraFin,
+                    VtcoTrasp = g.Key.VtcoTrasp,
+                    VtcoAlim = g.Key.VtcoAlim,
+                    Empleados = g.ToList()
+                })
+                .ToList();
+
+            gruposConsolidados = grupos;
+        }
+
+        // --- ENVIAR A HELPDESK (REDMINE) ---
+        protected async Task EnviarAHelpdeskMasivo()
+        {
+            if (!gruposConsolidados.Any())
+            {
+                _snackbar.Add("No hay grupos activos para enviar a Helpdesk.", Severity.Warning);
+                return;
+            }
+
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            int totalGrupos = gruposConsolidados.Count;
+            int totalEmpleados = TotalPresentes;
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Confirmar Envío a Helpdesk",
+                $"¿Estás seguro de enviar {totalGrupos} grupos de movimiento ({totalEmpleados} colaboradores) a Redmine Helpdesk para el cliente '{clienteRedmineIdentificador}'?",
+                yesText: "Sí, Enviar a Helpdesk", cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaEnviandoHelpdesk = true;
+            try
+            {
+                var movimientosRedmine = gruposConsolidados.Select(g => new MovimientoPersonalItemDto
+                {
+                    FilaIndex = g.GrupoIndex,
+                    Area = g.Area,
+                    Cargo = g.Puesto,
+                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                    HoraInicio = g.HoraInicio,
+                    HoraFin = g.HoraFin,
+                    CantidadEmpleados = g.Cantidad,
+                    IdsEmpleados = g.IdsEmpleadosTexto,
+                    Asunto = $"{g.Area} - {g.Puesto}".Trim(),
+                    VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
+                    VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
+                }).ToList();
+
+                var request = new CrearMovimientosPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    ClienteRedmine = clienteRedmineIdentificador,
+                    ModoGeneracion = "Ambos",
+                    Movimientos = movimientosRedmine
                 };
 
-                movimientosJornada.Add(nuevo);
-                _snackbar.Add($"¡Agregado! {listaIds.Count} personal en {areaInput}.", Severity.Success);
+                var response = await _odooService.CrearMovimientosPersonalMasivo(request);
+
+                if (response?.Model != null)
+                {
+                    var res = response.Model;
+                    int creados = res.Exitosos;
+
+                    // Estampar los IDs de Redmine en los empleados correspondientes
+                    if (res.Detalles != null)
+                    {
+                        foreach (var det in res.Detalles)
+                        {
+                            var grupo = gruposConsolidados.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
+                            if (grupo != null && (det.RedmineIssueId.HasValue || det.RedmineViaticosIssueId.HasValue))
+                            {
+                                var idsDb = grupo.Empleados.Where(e => e.Id > 0).Select(e => e.Id).ToList();
+                                if (idsDb.Any())
+                                {
+                                    await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                                    {
+                                        Ids = idsDb,
+                                        TicketRedmineId = det.RedmineIssueId,
+                                        TicketViaticoId = det.RedmineViaticosIssueId,
+                                        Estado = "SINCRONIZADO"
+                                    });
+                                }
+
+                                foreach (var emp in grupo.Empleados)
+                                {
+                                    emp.TicketRedmineId = det.RedmineIssueId;
+                                    emp.TicketViaticoId = det.RedmineViaticosIssueId;
+                                    emp.Estado = "SINCRONIZADO";
+                                }
+                            }
+                        }
+                    }
+
+                    _snackbar.Add($"🚀 {creados} tickets creados con éxito en Helpdesk Redmine.", Severity.Success);
+                }
+                else
+                {
+                    _snackbar.Add($"Error al enviar a Helpdesk: {response?.Respuesta?.MensajeError}", Severity.Error);
+                }
             }
-
-            // Limpiar selección de personal para el siguiente grupo (mantener operación, turno y área para agilidad)
-            empleadosSeleccionados.Clear();
-            idsManualesInput = string.Empty;
-            observacionesInput = string.Empty;
-            viaticoTransporte = 0m;
-            viaticoAlimentacion = 0m;
-            asuntoPersonalizado = string.Empty;
-
-            await GuardarBorradorLocal();
-            StateHasChanged();
-        }
-
-        protected void CargarParaEditar(MovimientoSupervisorItem item)
-        {
-            editandoItemId = item.Id;
-            turnoSeleccionado = item.TurnoPreset;
-            if (TimeSpan.TryParse(item.HoraInicio, out var ti)) horaInicio = ti;
-            if (TimeSpan.TryParse(item.HoraFin, out var tf)) horaFin = tf;
-            areaInput = item.Area;
-            cargoInput = item.Cargo;
-            empleadosSeleccionados = item.Empleados.ToList();
-            idsManualesInput = item.IdsManuales;
-            viaticoTransporte = decimal.TryParse(item.VtcoTrasp, NumberStyles.Any, CultureInfo.InvariantCulture, out var vt) ? vt : 0m;
-            viaticoAlimentacion = decimal.TryParse(item.VtcoAlim, NumberStyles.Any, CultureInfo.InvariantCulture, out var va) ? va : 0m;
-            observacionesInput = item.Observaciones;
-            asuntoPersonalizado = item.Asunto;
-            bonosInput = item.Bonos;
-            esDobleTurno = item.DobleTurno == "1";
-            tiempoComidaInput = item.TiempoComida;
-            esOperacionMixta = item.EsOperacionMixta == "1";
-
-            _snackbar.Add("Cargado en el formulario para editar.", Severity.Info);
-        }
-
-        protected void CancelarEdicion()
-        {
-            editandoItemId = null;
-            empleadosSeleccionados.Clear();
-            idsManualesInput = string.Empty;
-            observacionesInput = string.Empty;
-            viaticoTransporte = 0m;
-            viaticoAlimentacion = 0m;
-            asuntoPersonalizado = string.Empty;
-            StateHasChanged();
-        }
-
-        protected async Task EliminarMovimiento(MovimientoSupervisorItem item)
-        {
-            movimientosJornada.Remove(item);
-            for (int i = 0; i < movimientosJornada.Count; i++)
+            catch (Exception ex)
             {
-                movimientosJornada[i].FilaIndex = i + 1;
+                _snackbar.Add($"Error en comunicación con Helpdesk: {ex.Message}", Severity.Error);
             }
-            await GuardarBorradorLocal();
-            _snackbar.Add("Movimiento eliminado de la jornada.", Severity.Normal);
-            StateHasChanged();
-        }
-
-        protected async Task LimpiarTodaLaJornada()
-        {
-            bool? confirmado = await _dialogService.ShowMessageBox(
-                "Reiniciar Jornada",
-                "¿Está seguro de que desea limpiar todos los registros de la pantalla? Los que no se hayan enviado a Redmine se perderán.",
-                yesText: "Sí, Limpiar",
-                cancelText: "Cancelar"
-            );
-
-            if (confirmado == true)
+            finally
             {
-                movimientosJornada.Clear();
-                editandoItemId = null;
-                empleadosSeleccionados.Clear();
-                idsManualesInput = string.Empty;
-                await LimpiarBorradorLocal();
-                _snackbar.Add("Jornada reiniciada.", Severity.Info);
-                StateHasChanged();
+                estaEnviandoHelpdesk = false;
             }
         }
 
-        #endregion
+        // --- HISTORIAL (Tab 3) ---
+        protected async Task ConsultarHistorial()
+        {
+            if (!fechaHistorial.HasValue || !selectedOperacionId.HasValue) return;
 
-        #region Persistencia Local (Resistencia a Desconexiones)
+            cargandoHistorial = true;
+            try
+            {
+                var resp = await _odooService.GetMovimientosPersonalDiario(fechaHistorial.Value, selectedOperacionId.Value);
+                if (resp?.Model != null)
+                {
+                    listaHistorial = resp.Model.ToList();
+                    _snackbar.Add($"Se encontraron {listaHistorial.Count} movimientos en el historial.", Severity.Info);
+                }
+                else
+                {
+                    listaHistorial.Clear();
+                    _snackbar.Add("No hay registros en esa fecha.", Severity.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al consultar historial: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoHistorial = false;
+            }
+        }
 
+        protected async Task CargarJornadaHistorialParaModificar(DateTime fecha)
+        {
+            fechaSeleccionada = fecha;
+            activeTabIndex = 0;
+            await CargarJornadaActual();
+            _snackbar.Add($"Jornada del {fecha:dd/MM/yyyy} cargada en la grilla para modificación.", Severity.Info);
+        }
+
+        // --- LOCAL STORAGE BACKUP ---
         private async Task GuardarBorradorLocal()
         {
             try
             {
-                string json = JsonSerializer.Serialize(movimientosJornada);
-                await _js.InvokeVoidAsync("localStorage.setItem", "supervisor_movimientos_jornada_draft", json);
+                if (!empleadosJornada.Any()) return;
+                var json = JsonSerializer.Serialize(empleadosJornada);
+                await _js.InvokeVoidAsync("localStorage.setItem", DraftStorageKey, json);
             }
             catch { }
         }
 
-        private async Task CargarBorradorLocal()
+        private async Task<bool> RecuperarBorradorLocal()
         {
             try
             {
-                string? json = await _js.InvokeAsync<string>("localStorage.getItem", "supervisor_movimientos_jornada_draft");
+                var json = await _js.InvokeAsync<string?>("localStorage.getItem", DraftStorageKey);
                 if (!string.IsNullOrEmpty(json))
                 {
-                    var items = JsonSerializer.Deserialize<List<MovimientoSupervisorItem>>(json);
+                    var items = JsonSerializer.Deserialize<List<EmpleadoJornadaItem>>(json);
                     if (items != null && items.Any())
                     {
-                        movimientosJornada = items;
+                        empleadosJornada = items;
+                        _snackbar.Add($"Se recuperó un borrador local no guardado ({items.Count} registros).", Severity.Info);
+                        return true;
                     }
                 }
             }
             catch { }
+            return false;
         }
 
         private async Task LimpiarBorradorLocal()
         {
             try
             {
-                await _js.InvokeVoidAsync("localStorage.removeItem", "supervisor_movimientos_jornada_draft");
+                await _js.InvokeVoidAsync("localStorage.removeItem", DraftStorageKey);
             }
             catch { }
         }
-
-        #endregion
-
-        #region Envío a Redmine
-
-        protected async Task EnviarJornadaARedmine()
-        {
-            if (!selectedOperacionId.HasValue || selectedOperacionId.Value <= 0)
-            {
-                _snackbar.Add("Seleccione la Operación / Cliente antes de enviar.", Severity.Warning);
-                return;
-            }
-
-            var pendientes = movimientosJornada.Where(x => x.Estado != EstadoMovimientoSupervisor.Sincronizado).ToList();
-            if (!pendientes.Any())
-            {
-                _snackbar.Add("Todos los movimientos de esta jornada ya fueron enviados a Redmine.", Severity.Info);
-                return;
-            }
-
-            bool? confirmado = await _dialogService.ShowMessageBox(
-                "Confirmar Envío a Redmine",
-                $"Se crearán los tickets de Redmine para {pendientes.Count} grupo(s) de trabajo con un total de {pendientes.Sum(x => x.CantidadEmpleados)} personas.\n\n¿Desea continuar?",
-                yesText: "Sí, Enviar a Redmine",
-                cancelText: "Cancelar"
-            );
-
-            if (confirmado != true) return;
-
-            estaEnviando = true;
-            foreach (var p in pendientes) p.Estado = EstadoMovimientoSupervisor.Enviando;
-            StateHasChanged();
-
-            try
-            {
-                var requestDto = new CrearMovimientosPersonalRequestDto
-                {
-                    OperacionId = selectedOperacionId.Value,
-                    ClienteRedmine = clienteRedmineIdentificador,
-                    ModoGeneracion = "Ambos",
-                    Movimientos = pendientes.Select(x => new MovimientoPersonalItemDto
-                    {
-                        FilaIndex = x.FilaIndex,
-                        Area = x.Area,
-                        Cargo = x.Cargo,
-                        Fecha = x.Fecha,
-                        HoraInicio = x.HoraInicio,
-                        HoraFin = x.HoraFin,
-                        CantidadEmpleados = x.CantidadEmpleados,
-                        IdsEmpleados = x.IdsEmpleadosTexto,
-                        Asunto = x.Asunto,
-                        Observaciones = x.Observaciones,
-                        Bonos = x.Bonos,
-                        DobleTurno = x.DobleTurno,
-                        TiempoComida = x.TiempoComida,
-                        EsOperacionMixta = x.EsOperacionMixta,
-                        VtcoTrasp = x.VtcoTrasp,
-                        VtcoAlim = x.VtcoAlim
-                    }).ToList()
-                };
-
-                var apiResponse = await _odooService.CrearMovimientosPersonalMasivo(requestDto);
-                if (apiResponse?.Model?.Detalles != null)
-                {
-                    int exitoCount = 0;
-                    int errorCount = 0;
-
-                    foreach (var det in apiResponse.Model.Detalles)
-                    {
-                        var target = pendientes.FirstOrDefault(x => x.FilaIndex == det.FilaIndex);
-                        if (target != null)
-                        {
-                            if (det.Exitoso)
-                            {
-                                target.Estado = EstadoMovimientoSupervisor.Sincronizado;
-                                target.RedmineIssueId = det.RedmineIssueId;
-                                target.RedmineViaticosIssueId = det.RedmineViaticosIssueId;
-                                target.MensajeError = null;
-                                exitoCount++;
-                            }
-                            else
-                            {
-                                target.Estado = EstadoMovimientoSupervisor.Error;
-                                target.MensajeError = det.Mensaje;
-                                errorCount++;
-                            }
-                        }
-                    }
-
-                    await GuardarBorradorLocal();
-
-                    if (errorCount == 0)
-                    {
-                        _snackbar.Add($"¡Excelente! {exitoCount} movimientos creados exitosamente en Redmine.", Severity.Success);
-                    }
-                    else
-                    {
-                        _snackbar.Add($"Proceso finalizado. Exitosos: {exitoCount}, Errores: {errorCount}.", Severity.Warning);
-                    }
-                }
-                else
-                {
-                    string err = apiResponse?.Respuesta?.MensajeError ?? "No se recibió respuesta válida del servidor.";
-                    foreach (var p in pendientes)
-                    {
-                        p.Estado = EstadoMovimientoSupervisor.Error;
-                        p.MensajeError = err;
-                    }
-                    _snackbar.Add($"Error al enviar a Redmine: {err}", Severity.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                foreach (var p in pendientes)
-                {
-                    p.Estado = EstadoMovimientoSupervisor.Error;
-                    p.MensajeError = ex.Message;
-                }
-                _snackbar.Add($"Excepción al conectar con Redmine: {ex.Message}", Severity.Error);
-            }
-            finally
-            {
-                estaEnviando = false;
-                await GuardarBorradorLocal();
-                StateHasChanged();
-            }
-        }
-
-        #endregion
     }
 }

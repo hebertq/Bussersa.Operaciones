@@ -1,0 +1,229 @@
+@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<MudThemeProvider Theme="_bussersaTheme" @bind-IsDarkMode="@_isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout Class="tablet-layout-root">
+    @* Barra Superior de la Aplicación de Tablet (Touch-First & Full Width) *@
+    <MudAppBar Elevation="1" Dense="true" Class="tablet-appbar px-3">
+        <MudTooltip Text="Regresar al Menú Principal del ERP">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                           Color="Color.Inherit" 
+                           Edge="Edge.Start" 
+                           OnClick="@VolverAlErp" 
+                           Class="mr-1" />
+        </MudTooltip>
+
+        <div class="d-flex align-center cursor-pointer" @onclick="@(() => Navigation.NavigateTo("/operaciones/registro-movimientos-supervisor"))">
+            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:28px;" class="mr-2" />
+            <div class="d-flex flex-column">
+                <div class="d-flex align-center gap-1">
+                    <MudText Typo="Typo.subtitle1" Style="font-weight: 800; letter-spacing: 0.5px; line-height: 1.1; font-family: 'Outfit', sans-serif;">
+                        BUSSER TABLET
+                    </MudText>
+                    <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Variant="Variant.Filled" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 6px;">
+                        CAMPO
+                    </MudChip>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 0.65rem; line-height: 1;">
+                    Registro Operativo de Personal
+                </MudText>
+            </div>
+        </div>
+
+        <MudSpacer />
+
+        @* Indicador de Modo En Línea *@
+        <div class="d-none d-sm-flex align-center mr-3 px-2 py-1 rounded-pill" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3);">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #10b981; margin-right: 6px; box-shadow: 0 0 6px #10b981;"></div>
+            <MudText Typo="Typo.caption" Style="color: #10b981; font-weight: 700; font-size: 0.72rem;">EN LÍNEA</MudText>
+        </div>
+
+        @* Botón Pantalla Completa (Kiosk Mode) *@
+        <MudTooltip Text="Alternar Pantalla Completa (Modo Kiosko)">
+            <MudIconButton Icon="@(_isFullscreen ? Icons.Material.Filled.FullscreenExit : Icons.Material.Filled.Fullscreen)" 
+                           Color="Color.Inherit" 
+                           OnClick="@ToggleFullscreen" 
+                           Class="mr-1" />
+        </MudTooltip>
+
+        @* Dark Mode Toggler *@
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+                       Color="Color.Inherit"
+                       OnClick="@ToggleDarkMode"
+                       Class="mr-1"
+                       Title="Alternar Modo Oscuro" />
+
+        @* Perfil del Supervisor *@
+        <div class="d-flex align-center ml-1 py-1 px-2 supervisor-pill">
+            <MudAvatar Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 0.75rem; font-weight: 700;">
+                SP
+            </MudAvatar>
+            <div class="d-none d-md-flex flex-column ml-2">
+                <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1.1; font-weight: 700;">Supervisor</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.65rem; opacity: 0.75;">OPERACIONES</MudText>
+            </div>
+        </div>
+    </MudAppBar>
+
+    @* Contenido de Pantalla Completa (Sin Menú Lateral Invasivo) *@
+    <MudMainContent Class="tablet-main-content">
+        <div class="tablet-content-wrapper">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+<script>
+    window.tabletLayoutInterop = {
+        toggleFullScreen: function () {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Error al activar pantalla completa: ", err);
+                });
+                return true;
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+                return false;
+            }
+        },
+        isFullscreen: function () {
+            return !!document.fullscreenElement;
+        }
+    };
+</script>
+
+<style>
+    .tablet-layout-root {
+        min-height: 100vh;
+        background-color: var(--mud-palette-background);
+    }
+
+    .tablet-appbar {
+        border-bottom: 1px solid var(--mud-palette-divider) !important;
+        backdrop-filter: blur(12px) !important;
+        background-color: var(--mud-palette-appbar-background) !important;
+        height: 52px !important;
+    }
+
+    .tablet-main-content {
+        padding-top: 52px !important;
+        min-height: 100vh;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        overflow-x: hidden;
+    }
+
+    .tablet-content-wrapper {
+        width: 100%;
+        max-width: 100%;
+        padding: 8px 12px 24px 12px;
+        box-sizing: border-box;
+    }
+
+    .supervisor-pill {
+        border-radius: 20px;
+        background: rgba(var(--mud-palette-action-default-rgb), 0.06) !important;
+        border: 1px solid var(--mud-palette-divider) !important;
+    }
+
+    /* Ocultar scrollbars horizontales indeseadas en tablets */
+    body {
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+    }
+</style>
+
+@code {
+    private bool _isDarkMode = false;
+    private bool _isFullscreen = false;
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private async Task ToggleFullscreen()
+    {
+        try
+        {
+            _isFullscreen = await JS.InvokeAsync<bool>("tabletLayoutInterop.toggleFullScreen");
+        }
+        catch
+        {
+            // Ignorar excepciones de permisos de pantalla completa en navegadores
+        }
+    }
+
+    private void VolverAlErp()
+    {
+        Navigation.NavigateTo("/operaciones/marcadasxfacturar");
+    }
+
+    private MudTheme _bussersaTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#0f172a",
+            Secondary = "#f97316",
+            AppbarBackground = "rgba(255, 255, 255, 0.95)",
+            AppbarText = "#0f172a",
+            Background = "#f1f5f9", // Slate 100 suave para contraste con tarjetas
+            Surface = "#ffffff",
+            DrawerBackground = "#ffffff",
+            DrawerText = "#334155",
+            DrawerIcon = "#475569",
+            ActionDefault = "#475569",
+            Divider = "#e2e8f0",
+            TextPrimary = "#0f172a",
+            TextSecondary = "#475569",
+            Success = "#10b981",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Info = "#06b6d4"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#38bdf8",
+            Secondary = "#f97316",
+            AppbarBackground = "rgba(15, 23, 42, 0.95)",
+            AppbarText = "#f8fafc",
+            Background = "#0b0f19",
+            Surface = "#111827",
+            DrawerBackground = "#111827",
+            DrawerText = "#cbd5e1",
+            DrawerIcon = "#94a3b8",
+            ActionDefault = "#94a3b8",
+            Divider = "#1f2937",
+            TextPrimary = "#f8fafc",
+            TextSecondary = "#94a3b8",
+            Success = "#34d399",
+            Warning = "#fbbf24",
+            Error = "#f87171",
+            Info = "#22d3ee"
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "14px"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Outfit", "Inter", "sans-serif" },
+                FontSize = ".9rem"
+            },
+            H5 = new H5Typography() { FontSize = "1.4rem", FontWeight = "800", FontFamily = new[] { "Outfit", "Inter" } },
+            H6 = new H6Typography() { FontSize = "1.15rem", FontWeight = "700", FontFamily = new[] { "Outfit", "Inter" } },
+            Subtitle1 = new Subtitle1Typography() { FontSize = "0.95rem", FontWeight = "600", FontFamily = new[] { "Outfit", "Inter" } },
+            Subtitle2 = new Subtitle2Typography() { FontSize = "0.85rem", FontWeight = "600", FontFamily = new[] { "Outfit", "Inter" } },
+            Caption = new CaptionTypography() { FontSize = "0.75rem", FontWeight = "500", FontFamily = new[] { "Outfit", "Inter" } }
+        }
+    };
+}

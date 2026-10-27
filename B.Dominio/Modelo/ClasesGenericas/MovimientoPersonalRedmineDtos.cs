@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Modelo.ClasesGenericas
@@ -46,5 +47,56 @@ namespace Modelo.ClasesGenericas
         public int? RedmineViaticosIssueId { get; set; }
         public string? Mensaje { get; set; }
         public string? MensajeViaticos { get; set; }
+    }
+
+    public class MovimientoPersonalDiarioDto
+    {
+        public int Id { get; set; }
+        public DateTime Fecha { get; set; }
+        public int OperacionId { get; set; }
+        public string Cliente { get; set; } = string.Empty;
+        public int IdEmpleado { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string HoraEntrada { get; set; } = "06:00";
+        public string HoraSalida { get; set; } = "14:00";
+        public string TurnoNombre { get; set; } = "Diurno";
+        public string? Bnc { get; set; } = string.Empty;
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+        public string? Observaciones { get; set; } = string.Empty;
+        public bool Asistio { get; set; } = true;
+        public string Estado { get; set; } = "GUARDADO";
+        public int? TicketRedmineId { get; set; }
+        public int? TicketViaticoId { get; set; }
+        public string? UsuarioRegistro { get; set; }
+        public DateTime? FechaCreacion { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
+    }
+
+    public class GuardarMovimientosPersonalDiarioRequest
+    {
+        public int OperacionId { get; set; }
+        public DateTime Fecha { get; set; }
+        public string Usuario { get; set; } = "Supervisor";
+        public List<MovimientoPersonalDiarioDto> Movimientos { get; set; } = new();
+    }
+
+    public class ClonarMovimientosDiaAnteriorRequest
+    {
+        public int OperacionId { get; set; }
+        public DateTime FechaOrigen { get; set; }
+        public DateTime FechaDestino { get; set; }
+        public string Usuario { get; set; } = "Supervisor";
+    }
+
+    public class ActualizarSyncHelpdeskRequest
+    {
+        public List<int> Ids { get; set; } = new();
+        public int? TicketRedmineId { get; set; }
+        public int? TicketViaticoId { get; set; }
+        public string Estado { get; set; } = "SINCRONIZADO";
     }
 }

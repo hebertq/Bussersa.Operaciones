@@ -1,0 +1,209 @@
+@using MudBlazor
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Asignación Masiva Rápida</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Aplicar área, turno y viáticos a <b>@CantidadSeleccionada colaboradores</b> seleccionados
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            <MudGrid Spacing="2">
+                @* Selección de Turno Rápido *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">1. Turno y Horario</MudText>
+                    <MudStack Row="true" Spacing="1" Class="flex-wrap mb-2">
+                        <MudButton Variant="@(TurnoSeleccionado == "Diurno" ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(TurnoSeleccionado == "Diurno" ? Color.Primary : Color.Default)"
+                                   Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.WbSunny"
+                                   OnClick="@(() => SetTurno("Diurno", "06:00", "14:00"))">
+                            Diurno (06-14)
+                        </MudButton>
+                        <MudButton Variant="@(TurnoSeleccionado == "DCC" ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(TurnoSeleccionado == "DCC" ? Color.Primary : Color.Default)"
+                                   Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.Work"
+                                   OnClick="@(() => SetTurno("DCC", "06:00", "15:30"))">
+                            DCC (06-15:30)
+                        </MudButton>
+                        <MudButton Variant="@(TurnoSeleccionado == "Mixto" ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(TurnoSeleccionado == "Mixto" ? Color.Primary : Color.Default)"
+                                   Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.Brightness6"
+                                   OnClick="@(() => SetTurno("Mixto", "14:00", "22:00"))">
+                            Mixto (14-22)
+                        </MudButton>
+                        <MudButton Variant="@(TurnoSeleccionado == "Nocturno" ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(TurnoSeleccionado == "Nocturno" ? Color.Primary : Color.Default)"
+                                   Size="Size.Medium"
+                                   StartIcon="@Icons.Material.Filled.NightsStay"
+                                   OnClick="@(() => SetTurno("Nocturno", "22:00", "06:00"))">
+                            Nocturno (22-06)
+                        </MudButton>
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraEntrada" Label="Hora Entrada" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraSalida" Label="Hora Salida" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                @* Área y Cargo *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">2. Área Operativa y Puesto</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="string"
+                                     Label="Área Operativa"
+                                     @bind-Value="Area"
+                                     SearchFunc="@BuscarAreas"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="true"
+                                     CoerceValue="true"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Adornment="Adornment.Start"
+                                     AdornmentIcon="@Icons.Material.Filled.Place" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge">
+                        @foreach (var c in CargosDisponibles)
+                        {
+                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* Subcliente *@
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Cliente" Label="Subcliente / Identificador (Opcional, ej. WalMart, Pepsi)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                @* Viáticos *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">3. Viáticos por Persona</MudText>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Transporte (C$):</MudText>
+                    <MudStack Row="true" Spacing="1" Class="mb-1">
+                        @foreach (var v in new[] { 0, 50, 100, 150 })
+                        {
+                            <MudChip T="string" Size="Size.Small" 
+                                     Color="@(VtcoTrasp == v ? Color.Info : Color.Default)"
+                                     Variant="@(VtcoTrasp == v ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => VtcoTrasp = v)">
+                                C$ @v
+                            </MudChip>
+                        }
+                    </MudStack>
+                    <MudNumericField @bind-Value="VtcoTrasp" Label="Monto Transporte" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Alimentación (C$):</MudText>
+                    <MudStack Row="true" Spacing="1" Class="mb-1">
+                        @foreach (var v in new[] { 0, 50, 70, 100, 150 })
+                        {
+                            <MudChip T="string" Size="Size.Small" 
+                                     Color="@(VtcoAlim == v ? Color.Info : Color.Default)"
+                                     Variant="@(VtcoAlim == v ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => VtcoAlim = v)">
+                                C$ @v
+                            </MudChip>
+                        }
+                    </MudStack>
+                    <MudNumericField @bind-Value="VtcoAlim" Label="Monto Alimentación" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancelar" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="@Aplicar" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Check">
+            Aplicar a @CantidadSeleccionada Empleados
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int CantidadSeleccionada { get; set; }
+    [Parameter] public List<string> AreasDisponibles { get; set; } = new();
+    [Parameter] public List<string> CargosDisponibles { get; set; } = new();
+    [Parameter] public string AreaInicial { get; set; } = string.Empty;
+    [Parameter] public string PuestoInicial { get; set; } = "6-Operador de almacen";
+    [Parameter] public string ClienteInicial { get; set; } = string.Empty;
+
+    public string TurnoSeleccionado { get; set; } = "Diurno";
+    public string HoraEntrada { get; set; } = "06:00";
+    public string HoraSalida { get; set; } = "14:00";
+    public string Area { get; set; } = string.Empty;
+    public string Puesto { get; set; } = "6-Operador de almacen";
+    public string Cliente { get; set; } = string.Empty;
+    public decimal VtcoTrasp { get; set; } = 0m;
+    public decimal VtcoAlim { get; set; } = 0m;
+
+    protected override void OnInitialized()
+    {
+        Area = AreaInicial;
+        Puesto = string.IsNullOrWhiteSpace(PuestoInicial) ? "6-Operador de almacen" : PuestoInicial;
+        Cliente = ClienteInicial;
+    }
+
+    private void SetTurno(string turno, string entrada, string salida)
+    {
+        TurnoSeleccionado = turno;
+        HoraEntrada = entrada;
+        HoraSalida = salida;
+    }
+
+    private Task<IEnumerable<string>> BuscarAreas(string valor, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return Task.FromResult<IEnumerable<string>>(AreasDisponibles);
+
+        return Task.FromResult(AreasDisponibles.Where(x => x.Contains(valor, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private void Aplicar()
+    {
+        var model = new ResultadoAsignacionMasiva
+        {
+            TurnoNombre = TurnoSeleccionado,
+            HoraEntrada = HoraEntrada,
+            HoraSalida = HoraSalida,
+            Area = Area,
+            Puesto = Puesto,
+            Cliente = Cliente,
+            VtcoTrasp = VtcoTrasp,
+            VtcoAlim = VtcoAlim
+        };
+        MudDialog.Close(DialogResult.Ok(model));
+    }
+
+    public class ResultadoAsignacionMasiva
+    {
+        public string TurnoNombre { get; set; } = "Diurno";
+        public string HoraEntrada { get; set; } = "06:00";
+        public string HoraSalida { get; set; } = "14:00";
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string Cliente { get; set; } = string.Empty;
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+    }
+}

@@ -181,6 +181,12 @@ namespace HostService.Interfaces
         Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion);
         Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio);
         Task<IListResponse<string>> GetAreasOperacion(int operacionId);
+
+        // --- MOVIMIENTOS DE PERSONAL DIARIO (TABLET) ---
+        Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId);
+        Task<IResponse> SaveMovimientosPersonalDiario(Modelo.ClasesGenericas.GuardarMovimientosPersonalDiarioRequest request);
+        Task<IResponse> ClonarMovimientosDiaAnterior(Modelo.ClasesGenericas.ClonarMovimientosDiaAnteriorRequest request);
+        Task<IResponse> UpdateSyncHelpdeskMovimientos(Modelo.ClasesGenericas.ActualizarSyncHelpdeskRequest request);
     }
 }
 
