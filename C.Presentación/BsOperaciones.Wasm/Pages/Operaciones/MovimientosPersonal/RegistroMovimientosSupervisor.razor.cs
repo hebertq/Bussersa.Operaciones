@@ -929,9 +929,35 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 sumGlobal.SetCellValue((double)TotalViaticosGlobal);
                 sumGlobal.CellStyle = currencyStyle;
 
+                // Definir anchos de columna fijos compatibles con WebAssembly (evita System.Drawing.Common PlatformNotSupportedException)
+                int[] colWidths = new[]
+                {
+                    6,  // 0: #
+                    14, // 1: Fecha
+                    18, // 2: Carnet / Código
+                    34, // 3: Colaborador
+                    24, // 4: Cliente / Operación
+                    14, // 5: Asistencia
+                    26, // 6: Área Operativa
+                    28, // 7: Cargo / Puesto
+                    14, // 8: Turno
+                    14, // 9: Hora Entrada
+                    14, // 10: Hora Salida
+                    22, // 11: Viático Transporte (C$)
+                    22, // 12: Viático Alimentación (C$)
+                    18, // 13: Bono BNC (C$)
+                    20, // 14: Total Viáticos (C$)
+                    32, // 15: Observaciones
+                    14, // 16: Estado
+                    16, // 17: Ticket Redmine
+                    16, // 18: Ticket Viático
+                    26  // 19: Supervisor
+                };
+
                 for (int i = 0; i < headers.Length; i++)
                 {
-                    sheet.AutoSizeColumn(i);
+                    int width = (i < colWidths.Length) ? colWidths[i] : 20;
+                    sheet.SetColumnWidth(i, width * 256);
                 }
 
                 using var ms = new MemoryStream();
