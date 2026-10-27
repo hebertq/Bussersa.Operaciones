@@ -177,6 +177,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     currentUserName = "Supervisor";
                 }
 
+                await PurgarBorradoresLocales();
                 await CargarOperaciones();
                 await RecuperarOperacionPrevia();
                 await CargarMiPlantilla();
@@ -365,17 +366,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    // 2. Si no hay en BD, verificar si hay un borrador local no guardado
-                    bool cargoBorrador = await RecuperarBorradorLocal();
-                    if (!cargoBorrador)
-                    {
-                        empleadosJornada.Clear();
-                        // 3. Si no hay registros previos para hoy, precargar automáticamente la plantilla definida por el supervisor
-                        if (miPlantillaPersonal.Any())
-                        {
-                            await PrecargarDesdeMiPlantilla(forzarCarga: true);
-                        }
-                    }
+                    // Si no hay registros guardados en BD para esta fecha, la grilla queda limpia
+                    empleadosJornada.Clear();
                 }
 
                 ActualizarGruposConsolidados();
@@ -478,7 +470,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             ActualizarGruposConsolidados();
-            await GuardarBorradorLocal();
             _snackbar.Add($"Se cargaron {agregados} colaboradores de tu plantilla con sus clientes iniciales.", Severity.Success);
         }
 
@@ -734,7 +725,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 _snackbar.Add($"Asignado turno, área y viáticos a {seleccionados.Count} colaboradores.", Severity.Success);
-                await GuardarBorradorLocal();
                 ActualizarGruposConsolidados();
             }
         }
@@ -792,7 +782,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     miPlantillaPersonal.Add(itemP);
                 }
 
-                await GuardarBorradorLocal();
                 ActualizarGruposConsolidados();
             }
         }
@@ -1050,10 +1039,43 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
-        protected void EliminarEmpleadoDeJornada(EmpleadoJornadaItem item)
+        protected async Task EliminarEmpleadoDeJornada(EmpleadoJornadaItem item)
         {
-            empleadosJornada.Remove(item);
-            ActualizarGruposConsolidados();
+            if (item.Id > 0)
+            {
+                bool? confirm = await _dialogService.ShowMessageBox(
+                    "Quitar Colaborador",
+                    $"¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de la jornada del {fechaSeleccionada:dd/MM/yyyy}?",
+                    yesText: "Sí, Quitar",
+                    cancelText: "Cancelar");
+
+                if (confirm != true) return;
+
+                try
+                {
+                    var resp = await _odooService.DeleteMovimientoPersonalDiario(item.Id);
+                    if (resp?.Respuesta != null && !resp.Respuesta.ExisteError)
+                    {
+                        empleadosJornada.Remove(item);
+                        ActualizarGruposConsolidados();
+                        _snackbar.Add($"#{item.CodigoEmpleado} {item.NombreEmpleado} removido de la base de datos.", Severity.Success);
+                    }
+                    else
+                    {
+                        _snackbar.Add($"Error al eliminar de la base de datos: {resp?.Respuesta?.MensajeError}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al eliminar: {ex.Message}", Severity.Error);
+                }
+            }
+            else
+            {
+                empleadosJornada.Remove(item);
+                ActualizarGruposConsolidados();
+                _snackbar.Add($"#{item.CodigoEmpleado} {item.NombreEmpleado} removido de la jornada.", Severity.Info);
+            }
         }
 
         // --- FILTRADO DE LA GRILLA ---
@@ -1268,45 +1290,27 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             _snackbar.Add($"Jornada del {fecha:dd/MM/yyyy} cargada en la grilla para modificación.", Severity.Info);
         }
 
-        // --- LOCAL STORAGE BACKUP ---
-        private async Task GuardarBorradorLocal()
+        // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE ---
+        private async Task PurgarBorradoresLocales()
         {
             try
             {
-                if (!empleadosJornada.Any()) return;
-                var json = JsonSerializer.Serialize(empleadosJornada);
-                await _js.InvokeVoidAsync("localStorage.setItem", DraftStorageKey, json);
+                await _js.InvokeVoidAsync("eval", @"
+                    try {
+                        for (let i = localStorage.length - 1; i >= 0; i--) {
+                            const key = localStorage.key(i);
+                            if (key && (key.startsWith('supervisor_jornada_draft_') || key.includes('jornada_draft'))) {
+                                localStorage.removeItem(key);
+                            }
+                        }
+                    } catch(e) {}
+                ");
             }
             catch { }
         }
 
-        private async Task<bool> RecuperarBorradorLocal()
-        {
-            try
-            {
-                var json = await _js.InvokeAsync<string?>("localStorage.getItem", DraftStorageKey);
-                if (!string.IsNullOrEmpty(json))
-                {
-                    var items = JsonSerializer.Deserialize<List<EmpleadoJornadaItem>>(json);
-                    if (items != null && items.Any())
-                    {
-                        empleadosJornada = items;
-                        _snackbar.Add($"Se recuperó un borrador local no guardado ({items.Count} registros).", Severity.Info);
-                        return true;
-                    }
-                }
-            }
-            catch { }
-            return false;
-        }
-
-        private async Task LimpiarBorradorLocal()
-        {
-            try
-            {
-                await _js.InvokeVoidAsync("localStorage.removeItem", DraftStorageKey);
-            }
-            catch { }
-        }
+        private async Task GuardarBorradorLocal() => await Task.CompletedTask;
+        private async Task<bool> RecuperarBorradorLocal() => await Task.FromResult(false);
+        private async Task LimpiarBorradorLocal() => await PurgarBorradoresLocales();
     }
 }
