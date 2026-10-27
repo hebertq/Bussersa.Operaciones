@@ -1,0 +1,265 @@
+@using MudBlazor
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using HostService.Interfaces
+
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Agregar Colaborador a la Jornada</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Buscar en el catálogo de personal de Odoo o ingresar manualmente
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            <MudGrid Spacing="2">
+                @* Selector / Buscador de Odoo *@
+                <MudItem xs="12">
+                    <MudAutocomplete T="OdooEmployeeDto"
+                                     Label="Buscar Colaborador en Odoo (Nombre o Carnet #)"
+                                     Value="@empleadoSeleccionado"
+                                     ValueChanged="@OnEmpleadoOdooSeleccionado"
+                                     SearchFunc="@BuscarColaboradorOdoo"
+                                     ToStringFunc="@(e => e != null ? $"#{e.CodigoEmpleado ?? e.Id} - {e.Name} ({e.JobTitle ?? "Colaborador"})" : string.Empty)"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="false"
+                                     CoerceValue="false"
+                                     Dense="true"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Adornment="Adornment.Start"
+                                     AdornmentIcon="@Icons.Material.Filled.Search"
+                                     Placeholder="Escribe el nombre o carnet del colaborador..." />
+                </MudItem>
+
+                @* Datos del Empleado *@
+                <MudItem xs="4">
+                    <MudNumericField T="int" @bind-Value="CodigoEmpleado" Label="Carnet / ID" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" />
+                </MudItem>
+                <MudItem xs="8">
+                    <MudTextField @bind-Value="NombreEmpleado" Label="Nombre Completo" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                @* Cliente y Área *@
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Cliente / Operación" @bind-Value="Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        @foreach (var op in OperacionesDisponibles)
+                        {
+                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudAutocomplete T="string"
+                                     Label="Área Operativa"
+                                     @bind-Value="Area"
+                                     SearchFunc="@BuscarAreas"
+                                     ResetValueOnEmptyText="false"
+                                     CoerceText="true"
+                                     CoerceValue="true"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Dense="true" />
+                </MudItem>
+
+                @* Puesto y Turno *@
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        @foreach (var c in CargosDisponibles)
+                        {
+                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" Label="Turno" Value="@TurnoNombre" ValueChanged="@OnTurnoChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="@("Diurno")">Diurno (06:00 - 14:00)</MudSelectItem>
+                        <MudSelectItem Value="@("DCC")">DCC (06:00 - 15:30)</MudSelectItem>
+                        <MudSelectItem Value="@("Mixto")">Mixto (14:00 - 22:00)</MudSelectItem>
+                        <MudSelectItem Value="@("Nocturno")">Nocturno (22:00 - 06:00)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraEntrada" Label="Hora Entrada" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraSalida" Label="Hora Salida" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+
+                @* Viáticos y BNC *@
+                <MudItem xs="4">
+                    <MudNumericField T="decimal" @bind-Value="VtcoTrasp" Label="Trasp (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="decimal" @bind-Value="VtcoAlim" Label="Alim (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                </MudItem>
+                <MudItem xs="4">
+                    <MudNumericField T="decimal" @bind-Value="BonoBnc" Label="BNC (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@Cancelar" Variant="Variant.Text">Cancelar</MudButton>
+        <MudButton OnClick="@Agregar" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.PersonAdd">
+            Agregar a la Jornada
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Inject] private IOdooService _odooService { get; set; } = null!;
+    [Inject] private ISnackbar _snackbar { get; set; } = null!;
+
+    [Parameter] public List<Combos> OperacionesDisponibles { get; set; } = new();
+    [Parameter] public List<string> AreasDisponibles { get; set; } = new();
+    [Parameter] public List<string> CargosDisponibles { get; set; } = new();
+    [Parameter] public string OperacionDefecto { get; set; } = string.Empty;
+    [Parameter] public string AreaDefecto { get; set; } = "Operaciones";
+    [Parameter] public string TextoBusquedaInicial { get; set; } = string.Empty;
+
+    private List<OdooEmployeeDto> catalogoOdooCompleto = new();
+    private OdooEmployeeDto? empleadoSeleccionado;
+
+    public int IdEmpleado { get; set; } = 0;
+    public int CodigoEmpleado { get; set; } = 0;
+    public string NombreEmpleado { get; set; } = string.Empty;
+    public string Cliente { get; set; } = string.Empty;
+    public string Area { get; set; } = "Operaciones";
+    public string Puesto { get; set; } = "6-Operador de almacen";
+    public string TurnoNombre { get; set; } = "Diurno";
+    public string HoraEntrada { get; set; } = "06:00";
+    public string HoraSalida { get; set; } = "14:00";
+    public decimal VtcoTrasp { get; set; } = 0;
+    public decimal VtcoAlim { get; set; } = 0;
+    public decimal BonoBnc { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) ? OperacionDefecto : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? "WalMart");
+        Area = !string.IsNullOrWhiteSpace(AreaDefecto) ? AreaDefecto : "Operaciones";
+
+        // Cargar catálogo de Odoo para búsqueda rápida
+        try
+        {
+            var resp = await _odooService.GetAllActiveEmployeesForRotation();
+            if (resp?.Model != null)
+            {
+                catalogoOdooCompleto = resp.Model.ToList();
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrWhiteSpace(TextoBusquedaInicial))
+        {
+            if (int.TryParse(TextoBusquedaInicial, out int cod))
+            {
+                CodigoEmpleado = cod;
+                var match = catalogoOdooCompleto.FirstOrDefault(e => (e.CodigoEmpleado ?? e.Id) == cod);
+                if (match != null) OnEmpleadoOdooSeleccionado(match);
+            }
+            else
+            {
+                NombreEmpleado = TextoBusquedaInicial;
+                var match = catalogoOdooCompleto.FirstOrDefault(e => e.Name.Contains(TextoBusquedaInicial, StringComparison.OrdinalIgnoreCase));
+                if (match != null) OnEmpleadoOdooSeleccionado(match);
+            }
+        }
+    }
+
+    private Task<IEnumerable<OdooEmployeeDto>> BuscarColaboradorOdoo(string valor, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return Task.FromResult<IEnumerable<OdooEmployeeDto>>(catalogoOdooCompleto.Take(15));
+
+        var query = catalogoOdooCompleto.Where(e =>
+            e.Name.Contains(valor, StringComparison.OrdinalIgnoreCase) ||
+            (e.CodigoEmpleado.HasValue && e.CodigoEmpleado.Value.ToString().Contains(valor)) ||
+            e.Id.ToString().Contains(valor)
+        ).Take(20);
+
+        return Task.FromResult(query);
+    }
+
+    private void OnEmpleadoOdooSeleccionado(OdooEmployeeDto? emp)
+    {
+        empleadoSeleccionado = emp;
+        if (emp != null)
+        {
+            IdEmpleado = emp.Id;
+            CodigoEmpleado = emp.CodigoEmpleado ?? emp.Id;
+            NombreEmpleado = emp.Name;
+            if (!string.IsNullOrWhiteSpace(emp.JobTitle))
+            {
+                var cargoMatch = CargosDisponibles.FirstOrDefault(c => c.Contains(emp.JobTitle, StringComparison.OrdinalIgnoreCase));
+                Puesto = cargoMatch ?? emp.JobTitle;
+            }
+        }
+    }
+
+    private void OnTurnoChanged(string turno)
+    {
+        TurnoNombre = turno;
+        if (turno == "Diurno") { HoraEntrada = "06:00"; HoraSalida = "14:00"; }
+        else if (turno == "DCC") { HoraEntrada = "06:00"; HoraSalida = "15:30"; }
+        else if (turno == "Mixto") { HoraEntrada = "14:00"; HoraSalida = "22:00"; }
+        else if (turno == "Nocturno") { HoraEntrada = "22:00"; HoraSalida = "06:00"; }
+    }
+
+    private Task<IEnumerable<string>> BuscarAreas(string valor, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return Task.FromResult<IEnumerable<string>>(AreasDisponibles);
+
+        return Task.FromResult(AreasDisponibles.Where(x => x.Contains(valor, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private void Agregar()
+    {
+        if (string.IsNullOrWhiteSpace(NombreEmpleado))
+        {
+            _snackbar.Add("Ingrese el nombre del colaborador.", Severity.Warning);
+            return;
+        }
+
+        if (CodigoEmpleado <= 0)
+        {
+            _snackbar.Add("Ingrese un código o carnet válido para el colaborador.", Severity.Warning);
+            return;
+        }
+
+        var item = new EmpleadoJornadaItem
+        {
+            Id = 0,
+            IdEmpleado = IdEmpleado > 0 ? IdEmpleado : CodigoEmpleado,
+            CodigoEmpleado = CodigoEmpleado,
+            NombreEmpleado = NombreEmpleado.Trim(),
+            Cliente = Cliente,
+            Area = Area,
+            Puesto = Puesto,
+            TurnoNombre = TurnoNombre,
+            HoraEntrada = HoraEntrada,
+            HoraSalida = HoraSalida,
+            VtcoTrasp = VtcoTrasp,
+            VtcoAlim = VtcoAlim,
+            BonoBnc = BonoBnc,
+            Asistio = true,
+            Estado = "BORRADOR",
+            Modificado = true
+        };
+
+        MudDialog.Close(DialogResult.Ok(item));
+    }
+}

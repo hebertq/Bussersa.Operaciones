@@ -94,7 +94,7 @@
                 <MudItem xs="12">
                     <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">3. Viáticos por Persona</MudText>
                 </MudItem>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="4">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Transporte (C$):</MudText>
                     <MudStack Row="true" Spacing="1" Class="mb-1">
                         @foreach (var v in new[] { 0, 50, 100, 150 })
@@ -110,7 +110,7 @@
                     <MudNumericField @bind-Value="VtcoTrasp" Label="Monto Transporte" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                 </MudItem>
 
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="4">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Alimentación (C$):</MudText>
                     <MudStack Row="true" Spacing="1" Class="mb-1">
                         @foreach (var v in new[] { 0, 50, 70, 100, 150 })
@@ -124,6 +124,22 @@
                         }
                     </MudStack>
                     <MudNumericField @bind-Value="VtcoAlim" Label="Monto Alimentación" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Bono BNC (C$):</MudText>
+                    <MudStack Row="true" Spacing="1" Class="mb-1">
+                        @foreach (var v in new[] { 0, 50, 100, 150 })
+                        {
+                            <MudChip T="string" Size="Size.Small" 
+                                     Color="@(BonoBnc == v ? Color.Info : Color.Default)"
+                                     Variant="@(BonoBnc == v ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => BonoBnc = v)">
+                                C$ @v
+                            </MudChip>
+                        }
+                    </MudStack>
+                    <MudNumericField @bind-Value="BonoBnc" Label="Monto Bono BNC" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                 </MudItem>
             </MudGrid>
         </MudContainer>
@@ -154,6 +170,7 @@
     public string Cliente { get; set; } = string.Empty;
     public decimal VtcoTrasp { get; set; } = 0m;
     public decimal VtcoAlim { get; set; } = 0m;
+    public decimal BonoBnc { get; set; } = 0m;
 
     protected override void OnInitialized()
     {
@@ -190,7 +207,8 @@
             Puesto = Puesto,
             Cliente = Cliente,
             VtcoTrasp = VtcoTrasp,
-            VtcoAlim = VtcoAlim
+            VtcoAlim = VtcoAlim,
+            BonoBnc = BonoBnc
         };
         MudDialog.Close(DialogResult.Ok(model));
     }
@@ -205,5 +223,6 @@
         public string Cliente { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public decimal BonoBnc { get; set; }
     }
 }

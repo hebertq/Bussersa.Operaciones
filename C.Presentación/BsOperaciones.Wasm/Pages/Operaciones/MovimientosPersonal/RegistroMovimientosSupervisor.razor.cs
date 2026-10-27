@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Interfaces;
 using MudBlazor;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 {
@@ -28,9 +31,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraEntrada { get; set; } = "06:00";
         public string HoraSalida { get; set; } = "14:00";
         public string Cliente { get; set; } = string.Empty;
-        public string Bnc { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public decimal BonoBnc { get; set; }
+        public string Bnc
+        {
+            get => BonoBnc > 0 ? BonoBnc.ToString("N2", CultureInfo.InvariantCulture) : string.Empty;
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                    BonoBnc = 0;
+                else if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val))
+                    BonoBnc = val;
+                else if (decimal.TryParse(value, NumberStyles.Any, new CultureInfo("es-NI"), out decimal valEs))
+                    BonoBnc = valEs;
+                else
+                    BonoBnc = 0;
+            }
+        }
         public string Observaciones { get; set; } = string.Empty;
         public bool Asistio { get; set; } = true;
         public string Estado { get; set; } = "GUARDADO";
@@ -51,6 +69,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraFin { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public decimal VtcoBnc { get; set; }
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
         public int Cantidad => Empleados.Count;
         public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
@@ -116,6 +135,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalAusentes => empleadosJornada.Count(x => !x.Asistio);
         protected decimal TotalViaticosTrasp => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoTrasp);
         protected decimal TotalViaticosAlim => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoAlim);
+        protected decimal TotalViaticosBnc => empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoBnc);
+        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim + TotalViaticosBnc;
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
 
@@ -570,14 +591,200 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (!string.IsNullOrWhiteSpace(data.Cliente)) emp.Cliente = data.Cliente;
                     emp.VtcoTrasp = data.VtcoTrasp;
                     emp.VtcoAlim = data.VtcoAlim;
+                    emp.BonoBnc = data.BonoBnc;
                     emp.Asistio = true;
                     emp.Modificado = true;
                     emp.Seleccionado = false;
                 }
 
-                _snackbar.Add($"Asignado turno y área a {seleccionados.Count} colaboradores.", Severity.Success);
+                _snackbar.Add($"Asignado turno, área y viáticos a {seleccionados.Count} colaboradores.", Severity.Success);
                 await GuardarBorradorLocal();
                 ActualizarGruposConsolidados();
+            }
+        }
+
+        // --- AGREGAR COLABORADOR MANUAL O DESDE ODOO ---
+        protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "")
+        {
+            var parameters = new DialogParameters
+            {
+                ["OperacionesDisponibles"] = operacionesList,
+                ["AreasDisponibles"] = areasSugeridas,
+                ["CargosDisponibles"] = cargosDisponibles,
+                ["OperacionDefecto"] = selectedOperacionId.HasValue ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "") : "",
+                ["AreaDefecto"] = areasSugeridas.FirstOrDefault() ?? "Operaciones",
+                ["TextoBusquedaInicial"] = textoInicial
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogAgregarColaboradorJornada>("Agregar Colaborador a la Jornada", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is EmpleadoJornadaItem nuevo)
+            {
+                var existente = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == nuevo.CodigoEmpleado);
+                if (existente != null)
+                {
+                    _snackbar.Add($"El colaborador #{nuevo.CodigoEmpleado} ({nuevo.NombreEmpleado}) ya se encuentra en la jornada.", Severity.Warning);
+                    textoBusqueda = nuevo.CodigoEmpleado.ToString();
+                    return;
+                }
+
+                empleadosJornada.Insert(0, nuevo);
+                _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
+                await GuardarBorradorLocal();
+                ActualizarGruposConsolidados();
+            }
+        }
+
+        // --- LIMPIAR GRILLA COMPLETA ---
+        protected async Task LimpiarGrillaCompleta()
+        {
+            if (!empleadosJornada.Any()) return;
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Limpiar Grilla Diaria",
+                $"¿Estás seguro de que deseas limpiar los {empleadosJornada.Count} colaboradores de la pantalla para esta fecha? Esta acción no borra la base de datos hasta que presiones Guardar.",
+                yesText: "Sí, Limpiar Grilla", cancelText: "Cancelar");
+
+            if (confirm == true)
+            {
+                empleadosJornada.Clear();
+                await LimpiarBorradorLocal();
+                ActualizarGruposConsolidados();
+                _snackbar.Add("Grilla limpiada exitosamente.", Severity.Info);
+            }
+        }
+
+        // --- EXPORTAR A EXCEL (.XLSX) ---
+        protected async Task ExportarExcel()
+        {
+            if (!empleadosJornada.Any())
+            {
+                _snackbar.Add("No hay registros en la grilla para exportar.", Severity.Warning);
+                return;
+            }
+
+            try
+            {
+                var workbook = new XSSFWorkbook();
+
+                // Estilos
+                var headerFont = workbook.CreateFont();
+                headerFont.IsBold = true;
+                headerFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+                var headerStyle = workbook.CreateCellStyle();
+                headerStyle.SetFont(headerFont);
+                headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.RoyalBlue.Index;
+                headerStyle.FillPattern = FillPattern.SolidForeground;
+                headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+
+                var currencyStyle = workbook.CreateCellStyle();
+                var dataFormat = workbook.CreateDataFormat();
+                currencyStyle.DataFormat = dataFormat.GetFormat("C$ #,##0.00;($#,##0.00);\"-\"");
+
+                var sheet = workbook.CreateSheet($"Jornada_{fechaSeleccionada:yyyyMMdd}");
+
+                string[] headers = new[]
+                {
+                    "#", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
+                    "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida",
+                    "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
+                    "Observaciones", "Estado", "Ticket Redmine", "Ticket Viático", "Supervisor"
+                };
+
+                var headerRow = sheet.CreateRow(0);
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    var cell = headerRow.CreateCell(i);
+                    cell.SetCellValue(headers[i]);
+                    cell.CellStyle = headerStyle;
+                }
+
+                int rowIdx = 1;
+                foreach (var emp in empleadosJornada)
+                {
+                    var row = sheet.CreateRow(rowIdx);
+                    row.CreateCell(0).SetCellValue(rowIdx);
+                    row.CreateCell(1).SetCellValue(fechaSeleccionada?.ToString("yyyy-MM-dd") ?? "");
+                    row.CreateCell(2).SetCellValue(emp.CodigoEmpleado);
+                    row.CreateCell(3).SetCellValue(emp.NombreEmpleado);
+                    row.CreateCell(4).SetCellValue(emp.Cliente);
+                    row.CreateCell(5).SetCellValue(emp.Asistio ? "PRESENTE" : "AUSENTE");
+                    row.CreateCell(6).SetCellValue(emp.Area);
+                    row.CreateCell(7).SetCellValue(emp.Puesto);
+                    row.CreateCell(8).SetCellValue(emp.TurnoNombre);
+                    row.CreateCell(9).SetCellValue(emp.HoraEntrada);
+                    row.CreateCell(10).SetCellValue(emp.HoraSalida);
+
+                    var cTrasp = row.CreateCell(11);
+                    cTrasp.SetCellValue((double)emp.VtcoTrasp);
+                    cTrasp.CellStyle = currencyStyle;
+
+                    var cAlim = row.CreateCell(12);
+                    cAlim.SetCellValue((double)emp.VtcoAlim);
+                    cAlim.CellStyle = currencyStyle;
+
+                    var cBnc = row.CreateCell(13);
+                    cBnc.SetCellValue((double)emp.BonoBnc);
+                    cBnc.CellStyle = currencyStyle;
+
+                    var cTotal = row.CreateCell(14);
+                    cTotal.SetCellValue((double)(emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc));
+                    cTotal.CellStyle = currencyStyle;
+
+                    row.CreateCell(15).SetCellValue(emp.Observaciones);
+                    row.CreateCell(16).SetCellValue(emp.Estado);
+                    row.CreateCell(17).SetCellValue(emp.TicketRedmineId.HasValue ? emp.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(18).SetCellValue(emp.TicketViaticoId.HasValue ? emp.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(19).SetCellValue(currentUserName);
+
+                    rowIdx++;
+                }
+
+                // Fila de Totales
+                var totalRow = sheet.CreateRow(rowIdx);
+                var totalLabelCell = totalRow.CreateCell(3);
+                totalLabelCell.SetCellValue("TOTALES:");
+                var boldFont = workbook.CreateFont();
+                boldFont.IsBold = true;
+                var totalStyle = workbook.CreateCellStyle();
+                totalStyle.SetFont(boldFont);
+                totalLabelCell.CellStyle = totalStyle;
+
+                var sumTrasp = totalRow.CreateCell(11);
+                sumTrasp.SetCellValue((double)TotalViaticosTrasp);
+                sumTrasp.CellStyle = currencyStyle;
+
+                var sumAlim = totalRow.CreateCell(12);
+                sumAlim.SetCellValue((double)TotalViaticosAlim);
+                sumAlim.CellStyle = currencyStyle;
+
+                var sumBnc = totalRow.CreateCell(13);
+                sumBnc.SetCellValue((double)TotalViaticosBnc);
+                sumBnc.CellStyle = currencyStyle;
+
+                var sumGlobal = totalRow.CreateCell(14);
+                sumGlobal.SetCellValue((double)TotalViaticosGlobal);
+                sumGlobal.CellStyle = currencyStyle;
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    sheet.AutoSizeColumn(i);
+                }
+
+                using var ms = new MemoryStream();
+                workbook.Write(ms);
+                byte[] bytes = ms.ToArray();
+                string base64 = Convert.ToBase64String(bytes);
+                string fileName = $"Jornada_Supervisor_{fechaSeleccionada:yyyyMMdd}_{currentUserName}.xlsx";
+
+                await _js.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+                _snackbar.Add($"✅ Archivo '{fileName}' descargado con éxito.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al exportar Excel: {ex.Message}", Severity.Error);
             }
         }
 
@@ -674,6 +881,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     query = query.Where(x =>
                         x.NombreEmpleado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
                         x.CodigoEmpleado.ToString().Contains(textoBusqueda) ||
+                        x.IdEmpleado.ToString().Contains(textoBusqueda) ||
                         x.Area.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
                         x.Puesto.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
                         x.Cliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase));
@@ -706,7 +914,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     HoraFin = x.HoraSalida,
                     x.TurnoNombre,
                     x.VtcoTrasp,
-                    x.VtcoAlim
+                    x.VtcoAlim,
+                    x.BonoBnc
                 })
                 .Select((g, idx) => new ConsolidadoHelpdeskItem
                 {
@@ -719,6 +928,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     HoraFin = g.Key.HoraFin,
                     VtcoTrasp = g.Key.VtcoTrasp,
                     VtcoAlim = g.Key.VtcoAlim,
+                    VtcoBnc = g.Key.BonoBnc,
                     Empleados = g.ToList()
                 })
                 .ToList();
@@ -765,6 +975,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     CantidadEmpleados = g.Cantidad,
                     IdsEmpleados = g.IdsEmpleadosTexto,
                     Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
+                    Bonos = g.VtcoBnc > 0 ? g.VtcoBnc.ToString("N2", CultureInfo.InvariantCulture) : "0.00",
                     VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
                     VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
                 }).ToList();
