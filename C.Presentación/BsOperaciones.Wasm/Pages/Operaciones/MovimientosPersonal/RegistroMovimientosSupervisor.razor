@@ -673,86 +673,7 @@
         </MudTabPanel>
 
         @* ==========================================
-           TAB 3: HISTORIAL & MODIFICACIONES
-           ========================================== *@
-        <MudTabPanel Text="Historial & Modificaciones  " Icon="@Icons.Material.Filled.History">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
-                <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
-                    <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker Label="Consultar Fecha Anterior" 
-                                       @bind-Date="fechaHistorial" 
-                                       DateFormat="dd/MM/yyyy"
-                                       Variant="Variant.Outlined" 
-                                       Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" sm="6" md="4">
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Primary" 
-                                   StartIcon="@Icons.Material.Filled.Search"
-                                   OnClick="@ConsultarHistorial">
-                            Buscar en Historial
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-
-                @if (cargandoHistorial)
-                {
-                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="my-4" />
-                }
-                else if (listaHistorial.Any())
-                {
-                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
-                        <MudText Typo="Typo.subtitle1" Class="fw-bold">
-                            Registros del @fechaHistorial:dd/MM/yyyy (@listaHistorial.Count movimientos)
-                        </MudText>
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Secondary" 
-                                   StartIcon="@Icons.Material.Filled.Edit"
-                                   OnClick="@(() => CargarJornadaHistorialParaModificar(fechaHistorial!.Value))">
-                            Cargar esta Jornada para Modificar
-                        </MudButton>
-                    </MudStack>
-
-                    <MudTable Items="@listaHistorial" Dense="true" Hover="true" Striped="true" Elevation="1">
-                        <HeaderContent>
-                            <MudTh>Código</MudTh>
-                            <MudTh>Colaborador</MudTh>
-                            <MudTh>Área</MudTh>
-                            <MudTh>Cargo</MudTh>
-                            <MudTh>Horario</MudTh>
-                            <MudTh>Viáticos</MudTh>
-                            <MudTh>Estado</MudTh>
-                            <MudTh>Ticket Redmine</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd><b>#@context.CodigoEmpleado</b></MudTd>
-                            <MudTd>@context.NombreEmpleado</MudTd>
-                            <MudTd>@context.Area</MudTd>
-                            <MudTd>@context.Puesto</MudTd>
-                            <MudTd>@context.HoraEntrada - @context.HoraSalida (@context.TurnoNombre)</MudTd>
-                            <MudTd>Trasp: @context.VtcoTrasp | Alim: @context.VtcoAlim</MudTd>
-                            <MudTd>
-                                <MudChip T="string" Size="Size.Small" Color="@(context.Estado == "SINCRONIZADO" ? Color.Success : Color.Default)">
-                                    @context.Estado
-                                </MudChip>
-                            </MudTd>
-                            <MudTd>
-                                @(context.TicketRedmineId.HasValue ? $"#{context.TicketRedmineId}" : "-")
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="py-4">
-                        Selecciona una fecha y pulsa "Buscar en Historial" para revisar movimientos registrados previamente.
-                    </MudText>
-                }
-            </MudPaper>
-        </MudTabPanel>
-
-        @* ==========================================
-           TAB 4: MI PERSONAL (PLANTILLA PERMANENTE)
+           TAB 3: MI PERSONAL (PLANTILLA PERMANENTE)
            ========================================== *@
         <MudTabPanel Text="Mi Personal  " Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
             <MudPaper Class="pa-4 mt-2" Elevation="0">
@@ -925,7 +846,7 @@
         </MudTabPanel>
 
         @* ==========================================
-           TAB 5: CONFIGURACIÓN DE ÁREAS POR CLIENTE
+           TAB 4: CONFIGURACIÓN DE ÁREAS POR CLIENTE
            ========================================== *@
         <MudTabPanel Text="Configuración de Áreas  " Icon="@Icons.Material.Filled.Settings" BadgeData="@catalogoClienteAreas.Count" BadgeColor="Color.Dark">
             <MudPaper Class="pa-4 mt-2" Elevation="0">

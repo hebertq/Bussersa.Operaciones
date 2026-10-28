@@ -124,12 +124,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Lista de grupos consolidados para Helpdesk (Tab 2)
         protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
 
-        // Historial (Tab 3)
-        protected DateTime? fechaHistorial = DateTime.Today.AddDays(-1);
-        protected List<MovimientoPersonalDiarioDto> listaHistorial = new();
-        protected bool cargandoHistorial = false;
-
-        // Plantilla Personal del Supervisor (Tab 4)
+        // Plantilla Personal del Supervisor (Tab 3)
         protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
         protected bool cargandoPlantilla = false;
         protected string textoBusquedaPlantilla = string.Empty;
@@ -1294,44 +1289,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- HISTORIAL (Tab 3) ---
-        protected async Task ConsultarHistorial()
-        {
-            if (!fechaHistorial.HasValue) return;
 
-            cargandoHistorial = true;
-            try
-            {
-                int opId = selectedOperacionId ?? 0;
-                var resp = await _odooService.GetMovimientosPersonalDiario(fechaHistorial.Value, opId, currentUserName);
-                if (resp?.Model != null)
-                {
-                    listaHistorial = resp.Model.ToList();
-                    _snackbar.Add($"Se encontraron {listaHistorial.Count} movimientos en el historial de {currentUserName}.", Severity.Info);
-                }
-                else
-                {
-                    listaHistorial.Clear();
-                    _snackbar.Add("No hay registros en esa fecha.", Severity.Info);
-                }
-            }
-            catch (Exception ex)
-            {
-                _snackbar.Add($"Error al consultar historial: {ex.Message}", Severity.Error);
-            }
-            finally
-            {
-                cargandoHistorial = false;
-            }
-        }
-
-        protected async Task CargarJornadaHistorialParaModificar(DateTime fecha)
-        {
-            fechaSeleccionada = fecha;
-            activeTabIndex = 0;
-            await CargarJornadaActual();
-            _snackbar.Add($"Jornada del {fecha:dd/MM/yyyy} cargada en la grilla para modificación.", Severity.Info);
-        }
 
         // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE ---
         private async Task PurgarBorradoresLocales()
