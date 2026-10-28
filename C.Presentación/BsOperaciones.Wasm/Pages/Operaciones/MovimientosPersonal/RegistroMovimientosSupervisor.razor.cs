@@ -828,17 +828,44 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (!empleadosJornada.Any()) return;
 
+            bool tieneRegistrosGuardados = empleadosJornada.Any(x => x.Id > 0);
+            string mensaje = tieneRegistrosGuardados
+                ? $"¿Deseas limpiar la grilla y eliminar de la base de datos los {empleadosJornada.Count} registros guardados para el día {fechaSeleccionada:dd/MM/yyyy}?"
+                : $"¿Deseas limpiar los {empleadosJornada.Count} colaboradores de la grilla?";
+
+            string yesBtn = tieneRegistrosGuardados ? "Sí, Limpiar y Borrar de BD" : "Sí, Limpiar Grilla";
+
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Limpiar Grilla Diaria",
-                $"¿Estás seguro de que deseas limpiar los {empleadosJornada.Count} colaboradores de la pantalla para esta fecha? Esta acción no borra la base de datos hasta que presiones Guardar.",
-                yesText: "Sí, Limpiar Grilla", cancelText: "Cancelar");
+                mensaje,
+                yesText: yesBtn, 
+                cancelText: "Cancelar");
 
             if (confirm == true)
             {
-                empleadosJornada.Clear();
-                await LimpiarBorradorLocal();
-                ActualizarGruposConsolidados();
-                _snackbar.Add("Grilla limpiada exitosamente.", Severity.Info);
+                estaCargando = true;
+                try
+                {
+                    var idsGuardados = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToList();
+                    if (idsGuardados.Any())
+                    {
+                        var tasks = idsGuardados.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
+                        await Task.WhenAll(tasks);
+                    }
+
+                    empleadosJornada.Clear();
+                    await LimpiarBorradorLocal();
+                    ActualizarGruposConsolidados();
+                    _snackbar.Add("Grilla limpiada exitosamente.", Severity.Info);
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al limpiar grilla: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                }
             }
         }
 
