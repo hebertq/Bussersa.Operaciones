@@ -82,10 +82,13 @@ namespace BsOperaciones.Application.Extensions
 
             if (user != null)
             {
+                var userNameOrEmail = !string.IsNullOrWhiteSpace(user.email) ? user.email : (!string.IsNullOrWhiteSpace(user.username) ? user.username : "user");
+                var navMenu = !string.IsNullOrWhiteSpace(user.nav_menu) ? user.nav_menu : "[]";
+
                 claimsIdentity = new ClaimsIdentity(new[]
                                 {
-                                    new Claim(ClaimTypes.Name, user.email),
-                                    new Claim("UserMenu", user.nav_menu)
+                                    new Claim(ClaimTypes.Name, userNameOrEmail),
+                                    new Claim("UserMenu", navMenu)
                                 }, "apiauth_type");
             }
 

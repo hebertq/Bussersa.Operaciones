@@ -70,10 +70,18 @@ namespace BsOperaciones.Application.Extensions
         {
             var LstMenus = new List<Menus>();
 
-            var MenuData = user.Claims.Where(x => x.Type == "UserMenu").FirstOrDefault().Value;
+            var MenuData = user?.Claims?.FirstOrDefault(x => x.Type == "UserMenu")?.Value;
             if (!string.IsNullOrEmpty(MenuData))
-                LstMenus = JsonConvert.DeserializeObject<List<Menus>>(MenuData);
-
+            {
+                try
+                {
+                    LstMenus = JsonConvert.DeserializeObject<List<Menus>>(MenuData) ?? new List<Menus>();
+                }
+                catch
+                {
+                    LstMenus = new List<Menus>();
+                }
+            }
 
             return LstMenus; 
         }
