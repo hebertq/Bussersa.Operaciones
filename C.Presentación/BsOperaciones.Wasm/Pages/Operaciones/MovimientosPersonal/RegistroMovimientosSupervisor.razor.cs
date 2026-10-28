@@ -160,18 +160,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var list = catalogoClienteAreas.AsEnumerable();
                 if (filtroClienteAreaId.HasValue && filtroClienteAreaId.Value > 0)
                 {
-                    list = list.Where(x => x.OperacionId == filtroClienteAreaId.Value || x.operacion_id == filtroClienteAreaId.Value);
+                    list = list.Where(x => x.OperacionId == filtroClienteAreaId.Value);
                 }
                 if (!string.IsNullOrWhiteSpace(filtroTextoArea))
                 {
                     list = list.Where(x =>
                         (!string.IsNullOrEmpty(x.AreaNombre) && x.AreaNombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(x.area_nombre) && x.area_nombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(x.ClienteNombre) && x.ClienteNombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(x.cliente_nombre) && x.cliente_nombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)));
+                        (!string.IsNullOrEmpty(x.ClienteNombre) && x.ClienteNombre.Contains(filtroTextoArea, StringComparison.OrdinalIgnoreCase)));
                 }
-                return list.OrderBy(x => !string.IsNullOrEmpty(x.ClienteNombre) ? x.ClienteNombre : x.cliente_nombre)
-                           .ThenBy(x => !string.IsNullOrEmpty(x.AreaNombre) ? x.AreaNombre : x.area_nombre);
+                return list.OrderBy(x => x.ClienteNombre)
+                           .ThenBy(x => x.AreaNombre);
             }
         }
 
@@ -1403,8 +1401,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     foreach (var item in catalogoClienteAreas.Where(x => x.Activo))
                     {
-                        var cName = !string.IsNullOrWhiteSpace(item.ClienteNombre) ? item.ClienteNombre.Trim() : item.cliente_nombre?.Trim();
-                        var aName = !string.IsNullOrWhiteSpace(item.AreaNombre) ? item.AreaNombre.Trim() : item.area_nombre?.Trim();
+                        var cName = item.ClienteNombre?.Trim();
+                        var aName = item.AreaNombre?.Trim();
                         if (!string.IsNullOrWhiteSpace(cName) && !string.IsNullOrWhiteSpace(aName))
                         {
                             if (!areasPorCliente.ContainsKey(cName))

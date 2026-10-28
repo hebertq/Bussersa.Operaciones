@@ -962,7 +962,7 @@
                                 }
                                 else
                                 {
-                                    @foreach (var areaName in catalogoClienteAreas.Select(c => !string.IsNullOrEmpty(c.AreaNombre) ? c.AreaNombre : c.area_nombre).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s))
+                                    @foreach (var areaName in catalogoClienteAreas.Select(c => c.AreaNombre).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s))
                                     {
                                         <MudSelectItem T="string" Value="@areaName">@areaName</MudSelectItem>
                                     }
@@ -984,7 +984,7 @@
                             <MudSelectItem T="int?" Value="@((int?)null)">-- Todos los Clientes (@catalogoClienteAreas.Count áreas) --</MudSelectItem>
                             @foreach (var op in operacionesList)
                             {
-                                int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id || a.operacion_id == op.id);
+                                int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id);
                                 <MudSelectItem T="int?" Value="@op.id">@op.nombre (@count)</MudSelectItem>
                             }
                         </MudSelect>
@@ -1016,18 +1016,19 @@
                         <RowTemplate>
                             <MudTd>
                                 <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
-                                    @(!string.IsNullOrWhiteSpace(context.ClienteNombre) ? context.ClienteNombre : context.cliente_nombre)
+                                    @context.ClienteNombre
                                 </MudChip>
                             </MudTd>
                             <MudTd>
                                 <MudText Typo="Typo.body2" Class="fw-bold">
                                     <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
-                                    @(!string.IsNullOrWhiteSpace(context.AreaNombre) ? context.AreaNombre : context.area_nombre)
+                                    @context.AreaNombre
                                 </MudText>
                             </MudTd>
                             <MudTd>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? (!string.IsNullOrWhiteSpace(context.usuario) ? context.usuario : "Sistema") : context.Usuario)</MudText>
-                            </MudTd>                            <MudTd>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? "Sistema" : context.Usuario)</MudText>
+                            </MudTd>
+                            <MudTd>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy") : "-")</MudText>
                             </MudTd>
                             <MudTd>
