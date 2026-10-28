@@ -18,9 +18,12 @@
         <MudText Typo="MudBlazor.Typo.h5" Style="font-weight: 900; color: var(--mud-palette-primary); letter-spacing: 1px;" Align="MudBlazor.Align.Center">
             OPERACIONES
         </MudText>
-        <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary" Class="mb-8" Style="font-weight: 700; letter-spacing: 2px;">
+        <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary" Class="mb-6" Style="font-weight: 700; letter-spacing: 2px;">
             PORTAL DE ASISTENCIA
         </MudText>
+
+        @* Botón de Instalación PWA en pantalla inicial de acceso *@
+        <BotonInstalarPwa FullWidth="true" Class="mb-4 py-2" Texto="📲 Instalar App en este Dispositivo" />
 
         @if (!string.IsNullOrEmpty(LoginMesssage))
         {

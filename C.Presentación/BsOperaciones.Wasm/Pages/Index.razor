@@ -1,4 +1,4 @@
-﻿@page "/index"
+@page "/index"
 @using System.Security.Claims
 @inject NavigationManager navigationManager
 
@@ -6,9 +6,12 @@
     <MudText Typo="MudBlazor.Typo.h3" Color="MudBlazor.Color.Primary" Style="font-weight: 800;" Class="mb-2">
         Bienvenido, @(user?.Identity?.Name ?? "Usuario")
     </MudText>
-    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Secondary" Class="mb-8">
+    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Secondary" Class="mb-6">
         Panel de Control - Módulo de Operaciones Logísticas
     </MudText>
+
+    @* Banner Inteligente de Instalación de la Aplicación (PWA) en Inicio *@
+    <BotonInstalarPwa EsBanner="true" />
 
     @if (IsUserAuthenticated)
     {

@@ -51,7 +51,10 @@
     }
 </style>
 
-<div class="login-wrapper">
+<div class="login-wrapper position-relative">
+    <div style="position: absolute; top: 18px; right: 18px; z-index: 1000;">
+        <BotonInstalarPwa Texto="Instalar App" Size="Size.Small" />
+    </div>
     <div class="login-container">
         @Body
     </div>

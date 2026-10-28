@@ -54,16 +54,14 @@
     <script src="js/app.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 
-    <!-- Registro de Service Worker PWA con Auto-Actualización Inmediata -->
+    <!-- Registro de Service Worker PWA y Manejo Global de Instalación -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js').then(reg => {
                 console.log('Service Worker Busser Tablet registrado con éxito:', reg.scope);
-                // Forzar al navegador a verificar si hay una nueva versión en el servidor
                 reg.update();
             }).catch(err => console.warn('Error al registrar Service Worker:', err));
 
-            // Si un nuevo Service Worker tomó el control (skipWaiting), recargar para reflejar cambios
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (!refreshing) {
@@ -74,25 +72,89 @@
         }
 
         window.deferredPrompt = null;
+        window._pwaDotNetListeners = [];
+
+        window.notifyPwaListeners = function (canInstall) {
+            if (window._pwaDotNetListeners && window._pwaDotNetListeners.length > 0) {
+                window._pwaDotNetListeners.forEach(listener => {
+                    try {
+                        listener.invokeMethodAsync('SetCanInstallPwa', canInstall);
+                    } catch (e) { }
+                });
+            }
+        };
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             window.deferredPrompt = e;
-            console.log('PWA Busser Tablet: Evento beforeinstallprompt capturado. Lista para instalar.');
+            console.log('PWA: Evento beforeinstallprompt capturado. Lista para instalar.');
             window.dispatchEvent(new CustomEvent('pwa-installable'));
+            window.notifyPwaListeners(true);
         });
 
-        window.installPwaApp = async () => {
-            if (window.deferredPrompt) {
-                window.deferredPrompt.prompt();
-                const choiceResult = await window.deferredPrompt.userChoice;
-                window.deferredPrompt = null;
-                return choiceResult.outcome === 'accepted';
+        window.pwaInterop = {
+            isStandalone: function () {
+                return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            },
+            isIos: function () {
+                return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            },
+            canInstall: function () {
+                var installed = window.pwaInterop.isStandalone();
+                if (installed) return false;
+                return !!window.deferredPrompt || window.pwaInterop.isIos();
+            },
+            registerListener: function (dotNetHelper) {
+                if (!window._pwaDotNetListeners) window._pwaDotNetListeners = [];
+                if (!window._pwaDotNetListeners.includes(dotNetHelper)) {
+                    window._pwaDotNetListeners.push(dotNetHelper);
+                }
+                var installed = window.pwaInterop.isStandalone();
+                if (!installed && (window.deferredPrompt || window.pwaInterop.isIos())) {
+                    try {
+                        dotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
+                    } catch (e) { }
+                }
+            },
+            unregisterListener: function (dotNetHelper) {
+                if (window._pwaDotNetListeners) {
+                    var idx = window._pwaDotNetListeners.indexOf(dotNetHelper);
+                    if (idx >= 0) window._pwaDotNetListeners.splice(idx, 1);
+                }
+            },
+            installPwa: async function () {
+                if (window.deferredPrompt) {
+                    window.deferredPrompt.prompt();
+                    const choiceResult = await window.deferredPrompt.userChoice;
+                    window.deferredPrompt = null;
+                    var accepted = choiceResult.outcome === 'accepted';
+                    if (accepted) {
+                        window.notifyPwaListeners(false);
+                    }
+                    return accepted ? "ACCEPTED" : "DISMISSED";
+                }
+                if (window.pwaInterop.isIos()) {
+                    return "IOS_INSTRUCTIONS";
+                }
+                return "UNSUPPORTED";
             }
-            return false;
         };
 
-        window.isAppInstalled = () => {
-            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        // Retro-compatibilidad con funciones existentes
+        window.installPwaApp = async () => {
+            var res = await window.pwaInterop.installPwa();
+            return res === "ACCEPTED";
+        };
+        window.isAppInstalled = window.pwaInterop.isStandalone;
+
+        window.tabletLayoutInterop = window.tabletLayoutInterop || {};
+        window.tabletLayoutInterop.isStandalone = window.pwaInterop.isStandalone;
+        window.tabletLayoutInterop.initPwa = function (dotNetHelper) {
+            window.pwaInterop.registerListener(dotNetHelper);
+        };
+        window.tabletLayoutInterop.installPwa = async function () {
+            var res = await window.pwaInterop.installPwa();
+            return res === "ACCEPTED";
         };
     </script>
 </body>
