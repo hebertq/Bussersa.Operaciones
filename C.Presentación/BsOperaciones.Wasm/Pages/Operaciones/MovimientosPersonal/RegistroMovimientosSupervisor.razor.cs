@@ -1432,6 +1432,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             finally
             {
                 cargandoAreas = false;
+                StateHasChanged();
             }
         }
 

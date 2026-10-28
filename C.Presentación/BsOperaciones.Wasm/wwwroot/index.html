@@ -54,12 +54,23 @@
     <script src="js/app.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 
-    <!-- Registro de Service Worker PWA y Detección de Instalación -->
+    <!-- Registro de Service Worker PWA con Auto-Actualización Inmediata -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-                .then(reg => console.log('Service Worker Busser Tablet registrado con éxito:', reg.scope))
-                .catch(err => console.warn('Error al registrar Service Worker:', err));
+            navigator.serviceWorker.register('service-worker.js').then(reg => {
+                console.log('Service Worker Busser Tablet registrado con éxito:', reg.scope);
+                // Forzar al navegador a verificar si hay una nueva versión en el servidor
+                reg.update();
+            }).catch(err => console.warn('Error al registrar Service Worker:', err));
+
+            // Si un nuevo Service Worker tomó el control (skipWaiting), recargar para reflejar cambios
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
         }
 
         window.deferredPrompt = null;

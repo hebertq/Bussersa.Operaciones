@@ -952,12 +952,24 @@
                         </MudItem>
                         <MudItem xs="12" sm="5">
                             <MudSelect T="string" Label="Área (Atributo de Inventario)" @bind-Value="nuevaAreaNombre" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                                <MudSelectItem T="string" Value="@((string?)null)">-- Seleccione el área del inventario (@listaAreasAtributoOdoo.Count áreas) --</MudSelectItem>
-                                @foreach (var area in listaAreasAtributoOdoo)
+                                <MudSelectItem T="string" Value="@((string?)null)">-- Seleccione el área (@(listaAreasAtributoOdoo.Any() ? listaAreasAtributoOdoo.Count : catalogoClienteAreas.Count) áreas disponibles) --</MudSelectItem>
+                                @if (listaAreasAtributoOdoo.Any())
                                 {
-                                    <MudSelectItem T="string" Value="@area.nombre">@area.nombre</MudSelectItem>
+                                    @foreach (var area in listaAreasAtributoOdoo)
+                                    {
+                                        <MudSelectItem T="string" Value="@area.nombre">@area.nombre</MudSelectItem>
+                                    }
                                 }
-                            </MudSelect>                        </MudItem>                        <MudItem xs="12" sm="2">
+                                else
+                                {
+                                    @foreach (var areaName in catalogoClienteAreas.Select(c => !string.IsNullOrEmpty(c.AreaNombre) ? c.AreaNombre : c.area_nombre).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s))
+                                    {
+                                        <MudSelectItem T="string" Value="@areaName">@areaName</MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="2">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarNuevaAreaCliente">
                                 Guardar
                             </MudButton>
