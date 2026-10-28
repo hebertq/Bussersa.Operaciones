@@ -951,21 +951,13 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="5">
-                            <MudAutocomplete T="string"
-                                             Label="Área Operativa (Atributo Odoo)"
-                                             @bind-Value="nuevaAreaNombre"
-                                             SearchFunc="@BuscarAreaAtributo"
-                                             Dense="true"
-                                             Margin="Margin.Dense"
-                                             Variant="Variant.Outlined"
-                                             ResetValueOnEmptyText="true"
-                                             CoerceText="true"
-                                             CoerceValue="true"
-                                             Clearable="true"
-                                             Placeholder="Buscar en atributos de Odoo..."
-                                             AdornmentIcon="@Icons.Material.Filled.Search"
-                                             AdornmentColor="Color.Primary" />
-                        </MudItem>                        <MudItem xs="12" sm="2">
+                            <MudSelect T="string" Label="Área (Atributo de Inventario)" @bind-Value="nuevaAreaNombre" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                                <MudSelectItem T="string" Value="@((string?)null)">-- Seleccione el área del inventario (@listaAreasAtributoOdoo.Count áreas) --</MudSelectItem>
+                                @foreach (var area in listaAreasAtributoOdoo)
+                                {
+                                    <MudSelectItem T="string" Value="@area.nombre">@area.nombre</MudSelectItem>
+                                }
+                            </MudSelect>                        </MudItem>                        <MudItem xs="12" sm="2">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarNuevaAreaCliente">
                                 Guardar
                             </MudButton>
@@ -980,7 +972,7 @@
                             <MudSelectItem T="int?" Value="@((int?)null)">-- Todos los Clientes (@catalogoClienteAreas.Count áreas) --</MudSelectItem>
                             @foreach (var op in operacionesList)
                             {
-                                int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id);
+                                int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id || a.operacion_id == op.id);
                                 <MudSelectItem T="int?" Value="@op.id">@op.nombre (@count)</MudSelectItem>
                             }
                         </MudSelect>
@@ -1012,19 +1004,18 @@
                         <RowTemplate>
                             <MudTd>
                                 <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
-                                    @context.ClienteNombre
+                                    @(!string.IsNullOrWhiteSpace(context.ClienteNombre) ? context.ClienteNombre : context.cliente_nombre)
                                 </MudChip>
                             </MudTd>
                             <MudTd>
                                 <MudText Typo="Typo.body2" Class="fw-bold">
                                     <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
-                                    @context.AreaNombre
+                                    @(!string.IsNullOrWhiteSpace(context.AreaNombre) ? context.AreaNombre : context.area_nombre)
                                 </MudText>
                             </MudTd>
                             <MudTd>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? "Sistema" : context.Usuario)</MudText>
-                            </MudTd>
-                            <MudTd>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? (!string.IsNullOrWhiteSpace(context.usuario) ? context.usuario : "Sistema") : context.Usuario)</MudText>
+                            </MudTd>                            <MudTd>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy") : "-")</MudText>
                             </MudTd>
                             <MudTd>

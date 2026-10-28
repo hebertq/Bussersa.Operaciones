@@ -132,12 +132,27 @@ namespace Modelo.ClasesGenericas
     public class ClienteAreaDto
     {
         public int Id { get; set; }
-        public int OperacionId { get; set; }
-        public string ClienteNombre { get; set; } = string.Empty;
-        public string AreaNombre { get; set; } = string.Empty;
+        public int operacion_id { get; set; }
+        public int OperacionId { get => operacion_id != 0 ? operacion_id : _operacionId; set { _operacionId = value; operacion_id = value; } }
+        private int _operacionId;
+
+        public string cliente_nombre { get; set; } = string.Empty;
+        public string ClienteNombre { get => !string.IsNullOrEmpty(cliente_nombre) ? cliente_nombre : _clienteNombre; set { _clienteNombre = value; cliente_nombre = value; } }
+        private string _clienteNombre = string.Empty;
+
+        public string area_nombre { get; set; } = string.Empty;
+        public string AreaNombre { get => !string.IsNullOrEmpty(area_nombre) ? area_nombre : _areaNombre; set { _areaNombre = value; area_nombre = value; } }
+        private string _areaNombre = string.Empty;
+
         public bool Activo { get; set; } = true;
-        public DateTime? FechaCreacion { get; set; }
+        public bool activo { get => Activo; set => Activo = value; }
+
+        public DateTime? fecha_creacion { get; set; }
+        public DateTime? FechaCreacion { get => fecha_creacion ?? _fechaCreacion; set { _fechaCreacion = value; fecha_creacion = value; } }
+        private DateTime? _fechaCreacion;
+
         public string? Usuario { get; set; }
+        public string? usuario { get => Usuario; set => Usuario = value; }
     }
 
     public class GuardarClienteAreaRequest
