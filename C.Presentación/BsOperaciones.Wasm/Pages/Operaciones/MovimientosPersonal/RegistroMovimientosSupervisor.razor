@@ -326,11 +326,11 @@
                             </MudTh>
                             <MudTh>Colaborador</MudTh>
                             <MudTh Style="width: 175px;">Cliente / Op.</MudTh>
-                            <MudTh Style="width: 110px;">Asistencia</MudTh>
-                            <MudTh>Área Operativa</MudTh>
-                            <MudTh>Cargo / Puesto</MudTh>
-                            <MudTh Style="width: 135px;">Turno / Horas</MudTh>
-                            <MudTh Style="width: 235px;">Viáticos & BNC (C$)</MudTh>
+                            <MudTh Style="width: 105px;">Asistencia</MudTh>
+                            <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
+                            <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
+                            <MudTh Style="width: 160px;">Turno / Horas</MudTh>
+                            <MudTh Style="width: 100px;">Viáticos</MudTh>
                             <MudTh Style="width: 45px;"></MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -431,23 +431,42 @@
                                 }
                             </MudTd>
 
-                            @* Turno / Horas (Botón Táctil de Rotación Rápida) *@
+                            @* Turno / Horas *@
                             <MudTd>
                                 @if (context.Asistio)
                                 {
-                                    <MudStack Spacing="0">
-                                        <MudChip T="string" 
-                                                 Color="Color.Primary" 
-                                                 Variant="Variant.Outlined" 
-                                                 Size="Size.Small" 
-                                                 Class="cursor-pointer mb-1" 
-                                                 OnClick="@(() => AlternarTurnoRapido(context))"
-                                                 Title="Tocar para alternar turno (Diurno -> DCC -> Mixto -> Nocturno)">
-                                            @context.TurnoNombre
-                                        </MudChip>
-                                        <MudText Typo="Typo.caption" Class="font-monospace text-center">
-                                            @context.HoraEntrada - @context.HoraSalida
-                                        </MudText>
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        <div class="d-flex align-center gap-1 justify-center">
+                                            <MudChip T="string" 
+                                                     Color="@GetColorTurno(context.TurnoNombre)" 
+                                                     Variant="Variant.Filled" 
+                                                     Size="Size.Small" 
+                                                     Class="cursor-pointer px-2" 
+                                                     Style="height: 20px; font-size: 0.72rem; font-weight: 600;"
+                                                     OnClick="@(() => AlternarTurnoRapido(context))"
+                                                     Title="Tocar para alternar turno rápido">
+                                                @context.TurnoNombre
+                                            </MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Size="Size.Small" 
+                                                           Color="Color.Primary" 
+                                                           Style="padding: 2px;"
+                                                           Title="Editar horario y turno" 
+                                                           OnClick="@(() => AbrirEditorHorario(context))" />
+                                        </div>
+                                        <div class="d-flex align-center justify-center gap-1 font-monospace" style="font-size: 0.75rem;">
+                                            <input type="text" 
+                                                   value="@context.HoraEntrada" 
+                                                   @onchange="@((ChangeEventArgs e) => { context.HoraEntrada = e.Value?.ToString() ?? "07:00"; context.Modificado = true; ActualizarGruposConsolidados(); })" 
+                                                   style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
+                                                   title="Hora Entrada (ej. 07:00)" />
+                                            <span>-</span>
+                                            <input type="text" 
+                                                   value="@context.HoraSalida" 
+                                                   @onchange="@((ChangeEventArgs e) => { context.HoraSalida = e.Value?.ToString() ?? "16:00"; context.Modificado = true; ActualizarGruposConsolidados(); })" 
+                                                   style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
+                                                   title="Hora Salida (ej. 16:00)" />
+                                        </div>
                                     </MudStack>
                                 }
                                 else
@@ -456,44 +475,37 @@
                                 }
                             </MudTd>
 
-                            @* Viáticos & BNC (C$) *@
-                            <MudTd>
+                            @* Viáticos & BNC (Compacto con diálogo rápido o detalle en pestaña) *@
+                            <MudTd Class="text-center">
                                 @if (context.Asistio)
                                 {
-                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                        <MudNumericField T="decimal" 
-                                                         Value="@context.VtcoTrasp" 
-                                                         Label="Trasp" 
-                                                         Variant="Variant.Outlined" 
-                                                         Margin="Margin.Dense" 
-                                                         Dense="true" 
-                                                         Min="0" 
-                                                         HideSpinButtons="true"
-                                                         Style="width: 68px; font-size: 0.8rem; text-align: right;" 
-                                                         ValueChanged="@((val) => { context.VtcoTrasp = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
-
-                                        <MudNumericField T="decimal" 
-                                                         Value="@context.VtcoAlim" 
-                                                         Label="Alim" 
-                                                         Variant="Variant.Outlined" 
-                                                         Margin="Margin.Dense" 
-                                                         Dense="true" 
-                                                         Min="0" 
-                                                         HideSpinButtons="true"
-                                                         Style="width: 68px; font-size: 0.8rem; text-align: right;" 
-                                                         ValueChanged="@((val) => { context.VtcoAlim = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
-
-                                        <MudNumericField T="decimal" 
-                                                         Value="@context.BonoBnc" 
-                                                         Label="BNC" 
-                                                         Variant="Variant.Outlined" 
-                                                         Margin="Margin.Dense" 
-                                                         Dense="true" 
-                                                         Min="0" 
-                                                         HideSpinButtons="true"
-                                                         Style="width: 68px; font-size: 0.8rem; text-align: right;" 
-                                                         ValueChanged="@((val) => { context.BonoBnc = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
-                                    </MudStack>
+                                    var totalViaticos = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
+                                    @if (totalViaticos > 0)
+                                    {
+                                        <MudChip T="string" 
+                                                 Color="Color.Success" 
+                                                 Variant="Variant.Filled" 
+                                                 Size="Size.Small" 
+                                                 Class="cursor-pointer font-monospace fw-bold px-2"
+                                                 Style="height: 22px; font-size: 0.75rem;"
+                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context))"
+                                                 Title="@($"Trasp: C$ {context.VtcoTrasp:N0} | Alim: C$ {context.VtcoAlim:N0} | BNC: C$ {context.BonoBnc:N0}. Clic para editar.")">
+                                            C$ @totalViaticos.ToString("N0")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Variant="Variant.Outlined" 
+                                                   Color="Color.Default" 
+                                                   Size="Size.Small" 
+                                                   Class="px-2 py-0"
+                                                   Style="font-size: 0.72rem; min-height: 22px; text-transform: none; border-color: #cbd5e1;"
+                                                   StartIcon="@Icons.Material.Filled.Add"
+                                                   OnClick="@(() => AbrirEditorViaticoIndividual(context))"
+                                                   Title="Asignar viático a este colaborador">
+                                            + Viático
+                                        </MudButton>
+                                    }
                                 }
                                 else
                                 {
@@ -533,7 +545,259 @@
         </MudTabPanel>
 
         @* ==========================================
-           TAB 2: CONSOLIDADO & ENVÍO A HELPDESK
+           TAB 2: VIÁTICOS & BNC
+           ========================================== *@
+        <MudTabPanel Text="Viáticos & BNC  " Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
+            <MudPaper Class="pa-3 mt-2" Elevation="0">
+                @* Cards de Resumen de Viáticos *@
+                <MudGrid Spacing="2" Class="mb-3">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-success" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-success) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Total Viáticos</MudText>
+                                    <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">C$ @TotalViaticosGlobal.ToString("N2")</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Medium">
+                                    <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-info" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-info) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Transporte</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Info" Class="fw-bold">C$ @TotalViaticosTrasp.ToString("N2")</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsBus" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-warning" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-warning) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Alimentación</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Warning" Class="fw-bold">C$ @TotalViaticosAlim.ToString("N2")</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.Fastfood" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-primary" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-primary) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Bono BNC</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="fw-bold">C$ @TotalViaticosBnc.ToString("N2")</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+
+                @* Filtros de Viáticos *@
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudTextField @bind-Value="textoBusquedaViaticos" 
+                                      Placeholder="Buscar por nombre, carnet (#) o área..." 
+                                      Adornment="Adornment.Start" 
+                                      AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" 
+                                      Margin="Margin.Dense" 
+                                      Immediate="true" 
+                                      Clearable="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="5">
+                        <MudStack Row="true" Spacing="1">
+                            <MudChip T="string" Color="@(filtroViaticos == "TODOS" ? Color.Primary : Color.Default)"
+                                     Variant="@(filtroViaticos == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Medium"
+                                     OnClick="@(() => filtroViaticos = "TODOS")">
+                                Todos (@TotalPresentes)
+                            </MudChip>
+                            <MudChip T="string" Color="@(filtroViaticos == "CON_VIATICOS" ? Color.Warning : Color.Default)"
+                                     Variant="@(filtroViaticos == "CON_VIATICOS" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Medium"
+                                     OnClick="@(() => filtroViaticos = "CON_VIATICOS")">
+                                Con Viáticos (@TotalConViaticos)
+                            </MudChip>
+                            <MudChip T="string" Color="@(filtroViaticos == "SIN_VIATICOS" ? Color.Default : Color.Default)"
+                                     Variant="@(filtroViaticos == "SIN_VIATICOS" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Medium"
+                                     OnClick="@(() => filtroViaticos = "SIN_VIATICOS")">
+                                Sin Viáticos (@TotalSinViaticos)
+                            </MudChip>
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                            @if (CantidadSeleccionados > 0)
+                            {
+                                <MudButton Variant="Variant.Filled" 
+                                           Color="Color.Secondary" 
+                                           Size="Size.Small" 
+                                           StartIcon="@Icons.Material.Filled.Bolt"
+                                           OnClick="AsignarViaticosMasivosASeleccionados">
+                                    Asignar (@CantidadSeleccionados)
+                                </MudButton>
+                            }
+                            @if (TotalConViaticos > 0)
+                            {
+                                <MudButton Variant="Variant.Outlined" 
+                                           Color="Color.Error" 
+                                           Size="Size.Small" 
+                                           StartIcon="@Icons.Material.Filled.ClearAll"
+                                           OnClick="LimpiarTodosLosViaticos">
+                                    Limpiar Todos
+                                </MudButton>
+                            }
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+
+                @* Tabla Detallada de Viáticos *@
+                @if (!EmpleadosViaticosFiltrados.Any())
+                {
+                    <MudPaper Elevation="0" Class="pa-6 text-center" Style="border: 2px dashed #cbd5e1; border-radius: 12px;">
+                        <MudIcon Icon="@Icons.Material.Filled.MoneyOff" Size="Size.Large" Color="Color.Secondary" Class="mb-1" />
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">No se encontraron colaboradores con el filtro seleccionado</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Solo se muestran colaboradores marcados como PRESENTE en la jornada diaria.
+                        </MudText>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudTable Items="@EmpleadosViaticosFiltrados" 
+                              Dense="true" 
+                              Hover="true" 
+                              Striped="true" 
+                              Elevation="1" 
+                              Class="rounded-lg"
+                              Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="width: 44px;">
+                                <MudCheckBox T="bool" 
+                                             Value="@(EmpleadosViaticosFiltrados.Any() && EmpleadosViaticosFiltrados.All(x => x.Seleccionado))"
+                                             ValueChanged="@MarcarTodosViaticos"
+                                             Color="Color.Primary" />
+                            </MudTh>
+                            <MudTh>Colaborador</MudTh>
+                            <MudTh Style="width: 170px;">Área / Cliente</MudTh>
+                            <MudTh Style="width: 130px;">Turno / Horas</MudTh>
+                            <MudTh Style="width: 120px;">Trasp (C$)</MudTh>
+                            <MudTh Style="width: 120px;">Alim (C$)</MudTh>
+                            <MudTh Style="width: 120px;">BNC (C$)</MudTh>
+                            <MudTh Style="width: 110px;" Class="text-right">Total (C$)</MudTh>
+                            <MudTh Style="width: 60px;"></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudCheckBox @bind-Value="@context.Seleccionado" Color="Color.Primary" />
+                            </MudTd>
+                            <MudTd>
+                                <div class="d-flex align-center gap-2">
+                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem; min-width: 48px; justify-content: center;">
+                                        #@context.CodigoEmpleado
+                                    </MudChip>
+                                    <MudText Typo="Typo.body2" Class="fw-bold">
+                                        @context.NombreEmpleado
+                                    </MudText>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold d-block">@context.Area</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Cliente</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold">@context.TurnoNombre</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="font-monospace d-block">@context.HoraEntrada - @context.HoraSalida</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal" 
+                                                 Value="@context.VtcoTrasp" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense" 
+                                                 Dense="true" 
+                                                 Min="0" 
+                                                 HideSpinButtons="true"
+                                                 Format="N2"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentText="C$"
+                                                 Style="font-size: 0.82rem; text-align: right;" 
+                                                 ValueChanged="@((val) => { context.VtcoTrasp = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal" 
+                                                 Value="@context.VtcoAlim" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense" 
+                                                 Dense="true" 
+                                                 Min="0" 
+                                                 HideSpinButtons="true"
+                                                 Format="N2"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentText="C$"
+                                                 Style="font-size: 0.82rem; text-align: right;" 
+                                                 ValueChanged="@((val) => { context.VtcoAlim = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal" 
+                                                 Value="@context.BonoBnc" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense" 
+                                                 Dense="true" 
+                                                 Min="0" 
+                                                 HideSpinButtons="true"
+                                                 Format="N2"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentText="C$"
+                                                 Style="font-size: 0.82rem; text-align: right;" 
+                                                 ValueChanged="@((val) => { context.BonoBnc = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
+                            </MudTd>
+                            <MudTd Class="text-right">
+                                @{
+                                    var rowTotal = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
+                                }
+                                <MudText Typo="Typo.body2" Class="fw-bold" Color="@(rowTotal > 0 ? Color.Success : Color.Secondary)">
+                                    C$ @rowTotal.ToString("N2")
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudStack Row="true" Spacing="0" Justify="Justify.Center">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Primary" 
+                                                   OnClick="@(() => AbrirEditorViaticoIndividual(context))"
+                                                   Title="Editar en diálogo con atajos" />
+                                    @if (context.VtcoTrasp > 0 || context.VtcoAlim > 0 || context.BonoBnc > 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Filled.Clear" 
+                                                       Size="Size.Small" 
+                                                       Color="Color.Error" 
+                                                       OnClick="@(() => { context.VtcoTrasp = 0; context.VtcoAlim = 0; context.BonoBnc = 0; context.Modificado = true; ActualizarGruposConsolidados(); })"
+                                                       Title="Poner viáticos a 0" />
+                                    }
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudTabPanel>
+
+        @* ==========================================
+           TAB 3: CONSOLIDADO & ENVÍO A HELPDESK
            ========================================== *@
         <MudTabPanel Text="Consolidado & Helpdesk  " Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
@@ -673,7 +937,7 @@
         </MudTabPanel>
 
         @* ==========================================
-           TAB 3: MI PERSONAL (PLANTILLA PERMANENTE)
+           TAB 4: MI PERSONAL (PLANTILLA PERMANENTE)
            ========================================== *@
         <MudTabPanel Text="Mi Personal  " Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
             <MudPaper Class="pa-4 mt-2" Elevation="0">
@@ -846,7 +1110,7 @@
         </MudTabPanel>
 
         @* ==========================================
-           TAB 4: CONFIGURACIÓN DE ÁREAS POR CLIENTE
+           TAB 5: CONFIGURACIÓN DE ÁREAS POR CLIENTE
            ========================================== *@
         <MudTabPanel Text="Configuración de Áreas  " Icon="@Icons.Material.Filled.Settings" BadgeData="@catalogoClienteAreas.Count" BadgeColor="Color.Dark">
             <MudPaper Class="pa-4 mt-2" Elevation="0">

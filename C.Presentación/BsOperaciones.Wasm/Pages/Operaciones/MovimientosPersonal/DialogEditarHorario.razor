@@ -1,0 +1,192 @@
+@using MudBlazor
+@using Modelo.ClasesGenericas
+
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Actualizar Horario</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    <b>#@CodigoEmpleado</b> - @NombreEmpleado
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            <MudText Typo="Typo.subtitle2" Class="fw-bold mb-2">Turnos y Horarios Predefinidos:</MudText>
+            
+            <MudGrid Spacing="1" Class="mb-3">
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "Diurno" && HoraEntrada == "06:00" && HoraSalida == "14:00" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.WbSunny"
+                               OnClick="@(() => AplicarTurno("Diurno", "06:00", "14:00"))"
+                               Style="text-transform: none;">
+                        Diurno (06:00 - 14:00)
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "Diurno" && HoraEntrada == "07:00" && HoraSalida == "16:00" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Success"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Storefront"
+                               OnClick="@(() => AplicarTurno("Diurno", "07:00", "16:00"))"
+                               Style="text-transform: none;">
+                        Sinsa (07:00 - 16:00)
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "Diurno" && HoraEntrada == "08:00" && HoraSalida == "17:00" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Info"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Business"
+                               OnClick="@(() => AplicarTurno("Diurno", "08:00", "17:00"))"
+                               Style="text-transform: none;">
+                        Normal (08:00 - 17:00)
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "DCC" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Secondary"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Work"
+                               OnClick="@(() => AplicarTurno("DCC", "06:00", "15:30"))"
+                               Style="text-transform: none;">
+                        DCC (06:00 - 15:30)
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "Mixto" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Warning"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Brightness6"
+                               OnClick="@(() => AplicarTurno("Mixto", "14:00", "22:00"))"
+                               Style="text-transform: none;">
+                        Mixto (14:00 - 22:00)
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudButton Variant="@(TurnoNombre == "Nocturno" ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Dark"
+                               Size="Size.Small"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.NightsStay"
+                               OnClick="@(() => AplicarTurno("Nocturno", "22:00", "06:00"))"
+                               Style="text-transform: none;">
+                        Nocturno (22:00 - 06:00)
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-2" />
+
+            <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">Horario Personalizado:</MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraEntrada" 
+                                  Label="Hora Entrada" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Login"
+                                  Placeholder="07:00" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="HoraSalida" 
+                                  Label="Hora Salida" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Logout"
+                                  Placeholder="16:00" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="TurnoNombre" 
+                                  Label="Nombre del Turno" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Label" />
+                </MudItem>
+            </MudGrid>
+
+            @if (CantidadSeleccionados > 1)
+            {
+                <MudDivider Class="my-3" />
+                <MudCheckBox @bind-Value="AplicarASeleccionados" 
+                             Color="Color.Primary" 
+                             Dense="true" 
+                             Class="mt-1">
+                    <MudText Typo="Typo.body2">
+                        Aplicar también este horario a los otros <b>@(CantidadSeleccionados - 1) colaboradores seleccionados</b>
+                    </MudText>
+                </MudCheckBox>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Check" OnClick="Confirmar">Guardar Horario</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public int CodigoEmpleado { get; set; }
+    [Parameter] public string NombreEmpleado { get; set; } = string.Empty;
+    [Parameter] public string TurnoInicial { get; set; } = "Diurno";
+    [Parameter] public string EntradaInicial { get; set; } = "07:00";
+    [Parameter] public string SalidaInicial { get; set; } = "16:00";
+    [Parameter] public int CantidadSeleccionados { get; set; } = 0;
+
+    public string TurnoNombre { get; set; } = "Diurno";
+    public string HoraEntrada { get; set; } = "07:00";
+    public string HoraSalida { get; set; } = "16:00";
+    public bool AplicarASeleccionados { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        TurnoNombre = TurnoInicial;
+        HoraEntrada = EntradaInicial;
+        HoraSalida = SalidaInicial;
+    }
+
+    private void AplicarTurno(string turno, string entrada, string salida)
+    {
+        TurnoNombre = turno;
+        HoraEntrada = entrada;
+        HoraSalida = salida;
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private void Confirmar()
+    {
+        MudDialog.Close(DialogResult.Ok(new ResultadoEdicionHorario
+        {
+            TurnoNombre = this.TurnoNombre,
+            HoraEntrada = this.HoraEntrada,
+            HoraSalida = this.HoraSalida,
+            AplicarASeleccionados = this.AplicarASeleccionados
+        }));
+    }
+
+    public class ResultadoEdicionHorario
+    {
+        public string TurnoNombre { get; set; } = string.Empty;
+        public string HoraEntrada { get; set; } = string.Empty;
+        public string HoraSalida { get; set; } = string.Empty;
+        public bool AplicarASeleccionados { get; set; } = false;
+    }
+}

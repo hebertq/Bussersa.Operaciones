@@ -179,6 +179,42 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
 
+        protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0 || x.BonoBnc > 0));
+        protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp == 0 && x.VtcoAlim == 0 && x.BonoBnc == 0));
+
+        // Filtros para la pestaña de Viáticos & BNC
+        protected string textoBusquedaViaticos = string.Empty;
+        protected string filtroViaticos = "TODOS"; // "TODOS", "CON_VIATICOS", "SIN_VIATICOS"
+
+        protected IEnumerable<EmpleadoJornadaItem> EmpleadosViaticosFiltrados
+        {
+            get
+            {
+                var query = empleadosJornada.Where(x => x.Asistio);
+
+                if (filtroViaticos == "CON_VIATICOS")
+                {
+                    query = query.Where(x => x.VtcoTrasp > 0 || x.VtcoAlim > 0 || x.BonoBnc > 0);
+                }
+                else if (filtroViaticos == "SIN_VIATICOS")
+                {
+                    query = query.Where(x => x.VtcoTrasp == 0 && x.VtcoAlim == 0 && x.BonoBnc == 0);
+                }
+
+                if (!string.IsNullOrWhiteSpace(textoBusquedaViaticos))
+                {
+                    var busq = textoBusquedaViaticos.Trim();
+                    query = query.Where(x =>
+                        x.NombreEmpleado.Contains(busq, StringComparison.OrdinalIgnoreCase) ||
+                        x.CodigoEmpleado.ToString().Contains(busq) ||
+                        x.Area.Contains(busq, StringComparison.OrdinalIgnoreCase) ||
+                        x.Cliente.Contains(busq, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return query;
+            }
+        }
+
         // Clave de LocalStorage para borrador de seguridad por usuario y fecha
         private string DraftStorageKey => $"supervisor_jornada_draft_{currentUserName}_{fechaSeleccionada:yyyyMMdd}";
 
@@ -1101,6 +1137,168 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             item.Modificado = true;
             ActualizarGruposConsolidados();
+        }
+
+        protected Color GetColorTurno(string turno)
+        {
+            return turno switch
+            {
+                "Diurno" => Color.Primary,
+                "DCC" => Color.Secondary,
+                "Mixto" => Color.Warning,
+                "Nocturno" => Color.Dark,
+                _ => Color.Default
+            };
+        }
+
+        protected async Task AbrirEditorHorario(EmpleadoJornadaItem item)
+        {
+            var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
+            var parameters = new DialogParameters
+            {
+                ["CodigoEmpleado"] = item.CodigoEmpleado,
+                ["NombreEmpleado"] = item.NombreEmpleado,
+                ["TurnoInicial"] = item.TurnoNombre,
+                ["EntradaInicial"] = item.HoraEntrada,
+                ["SalidaInicial"] = item.HoraSalida,
+                ["CantidadSeleccionados"] = seleccionados.Count
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarHorario>("Actualizar Horario", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEditarHorario.ResultadoEdicionHorario data)
+            {
+                item.TurnoNombre = data.TurnoNombre;
+                item.HoraEntrada = data.HoraEntrada;
+                item.HoraSalida = data.HoraSalida;
+                item.Modificado = true;
+
+                if (data.AplicarASeleccionados && seleccionados.Any())
+                {
+                    foreach (var s in seleccionados)
+                    {
+                        s.TurnoNombre = data.TurnoNombre;
+                        s.HoraEntrada = data.HoraEntrada;
+                        s.HoraSalida = data.HoraSalida;
+                        s.Modificado = true;
+                    }
+                }
+
+                ActualizarGruposConsolidados();
+                _snackbar.Add($"Horario actualizado ({data.TurnoNombre} {data.HoraEntrada} - {data.HoraSalida})", Severity.Success);
+            }
+        }
+
+        protected async Task AbrirEditorViaticoIndividual(EmpleadoJornadaItem item)
+        {
+            var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
+            var parameters = new DialogParameters
+            {
+                ["CodigoEmpleado"] = item.CodigoEmpleado,
+                ["NombreEmpleado"] = item.NombreEmpleado,
+                ["VtcoTraspInicial"] = item.VtcoTrasp,
+                ["VtcoAlimInicial"] = item.VtcoAlim,
+                ["BonoBncInicial"] = item.BonoBnc,
+                ["CantidadSeleccionados"] = seleccionados.Count
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Viáticos & Bono", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
+            {
+                item.VtcoTrasp = data.VtcoTrasp;
+                item.VtcoAlim = data.VtcoAlim;
+                item.BonoBnc = data.BonoBnc;
+                item.Modificado = true;
+
+                if (data.AplicarASeleccionados && seleccionados.Any())
+                {
+                    foreach (var s in seleccionados)
+                    {
+                        s.VtcoTrasp = data.VtcoTrasp;
+                        s.VtcoAlim = data.VtcoAlim;
+                        s.BonoBnc = data.BonoBnc;
+                        s.Modificado = true;
+                    }
+                }
+
+                ActualizarGruposConsolidados();
+                var total = data.VtcoTrasp + data.VtcoAlim + data.BonoBnc;
+                _snackbar.Add($"Viáticos actualizados (Total C$ {total:N2})", Severity.Success);
+            }
+        }
+
+        protected async Task AsignarViaticosMasivosASeleccionados()
+        {
+            var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
+            if (!seleccionados.Any())
+            {
+                _snackbar.Add("Selecciona al menos un colaborador usando las casillas de verificación.", Severity.Warning);
+                return;
+            }
+
+            var primer = seleccionados.First();
+            var parameters = new DialogParameters
+            {
+                ["CodigoEmpleado"] = primer.CodigoEmpleado,
+                ["NombreEmpleado"] = primer.NombreEmpleado,
+                ["VtcoTraspInicial"] = primer.VtcoTrasp,
+                ["VtcoAlimInicial"] = primer.VtcoAlim,
+                ["BonoBncInicial"] = primer.BonoBnc,
+                ["CantidadSeleccionados"] = seleccionados.Count
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Asignación Masiva de Viáticos", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
+            {
+                foreach (var s in seleccionados)
+                {
+                    s.VtcoTrasp = data.VtcoTrasp;
+                    s.VtcoAlim = data.VtcoAlim;
+                    s.BonoBnc = data.BonoBnc;
+                    s.Modificado = true;
+                }
+
+                ActualizarGruposConsolidados();
+                var total = (data.VtcoTrasp + data.VtcoAlim + data.BonoBnc) * seleccionados.Count;
+                _snackbar.Add($"Viáticos asignados a {seleccionados.Count} colaboradores (Total C$ {total:N2})", Severity.Success);
+            }
+        }
+
+        protected async Task LimpiarTodosLosViaticos()
+        {
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Limpiar Viáticos",
+                "¿Deseas restablecer a C$ 0 todos los viáticos y bonos de la jornada?",
+                yesText: "Sí, Limpiar a C$ 0", cancelText: "Cancelar");
+
+            if (confirm == true)
+            {
+                foreach (var emp in empleadosJornada)
+                {
+                    if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0 || emp.BonoBnc > 0)
+                    {
+                        emp.VtcoTrasp = 0;
+                        emp.VtcoAlim = 0;
+                        emp.BonoBnc = 0;
+                        emp.Modificado = true;
+                    }
+                }
+                ActualizarGruposConsolidados();
+                _snackbar.Add("Se han restablecido todos los viáticos a C$ 0.", Severity.Info);
+            }
+        }
+
+        protected void MarcarTodosViaticos(bool marcar)
+        {
+            foreach (var e in EmpleadosViaticosFiltrados)
+            {
+                e.Seleccionado = marcar;
+            }
         }
 
         protected async Task EliminarEmpleadoDeJornada(EmpleadoJornadaItem item)
