@@ -58,17 +58,24 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudAutocomplete T="string"
-                                     Label="Área Operativa"
-                                     @bind-Value="Area"
-                                     SearchFunc="@BuscarAreas"
-                                     ResetValueOnEmptyText="false"
-                                     CoerceText="true"
-                                     CoerceValue="true"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense"
-                                     Dense="true"
-                                     MaxItems="100" />
+                    <MudSelect T="string"
+                               Label="Área Operativa"
+                               @bind-Value="Area"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Dense="true">
+                        @{
+                            var areasDlg = areasActuales;
+                            if (!string.IsNullOrWhiteSpace(Area) && !areasDlg.Contains(Area, StringComparer.OrdinalIgnoreCase))
+                            {
+                                areasDlg = new List<string>(areasDlg) { Area };
+                            }
+                        }
+                        @foreach (var a in areasDlg)
+                        {
+                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                        }
+                    </MudSelect>
                 </MudItem>
 
                 @* Puesto y Turno *@

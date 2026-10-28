@@ -74,18 +74,26 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudAutocomplete T="string"
-                                     Label="Área Operativa"
-                                     @bind-Value="Area"
-                                     SearchFunc="@BuscarAreas"
-                                     ResetValueOnEmptyText="false"
-                                     CoerceText="true"
-                                     CoerceValue="true"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense"
-                                     Adornment="Adornment.Start"
-                                     AdornmentIcon="@Icons.Material.Filled.Place"
-                                     MaxItems="100" />
+                    <MudSelect T="string"
+                               Label="Área Operativa"
+                               @bind-Value="Area"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Dense="true"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Place">
+                        @{
+                            var areasMasiva = areasActuales;
+                            if (!string.IsNullOrWhiteSpace(Area) && !areasMasiva.Contains(Area, StringComparer.OrdinalIgnoreCase))
+                            {
+                                areasMasiva = new List<string>(areasMasiva) { Area };
+                            }
+                        }
+                        @foreach (var a in areasMasiva)
+                        {
+                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                        }
+                    </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="12">
                     <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge">

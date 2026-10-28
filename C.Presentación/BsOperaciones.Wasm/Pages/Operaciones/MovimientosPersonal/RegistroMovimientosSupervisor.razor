@@ -391,17 +391,28 @@
                             <MudTd>
                                 @if (context.Asistio)
                                 {
-                                    <MudAutocomplete T="string" 
-                                                     @bind-Value="@context.Area"
-                                                     SearchFunc="@((val, token) => Task.FromResult(GetAreasParaCliente(context.Cliente).Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
-                                                     ResetValueOnEmptyText="false"
-                                                     CoerceText="true"
-                                                     CoerceValue="true"
-                                                     Dense="true" 
-                                                     Margin="Margin.Dense" 
-                                                     Variant="Variant.Outlined" 
-                                                     MaxItems="100"
-                                                     TextChanged="@(() => { context.Modificado = true; ActualizarGruposConsolidados(); })" />
+                                    <MudSelect T="string" 
+                                               Value="@context.Area" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@((val) => { 
+                                                   context.Area = val; 
+                                                   context.Modificado = true; 
+                                                   ActualizarGruposConsolidados(); 
+                                               })">
+                                        @{
+                                            var areasG = GetAreasParaCliente(context.Cliente);
+                                            if (!string.IsNullOrWhiteSpace(context.Area) && !areasG.Contains(context.Area, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                areasG = new List<string>(areasG) { context.Area };
+                                            }
+                                        }
+                                        @foreach (var a in areasG)
+                                        {
+                                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 }
                                 else
                                 {
@@ -1062,17 +1073,27 @@
                                 </MudSelect>
                             </MudTd>
                             <MudTd>
-                                <MudAutocomplete T="string" 
-                                                 @bind-Value="@context.AreaDefault"
-                                                 SearchFunc="@((val, token) => Task.FromResult(GetAreasParaCliente(context.ClienteDefault).Where(x => string.IsNullOrWhiteSpace(val) || x.Contains(val, StringComparison.OrdinalIgnoreCase))))"
-                                                 ResetValueOnEmptyText="false"
-                                                 CoerceText="true"
-                                                 CoerceValue="true"
-                                                 Dense="true" 
-                                                 Margin="Margin.Dense" 
-                                                 Variant="Variant.Outlined"
-                                                 MaxItems="100"
-                                                 OnBlur="@(async () => await GuardarItemPlantilla(context))" />
+                                <MudSelect T="string" 
+                                           Value="@context.AreaDefault" 
+                                           Dense="true" 
+                                           Margin="Margin.Dense" 
+                                           Variant="Variant.Outlined"
+                                           ValueChanged="@(async (val) => { 
+                                               context.AreaDefault = val; 
+                                               await GuardarItemPlantilla(context); 
+                                           })">
+                                    @{
+                                        var areasP = GetAreasParaCliente(context.ClienteDefault);
+                                        if (!string.IsNullOrWhiteSpace(context.AreaDefault) && !areasP.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            areasP = new List<string>(areasP) { context.AreaDefault };
+                                        }
+                                    }
+                                    @foreach (var a in areasP)
+                                    {
+                                        <MudSelectItem Value="@a">@a</MudSelectItem>
+                                    }
+                                </MudSelect>
                             </MudTd>
                             <MudTd>
                                 <MudSelect T="string" 
