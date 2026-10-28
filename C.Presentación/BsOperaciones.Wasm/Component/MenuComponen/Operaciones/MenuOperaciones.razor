@@ -1,28 +1,22 @@
+﻿@using BsOperaciones.Application.Extensions
+
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
         <MudNavGroup Title="Operaciones" Icon="@Icons.Material.Filled.Wash" Expanded="false">
-            <MenuItem MenuId="16" Name="Cerar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
+            <MenuItem MenuId="16" Name="Cerrar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
             <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
-            <MudNavLink Href="/operaciones/registro-movimientos-supervisor" Icon="@Icons.Material.Filled.TabletAndroid">
-                Movimientos (Tablet)
-            </MudNavLink>
-            <MudNavLink Href="/operaciones/movimientos-personal-excel" Icon="@Icons.Material.Filled.PostAdd">
-                Cargar Movimientos
-            </MudNavLink>
-            <MudNavGroup Title="Producción" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
-                <MudNavLink Href="/operaciones/produccion-diaria" Icon="@Icons.Material.Filled.Assignment">
-                    Producción Diaria
-                </MudNavLink>
-                <MudNavLink Href="/operaciones/asistencia-produccion" Icon="@Icons.Material.Filled.AssignmentTurnedIn">
-                    Asignar Asistencia
-                </MudNavLink>
-                <MudNavLink Href="/operaciones/productos-adicionales" Icon="@Icons.Material.Filled.FormatListBulleted">
-                    Productos Adicionales
-                </MudNavLink>
-                <MudNavLink Href="/operaciones/asociacion-clientes" Icon="@Icons.Material.Filled.MergeType">
-                    Asociar Clientes
-                </MudNavLink>
-            </MudNavGroup>
+            <MenuItem MenuId="55" Name="Movimientos (Tablet)" Url="/operaciones/registro-movimientos-supervisor" IconName="@Icons.Material.Filled.TabletAndroid" />
+            <MenuItem MenuId="56" Name="Cargar Movimientos" Url="/operaciones/movimientos-personal-excel" IconName="@Icons.Material.Filled.PostAdd" />
+            <AuthorizeView Policy="@Policies.IsMenu" Resource="53" Context="produccionContext">
+                <Authorized>
+                    <MudNavGroup Title="Producción" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
+                        <MenuItem MenuId="36" Name="Producción Diaria" Url="/operaciones/produccion-diaria" IconName="@Icons.Material.Filled.Assignment" />
+                        <MenuItem MenuId="57" Name="Asignar Asistencia" Url="/operaciones/asistencia-produccion" IconName="@Icons.Material.Filled.AssignmentTurnedIn" />
+                        <MenuItem MenuId="54" Name="Productos Adicionales" Url="/operaciones/productos-adicionales" IconName="@Icons.Material.Filled.FormatListBulleted" />
+                        <MenuItem MenuId="58" Name="Asociar Clientes" Url="/operaciones/asociacion-clientes" IconName="@Icons.Material.Filled.MergeType" />
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
             <MenuItem MenuId="37" Name="Rotación de Turnos" Url="/operaciones/rotacion-turnos" IconName="@Icons.Material.Filled.SwapHorizontalCircle" />
         </MudNavGroup>
     </Authorized>
