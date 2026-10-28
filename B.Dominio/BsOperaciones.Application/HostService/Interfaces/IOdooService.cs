@@ -181,6 +181,7 @@ namespace HostService.Interfaces
         Task<IResponse> DesasignarMarcadasProduccion(string numeroAsignacion);
         Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoAsignacionProduccionDto>> GetHistoricoAsignacionesProduccion(int operacionId, int anio);
         Task<IListResponse<string>> GetAreasOperacion(int operacionId);
+        Task<IListResponse<Modelo.ClasesGenericas.Combos>> GetOdooAreasAtributo();
         Task<IListResponse<Modelo.ClasesGenericas.ClienteAreaDto>> GetAllClienteAreas();
         Task<IResponse> GuardarClienteArea(Modelo.ClasesGenericas.GuardarClienteAreaRequest request);
         Task<IResponse> EliminarClienteArea(int id);

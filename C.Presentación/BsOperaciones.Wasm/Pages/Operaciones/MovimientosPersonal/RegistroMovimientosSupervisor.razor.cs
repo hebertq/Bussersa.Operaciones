@@ -149,6 +149,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int? filtroClienteAreaId = null;
         protected string filtroTextoArea = string.Empty;
         protected bool cargandoAreas = false;
+        protected List<Combos> listaAreasAtributoOdoo = new();
         protected string nuevaAreaNombre = string.Empty;
         protected int? nuevoClienteAreaOpId = null;
 
@@ -1234,6 +1235,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     OperacionId = selectedOperacionId ?? 0,
                     ClienteRedmine = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones",
                     ModoGeneracion = "Ambos",
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
                     Movimientos = movimientosRedmine
                 };
 
@@ -1374,6 +1376,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             cargandoAreas = true;
             try
             {
+                if (!listaAreasAtributoOdoo.Any())
+                {
+                    try
+                    {
+                        var respAtrib = await _odooService.GetOdooAreasAtributo();
+                        if (respAtrib?.Model != null && respAtrib.Model.Any())
+                        {
+                            listaAreasAtributoOdoo = respAtrib.Model.ToList();
+                        }
+                    }
+                    catch (Exception exAtrib)
+                    {
+                        Console.WriteLine($"Error cargando areas atributo odoo: {exAtrib.Message}");
+                    }
+                }
+
                 var resp = await _odooService.GetAllClienteAreas();
                 if (resp?.Model != null && resp.Model.Any())
                 {
@@ -1471,6 +1489,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar área.", Severity.Error);
                 }
             }
+        }
+
+        protected async Task<IEnumerable<string>> BuscarAreaAtributo(string value, CancellationToken token)
+        {
+            await Task.Yield();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return listaAreasAtributoOdoo.Select(a => a.nombre).Take(30);
+            }
+            return listaAreasAtributoOdoo
+                .Where(a => a.nombre.Contains(value, StringComparison.OrdinalIgnoreCase))
+                .Select(a => a.nombre)
+                .Take(30);
         }
 
         private async Task GuardarBorradorLocal() => await Task.CompletedTask;

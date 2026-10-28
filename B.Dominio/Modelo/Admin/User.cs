@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Modelo.Admin
@@ -13,6 +13,7 @@ namespace Modelo.Admin
         public string apellidos { get; set; }
         public string nav_menu { get; set; } 
         public int grupoid { get; set; }
+        public string? redmine_user { get; set; }
 
     }
     public class UserLogin

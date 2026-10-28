@@ -4034,6 +4034,32 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<Modelo.ClasesGenericas.Combos>> GetOdooAreasAtributo()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.ClasesGenericas.Combos> response = new ListResponse<Modelo.ClasesGenericas.Combos>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetOdooAreasAtributo");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.Combos>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<Modelo.ClasesGenericas.ClienteAreaDto>> GetAllClienteAreas()
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

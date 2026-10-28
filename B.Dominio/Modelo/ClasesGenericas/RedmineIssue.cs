@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Modelo.ClasesGenericas
 {
@@ -18,6 +18,8 @@ namespace Modelo.ClasesGenericas
         // También podrías necesitar la fecha de vencimiento
         public string? due_date { get; set; }
         public string description { get; set; } = "";
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public int? assigned_to_id { get; set; }
         public List<RedmineUpload>? uploads { get; set; }
         public List<RedmineCustomField> custom_fields { get; set; } = new();
     }

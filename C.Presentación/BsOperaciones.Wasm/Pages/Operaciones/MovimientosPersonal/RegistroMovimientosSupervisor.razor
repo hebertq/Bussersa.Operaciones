@@ -951,9 +951,21 @@
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="5">
-                            <MudTextField @bind-Value="nuevaAreaNombre" Label="Nombre del Área Operativa (ej. Despacho, DCC, Embotellado)" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true" />
-                        </MudItem>
-                        <MudItem xs="12" sm="2">
+                            <MudAutocomplete T="string"
+                                             Label="Área Operativa (Atributo Odoo)"
+                                             @bind-Value="nuevaAreaNombre"
+                                             SearchFunc="@BuscarAreaAtributo"
+                                             Dense="true"
+                                             Margin="Margin.Dense"
+                                             Variant="Variant.Outlined"
+                                             ResetValueOnEmptyText="true"
+                                             CoerceText="true"
+                                             CoerceValue="true"
+                                             Clearable="true"
+                                             Placeholder="Buscar en atributos de Odoo..."
+                                             AdornmentIcon="@Icons.Material.Filled.Search"
+                                             AdornmentColor="Color.Primary" />
+                        </MudItem>                        <MudItem xs="12" sm="2">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarNuevaAreaCliente">
                                 Guardar
                             </MudButton>

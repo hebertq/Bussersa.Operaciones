@@ -40,6 +40,9 @@
                         }
                     </MudSelect>
                 </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="payload.redmine_user" Label="Usuario Redmine / Helpdesk" Variant="Variant.Outlined" HelperText="Identificador o usuario en Helpdesk/Redmine para trazabilidad y edición de tareas" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.SupportAgent" />
+                </MudItem>
             </MudGrid>
         </MudContainer>
     </DialogContent>

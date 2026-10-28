@@ -33,6 +33,7 @@
                         <MudTh>Correo</MudTh>
                         <MudTh>Nombre Completo</MudTh>
                         <MudTh>Grupo de Permisos</MudTh>
+                        <MudTh>Usuario Helpdesk</MudTh>
                         <MudTh Style="width:120px; text-align:center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -41,6 +42,18 @@
                         <MudTd DataLabel="Correo">@context.email</MudTd>
                         <MudTd DataLabel="Nombre Completo">@context.nombres @context.apellidos</MudTd>
                         <MudTd DataLabel="Grupo de Permisos">@GetGroupName(context.grupoid)</MudTd>
+                        <MudTd DataLabel="Usuario Helpdesk">
+                            @if (!string.IsNullOrWhiteSpace(context.redmine_user))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SupportAgent">
+                                    @context.redmine_user
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </MudTd>
                         <MudTd Style="text-align:center;">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditUserDialog(context)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUser(context)" />
@@ -114,6 +127,7 @@
         if (element.email.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
         if (element.nombres.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
         if (element.apellidos.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (!string.IsNullOrWhiteSpace(element.redmine_user) && element.redmine_user.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
         return false;
     }
 
@@ -140,7 +154,8 @@
             password = user.password,
             nombres = user.nombres,
             apellidos = user.apellidos,
-            grupoid = user.grupoid
+            grupoid = user.grupoid,
+            redmine_user = user.redmine_user
         };
 
         var parameters = new DialogParameters { ["Title"] = "Editar Usuario", ["payload"] = editUser, ["Groups"] = Groups, ["IsEdit"] = true };

@@ -1,4 +1,4 @@
-﻿using Modelo.Admin;
+using Modelo.Admin;
 using Modelo.Entidades;
 using Modelo.Interfaces;
 
@@ -12,8 +12,10 @@ namespace Modelo.ClasesGenericas
         private User Info { set; get; }
         private int MenuId { set; get; }
         private PermisosPagina InfoPermisos { set; get; }
-        public int UserId { get { return Info.id; } }
-        public string? UserName { get { return Info.username; } }
+        public int UserId { get { return Info?.id ?? 0; } }
+        public string? UserName { get { return Info?.username; } }
+        public string? RedmineUser { get { return Info?.redmine_user; } }
+        public User? User { get { return Info; } }
         public int IdMenu { get { return MenuId; } }
         public PermisosPagina Permisos { get { return InfoPermisos; } }
         public void SetPermisos(Menus menu)

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using Modelo.Admin;
 using Modelo.ClasesGenericas;
+using Modelo.Interfaces;
 using MudBlazor;
 using NPOI.SS.UserModel;
 
@@ -21,6 +22,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
         [Inject] private IDialogService _dialogService { get; set; } = null!;
         [Inject] private IJSRuntime _js { get; set; } = null!;
+        [Inject] private IUserInfo _userInfo { get; set; } = null!;
 
         protected List<Combos> operacionesList = new();
         protected int? selectedOperacionId;
@@ -473,6 +475,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         OperacionId = selectedOperacionId.Value,
                         ClienteRedmine = clienteRedmineIdentificador,
                         ModoGeneracion = modoSeleccionado.ToString(),
+                        UsuarioRedmine = _userInfo.RedmineUser ?? _userInfo.UserName ?? "Supervisor",
                         Movimientos = chunk.Select(x => new MovimientoPersonalItemDto
                         {
                             FilaIndex = x.Index,

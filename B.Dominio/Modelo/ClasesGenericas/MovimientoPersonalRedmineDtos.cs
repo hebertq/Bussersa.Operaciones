@@ -8,6 +8,7 @@ namespace Modelo.ClasesGenericas
         public int OperacionId { get; set; }
         public string ClienteRedmine { get; set; } = string.Empty; // e.g. "4-WalMart"
         public string ModoGeneracion { get; set; } = "Ambos";      // "Ambos", "SoloMovimientos", "SoloViaticos"
+        public string? UsuarioRedmine { get; set; }
         public List<MovimientoPersonalItemDto> Movimientos { get; set; } = new();
     }
 
