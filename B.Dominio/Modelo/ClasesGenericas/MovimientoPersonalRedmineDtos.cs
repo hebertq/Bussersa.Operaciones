@@ -171,6 +171,25 @@ namespace Modelo.ClasesGenericas
         public string UsuarioSupervisor { get; set; } = string.Empty;
     }
 
+    public class SupervisorClienteDto
+    {
+        public int Id { get; set; }
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioSupervisor { get; set; } = string.Empty;
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public string? UsuarioCreacion { get; set; }
+    }
+
+    public class GuardarSupervisorClienteRequest
+    {
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioSupervisor { get; set; } = string.Empty;
+        public string UsuarioCreacion { get; set; } = string.Empty;
+    }
+
     public class ClienteAreaDto
     {
         public int Id { get; set; }

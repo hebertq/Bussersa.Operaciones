@@ -4281,6 +4281,93 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>> GetSupervisorClientes(string usuario = "", string cliente = "")
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto> response = new ListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>();
+            try
+            {
+                var queryParams = new List<string>();
+                if (!string.IsNullOrWhiteSpace(usuario)) queryParams.Add($"usuario={Uri.EscapeDataString(usuario)}");
+                if (!string.IsNullOrWhiteSpace(cliente)) queryParams.Add($"cliente={Uri.EscapeDataString(cliente)}");
+                string queryString = string.Join("&", queryParams);
+
+                var requestUrl = CreateRequestUri("Operaciones/GetSupervisorClientes", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.SupervisorClienteDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveSupervisorCliente(Modelo.ClasesGenericas.GuardarSupervisorClienteRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveSupervisorCliente");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DeleteSupervisorCliente(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/DeleteSupervisorCliente/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         #endregion
     }
 }

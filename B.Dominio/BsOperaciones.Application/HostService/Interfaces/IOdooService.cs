@@ -205,6 +205,10 @@ namespace HostService.Interfaces
         Task<IResponse> SavePersonalClienteMasivo(Modelo.ClasesGenericas.GuardarPersonalClienteRequest request);
         Task<IResponse> DeletePersonalClienteItem(int id);
         Task<IListResponse<Modelo.ClasesGenericas.PersonalClienteItemDto>> PrecargarPersonalClienteDesdeOperacion(Modelo.ClasesGenericas.PrecargarPersonalClienteRequest request);
+        // --- ASIGNACION DE CLIENTES POR SUPERVISOR ---
+        Task<IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>> GetSupervisorClientes(string usuario = "", string cliente = "");
+        Task<IResponse> SaveSupervisorCliente(Modelo.ClasesGenericas.GuardarSupervisorClienteRequest request);
+        Task<IResponse> DeleteSupervisorCliente(int id);
     }
 }
 

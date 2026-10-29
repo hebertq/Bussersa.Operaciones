@@ -11,175 +11,476 @@
 
 <PageTitle>Personal por Cliente - Supervisión - BUSSERSA</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-6">
-    <div class="d-flex align-center justify-space-between mb-3">
-        <div>
-            <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
-            <MudText Typo="Typo.h5" Class="fw-bold text-primary">
-                <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
-                Personal Asignado por Cliente y Supervisor
-            </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Configuración del personal permanente de cada cliente. La plantilla del supervisor se alimenta de esta configuración y garantiza el aislamiento de personal por usuario.
-            </MudText>
-        </div>
-        <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Domain"
-                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))">
-                Áreas del Cliente
-            </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudDownload"
-                       OnClick="@AbrirDialogPrecarga">
-                Precargar Plantilla
-            </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
-                       OnClick="@AbrirDialogNuevoColaborador">
-                Nuevo Colaborador
-            </MudButton>
-        </MudStack>
-    </div>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-8">
 
-    @* Filtros y Resumen *@
-    <MudPaper Class="pa-4 mb-3 rounded-lg" Elevation="2">
-        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
-            <MudItem xs="12" sm="4" md="3">
-                <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroCliente" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem Value="@("")">-- Todos los Clientes (@listaPersonal.Count) --</MudSelectItem>
-                    @foreach (var op in operacionesList)
-                    {
-                        int count = listaPersonal.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
-                        <MudSelectItem Value="@op.nombre">@op.nombre (@count)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" sm="4" md="3">
-                <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisor" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
-                    <MudSelectItem Value="@("")">-- Todos los Supervisores --</MudSelectItem>
-                    @foreach (var sup in supervisoresList)
-                    {
-                        int count = listaPersonal.Count(p => p.UsuarioSupervisor.Equals(sup.username, StringComparison.OrdinalIgnoreCase));
-                        <MudSelectItem Value="@sup.username">@sup.nombres @sup.apellidos (@count)</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" sm="4" md="4">
-                <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar por carnet, nombre, puesto o área..." 
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
-            </MudItem>
-            <MudItem xs="12" sm="12" md="2" Class="d-flex justify-end">
-                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" 
-                           StartIcon="@Icons.Material.Filled.Refresh" OnClick="@CargarDatos" Disabled="@cargando">
-                    Actualizar
+    @* ==========================================
+       HERO / HEADER SECTION
+       ========================================== *@
+    <MudPaper Class="pa-4 mb-4 rounded-xl" Elevation="1" Style="background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%); border: 1px solid #e2e8f0;">
+        <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-3">
+            <div class="d-flex align-center gap-3">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="rounded-lg shadow-sm" Style="background-color: #1e3a8a !important;">
+                    <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Medium" />
+                </MudAvatar>
+                <div>
+                    <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
+                    <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #0f172a;">
+                        Gestión de Personal por Cliente y Asignación de Supervisores
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Configura la plantilla permanente de colaboradores por cliente y gestiona la asignación de cuentas a cada supervisor.
+                    </MudText>
+                </div>
+            </div>
+
+            <MudStack Row="true" Spacing="2" Class="align-self-end align-self-md-center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Domain"
+                           OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))"
+                           Class="rounded-pill px-4 text-capitalize">
+                    Áreas del Cliente
                 </MudButton>
-            </MudItem>
-        </MudGrid>
+            </MudStack>
+        </div>
     </MudPaper>
 
-    @* Tabla Principal *@
-    <MudPaper Class="pa-2 rounded-lg" Elevation="2">
-        @if (cargando)
-        {
-            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
-        }
-        else
-        {
-            <MudTable Items="@PersonalFiltrado" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
-                <HeaderContent>
-                    <MudTh Style="width: 80px;">Carnet</MudTh>
-                    <MudTh>Colaborador</MudTh>
-                    <MudTh>Cliente / Operación</MudTh>
-                    <MudTh>Supervisor Asignado</MudTh>
-                    <MudTh>Área</MudTh>
-                    <MudTh>Puesto</MudTh>
-                    <MudTh Style="width: 120px;">Horario</MudTh>
-                    <MudTh Style="width: 70px;">Comida</MudTh>
-                    <MudTh Style="width: 90px;">Viáticos</MudTh>
-                    <MudTh Style="width: 100px;">Tipo</MudTh>
-                    <MudTh Style="width: 70px;">Estado</MudTh>
-                    <MudTh Style="width: 90px; text-align: center;">Acciones</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="fw-bold">
-                            @context.CodigoEmpleado
-                        </MudChip>
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Dark">
-                            @context.ClienteNombre
-                        </MudChip>
-                    </MudTd>
-                    <MudTd>
-                        @if (!string.IsNullOrWhiteSpace(context.UsuarioSupervisor))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Person">
-                                @context.UsuarioSupervisor
-                            </MudChip>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sin asignar</MudText>
-                        }
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.caption">
-                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
-                            @context.AreaDefault
-                        </MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.caption">@context.PuestoDefault</MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.caption" Class="fw-bold">
-                            @context.HoraEntradaDefault - @context.HoraSalidaDefault
-                        </MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.caption">@context.TiempoComidaDefault hrs</MudText>
-                    </MudTd>
-                    <MudTd>
-                        <MudText Typo="Typo.caption">
-                            C$ @((context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault).ToString("N0"))
-                        </MudText>
-                    </MudTd>
-                    <MudTd>
-                        @if (context.TipoEmpleado?.Equals("Prestamo", StringComparison.OrdinalIgnoreCase) == true)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Préstamo</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Permanente</MudChip>
-                        }
-                    </MudTd>
-                    <MudTd>
-                        @if (context.Activo)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">Activo</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Text">Inactivo</MudChip>
-                        }
-                    </MudTd>
-                    <MudTd Style="text-align: center;">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
-                                       OnClick="@(() => AbrirDialogEditar(context))" Title="Editar colaborador" />
-                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" 
-                                       OnClick="@(() => EliminarColaborador(context))" Title="Eliminar colaborador" />
-                    </MudTd>
-                </RowTemplate>
-                <PagerContent>
-                    <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
-                </PagerContent>
-            </MudTable>
-        }
-    </MudPaper>
+    @* ==========================================
+       TARJETAS DE MÉTRICAS (KPIs)
+       ========================================== *@
+    <MudGrid Spacing="3" Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Colaboradores Totales</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #1e3a8a;">@listaPersonal.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">En plantilla de clientes</MudText>
+                </div>
+                <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Medium" />
+                </MudAvatar>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Clientes con Personal</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #0284c7;">@ClientesConPersonalCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">De @operacionesList.Count clientes registrados</MudText>
+                </div>
+                <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Medium" />
+                </MudAvatar>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Supervisores con Cuenta</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #059669;">@SupervisoresAsignadosCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">De @supervisoresList.Count supervisores activos</MudText>
+                </div>
+                <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Medium" />
+                </MudAvatar>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Vínculos Cliente-Supervisor</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #d97706;">@listaSupervisorClientes.Count(x => x.Activo)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Asignaciones configuradas</MudText>
+                </div>
+                <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Medium" />
+                </MudAvatar>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* ==========================================
+       TABS PRINCIPALES (2 PESTAÑAS)
+       ========================================== *@
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" Color="Color.Primary" Centered="false">
+        
+        @* --------------------------------------------------------------------------------------------------
+           TAB 1: PERSONAL ASIGNADO POR CLIENTE
+           -------------------------------------------------------------------------------------------------- *@
+        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.PeopleAlt" BadgeData="@listaPersonal.Count" BadgeColor="Color.Primary">
+            
+            @* Barra de Filtros y Acciones del Tab 1 *@
+            <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudSelect T="string" Label="Cliente / Operación" @bind-Value="filtroCliente" 
+                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
+                                   Clearable="true" Placeholder="Todos los Clientes"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
+                            @foreach (var op in operacionesList)
+                            {
+                                int count = listaPersonal.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
+                                <MudSelectItem Value="@op.nombre">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <span>@op.nombre</span>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count</MudChip>
+                                    </div>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudSelect T="string" Label="Tipo de Empleado" @bind-Value="filtroTipoPersonal"
+                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
+                                   Clearable="true" Placeholder="Todos los tipos"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   AdornmentIcon="@Icons.Material.Filled.FilterList" Adornment="Adornment.Start">
+                            <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                            <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar carnet, nombre, puesto, área..." 
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="3" Class="d-flex justify-end gap-2 flex-wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CloudDownload" OnClick="@AbrirDialogPrecarga"
+                                   Class="rounded-lg text-capitalize">
+                            Precargar Odoo
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador"
+                                   Class="rounded-lg text-capitalize shadow-sm">
+                            Nuevo
+                        </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
+                                       OnClick="@CargarPersonal" Disabled="@cargandoPersonal" Title="Recargar datos" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @* Tabla de Colaboradores *@
+            @if (cargandoPersonal)
+            {
+                <div class="d-flex flex-column align-center justify-center my-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">Cargando plantilla de colaboradores...</MudText>
+                </div>
+            }
+            else if (!PersonalFiltrado.Any())
+            {
+                <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl my-4 text-center" Elevation="0" Style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+                    <MudAvatar Color="Color.Default" Variant="Variant.Filled" Size="Size.Large" Class="mb-3" Style="background: #e2e8f0;">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Large" Style="color: #64748b;" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No se encontraron colaboradores</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 480px;">
+                        @(string.IsNullOrWhiteSpace(filtroCliente) && string.IsNullOrWhiteSpace(filtroTexto)
+                            ? "Aún no hay colaboradores configurados en esta plantilla. Puedes precargarlos automáticamente desde Odoo o agregar uno nuevo."
+                            : "No hay colaboradores que coincidan con los filtros aplicados. Intenta cambiar el cliente o limpiar la búsqueda.")
+                    </MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudDownload" OnClick="@AbrirDialogPrecarga">
+                            Precargar desde Odoo
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador">
+                            Nuevo Colaborador
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Elevation="0" Class="rounded-lg overflow-hidden" Style="border: 1px solid #e2e8f0;">
+                    <MudTable Items="@PersonalFiltrado" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="width: 85px; font-weight: 700; color: #475569;">Carnet</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Colaborador</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Cliente / Operación</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Área Operativa</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Puesto</MudTh>
+                            <MudTh Style="width: 130px; font-weight: 700; color: #475569;">Horario</MudTh>
+                            <MudTh Style="width: 85px; font-weight: 700; color: #475569;">Comida</MudTh>
+                            <MudTh Style="width: 105px; font-weight: 700; color: #475569;">Viáticos</MudTh>
+                            <MudTh Style="width: 95px; font-weight: 700; color: #475569;">Tipo</MudTh>
+                            <MudTh Style="width: 80px; font-weight: 700; color: #475569;">Estado</MudTh>
+                            <MudTh Style="width: 90px; text-align: center; font-weight: 700; color: #475569;">Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Class="fw-bold rounded-pill" Style="background-color: #1e3a8a !important;">
+                                    #@context.CodigoEmpleado
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <div class="d-flex align-center">
+                                    <MudAvatar Size="Size.Small" Color="Color.Default" Variant="Variant.Filled" Class="mr-2" Style="background: #e0e7ff; color: #1e40af; font-weight: bold; font-size: 11px;">
+                                        @(context.NombreEmpleado.Length >= 2 ? context.NombreEmpleado.Substring(0, 2).ToUpper() : "C")
+                                    </MudAvatar>
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="fw-bold" Style="color: #0f172a;">@context.NombreEmpleado</MudText>
+                                        @if (!string.IsNullOrWhiteSpace(context.UsuarioSupervisor))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sup: @context.UsuarioSupervisor</MudText>
+                                        }
+                                    </div>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" Icon="@Icons.Material.Filled.Domain" Class="rounded-pill">
+                                    @context.ClienteNombre
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                @if (!string.IsNullOrWhiteSpace(context.AreaDefault))
+                                {
+                                    <div class="d-flex align-center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                                        <MudText Typo="Typo.body2">@context.AreaDefault</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">General</MudText>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(context.PuestoDefault) ? "-" : context.PuestoDefault)</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Icon="@Icons.Material.Filled.Schedule">
+                                    @(string.IsNullOrWhiteSpace(context.HoraEntradaDefault) ? "06:00" : context.HoraEntradaDefault) - @(string.IsNullOrWhiteSpace(context.HoraSalidaDefault) ? "14:00" : context.HoraSalidaDefault)
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold">
+                                    <MudIcon Icon="@Icons.Material.Filled.Restaurant" Size="Size.Small" Class="mr-1 text-secondary" />
+                                    @context.TiempoComidaDefault hrs
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                @{
+                                    decimal totalVtco = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
+                                }
+                                <MudTooltip Text="@($"Transp: C$ {context.VtcoTraspDefault:N0} | Alim: C$ {context.VtcoAlimDefault:N0} | Bono: C$ {context.BonoBncDefault:N0}")">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success">
+                                        C$ @totalVtco.ToString("N0")
+                                    </MudChip>
+                                </MudTooltip>
+                            </MudTd>
+                            <MudTd>
+                                @if (context.TipoEmpleado?.Equals("Prestamo", StringComparison.OrdinalIgnoreCase) == true)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="rounded-pill">Préstamo</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Class="rounded-pill">Permanente</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                @if (context.Activo)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text" Class="fw-bold">Activo</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Text">Inactivo</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd Style="text-align: center;">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                               OnClick="@(() => AbrirDialogEditar(context))" Title="Editar colaborador" />
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" 
+                                               OnClick="@(() => EliminarColaborador(context))" Title="Eliminar colaborador" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        @* --------------------------------------------------------------------------------------------------
+           TAB 2: ASIGNACIÓN DE CLIENTES A SUPERVISORES
+           -------------------------------------------------------------------------------------------------- *@
+        <MudTabPanel Text="Asignación Clientes a Supervisores" Icon="@Icons.Material.Filled.SupervisorAccount" BadgeData="@listaSupervisorClientes.Count(x => x.Activo)" BadgeColor="Color.Warning">
+            
+            @* Barra de Filtros y Acciones del Tab 2 *@
+            <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" sm="4" md="4">
+                        <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisorTab2" 
+                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
+                                   Clearable="true" Placeholder="Todos los Supervisores"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   AdornmentIcon="@Icons.Material.Filled.SupervisorAccount" Adornment="Adornment.Start">
+                            @foreach (var sup in supervisoresList)
+                            {
+                                int count = listaSupervisorClientes.Count(x => x.Activo && x.UsuarioSupervisor.Equals(sup.username, StringComparison.OrdinalIgnoreCase));
+                                <MudSelectItem Value="@sup.username">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <span>@sup.nombres @sup.apellidos</span>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count clts</MudChip>
+                                    </div>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" md="4">
+                        <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroClienteTab2" 
+                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
+                                   Clearable="true" Placeholder="Todos los Clientes"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
+                            @foreach (var op in operacionesList)
+                            {
+                                int count = listaSupervisorClientes.Count(x => x.Activo && x.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
+                                <MudSelectItem Value="@op.nombre">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <span>@op.nombre</span>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count sups</MudChip>
+                                    </div>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" md="4" Class="d-flex justify-end gap-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.PersonAddAlt1" OnClick="@AbrirDialogAsignarSupervisorCliente"
+                                   Class="rounded-lg text-capitalize shadow-sm">
+                            Asignar Cliente a Supervisor
+                        </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
+                                       OnClick="@CargarSupervisorClientes" Disabled="@cargandoSupervisorClientes" Title="Recargar asignaciones" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @* Tabla de Asignaciones Supervisor - Cliente *@
+            @if (cargandoSupervisorClientes)
+            {
+                <div class="d-flex flex-column align-center justify-center my-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">Cargando asignaciones de supervisores...</MudText>
+                </div>
+            }
+            else if (!SupervisorClientesFiltrados.Any())
+            {
+                <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl my-4 text-center" Elevation="0" Style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+                    <MudAvatar Color="Color.Default" Variant="Variant.Filled" Size="Size.Large" Class="mb-3" Style="background: #e2e8f0;">
+                        <MudIcon Icon="@Icons.Material.Filled.LinkOff" Size="Size.Large" Style="color: #64748b;" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay asignaciones de clientes a supervisores</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 480px;">
+                        @(string.IsNullOrWhiteSpace(filtroSupervisorTab2) && string.IsNullOrWhiteSpace(filtroClienteTab2)
+                            ? "Vincule clientes u operaciones a los supervisores para que en su tablet o módulo de supervisión únicamente visualicen los colaboradores de sus clientes asignados."
+                            : "No hay asignaciones que coincidan con los filtros seleccionados.")
+                    </MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAddAlt1" OnClick="@AbrirDialogAsignarSupervisorCliente">
+                        Asignar Cliente a Supervisor
+                    </MudButton>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Elevation="0" Class="rounded-lg overflow-hidden" Style="border: 1px solid #e2e8f0;">
+                    <MudTable Items="@SupervisorClientesFiltrados" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="width: 250px; font-weight: 700; color: #475569;">Supervisor</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Cliente / Operación Asignada</MudTh>
+                            <MudTh Style="width: 120px; font-weight: 700; color: #475569;">Colaboradores</MudTh>
+                            <MudTh Style="width: 140px; font-weight: 700; color: #475569;">Fecha Registro</MudTh>
+                            <MudTh Style="width: 140px; font-weight: 700; color: #475569;">Registrado Por</MudTh>
+                            <MudTh Style="width: 90px; font-weight: 700; color: #475569;">Estado</MudTh>
+                            <MudTh Style="width: 90px; text-align: center; font-weight: 700; color: #475569;">Acción</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                @{
+                                    var uInfo = supervisoresList.FirstOrDefault(u => u.username.Equals(context.UsuarioSupervisor, StringComparison.OrdinalIgnoreCase));
+                                    string nombreSup = uInfo != null ? $"{uInfo.nombres} {uInfo.apellidos}" : context.UsuarioSupervisor;
+                                }
+                                <div class="d-flex align-center">
+                                    <MudAvatar Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="mr-2" Style="background-color: #1e3a8a !important; font-size: 11px;">
+                                        @(context.UsuarioSupervisor.Length >= 2 ? context.UsuarioSupervisor.Substring(0, 2).ToUpper() : "S")
+                                    </MudAvatar>
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="fw-bold" Style="color: #0f172a;">@nombreSup</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@@@context.UsuarioSupervisor</MudText>
+                                    </div>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <div class="d-flex align-center">
+                                    <MudChip T="string" Size="Size.Medium" Variant="Variant.Filled" Color="Color.Default" 
+                                             Icon="@Icons.Material.Filled.Business" Class="fw-bold" Style="background: #f1f5f9; color: #0f172a;">
+                                        @context.ClienteNombre
+                                    </MudChip>
+                                    @if (context.OperacionId.HasValue && context.OperacionId.Value > 0)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary" Class="ml-1">
+                                            ID: @context.OperacionId.Value
+                                        </MudChip>
+                                    }
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                @{
+                                    int personalCount = listaPersonal.Count(p => p.ClienteNombre.Equals(context.ClienteNombre, StringComparison.OrdinalIgnoreCase));
+                                }
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" Icon="@Icons.Material.Filled.People">
+                                    @personalCount colab.
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold">
+                                    @(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy HH:mm") : "-")
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @(string.IsNullOrWhiteSpace(context.UsuarioCreacion) ? "Sistema" : context.UsuarioCreacion)
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                @if (context.Activo)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text" Class="fw-bold">Activo</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Text">Inactivo</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd Style="text-align: center;">
+                                <MudTooltip Text="Desvincular cliente del supervisor">
+                                    <MudIconButton Icon="@Icons.Material.Filled.LinkOff" Color="Color.Error" Size="Size.Small"
+                                                   OnClick="@(() => EliminarAsignacionSupervisorCliente(context))" />
+                                </MudTooltip>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new int[] { 15, 30, 50 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+    </MudTabs>
+
 </MudContainer>
 
 @code {
@@ -187,7 +488,8 @@
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     private string currentUserName = string.Empty;
-    private bool cargando = false;
+    private bool cargandoPersonal = false;
+    private bool cargandoSupervisorClientes = false;
 
     private List<BreadcrumbItem> _breadcrumbItems = new()
     {
@@ -196,9 +498,9 @@
         new BreadcrumbItem("Personal por Cliente", href: null, disabled: true)
     };
 
+    // Catálogos
     private List<Combos> operacionesList = new();
     private List<User> supervisoresList = new();
-    private List<PersonalClienteItemDto> listaPersonal = new();
     private Dictionary<string, List<string>> areasPorCliente = new(StringComparer.OrdinalIgnoreCase);
     private List<string> cargosDisponibles = new()
     {
@@ -213,10 +515,25 @@
         "Auxiliar de bodega"
     };
 
+    // Datos Tab 1: Personal por Cliente
+    private List<PersonalClienteItemDto> listaPersonal = new();
     private string? filtroCliente = "";
-    private string? filtroSupervisor = "";
+    private string? filtroTipoPersonal = "";
     private string? filtroTexto = "";
 
+    // Datos Tab 2: Asignación Supervisor - Cliente
+    private List<SupervisorClienteDto> listaSupervisorClientes = new();
+    private string? filtroSupervisorTab2 = "";
+    private string? filtroClienteTab2 = "";
+
+    // Métricas calculadas
+    private int ClientesConPersonalCount =>
+        listaPersonal.Select(p => p.ClienteNombre).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+
+    private int SupervisoresAsignadosCount =>
+        listaSupervisorClientes.Where(x => x.Activo).Select(x => x.UsuarioSupervisor).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+
+    // Filtro Tab 1
     private IEnumerable<PersonalClienteItemDto> PersonalFiltrado
     {
         get
@@ -228,9 +545,9 @@
                 query = query.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroSupervisor))
+            if (!string.IsNullOrWhiteSpace(filtroTipoPersonal))
             {
-                query = query.Where(p => p.UsuarioSupervisor != null && p.UsuarioSupervisor.Equals(filtroSupervisor, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(p => p.TipoEmpleado != null && p.TipoEmpleado.Equals(filtroTipoPersonal, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(filtroTexto))
@@ -249,6 +566,27 @@
         }
     }
 
+    // Filtro Tab 2
+    private IEnumerable<SupervisorClienteDto> SupervisorClientesFiltrados
+    {
+        get
+        {
+            var query = listaSupervisorClientes.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroSupervisorTab2))
+            {
+                query = query.Where(x => x.UsuarioSupervisor != null && x.UsuarioSupervisor.Equals(filtroSupervisorTab2, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroClienteTab2))
+            {
+                query = query.Where(x => x.ClienteNombre != null && x.ClienteNombre.Equals(filtroClienteTab2, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.OrderBy(x => x.UsuarioSupervisor).ThenBy(x => x.ClienteNombre);
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -262,7 +600,7 @@
         catch { }
 
         await CargarCatalogos();
-        await CargarDatos();
+        await Task.WhenAll(CargarPersonal(), CargarSupervisorClientes());
     }
 
     private async Task CargarCatalogos()
@@ -306,9 +644,9 @@
         }
     }
 
-    private async Task CargarDatos()
+    private async Task CargarPersonal()
     {
-        cargando = true;
+        cargandoPersonal = true;
         try
         {
             var resp = await _odooService.GetPersonalCliente(cliente: "", usuario: "");
@@ -323,10 +661,34 @@
         }
         finally
         {
-            cargando = false;
+            cargandoPersonal = false;
             StateHasChanged();
         }
     }
+
+    private async Task CargarSupervisorClientes()
+    {
+        cargandoSupervisorClientes = true;
+        try
+        {
+            var resp = await _odooService.GetSupervisorClientes(usuario: "", cliente: "");
+            if (resp?.Model != null)
+            {
+                listaSupervisorClientes = resp.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar asignaciones de supervisores: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargandoSupervisorClientes = false;
+            StateHasChanged();
+        }
+    }
+
+    // --- ACCIONES TAB 1: PERSONAL ---
 
     private async Task AbrirDialogNuevoColaborador()
     {
@@ -339,7 +701,7 @@
             ["CargosDisponibles"] = cargosDisponibles,
             ["SupervisoresDisponibles"] = supervisoresList,
             ["ClienteSeleccionadoInicial"] = filtroCliente ?? "",
-            ["SupervisorSeleccionadoInicial"] = filtroSupervisor ?? ""
+            ["SupervisorSeleccionadoInicial"] = ""
         };
 
         var dialog = await _dialogService.ShowAsync<DialogEditarPersonalCliente>("Asignar Colaborador al Cliente", parameters);
@@ -347,11 +709,12 @@
 
         if (result != null && !result.Canceled && result.Data is PersonalClienteItemDto nuevoItem)
         {
+            nuevoItem.UsuarioCreacion = currentUserName;
             var res = await _odooService.SavePersonalClienteItem(nuevoItem);
             if (res?.Respuesta?.ExisteError == false)
             {
                 _snackbar.Add($"Colaborador '{nuevoItem.NombreEmpleado}' asignado a '{nuevoItem.ClienteNombre}'.", Severity.Success);
-                await CargarDatos();
+                await CargarPersonal();
             }
             else
             {
@@ -379,11 +742,12 @@
 
         if (result != null && !result.Canceled && result.Data is PersonalClienteItemDto modificado)
         {
+            modificado.UsuarioCreacion = currentUserName;
             var res = await _odooService.SavePersonalClienteItem(modificado);
             if (res?.Respuesta?.ExisteError == false)
             {
                 _snackbar.Add($"Colaborador '{modificado.NombreEmpleado}' actualizado exitosamente.", Severity.Success);
-                await CargarDatos();
+                await CargarPersonal();
             }
             else
             {
@@ -406,7 +770,7 @@
             ["OperacionesDisponibles"] = operacionesList,
             ["SupervisoresDisponibles"] = supervisoresList,
             ["OperacionInicialId"] = opId,
-            ["SupervisorInicial"] = filtroSupervisor ?? ""
+            ["SupervisorInicial"] = ""
         };
 
         var dialog = await _dialogService.ShowAsync<DialogPrecargarPersonalCliente>("Precargar Plantilla desde Operación", parameters);
@@ -414,7 +778,7 @@
 
         if (result != null && !result.Canceled)
         {
-            await CargarDatos();
+            await CargarPersonal();
         }
     }
 
@@ -431,11 +795,64 @@
             if (res?.Respuesta?.ExisteError == false)
             {
                 _snackbar.Add($"Colaborador '{item.NombreEmpleado}' eliminado.", Severity.Info);
-                await CargarDatos();
+                await CargarPersonal();
             }
             else
             {
                 _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar.", Severity.Error);
+            }
+        }
+    }
+
+    // --- ACCIONES TAB 2: ASIGNACIÓN SUPERVISOR - CLIENTE ---
+
+    private async Task AbrirDialogAsignarSupervisorCliente()
+    {
+        var parameters = new DialogParameters
+        {
+            ["SupervisoresDisponibles"] = supervisoresList,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["SupervisorInicial"] = filtroSupervisorTab2 ?? "",
+            ["ClienteInicial"] = filtroClienteTab2 ?? ""
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogAsignarClienteSupervisor>("Asignar Cliente a Supervisor", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is GuardarSupervisorClienteRequest request)
+        {
+            request.UsuarioCreacion = currentUserName;
+            var res = await _odooService.SaveSupervisorCliente(request);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Cliente '{request.ClienteNombre}' asignado al supervisor '{request.UsuarioSupervisor}'.", Severity.Success);
+                await CargarSupervisorClientes();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al asignar cliente a supervisor.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task EliminarAsignacionSupervisorCliente(SupervisorClienteDto item)
+    {
+        bool? confirm = await _dialogService.ShowMessageBox(
+            "Desvincular Cliente de Supervisor",
+            $"¿Está seguro de retirar la asignación del cliente '{item.ClienteNombre}' al supervisor '{item.UsuarioSupervisor}'?",
+            yesText: "Sí, Desvincular", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            var res = await _odooService.DeleteSupervisorCliente(item.Id);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Asignación eliminada exitosamente.", Severity.Info);
+                await CargarSupervisorClientes();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al desvincular asignación.", Severity.Error);
             }
         }
     }
