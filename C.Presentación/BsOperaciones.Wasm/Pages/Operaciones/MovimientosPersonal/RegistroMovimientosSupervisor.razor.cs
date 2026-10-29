@@ -104,6 +104,26 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string NotaPrestamos { get; set; } = string.Empty;
     }
 
+    public class GrupoViaticoItem
+    {
+        public int Index { get; set; }
+        public string Cliente { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string HoraInicio { get; set; } = string.Empty;
+        public string HoraFin { get; set; } = string.Empty;
+        public string TurnoNombre { get; set; } = string.Empty;
+        public int Recursos => Empleados.Count; // Número de personas del viático
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+        public decimal TotalPorPersona => VtcoTrasp + VtcoAlim;
+        public decimal TotalGrupo => Recursos * TotalPorPersona;
+        public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
+        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
+        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
+        public bool Sincronizado => TicketViaticoId.HasValue && TicketViaticoId.Value > 0;
+    }
+
     public partial class RegistroMovimientosSupervisor : ComponentBase
     {
         [Inject] private IOdooService _odooService { get; set; } = null!;
@@ -290,16 +310,53 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected decimal TotalViaticosTrasp => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoTrasp);
         protected decimal TotalViaticosAlim => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoAlim);
         protected decimal TotalViaticosBnc => empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoBnc);
-        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim + TotalViaticosBnc;
+        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim;
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
 
-        protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0 || x.BonoBnc > 0));
-        protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp == 0 && x.VtcoAlim == 0 && x.BonoBnc == 0));
+        protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
+        protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && x.VtcoTrasp == 0 && x.VtcoAlim == 0);
 
         // Filtros para la pestaña de Viáticos
         protected string textoBusquedaViaticos = string.Empty;
-        protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viático o bono
+        protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viático
+        protected string modoVistaViaticos = "GRUPOS"; // "GRUPOS" (Solicitudes con Recursos) o "COLABORADORES"
+
+        protected List<GrupoViaticoItem> GruposViaticos
+        {
+            get
+            {
+                var conViaticos = empleadosJornada.Where(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0)).ToList();
+                return conViaticos
+                    .GroupBy(x => new
+                    {
+                        Cliente = string.IsNullOrWhiteSpace(x.Cliente) 
+                            ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId)?.nombre ?? "General") 
+                            : x.Cliente,
+                        Area = string.IsNullOrWhiteSpace(x.Area) ? "Operaciones" : x.Area,
+                        Puesto = string.IsNullOrWhiteSpace(x.Puesto) ? "6-Operador de almacen" : x.Puesto,
+                        HoraInicio = x.HoraEntrada,
+                        HoraFin = x.HoraSalida,
+                        x.TurnoNombre,
+                        x.VtcoTrasp,
+                        x.VtcoAlim
+                    })
+                    .Select((g, idx) => new GrupoViaticoItem
+                    {
+                        Index = idx + 1,
+                        Cliente = g.Key.Cliente,
+                        Area = g.Key.Area,
+                        Puesto = g.Key.Puesto,
+                        HoraInicio = g.Key.HoraInicio,
+                        HoraFin = g.Key.HoraFin,
+                        TurnoNombre = g.Key.TurnoNombre,
+                        VtcoTrasp = g.Key.VtcoTrasp,
+                        VtcoAlim = g.Key.VtcoAlim,
+                        Empleados = g.ToList()
+                    })
+                    .ToList();
+            }
+        }
 
         protected IEnumerable<EmpleadoJornadaItem> EmpleadosViaticosFiltrados
         {
@@ -309,11 +366,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (filtroViaticos == "CON_VIATICOS")
                 {
-                    query = query.Where(x => x.VtcoTrasp > 0 || x.VtcoAlim > 0 || x.BonoBnc > 0);
+                    query = query.Where(x => x.VtcoTrasp > 0 || x.VtcoAlim > 0);
                 }
                 else if (filtroViaticos == "SIN_VIATICOS")
                 {
-                    query = query.Where(x => x.VtcoTrasp == 0 && x.VtcoAlim == 0 && x.BonoBnc == 0);
+                    query = query.Where(x => x.VtcoTrasp == 0 && x.VtcoAlim == 0);
                 }
 
                 if (!string.IsNullOrWhiteSpace(textoBusquedaViaticos))
@@ -1903,7 +1960,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        protected async Task AbrirEditorViaticoIndividual(EmpleadoJornadaItem item)
+        protected async Task AbrirEditorViaticoIndividual(EmpleadoJornadaItem item, bool ocultarBono = false)
         {
             var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
             var parameters = new DialogParameters
@@ -1913,17 +1970,21 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["VtcoTraspInicial"] = item.VtcoTrasp,
                 ["VtcoAlimInicial"] = item.VtcoAlim,
                 ["BonoBncInicial"] = item.BonoBnc,
-                ["CantidadSeleccionados"] = seleccionados.Count
+                ["CantidadSeleccionados"] = seleccionados.Count,
+                ["OcultarBono"] = ocultarBono
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Viáticos & Bono", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>(ocultarBono ? "Viáticos (Operaciones)" : "Viáticos & Bono", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
             {
                 item.VtcoTrasp = data.VtcoTrasp;
                 item.VtcoAlim = data.VtcoAlim;
-                item.BonoBnc = data.BonoBnc;
+                if (!ocultarBono)
+                {
+                    item.BonoBnc = data.BonoBnc;
+                }
                 item.Modificado = true;
 
                 if (data.AplicarASeleccionados && seleccionados.Any())
@@ -1932,14 +1993,49 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         s.VtcoTrasp = data.VtcoTrasp;
                         s.VtcoAlim = data.VtcoAlim;
-                        s.BonoBnc = data.BonoBnc;
+                        if (!ocultarBono)
+                        {
+                            s.BonoBnc = data.BonoBnc;
+                        }
                         s.Modificado = true;
                     }
                 }
 
                 ActualizarGruposConsolidados();
-                var total = data.VtcoTrasp + data.VtcoAlim + data.BonoBnc;
+                var total = data.VtcoTrasp + data.VtcoAlim + (ocultarBono ? 0 : data.BonoBnc);
                 _snackbar.Add($"Viáticos actualizados (Total C$ {total:N2})", Severity.Success);
+            }
+        }
+
+        protected async Task AbrirEditorViaticoGrupo(GrupoViaticoItem grupo)
+        {
+            var primer = grupo.Empleados.First();
+            var parameters = new DialogParameters
+            {
+                ["CodigoEmpleado"] = primer.CodigoEmpleado,
+                ["NombreEmpleado"] = $"{grupo.Recursos} recursos en {grupo.Area} ({grupo.HoraInicio}-{grupo.HoraFin})",
+                ["VtcoTraspInicial"] = grupo.VtcoTrasp,
+                ["VtcoAlimInicial"] = grupo.VtcoAlim,
+                ["BonoBncInicial"] = 0m,
+                ["CantidadSeleccionados"] = grupo.Recursos,
+                ["OcultarBono"] = true
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Editar Viáticos del Grupo", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
+            {
+                foreach (var emp in grupo.Empleados)
+                {
+                    emp.VtcoTrasp = data.VtcoTrasp;
+                    emp.VtcoAlim = data.VtcoAlim;
+                    emp.Modificado = true;
+                }
+
+                ActualizarGruposConsolidados();
+                var total = (data.VtcoTrasp + data.VtcoAlim) * grupo.Recursos;
+                _snackbar.Add($"Viáticos actualizados para {grupo.Recursos} recursos (Total C$ {total:N2})", Severity.Success);
             }
         }
 
@@ -1959,8 +2055,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["NombreEmpleado"] = primer.NombreEmpleado,
                 ["VtcoTraspInicial"] = primer.VtcoTrasp,
                 ["VtcoAlimInicial"] = primer.VtcoAlim,
-                ["BonoBncInicial"] = primer.BonoBnc,
-                ["CantidadSeleccionados"] = seleccionados.Count
+                ["BonoBncInicial"] = 0m,
+                ["CantidadSeleccionados"] = seleccionados.Count,
+                ["OcultarBono"] = true
             };
 
             var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Asignación Masiva de Viáticos", parameters);
@@ -1972,12 +2069,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     s.VtcoTrasp = data.VtcoTrasp;
                     s.VtcoAlim = data.VtcoAlim;
-                    s.BonoBnc = data.BonoBnc;
                     s.Modificado = true;
                 }
 
                 ActualizarGruposConsolidados();
-                var total = (data.VtcoTrasp + data.VtcoAlim + data.BonoBnc) * seleccionados.Count;
+                var total = (data.VtcoTrasp + data.VtcoAlim) * seleccionados.Count;
                 _snackbar.Add($"Viáticos asignados a {seleccionados.Count} colaboradores (Total C$ {total:N2})", Severity.Success);
             }
         }
@@ -1986,23 +2082,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Limpiar Viáticos",
-                "¿Deseas restablecer a C$ 0 todos los viáticos y bonos de la jornada?",
+                "¿Deseas restablecer a C$ 0 todos los viáticos de transporte y alimentación de la jornada?",
                 yesText: "Sí, Limpiar a C$ 0", cancelText: "Cancelar");
 
             if (confirm == true)
             {
                 foreach (var emp in empleadosJornada)
                 {
-                    if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0 || emp.BonoBnc > 0)
+                    if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0)
                     {
                         emp.VtcoTrasp = 0;
                         emp.VtcoAlim = 0;
-                        emp.BonoBnc = 0;
                         emp.Modificado = true;
                     }
                 }
                 ActualizarGruposConsolidados();
-                _snackbar.Add("Se han restablecido todos los viáticos a C$ 0.", Severity.Info);
+                _snackbar.Add("Se han restablecido los viáticos (transporte y alimentación) a C$ 0.", Severity.Info);
             }
         }
 
@@ -2110,8 +2205,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.TurnoNombre,
                     TiempoComida = string.IsNullOrWhiteSpace(x.TiempoComida) ? "1.00" : x.TiempoComida,
                     x.VtcoTrasp,
-                    x.VtcoAlim,
-                    x.BonoBnc
+                    x.VtcoAlim
                 })
                 .Select((g, idx) =>
                 {
@@ -2171,7 +2265,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TiempoComida = g.Key.TiempoComida,
                         VtcoTrasp = g.Key.VtcoTrasp,
                         VtcoAlim = g.Key.VtcoAlim,
-                        VtcoBnc = g.Key.BonoBnc,
+                        VtcoBnc = 0m,
                         Empleados = empleadosGrupo,
                         Observaciones = obsFinal,
                         NotaPrestamos = notaAutomatica
@@ -2223,7 +2317,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     IdsEmpleados = g.IdsEmpleadosTexto,
                     Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
                     Observaciones = g.Observaciones,
-                    Bonos = g.VtcoBnc > 0 ? g.VtcoBnc.ToString("N2", CultureInfo.InvariantCulture) : "0.00",
+                    Bonos = "0.00",
                     VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
                     VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
                 }).ToList();

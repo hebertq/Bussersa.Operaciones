@@ -8,7 +8,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" />
             </MudAvatar>
             <div>
-                <MudText Typo="Typo.h6" Class="fw-bold">Viáticos & Bono</MudText>
+                <MudText Typo="Typo.h6" Class="fw-bold">@(OcultarBono ? "Viáticos (Operaciones)" : "Viáticos & Bono")</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     <b>#@CodigoEmpleado</b> - @NombreEmpleado
                 </MudText>
@@ -22,10 +22,10 @@
                 <div>
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold">Total Asignado</MudText>
                     <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">
-                        C$ @((VtcoTrasp + VtcoAlim + BonoBnc).ToString("N2"))
+                        C$ @((VtcoTrasp + VtcoAlim + (OcultarBono ? 0 : BonoBnc)).ToString("N2"))
                     </MudText>
                 </div>
-                @if (VtcoTrasp > 0 || VtcoAlim > 0 || BonoBnc > 0)
+                @if (VtcoTrasp > 0 || VtcoAlim > 0 || (!OcultarBono && BonoBnc > 0))
                 {
                     <MudButton Variant="Variant.Text" 
                                Color="Color.Error" 
@@ -94,31 +94,34 @@
             </MudCard>
 
             @* 3. Bono BNC *@
-            <MudCard Outlined="true" Class="mb-3 pa-2">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold">
-                        <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Success" />
-                        Bono BNC:
-                    </MudText>
-                    <MudNumericField T="decimal" 
-                                     @bind-Value="BonoBnc" 
-                                     Variant="Variant.Outlined" 
-                                     Margin="Margin.Dense" 
-                                     Min="0" 
-                                     HideSpinButtons="true"
-                                     Format="N2"
-                                     Adornment="Adornment.Start"
-                                     AdornmentText="C$"
-                                     Style="width: 140px; text-align: right;" />
-                </MudStack>
-                <MudStack Row="true" Spacing="1" Class="mt-2" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos:</MudText>
-                    <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => BonoBnc = 0)">C$ 0</MudChip>
-                    <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 100)">C$ 100</MudChip>
-                    <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 150 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 150)">C$ 150</MudChip>
-                    <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 200 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 200)">C$ 200</MudChip>
-                </MudStack>
-            </MudCard>
+            @if (!OcultarBono)
+            {
+                <MudCard Outlined="true" Class="mb-3 pa-2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                            <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Success" />
+                            Bono BNC:
+                        </MudText>
+                        <MudNumericField T="decimal" 
+                                         @bind-Value="BonoBnc" 
+                                         Variant="Variant.Outlined" 
+                                         Margin="Margin.Dense" 
+                                         Min="0" 
+                                         HideSpinButtons="true"
+                                         Format="N2"
+                                         Adornment="Adornment.Start"
+                                         AdornmentText="C$"
+                                         Style="width: 140px; text-align: right;" />
+                    </MudStack>
+                    <MudStack Row="true" Spacing="1" Class="mt-2" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos:</MudText>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => BonoBnc = 0)">C$ 0</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 100)">C$ 100</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 150 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 150)">C$ 150</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 200 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 200)">C$ 200</MudChip>
+                    </MudStack>
+                </MudCard>
+            }
 
             @if (CantidadSeleccionados > 1)
             {
@@ -149,6 +152,7 @@
     [Parameter] public decimal VtcoAlimInicial { get; set; } = 0;
     [Parameter] public decimal BonoBncInicial { get; set; } = 0;
     [Parameter] public int CantidadSeleccionados { get; set; } = 0;
+    [Parameter] public bool OcultarBono { get; set; } = false;
 
     public decimal VtcoTrasp { get; set; } = 0;
     public decimal VtcoAlim { get; set; } = 0;
@@ -166,7 +170,10 @@
     {
         VtcoTrasp = 0;
         VtcoAlim = 0;
-        BonoBnc = 0;
+        if (!OcultarBono)
+        {
+            BonoBnc = 0;
+        }
     }
 
     private void Cancelar() => MudDialog.Cancel();
@@ -177,7 +184,7 @@
         {
             VtcoTrasp = this.VtcoTrasp,
             VtcoAlim = this.VtcoAlim,
-            BonoBnc = this.BonoBnc,
+            BonoBnc = OcultarBono ? this.BonoBncInicial : this.BonoBnc,
             AplicarASeleccionados = this.AplicarASeleccionados
         }));
     }
