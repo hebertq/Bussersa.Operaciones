@@ -937,36 +937,58 @@
         @* ==========================================
            TAB 2: VIÁTICOS
            ========================================== *@
-                @* ==========================================
+                        @* ==========================================
            TAB 2: AUSENCIAS (REPORTAR AUSENCIAS A HELPDESK TRACKER 8)
            ========================================== *@
         <MudTabPanel Text="Ausencias" ToolTip="Ausencias del Personal" Icon="@Icons.Material.Filled.PersonOff" BadgeData="@TotalAusentes" BadgeColor="Color.Error">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
-                <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
-                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
-                        <div>
-                            Reporte de ausencias y generación de solicitudes en <b>Helpdesk (Tracker 8 - Ausencias de Personal)</b> con los tipos de permiso configurados en <b>Odoo</b>.
-                        </div>
-                        <div class="d-flex align-center gap-2">
-                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
-                                Ausentes: @TotalAusentes
-                            </MudChip>
-                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
-                                Con Ticket: @TotalAusenciasSincronizadas
-                            </MudChip>
-                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
-                                Pendientes: @TotalAusenciasPendientes
-                            </MudChip>
-                        </div>
-                    </div>
-                </MudAlert>
 
-                @* Barra de Filtros, Búsqueda, Modos de Vista Responsiva Estilo Odoo y Envío Masivo *@
+                @* KPIs Resumen de Ausencias *@
+                <MudGrid Spacing="2" Class="mb-3">
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="1" Class="pa-3 border-l-4 border-solid border-error d-flex align-center justify-space-between" 
+                                  Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-error) !important; border-radius: 10px;">
+                            <div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Total Ausencias</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Error" Class="fw-bold">@TotalAusentes</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Small" />
+                            </MudAvatar>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Elevation="1" Class="pa-3 border-l-4 border-solid border-warning d-flex align-center justify-space-between" 
+                                  Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-warning) !important; border-radius: 10px;">
+                            <div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Pendientes Helpdesk</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Warning" Class="fw-bold">@TotalAusenciasPendientes</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Small" />
+                            </MudAvatar>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudPaper Elevation="1" Class="pa-3 border-l-4 border-solid border-success d-flex align-center justify-space-between" 
+                                  Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-success) !important; border-radius: 10px;">
+                            <div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Con Ticket Helpdesk</MudText>
+                                <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">@TotalAusenciasSincronizadas</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                            </MudAvatar>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                @* Barra de Filtros, Búsqueda, Acciones y Selector de Vistas Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-3">
-                    @* Izquierda: Buscador de Ausencias *@
-                    <div class="d-flex align-center gap-2 flex-grow-1" style="max-width: 480px; min-width: 250px;">
+                    @* Izquierda: Buscador *@
+                    <div class="d-flex align-center gap-2 flex-grow-1" style="max-width: 460px; min-width: 250px;">
                         <MudTextField @bind-Value="textoBusquedaAusencias" 
-                                      Placeholder="Buscar ausente por nombre, carnet (#), cliente o tipo..." 
+                                      Placeholder="Buscar ausente por nombre, carnet (#) o cliente..." 
                                       Adornment="Adornment.Start" 
                                       AdornmentIcon="@Icons.Material.Filled.Search" 
                                       Variant="Variant.Outlined" 
@@ -976,7 +998,7 @@
                                       Class="flex-grow-1" />
                     </div>
 
-                    @* Derecha: Botón de envío a Helpdesk + Selector de Vistas Odoo *@
+                    @* Derecha: Botón Envío Helpdesk + Selector de Vistas Odoo *@
                     <div class="d-flex align-center flex-wrap gap-2">
                         @if (TotalAusentes > 0)
                         {
@@ -991,7 +1013,7 @@
                                        StartIcon="@Icons.Material.Filled.Send" 
                                        Disabled="@(estaEnviandoAusencias || TotalAusentes == 0)"
                                        OnClick="@(() => EnviarAusenciasAHelpdeskMasivo(CantidadAusentesSeleccionados > 0))"
-                                       Style="font-weight: 700; text-transform: none; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);">
+                                       Style="font-weight: 700; text-transform: none; border-radius: 8px; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);">
                                 @if (estaEnviandoAusencias)
                                 {
                                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -1004,12 +1026,18 @@
                             </MudButton>
                         }
 
-                        @* Selector de 4 Visualizaciones Estilo Odoo *@
+                        @* Selector de 4 Visualizaciones Estilo Odoo (Tarjetas por defecto) *@
                         <div class="odoo-view-switcher">
+                            <button type="button" 
+                                    class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Tarjetas ? "active" : "")" 
+                                    @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Tarjetas)" 
+                                    title="Vista Tarjetas Kanban (Predefinida)">
+                                <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
+                            </button>
                             <button type="button" 
                                     class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Operativo ? "active" : "")" 
                                     @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Operativo)" 
-                                    title="Vista Operativa (Tipo de Ausencia, Fechas & Días)">
+                                    title="Vista Operativa (Horarios & Días)">
                                 <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
                             </button>
                             <button type="button" 
@@ -1024,17 +1052,11 @@
                                     title="Vista Tabla Completa">
                                 <MudIcon Icon="@Icons.Material.Filled.ViewList" Size="Size.Small" />
                             </button>
-                            <button type="button" 
-                                    class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Tarjetas ? "active" : "")" 
-                                    @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Tarjetas)" 
-                                    title="Vista Tarjetas (Kanban)">
-                                <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
-                            </button>
                         </div>
                     </div>
                 </div>
 
-                @* ESTADO CUANDO NO HAY COLABORADORES AUSENTES *@
+                @* ESTADO VACÍO *@
                 @if (!AusentesFiltrados.Any())
                 {
                     <MudPaper Elevation="0" Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
@@ -1060,27 +1082,40 @@
                 }
                 else
                 {
-                    @* 4 VISUALIZACIONES *@
+                    @* 4 VISUALIZACIONES OPTIMIZADAS *@
                     @if (modoVistaAusencias == ModoVistaGrilla.Tarjetas)
                     {
-                        @* VISTA TARJETAS (KANBAN) *@
+                        @* VISTA TARJETAS (KANBAN) - PREDEFINIDA *@
                         <MudGrid Spacing="2">
                             @foreach (var emp in AusentesFiltrados)
                             {
-                                <MudItem xs="12" sm="6" md="4" lg="3">
-                                    <MudCard Elevation="2" Class="pa-3 rounded-lg border border-solid" 
-                                             Style="@(emp.SincronizadoAusencia ? "border-color: #10b981; background: #f0fdf4;" : "border-color: #fecaca; background: #fff;")">
+                                <MudItem xs="12" sm="6" lg="4">
+                                    <MudCard Elevation="2" Class="pa-3 rounded-xl border border-solid transition-all" 
+                                             Style="@(emp.SincronizadoAusencia 
+                                                ? "border-color: #10b981; border-left: 6px solid #10b981; background: #ffffff;" 
+                                                : "border-color: #fca5a5; border-left: 6px solid #ef4444; background: #ffffff;")">
+                                        
+                                        @* Header de la Tarjeta *@
                                         <div class="d-flex align-center justify-space-between mb-2">
                                             <div class="d-flex align-center gap-1">
                                                 <MudCheckBox @bind-Value="@emp.Seleccionado" Color="Color.Error" Dense="true" />
-                                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold px-1" Style="height: 20px; font-size: 0.72rem;">
-                                                    AUSENTE
-                                                </MudChip>
-                                                <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Class="font-monospace px-1" Style="height: 20px; font-size: 0.72rem;">
+                                                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold px-2" Style="height: 22px; font-size: 0.75rem;">
                                                     #@emp.CodigoEmpleado
                                                 </MudChip>
+                                                @if (emp.SincronizadoAusencia)
+                                                {
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold px-2" Style="height: 22px; font-size: 0.72rem;">
+                                                        TICKET #@emp.TicketAusenciaId
+                                                    </MudChip>
+                                                }
+                                                else
+                                                {
+                                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold px-2" Style="height: 22px; font-size: 0.72rem;">
+                                                        AUSENTE
+                                                    </MudChip>
+                                                }
                                             </div>
-                                            <MudTooltip Text="Volver a marcar como PRESENTE" Arrow="true">
+                                            <MudTooltip Text="Revertir: Marcar como Presente" Arrow="true">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Undo" 
                                                                Color="Color.Success" 
                                                                Size="Size.Small" 
@@ -1088,25 +1123,28 @@
                                             </MudTooltip>
                                         </div>
 
-                                        <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 text-truncate" Title="@emp.NombreEmpleado">
+                                        @* Nombre y Subtítulo *@
+                                        <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark mb-0 text-truncate" Title="@emp.NombreEmpleado" Style="font-size: 0.95rem;">
                                             @emp.NombreEmpleado
                                         </MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-2">
-                                            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" Style="font-size: 0.85rem;" />
-                                            @emp.Cliente • @emp.Puesto
-                                        </MudText>
+                                        <div class="d-flex align-center gap-1 text-secondary mb-3" style="font-size: 0.8rem;">
+                                            <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Small" Style="font-size: 0.85rem;" />
+                                            <span class="fw-bold text-dark">@emp.Cliente</span>
+                                            <span>• @emp.Puesto</span>
+                                        </div>
 
-                                        <MudDivider Class="my-2" />
+                                        <MudDivider Class="mb-3" />
 
                                         @* Tipo de Ausencia Odoo *@
                                         <div class="mb-2">
-                                            <MudText Typo="Typo.caption" Class="fw-bold d-block text-secondary mb-1">Tipo de Ausencia (Odoo):</MudText>
+                                            <label class="text-caption fw-bold text-secondary d-block mb-1">Tipo de Permiso / Ausencia (Odoo):</label>
                                             <MudSelect T="string" 
                                                        Value="@emp.TipoAusencia" 
                                                        ValueChanged="@((string v) => { emp.TipoAusencia = v; emp.Modificado = true; })" 
                                                        Dense="true" 
                                                        Margin="Margin.Dense" 
-                                                       Variant="Variant.Outlined">
+                                                       Variant="Variant.Outlined"
+                                                       Class="bg-white">
                                                 @foreach (var t in tiposAusenciaOdoo)
                                                 {
                                                     <MudSelectItem Value="@t.nombre">@t.nombre</MudSelectItem>
@@ -1117,20 +1155,21 @@
                                         @if (emp.TipoAusencia == "Vacaciones")
                                         {
                                             <div class="mb-2">
-                                                <MudText Typo="Typo.caption" Class="fw-bold d-block text-secondary mb-1">Tipo Vacaciones:</MudText>
+                                                <label class="text-caption fw-bold text-secondary d-block mb-1">Modalidad de Vacaciones:</label>
                                                 <MudSelect T="string" 
                                                            Value="@emp.VacacionesTipo" 
                                                            ValueChanged="@((string v) => { emp.VacacionesTipo = v; emp.Modificado = true; })" 
                                                            Dense="true" 
                                                            Margin="Margin.Dense" 
-                                                           Variant="Variant.Outlined">
+                                                           Variant="Variant.Outlined"
+                                                           Class="bg-white">
                                                     <MudSelectItem Value="@("Descansadas")">Descansadas</MudSelectItem>
                                                     <MudSelectItem Value="@("Pagadas")">Pagadas</MudSelectItem>
                                                 </MudSelect>
                                             </div>
                                         }
 
-                                        @* Fechas y Días *@
+                                        @* Rango de Fechas & Días *@
                                         <div class="d-flex align-center gap-2 mb-2">
                                             <div class="flex-grow-1">
                                                 <MudDatePicker Label="Inicio" 
@@ -1138,7 +1177,8 @@
                                                                DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(emp, d))" 
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
-                                                               Variant="Variant.Outlined" />
+                                                               Variant="Variant.Outlined" 
+                                                               Class="bg-white" />
                                             </div>
                                             <div class="flex-grow-1">
                                                 <MudDatePicker Label="Fin" 
@@ -1146,50 +1186,57 @@
                                                                DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(emp, d))" 
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
-                                                               Variant="Variant.Outlined" />
+                                                               Variant="Variant.Outlined" 
+                                                               Class="bg-white" />
                                             </div>
-                                            <div style="width: 65px;">
+                                            <div style="width: 72px;">
                                                 <MudNumericField T="decimal" 
                                                                  Label="Días" 
                                                                  @bind-Value="@emp.DiasAusencia" 
                                                                  Min="1m" 
                                                                  Step="1m" 
                                                                  Margin="Margin.Dense" 
-                                                                 Variant="Variant.Outlined" />
+                                                                 Variant="Variant.Outlined" 
+                                                                 Class="bg-white"
+                                                                 Style="text-align: center;" />
                                             </div>
                                         </div>
 
-                                        @* Observaciones *@
+                                        @* Motivo / Observaciones *@
                                         <div class="mb-2">
                                             <MudTextField @bind-Value="@emp.ObservacionesAusencia" 
-                                                          Placeholder="Motivo u observaciones..." 
+                                                          Placeholder="Motivo u observaciones (opcional)..." 
                                                           Variant="Variant.Outlined" 
                                                           Margin="Margin.Dense" 
+                                                          Class="bg-white"
                                                           Lines="1" />
                                         </div>
 
-                                        @* Footer con Ticket Helpdesk *@
-                                        <div class="d-flex align-center justify-space-between mt-2 pt-2 border-t">
+                                        @* Footer de la Tarjeta *@
+                                        <div class="d-flex align-center justify-space-between pt-2 border-t mt-2">
                                             @if (emp.SincronizadoAusencia)
                                             {
-                                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold"
-                                                         Href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketAusenciaId}")" Target="_blank"
-                                                         Title="Ver solicitud de ausencia en Helpdesk">
-                                                    Ticket #@emp.TicketAusenciaId
-                                                </MudChip>
+                                                <a href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketAusenciaId}")" 
+                                                   target="_blank" 
+                                                   class="d-flex align-center gap-1 text-success text-decoration-none fw-bold" 
+                                                   style="font-size: 0.82rem;">
+                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                                                    Ver Ticket #@emp.TicketAusenciaId en Helpdesk ↗
+                                                </a>
                                             }
                                             else
                                             {
-                                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
-                                                    Sin Ticket
-                                                </MudChip>
+                                                <span class="text-caption text-secondary">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" Style="vertical-align: middle; font-size: 0.9rem;" />
+                                                    Sin Ticket en Helpdesk
+                                                </span>
                                                 <MudButton Variant="Variant.Filled" 
                                                            Color="Color.Error" 
                                                            Size="Size.Small" 
                                                            StartIcon="@Icons.Material.Filled.Send" 
                                                            Disabled="@estaEnviandoAusencias"
                                                            OnClick="@(() => EnviarAusenciaIndividual(emp))"
-                                                           Style="text-transform: none; font-size: 0.75rem;">
+                                                           Style="text-transform: none; font-weight: 700; border-radius: 8px;">
                                                     Solicitar
                                                 </MudButton>
                                             }
@@ -1201,174 +1248,172 @@
                     }
                     else
                     {
-                        @* VISTAS DE TABLA: OPERATIVO, UBICACIÓN O COMPLETO *@
-                        <MudTable Items="@AusentesFiltrados" 
-                                  Dense="true" 
-                                  Hover="true" 
-                                  Bordered="true" 
-                                  Striped="true" 
-                                  Elevation="1" 
-                                  Class="odoo-table rounded-lg overflow-hidden">
-                            <HeaderContent>
-                                <MudTh Style="width: 40px;"><MudCheckBox T="bool" Value="@(AusentesFiltrados.Any() && AusentesFiltrados.All(x => x.Seleccionado))" ValueChanged="@((bool v) => MarcarTodosAusentes(v))" Color="Color.Error" /></MudTh>
-                                <MudTh Style="width: 80px;">Carnet</MudTh>
-                                <MudTh>Colaborador</MudTh>
-                                <MudTh Style="min-width: 130px;">Cliente</MudTh>
-                                @if (modoVistaAusencias == ModoVistaGrilla.Ubicacion || modoVistaAusencias == ModoVistaGrilla.Completo)
-                                {
-                                    <MudTh Style="min-width: 120px;">Área</MudTh>
-                                    <MudTh Style="min-width: 130px;">Puesto</MudTh>
-                                }
-                                <MudTh Style="min-width: 180px;">Tipo de Ausencia (Odoo)</MudTh>
-                                @if (modoVistaAusencias == ModoVistaGrilla.Completo)
-                                {
-                                    <MudTh Style="width: 120px;">Vacaciones</MudTh>
-                                }
-                                <MudTh Style="min-width: 120px;">Fecha Inicio</MudTh>
-                                <MudTh Style="min-width: 120px;">Fecha Fin</MudTh>
-                                <MudTh Style="width: 70px;">Días</MudTh>
-                                <MudTh Style="min-width: 160px;">Motivo / Observaciones</MudTh>
-                                <MudTh Style="min-width: 130px; text-align: center;">Helpdesk</MudTh>
-                                <MudTh Style="width: 60px; text-align: center;">Acción</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>
-                                    <MudCheckBox @bind-Value="@context.Seleccionado" Color="Color.Error" Dense="true" />
-                                </MudTd>
-                                <MudTd>
-                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem; min-width: 48px; justify-content: center;">
-                                        #@context.CodigoEmpleado
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd>
-                                    <div>
-                                        <MudText Typo="Typo.body2" Class="fw-bold" Style="white-space: normal; line-height: 1.2;">
-                                            @context.NombreEmpleado
-                                        </MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            @context.Puesto
-                                        </MudText>
-                                    </div>
-                                </MudTd>
-                                <MudTd>
-                                    <MudText Typo="Typo.body2" Class="fw-bold text-truncate" Title="@context.Cliente">
-                                        @context.Cliente
-                                    </MudText>
-                                </MudTd>
-                                @if (modoVistaAusencias == ModoVistaGrilla.Ubicacion || modoVistaAusencias == ModoVistaGrilla.Completo)
-                                {
-                                    <MudTd>
-                                        <MudText Typo="Typo.body2" Class="text-truncate" Title="@context.Area">
-                                            @context.Area
-                                        </MudText>
+                        @* VISTAS DE TABLA: OPERATIVO, UBICACIÓN O COMPLETO (COMPACTAS Y ADAPTADAS PARA TABLET) *@
+                        <div class="overflow-x-auto rounded-lg border">
+                            <MudTable Items="@AusentesFiltrados" 
+                                      Dense="true" 
+                                      Hover="true" 
+                                      Bordered="true" 
+                                      Striped="true" 
+                                      Elevation="0" 
+                                      Class="odoo-table"
+                                      Style="min-width: 880px;">
+                                <HeaderContent>
+                                    <MudTh Style="width: 40px; text-align: center;"><MudCheckBox T="bool" Value="@(AusentesFiltrados.Any() && AusentesFiltrados.All(x => x.Seleccionado))" ValueChanged="@((bool v) => MarcarTodosAusentes(v))" Color="Color.Error" Dense="true" /></MudTh>
+                                    <MudTh Style="width: 220px;">Colaborador</MudTh>
+                                    @if (modoVistaAusencias == ModoVistaGrilla.Ubicacion || modoVistaAusencias == ModoVistaGrilla.Completo)
+                                    {
+                                        <MudTh Style="width: 140px;">Área</MudTh>
+                                    }
+                                    <MudTh Style="width: 170px;">Tipo de Ausencia (Odoo)</MudTh>
+                                    @if (modoVistaAusencias == ModoVistaGrilla.Completo)
+                                    {
+                                        <MudTh Style="width: 120px;">Modalidad</MudTh>
+                                    }
+                                    <MudTh Style="width: 220px;">Período (Inicio - Fin)</MudTh>
+                                    <MudTh Style="width: 60px; text-align: center;">Días</MudTh>
+                                    <MudTh Style="min-width: 150px;">Motivo / Observaciones</MudTh>
+                                    <MudTh Style="width: 130px; text-align: center;">Helpdesk</MudTh>
+                                    <MudTh Style="width: 50px; text-align: center;">Acción</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd Style="text-align: center;">
+                                        <MudCheckBox @bind-Value="@context.Seleccionado" Color="Color.Error" Dense="true" />
                                     </MudTd>
                                     <MudTd>
-                                        <MudText Typo="Typo.body2" Class="text-truncate" Title="@context.Puesto">
-                                            @context.Puesto
-                                        </MudText>
+                                        <div class="d-flex align-center gap-1 mb-1">
+                                            <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold px-1" Style="height: 18px; font-size: 0.7rem;">
+                                                #@context.CodigoEmpleado
+                                            </MudChip>
+                                            <MudText Typo="Typo.body2" Class="fw-bold text-dark text-truncate" Style="max-width: 160px;" Title="@context.NombreEmpleado">
+                                                @context.NombreEmpleado
+                                            </MudText>
+                                        </div>
+                                        <div class="text-secondary" style="font-size: 0.72rem; line-height: 1.1;">
+                                            <b>@context.Cliente</b> • @context.Puesto
+                                        </div>
                                     </MudTd>
-                                }
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               Value="@context.TipoAusencia" 
-                                               ValueChanged="@((string v) => { context.TipoAusencia = v; context.Modificado = true; })" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined">
-                                        @foreach (var t in tiposAusenciaOdoo)
-                                        {
-                                            <MudSelectItem Value="@t.nombre">@t.nombre</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudTd>
-                                @if (modoVistaAusencias == ModoVistaGrilla.Completo)
-                                {
+                                    @if (modoVistaAusencias == ModoVistaGrilla.Ubicacion || modoVistaAusencias == ModoVistaGrilla.Completo)
+                                    {
+                                        <MudTd>
+                                            <MudText Typo="Typo.caption" Class="fw-bold">@context.Area</MudText>
+                                        </MudTd>
+                                    }
                                     <MudTd>
-                                        @if (context.TipoAusencia == "Vacaciones")
+                                        <MudSelect T="string" 
+                                                   Value="@context.TipoAusencia" 
+                                                   ValueChanged="@((string v) => { context.TipoAusencia = v; context.Modificado = true; })" 
+                                                   Dense="true" 
+                                                   Margin="Margin.Dense" 
+                                                   Variant="Variant.Outlined"
+                                                   Class="bg-white"
+                                                   Style="font-size: 0.8rem;">
+                                            @foreach (var t in tiposAusenciaOdoo)
+                                            {
+                                                <MudSelectItem Value="@t.nombre">@t.nombre</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudTd>
+                                    @if (modoVistaAusencias == ModoVistaGrilla.Completo)
+                                    {
+                                        <MudTd>
+                                            @if (context.TipoAusencia == "Vacaciones")
+                                            {
+                                                <MudSelect T="string" 
+                                                           Value="@context.VacacionesTipo" 
+                                                           ValueChanged="@((string v) => { context.VacacionesTipo = v; context.Modificado = true; })" 
+                                                           Dense="true" 
+                                                           Margin="Margin.Dense" 
+                                                           Variant="Variant.Outlined"
+                                                           Class="bg-white">
+                                                    <MudSelectItem Value="@("Descansadas")">Descansadas</MudSelectItem>
+                                                    <MudSelectItem Value="@("Pagadas")">Pagadas</MudSelectItem>
+                                                </MudSelect>
+                                            }
+                                            else
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                            }
+                                        </MudTd>
+                                    }
+                                    <MudTd>
+                                        <div class="d-flex align-center gap-1">
+                                            <MudDatePicker Label="Inicio" 
+                                                           Date="@context.FechaInicioAusencia" 
+                                                           DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
+                                                           DateFormat="dd/MM/yyyy" 
+                                                           Margin="Margin.Dense" 
+                                                           Variant="Variant.Outlined" 
+                                                           Class="bg-white"
+                                                           Style="width: 105px;" />
+                                            <MudDatePicker Label="Fin" 
+                                                           Date="@context.FechaFinAusencia" 
+                                                           DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
+                                                           DateFormat="dd/MM/yyyy" 
+                                                           Margin="Margin.Dense" 
+                                                           Variant="Variant.Outlined" 
+                                                           Class="bg-white"
+                                                           Style="width: 105px;" />
+                                        </div>
+                                    </MudTd>
+                                    <MudTd Style="text-align: center;">
+                                        <MudNumericField T="decimal" 
+                                                         @bind-Value="@context.DiasAusencia" 
+                                                         Min="1m" 
+                                                         Step="1m" 
+                                                         Margin="Margin.Dense" 
+                                                         Variant="Variant.Outlined" 
+                                                         Class="bg-white"
+                                                         Style="width: 50px; text-align: center; font-size: 0.8rem;" />
+                                    </MudTd>
+                                    <MudTd>
+                                        <MudTextField @bind-Value="@context.ObservacionesAusencia" 
+                                                      Placeholder="Motivo..." 
+                                                      Variant="Variant.Outlined" 
+                                                      Margin="Margin.Dense" 
+                                                      Class="bg-white"
+                                                      Style="font-size: 0.8rem;" />
+                                    </MudTd>
+                                    <MudTd Style="text-align: center;">
+                                        @if (context.SincronizadoAusencia)
                                         {
-                                            <MudSelect T="string" 
-                                                       Value="@context.VacacionesTipo" 
-                                                       ValueChanged="@((string v) => { context.VacacionesTipo = v; context.Modificado = true; })" 
-                                                       Dense="true" 
-                                                       Margin="Margin.Dense" 
-                                                       Variant="Variant.Outlined">
-                                                <MudSelectItem Value="@("Descansadas")">Descansadas</MudSelectItem>
-                                                <MudSelectItem Value="@("Pagadas")">Pagadas</MudSelectItem>
-                                            </MudSelect>
+                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold"
+                                                     Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank"
+                                                     Title="Ver solicitud de ausencia en Helpdesk">
+                                                #@context.TicketAusenciaId
+                                            </MudChip>
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                            <MudButton Variant="Variant.Filled" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       StartIcon="@Icons.Material.Filled.Send" 
+                                                       Disabled="@estaEnviandoAusencias"
+                                                       OnClick="@(() => EnviarAusenciaIndividual(context))"
+                                                       Style="font-size: 0.72rem; text-transform: none; padding: 2px 8px; border-radius: 6px;">
+                                                Solicitar
+                                            </MudButton>
                                         }
                                     </MudTd>
-                                }
-                                <MudTd>
-                                    <MudDatePicker Date="@context.FechaInicioAusencia" 
-                                                   DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
-                                                   DateFormat="dd/MM/yyyy" 
-                                                   Margin="Margin.Dense" 
-                                                   Variant="Variant.Outlined" />
-                                </MudTd>
-                                <MudTd>
-                                    <MudDatePicker Date="@context.FechaFinAusencia" 
-                                                   DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
-                                                   DateFormat="dd/MM/yyyy" 
-                                                   Margin="Margin.Dense" 
-                                                   Variant="Variant.Outlined" />
-                                </MudTd>
-                                <MudTd>
-                                    <MudNumericField T="decimal" 
-                                                     @bind-Value="@context.DiasAusencia" 
-                                                     Min="1m" 
-                                                     Step="1m" 
-                                                     Margin="Margin.Dense" 
-                                                     Variant="Variant.Outlined" 
-                                                     Style="width: 55px; text-align: center;" />
-                                </MudTd>
-                                <MudTd>
-                                    <MudTextField @bind-Value="@context.ObservacionesAusencia" 
-                                                  Placeholder="Motivo..." 
-                                                  Variant="Variant.Outlined" 
-                                                  Margin="Margin.Dense" />
-                                </MudTd>
-                                <MudTd Style="text-align: center;">
-                                    @if (context.SincronizadoAusencia)
-                                    {
-                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold"
-                                                 Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank"
-                                                 Title="Ver solicitud de ausencia en Helpdesk">
-                                            #@context.TicketAusenciaId
-                                        </MudChip>
-                                    }
-                                    else
-                                    {
-                                        <MudButton Variant="Variant.Filled" 
-                                                   Color="Color.Error" 
-                                                   Size="Size.Small" 
-                                                   StartIcon="@Icons.Material.Filled.Send" 
-                                                   Disabled="@estaEnviandoAusencias"
-                                                   OnClick="@(() => EnviarAusenciaIndividual(context))"
-                                                   Style="font-size: 0.72rem; text-transform: none; padding: 2px 6px;">
-                                            Solicitar
-                                        </MudButton>
-                                    }
-                                </MudTd>
-                                <MudTd Style="text-align: center;">
-                                    <MudTooltip Text="Marcar PRESENTE (Revertir ausencia)" Arrow="true">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Undo" 
-                                                       Color="Color.Success" 
-                                                       Size="Size.Small" 
-                                                       OnClick="@(() => MarcarComoPresente(context))" />
-                                    </MudTooltip>
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
+                                    <MudTd Style="text-align: center;">
+                                        <MudTooltip Text="Marcar PRESENTE (Revertir)" Arrow="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Undo" 
+                                                           Color="Color.Success" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => MarcarComoPresente(context))" />
+                                        </MudTooltip>
+                                    </MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </div>
                     }
                 }
             </MudPaper>
         </MudTabPanel>
 
-<MudTabPanel Text="Viáticos" ToolTip="Viáticos" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
+
+        <MudTabPanel Text="Viáticos" ToolTip="Viáticos" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 @* Cards de Resumen de Viáticos *@
                 <MudGrid Spacing="2" Class="mb-3">

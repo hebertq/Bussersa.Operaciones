@@ -163,7 +163,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         // Pestaña Ausencias (Tab 2)
         protected List<Combos> tiposAusenciaOdoo = new();
-        protected ModoVistaGrilla modoVistaAusencias = ModoVistaGrilla.Operativo;
+        protected ModoVistaGrilla modoVistaAusencias = ModoVistaGrilla.Tarjetas;
         protected string textoBusquedaAusencias = string.Empty;
         protected bool estaEnviandoAusencias = false;
 
