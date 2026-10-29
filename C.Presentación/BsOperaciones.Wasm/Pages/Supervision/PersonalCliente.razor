@@ -170,7 +170,7 @@
                     <MudItem xs="12" sm="4" md="3">
                         <MudSelect T="string" Label="Cliente / Operación" Value="filtroCliente" ValueChanged="OnClienteComboChanged"
                                    Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
-                                   Clearable="true" Placeholder="Seleccione un Cliente"
+                                   Clearable="true" Placeholder="Seleccione de la lista..."
                                    AnchorOrigin="Origin.BottomCenter"
                                    AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
                             @foreach (var op in operacionesList)
@@ -180,7 +180,10 @@
                                 <MudSelectItem Value="@op.nombre">
                                     <div class="d-flex align-center justify-space-between">
                                         <span>@op.nombre</span>
-                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count</MudChip>
+                                        @if (count > 0)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count</MudChip>
+                                        }
                                     </div>
                                 </MudSelectItem>
                             }
@@ -252,7 +255,7 @@
                         </MudButton>
 
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
-                                       OnClick="@CargarPersonal" Disabled="@(cargandoPersonal || procesandoExcelDirecto || guardandoEnBd)" Title="Recargar grilla" />
+                                       OnClick="@(() => CargarPersonal())" Disabled="@(cargandoPersonal || procesandoExcelDirecto || guardandoEnBd)" Title="Recargar grilla" />
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -265,15 +268,37 @@
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">Cargando grilla de colaboradores...</MudText>
                 </div>
             }
+            else if (string.IsNullOrWhiteSpace(filtroCliente) && !colaboradoresPendientes.Any())
+            {
+                <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl my-4 text-center" Elevation="1" Style="border: 2px dashed #93c5fd; background: #f8fafc;">
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Large" Class="mb-3" Style="background: #eff6ff;">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Large" Style="color: #2563eb;" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #1e3a8a;">Seleccione un Cliente de la lista</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 520px;">
+                        Seleccione un cliente u operación en el combo superior para cargar y gestionar sus colaboradores base, o suba una plantilla de Excel directamente a la grilla.
+                    </MudText>
+                    <MudStack Row="true" Spacing="2" Class="align-center">
+                        <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnArchivoExcelSubidoDirecto" Class="d-inline-flex">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                           StartIcon="@Icons.Custom.FileFormats.FileExcel">
+                                    <span>Cargar Plantilla Excel</span>
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                    </MudStack>
+                </MudPaper>
+            }
             else if (!PersonalFiltrado.Any())
             {
                 <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl my-4 text-center" Elevation="1" Style="border: 2px dashed #cbd5e1; background: #f8fafc;">
                     <MudAvatar Color="Color.Default" Variant="Variant.Filled" Size="Size.Large" Class="mb-3" Style="background: #e2e8f0;">
                         <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Large" Style="color: #64748b;" />
                     </MudAvatar>
-                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay colaboradores en la grilla para este cliente</MudText>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay colaboradores en la grilla para '@filtroCliente'</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 520px;">
-                        Presiona <b>Cargar Plantilla Excel</b> para subir tu archivo <b>HT.xlsx</b> directamente a la grilla, elige el cliente en el combo y luego presiona <b>Guardar en Base de Datos</b>.
+                        Presiona <b>Cargar Plantilla Excel</b> para subir tu archivo <b>HT.xlsx</b> directamente a la grilla, o registra uno nuevo con <b>Nuevo Colaborador</b>.
                     </MudText>
                     <MudStack Row="true" Spacing="2" Class="align-center">
                         <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnArchivoExcelSubidoDirecto" Class="d-inline-flex">
@@ -508,9 +533,20 @@
                                                 <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a; line-height: 1.2;">
                                                     @nombreCompleto
                                                 </MudText>
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                    @@@grupo.Key
-                                                </MudText>
+                                                <div class="d-flex align-center gap-1 flex-wrap mt-1">
+                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Style="font-size: 10px; height: 18px; padding: 0 4px;">
+                                                        ID: @(user?.id > 0 ? user.id.ToString() : (grupo.FirstOrDefault()?.UsuarioId?.ToString() ?? "-"))
+                                                    </MudChip>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 11px;">
+                                                        @@@grupo.Key
+                                                    </MudText>
+                                                    @if (!string.IsNullOrWhiteSpace(user?.email ?? grupo.FirstOrDefault()?.UsuarioEmail))
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 11px;">
+                                                            &bull; @(user?.email ?? grupo.FirstOrDefault()?.UsuarioEmail)
+                                                        </MudText>
+                                                    }
+                                                </div>
                                             </div>
                                         </div>
 
@@ -564,7 +600,8 @@
                     <MudTable Items="@AsignacionesDetalladasFiltradas" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
                         <HeaderContent>
                             <MudTh Style="font-weight: 700; color: #475569;">Supervisor</MudTh>
-                            <MudTh Style="font-weight: 700; color: #475569;">Usuario</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">ID / Usuario</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Correo</MudTh>
                             <MudTh Style="font-weight: 700; color: #475569;">Cliente / Operación</MudTh>
                             <MudTh Style="width: 150px; font-weight: 700; color: #475569;">Fecha Asignación</MudTh>
                             <MudTh Style="width: 90px; text-align: center; font-weight: 700; color: #475569;">Acción</MudTh>
@@ -572,14 +609,23 @@
                         <RowTemplate>
                             <MudTd>
                                 @{
-                                    var u = supervisoresList.FirstOrDefault(x => x.username.Equals(context.UsuarioSupervisor, StringComparison.OrdinalIgnoreCase));
+                                    var u = ObtenerSupervisor(context);
+                                    string nCompleto = !string.IsNullOrWhiteSpace(context.NombreSupervisor) 
+                                        ? context.NombreSupervisor 
+                                        : (u != null ? $"{u.nombres} {u.apellidos}" : context.UsuarioSupervisor);
                                 }
-                                <div class="fw-bold" style="color: #0f172a;">@(u != null ? $"{u.nombres} {u.apellidos}" : context.UsuarioSupervisor)</div>
+                                <div class="fw-bold" style="color: #0f172a;">@nCompleto</div>
                             </MudTd>
                             <MudTd>
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Secondary">
-                                    @@@context.UsuarioSupervisor
-                                </MudChip>
+                                <div class="d-flex align-center gap-1">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Style="font-size: 11px; height: 20px;">
+                                        ID: @(context.UsuarioId ?? ObtenerSupervisor(context)?.id ?? 0)
+                                    </MudChip>
+                                    <span class="text-secondary" style="font-size: 12px;">@@@context.UsuarioSupervisor</span>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <span class="text-secondary" style="font-size: 12px;">@(context.UsuarioEmail ?? ObtenerSupervisor(context)?.email ?? "-")</span>
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="background-color: #1e3a8a !important;">
@@ -733,6 +779,13 @@
         }
     }
 
+    private User? ObtenerSupervisor(SupervisorClienteDto dto)
+    {
+        return supervisoresList.FirstOrDefault(x => 
+            (dto.UsuarioId.HasValue && dto.UsuarioId.Value > 0 && x.id == dto.UsuarioId.Value) ||
+            x.username.Equals(dto.UsuarioSupervisor, StringComparison.OrdinalIgnoreCase));
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -745,31 +798,31 @@
         }
         catch { }
 
-        await CargarCatalogos();
-        await Task.WhenAll(CargarPersonal(), CargarSupervisorClientes());
-    }
-
-    private async Task CargarCatalogos()
-    {
+        // Carga paralela de los catálogos y asignaciones para evitar retrasos y pantalla vacía
+        cargandoSupervisores = true;
         try
         {
-            var respOp = await _odooService.GetAllCombosHost("Operaciones");
-            if (respOp?.Model != null)
+            var taskOp = _odooService.GetAllCombosHost("Operaciones");
+            var taskUsers = _odooService.GetUsers();
+            var taskAreas = _odooService.GetAllClienteAreas();
+            var taskSupervisores = _odooService.GetSupervisorClientes();
+
+            await Task.WhenAll(taskOp, taskUsers, taskAreas, taskSupervisores);
+
+            if (taskOp.Result?.Model != null)
             {
-                operacionesList = respOp.Model.OrderBy(o => o.nombre).ToList();
+                operacionesList = taskOp.Result.Model.OrderBy(o => o.nombre).ToList();
             }
 
-            var respUsers = await _odooService.GetUsers();
-            if (respUsers?.Model != null)
+            if (taskUsers.Result?.Model != null)
             {
-                supervisoresList = respUsers.Model.OrderBy(u => u.nombres).ToList();
+                supervisoresList = taskUsers.Result.Model.OrderBy(u => u.nombres).ToList();
             }
 
-            var respAreas = await _odooService.GetAllClienteAreas();
-            if (respAreas?.Model != null)
+            if (taskAreas.Result?.Model != null)
             {
                 areasPorCliente.Clear();
-                foreach (var item in respAreas.Model.Where(x => x.Activo))
+                foreach (var item in taskAreas.Result.Model.Where(x => x.Activo))
                 {
                     var cName = item.ClienteNombre?.Trim();
                     var aName = item.AreaNombre?.Trim();
@@ -784,6 +837,24 @@
                 }
             }
 
+            if (taskSupervisores.Result?.Model != null)
+            {
+                listaSupervisorClientes = taskSupervisores.Result.Model.Where(x => x.Activo).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en carga paralela: {ex.Message}");
+        }
+        finally
+        {
+            cargandoSupervisores = false;
+            StateHasChanged();
+        }
+
+        // Carga en background del catálogo grande de empleados de Odoo para autocompletar sin bloquear
+        _ = Task.Run(async () =>
+        {
             try
             {
                 var respOdoo = await _odooService.GetAllActiveEmployeesForRotation();
@@ -793,19 +864,24 @@
                 }
             }
             catch { }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error cargando catálogos: {ex.Message}");
-        }
+        });
     }
 
-    private async Task CargarPersonal()
+    private async Task CargarPersonal(string cliente = "")
     {
+        string cBuscar = !string.IsNullOrWhiteSpace(cliente) ? cliente : (filtroCliente ?? "");
+        if (string.IsNullOrWhiteSpace(cBuscar))
+        {
+            listaPersonal.Clear();
+            StateHasChanged();
+            return;
+        }
+
         cargandoPersonal = true;
+        StateHasChanged();
         try
         {
-            var resp = await _odooService.GetPersonalCliente(cliente: "", usuario: "");
+            var resp = await _odooService.GetPersonalCliente(cliente: cBuscar, usuario: "");
             if (resp?.Model != null)
             {
                 listaPersonal = resp.Model.ToList();
@@ -813,7 +889,7 @@
         }
         catch (Exception ex)
         {
-            _snackbar.Add($"Error al cargar la grilla de personal: {ex.Message}", Severity.Error);
+            _snackbar.Add($"Error al cargar colaboradores de '{cBuscar}': {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -847,7 +923,7 @@
     // =========================================================================
     // CAMBIO DE CLIENTE EN EL COMBO
     // =========================================================================
-    private void OnClienteComboChanged(string nuevoCliente)
+    private async Task OnClienteComboChanged(string nuevoCliente)
     {
         filtroCliente = nuevoCliente;
         if (colaboradoresPendientes.Any() && !string.IsNullOrWhiteSpace(nuevoCliente))
@@ -859,6 +935,15 @@
                 item.OperacionId = opId ?? 0;
             }
             _snackbar.Add($"Los {colaboradoresPendientes.Count} colaboradores cargados se asignaron a '{nuevoCliente}'.", Severity.Info);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nuevoCliente))
+        {
+            await CargarPersonal(nuevoCliente);
+        }
+        else
+        {
+            listaPersonal.Clear();
         }
         StateHasChanged();
     }

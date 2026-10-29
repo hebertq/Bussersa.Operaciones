@@ -177,6 +177,9 @@ namespace Modelo.ClasesGenericas
         public int? OperacionId { get; set; }
         public string ClienteNombre { get; set; } = string.Empty;
         public string UsuarioSupervisor { get; set; } = string.Empty;
+        public int? UsuarioId { get; set; }
+        public string? UsuarioEmail { get; set; }
+        public string? NombreSupervisor { get; set; }
         public bool Activo { get; set; } = true;
         public DateTime? FechaCreacion { get; set; }
         public string? UsuarioCreacion { get; set; }
@@ -187,6 +190,9 @@ namespace Modelo.ClasesGenericas
         public int? OperacionId { get; set; }
         public string ClienteNombre { get; set; } = string.Empty;
         public string UsuarioSupervisor { get; set; } = string.Empty;
+        public int? UsuarioId { get; set; }
+        public string? UsuarioEmail { get; set; }
+        public string? NombreSupervisor { get; set; }
         public string UsuarioCreacion { get; set; } = string.Empty;
     }
 

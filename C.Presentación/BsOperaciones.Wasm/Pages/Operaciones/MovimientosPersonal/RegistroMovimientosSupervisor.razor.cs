@@ -473,18 +473,45 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             try
             {
+                // 1. Consultar por el identificador actual (email o username, ej: sinsa@bussersa.com)
                 var resp = await _odooService.GetSupervisorClientes(usuario: currentUserName);
                 if (resp?.Model != null && resp.Model.Any())
                 {
                     misClientesAsignados = resp.Model.Where(c => c.Activo).ToList();
+                    return;
                 }
-                else if (currentUserName.Contains("@"))
+
+                // 2. Si _userInfo.UserId > 0, consultar por el ID numérico
+                if (_userInfo.UserId > 0)
+                {
+                    var respId = await _odooService.GetSupervisorClientes(usuario: _userInfo.UserId.ToString());
+                    if (respId?.Model != null && respId.Model.Any())
+                    {
+                        misClientesAsignados = respId.Model.Where(c => c.Activo).ToList();
+                        return;
+                    }
+                }
+
+                // 3. Si _userInfo.UserName es diferente a currentUserName
+                if (!string.IsNullOrWhiteSpace(_userInfo.UserName) && !string.Equals(_userInfo.UserName, currentUserName, StringComparison.OrdinalIgnoreCase))
+                {
+                    var respUser = await _odooService.GetSupervisorClientes(usuario: _userInfo.UserName);
+                    if (respUser?.Model != null && respUser.Model.Any())
+                    {
+                        misClientesAsignados = respUser.Model.Where(c => c.Activo).ToList();
+                        return;
+                    }
+                }
+
+                // 4. Intentar sin dominio si es correo
+                if (currentUserName.Contains("@"))
                 {
                     string userSinDominio = currentUserName.Split('@')[0];
                     var respSinDom = await _odooService.GetSupervisorClientes(usuario: userSinDominio);
                     if (respSinDom?.Model != null && respSinDom.Model.Any())
                     {
                         misClientesAsignados = respSinDom.Model.Where(c => c.Activo).ToList();
+                        return;
                     }
                 }
             }
@@ -506,6 +533,21 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 var resp = await _odooService.GetSupervisorPlantilla(currentUserName);
+                if (resp?.Model == null || !resp.Model.Any())
+                {
+                    if (_userInfo.UserId > 0)
+                    {
+                        resp = await _odooService.GetSupervisorPlantilla(_userInfo.UserId.ToString());
+                    }
+                }
+                if (resp?.Model == null || !resp.Model.Any())
+                {
+                    if (!string.IsNullOrWhiteSpace(_userInfo.UserName) && !string.Equals(_userInfo.UserName, currentUserName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        resp = await _odooService.GetSupervisorPlantilla(_userInfo.UserName);
+                    }
+                }
+
                 if (resp?.Model != null)
                 {
                     var items = resp.Model.ToList();

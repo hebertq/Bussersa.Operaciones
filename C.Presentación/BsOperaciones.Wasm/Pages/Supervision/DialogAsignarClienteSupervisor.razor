@@ -35,7 +35,9 @@
                                     </MudAvatar>
                                     <div>
                                         <div class="fw-bold">@user.nombres @user.apellidos</div>
-                                        <div class="text-secondary" style="font-size: 11px;">@@@user.username</div>
+                                        <div class="text-secondary" style="font-size: 11px;">
+                                            ID: <b>@user.id</b> &bull; @@@user.username &bull; @user.email
+                                        </div>
                                     </div>
                                 </div>
                             </MudSelectItem>
@@ -128,6 +130,11 @@
             return;
         }
 
+        var user = SupervisoresDisponibles.FirstOrDefault(u => 
+            u.username.Equals(usuarioSeleccionado, StringComparison.OrdinalIgnoreCase) ||
+            u.id.ToString() == usuarioSeleccionado ||
+            (u.email != null && u.email.Equals(usuarioSeleccionado, StringComparison.OrdinalIgnoreCase)));
+
         int? operacionId = null;
         var op = OperacionesDisponibles.FirstOrDefault(o => o.nombre.Equals(clienteSeleccionado, StringComparison.OrdinalIgnoreCase));
         if (op != null)
@@ -139,7 +146,10 @@
         {
             OperacionId = operacionId,
             ClienteNombre = clienteSeleccionado.Trim(),
-            UsuarioSupervisor = usuarioSeleccionado.Trim(),
+            UsuarioSupervisor = user != null ? user.username : usuarioSeleccionado.Trim(),
+            UsuarioId = user?.id,
+            UsuarioEmail = user?.email,
+            NombreSupervisor = user != null ? $"{user.nombres} {user.apellidos}".Trim() : string.Empty,
             UsuarioCreacion = string.Empty
         };
 
