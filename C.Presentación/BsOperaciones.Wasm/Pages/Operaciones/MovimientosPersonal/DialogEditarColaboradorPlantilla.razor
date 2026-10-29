@@ -1,4 +1,5 @@
 @using MudBlazor
+@using System.Globalization
 @using Modelo.Admin
 @using Modelo.ClasesGenericas
 
@@ -62,11 +63,17 @@
                     <MudTextField T="string" Label="Hora Salida" @bind-Value="HoraSalida" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="14:00" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" Label="Tiempo Comida" @bind-Value="TiempoComida" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="@("1.00")">1.0 hora</MudSelectItem>
-                        <MudSelectItem Value="@("0.50")">0.5 hora (30m)</MudSelectItem>
-                        <MudSelectItem Value="@("0.00")">Sin comida</MudSelectItem>
-                    </MudSelect>
+                    <MudNumericField T="decimal" 
+                                     Label="Tiempo Comida (Horas)" 
+                                     @bind-Value="TiempoComida" 
+                                     Variant="Variant.Outlined" 
+                                     Margin="Margin.Dense" 
+                                     Min="0" 
+                                     Max="24" 
+                                     Step="0.5m" 
+                                     Format="0.00" 
+                                     Adornment="Adornment.End" 
+                                     AdornmentText="hrs" />
                 </MudItem>
 
                 @* Viáticos Base *@
@@ -160,7 +167,7 @@
     private string Turno = "Diurno";
     private string HoraEntrada = "06:00";
     private string HoraSalida = "14:00";
-    private string TiempoComida = "1.00";
+    private decimal TiempoComida = 1.00m;
     private decimal VtcoTrasp;
     private decimal VtcoAlim;
     private decimal BonoBnc;
@@ -177,7 +184,12 @@
             Turno = string.IsNullOrWhiteSpace(ItemOriginal.TurnoDefault) ? "Diurno" : ItemOriginal.TurnoDefault;
             HoraEntrada = string.IsNullOrWhiteSpace(ItemOriginal.HoraEntradaDefault) ? "06:00" : ItemOriginal.HoraEntradaDefault;
             HoraSalida = string.IsNullOrWhiteSpace(ItemOriginal.HoraSalidaDefault) ? "14:00" : ItemOriginal.HoraSalidaDefault;
-            TiempoComida = string.IsNullOrWhiteSpace(ItemOriginal.TiempoComidaDefault) ? "1.00" : ItemOriginal.TiempoComidaDefault;
+            
+            if (decimal.TryParse(ItemOriginal.TiempoComidaDefault?.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal tc))
+                TiempoComida = tc;
+            else
+                TiempoComida = 1.00m;
+
             VtcoTrasp = ItemOriginal.VtcoTraspDefault;
             VtcoAlim = ItemOriginal.VtcoAlimDefault;
             BonoBnc = ItemOriginal.BonoBncDefault;
@@ -230,7 +242,7 @@
             TurnoDefault = Turno,
             HoraEntradaDefault = HoraEntrada,
             HoraSalidaDefault = HoraSalida,
-            TiempoComidaDefault = TiempoComida,
+            TiempoComidaDefault = TiempoComida.ToString("0.00", CultureInfo.InvariantCulture),
             VtcoTraspDefault = VtcoTrasp,
             VtcoAlimDefault = VtcoAlim,
             BonoBncDefault = BonoBnc,

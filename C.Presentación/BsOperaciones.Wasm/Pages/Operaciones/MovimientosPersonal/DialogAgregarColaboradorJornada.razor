@@ -1,4 +1,5 @@
 @using MudBlazor
+@using System.Globalization
 @using Modelo.Admin
 @using Modelo.ClasesGenericas
 @using Modelo.Entidades.Entradas.Odoo
@@ -103,11 +104,17 @@
                     <MudTextField T="string" Label="Hora Salida" @bind-Value="HoraSalida" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="14:00" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" Label="Tiempo Comida" @bind-Value="TiempoComida" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="@("1.00")">1.0 hora</MudSelectItem>
-                        <MudSelectItem Value="@("0.50")">0.5 hora (30m)</MudSelectItem>
-                        <MudSelectItem Value="@("0.00")">Sin comida</MudSelectItem>
-                    </MudSelect>
+                    <MudNumericField T="decimal" 
+                                     Label="Tiempo Comida (Horas)" 
+                                     @bind-Value="TiempoComida" 
+                                     Variant="Variant.Outlined" 
+                                     Margin="Margin.Dense" 
+                                     Min="0" 
+                                     Max="24" 
+                                     Step="0.5m" 
+                                     Format="0.00" 
+                                     Adornment="Adornment.End" 
+                                     AdornmentText="hrs" />
                 </MudItem>
 
                 @* Viáticos y BNC *@
@@ -181,7 +188,7 @@
     private string TurnoNombre = "General";
     private string HoraEntrada = "06:00";
     private string HoraSalida = "14:00";
-    private string TiempoComida = "1.00";
+    private decimal TiempoComida = 1.00m;
     private decimal VtcoTrasp = 0;
     private decimal VtcoAlim = 0;
     private decimal BonoBnc = 0;
@@ -329,7 +336,7 @@
             TurnoNombre = TurnoNombre,
             HoraEntrada = HoraEntrada,
             HoraSalida = HoraSalida,
-            TiempoComida = TiempoComida,
+            TiempoComida = TiempoComida.ToString("0.00", CultureInfo.InvariantCulture),
             VtcoTrasp = VtcoTrasp,
             VtcoAlim = VtcoAlim,
             BonoBnc = BonoBnc,

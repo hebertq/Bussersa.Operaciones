@@ -1,4 +1,5 @@
 @using MudBlazor
+@using System.Globalization
 @using Modelo.ClasesGenericas
 
 <MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
@@ -39,11 +40,17 @@
                     <MudTextField T="string" Label="Hora Salida" @bind-Value="HoraSalida" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="14:00" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
-                    <MudSelect T="string" Label="Tiempo Comida" @bind-Value="TiempoComida" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="@("1.00")">1.0 hora</MudSelectItem>
-                        <MudSelectItem Value="@("0.50")">0.5 hora (30m)</MudSelectItem>
-                        <MudSelectItem Value="@("0.00")">Sin comida</MudSelectItem>
-                    </MudSelect>
+                    <MudNumericField T="decimal" 
+                                     Label="Tiempo Comida (Horas)" 
+                                     @bind-Value="TiempoComida" 
+                                     Variant="Variant.Outlined" 
+                                     Margin="Margin.Dense" 
+                                     Min="0" 
+                                     Max="24" 
+                                     Step="0.5m" 
+                                     Format="0.00" 
+                                     Adornment="Adornment.End" 
+                                     AdornmentText="hrs" />
                 </MudItem>
 
                 @* 2. Cliente, Área y Cargo *@
@@ -174,7 +181,7 @@
 
     public string HoraEntrada { get; set; } = "06:00";
     public string HoraSalida { get; set; } = "14:00";
-    public string TiempoComida { get; set; } = "1.00";
+    public decimal TiempoComida { get; set; } = 1.00m;
     public string Area { get; set; } = string.Empty;
     public string Puesto { get; set; } = "6-Operador de almacen";
     public string Cliente { get; set; } = string.Empty;
@@ -249,7 +256,7 @@
             TurnoNombre = "General",
             HoraEntrada = HoraEntrada,
             HoraSalida = HoraSalida,
-            TiempoComida = TiempoComida,
+            TiempoComida = TiempoComida.ToString("0.00", CultureInfo.InvariantCulture),
             Area = Area,
             Puesto = Puesto,
             Cliente = Cliente,

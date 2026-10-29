@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1310,9 +1310,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
+        protected string NormalizarDecimalComida(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor)) return "0.00";
+            valor = valor.Replace(',', '.').Trim();
+            if (decimal.TryParse(valor, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal d))
+            {
+                return d.ToString("0.00", CultureInfo.InvariantCulture);
+            }
+            return valor;
+        }
+
         protected void OnTiempoComidaCambiado(EmpleadoJornadaItem item, string? nuevoTiempo)
         {
-            item.TiempoComida = string.IsNullOrWhiteSpace(nuevoTiempo) ? "1.00" : nuevoTiempo;
+            item.TiempoComida = NormalizarDecimalComida(nuevoTiempo);
             item.Modificado = true;
             ActualizarGruposConsolidados();
         }

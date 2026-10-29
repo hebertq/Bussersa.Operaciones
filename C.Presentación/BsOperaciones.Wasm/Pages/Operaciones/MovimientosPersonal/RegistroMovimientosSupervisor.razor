@@ -1,4 +1,4 @@
-﻿@page "/operaciones/registro-movimientos-supervisor"
+@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -383,16 +383,30 @@
                                             @{
                                                 var totViatico = emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc;
                                             }
-                                            <MudChip T="string" 
-                                                     Color="@(totViatico > 0 ? Color.Info : Color.Default)" 
-                                                     Variant="@(totViatico > 0 ? Variant.Filled : Variant.Outlined)" 
-                                                     Size="Size.Small" 
-                                                     Class="cursor-pointer font-monospace fw-bold" 
-                                                     Style="height: 22px; font-size: 0.72rem;"
-                                                     OnClick="@(() => AbrirEditorViaticoIndividual(emp))"
-                                                     Title="Configurar viáticos y bono BNC">
-                                                @(totViatico > 0 ? $"C$ {totViatico:N0}" : "+ Viático")
-                                            </MudChip>
+                                            @if (totViatico > 0)
+                                            {
+                                                <MudChip T="string" 
+                                                         Color="Color.Info" 
+                                                         Variant="Variant.Filled" 
+                                                         Size="Size.Small" 
+                                                         Class="cursor-pointer font-monospace fw-bold" 
+                                                         Style="height: 22px; font-size: 0.72rem; white-space: nowrap;" 
+                                                         OnClick="@(() => AbrirEditorViaticoIndividual(emp))"
+                                                         Title="Configurar viáticos y bono BNC">
+                                                    @($"C$ {totViatico:N0}")
+                                                </MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                                   Variant="Variant.Outlined" 
+                                                                   Color="Color.Default" 
+                                                                   Size="Size.Small" 
+                                                                   Style="height: 24px; width: 24px; border-radius: 6px;" 
+                                                                   OnClick="@(() => AbrirEditorViaticoIndividual(emp))" />
+                                                </MudTooltip>
+                                            }
                                         </div>
 
                                         @* Ubicación: Cliente, Área, Cargo *@
@@ -423,14 +437,14 @@
                                                        title="Hora Salida" />
                                             </div>
 
-                                            <select value="@emp.TiempoComida" 
-                                                    @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(emp, e.Value?.ToString()))" 
-                                                    style="width: 68px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; background: white;" 
-                                                    title="Tiempo de comida">
-                                                <option value="1.00">1.0h</option>
-                                                <option value="0.50">0.5h</option>
-                                                <option value="0.00">0h</option>
-                                            </select>
+                                            <input type="number" 
+                                                   step="any" 
+                                                   min="0" 
+                                                   max="24" 
+                                                   value="@emp.TiempoComida" 
+                                                   @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(emp, e.Value?.ToString()))" 
+                                                   style="width: 52px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; text-align: center; background: white;" 
+                                                   title="Tiempo de comida en horas" />
                                         </div>
                                     </MudCardContent>
                                 </MudCard>
@@ -459,8 +473,8 @@
                                 <MudTh>Colaborador & Ubicación Asignada</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
                                 <MudTh Style="width: 140px;">Horario</MudTh>
-                                <MudTh Style="width: 85px;">Comida</MudTh>
-                                <MudTh Style="width: 130px;">Viáticos</MudTh>
+                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else if (modoVistaGrilla == ModoVistaGrilla.Ubicacion)
@@ -493,8 +507,8 @@
                                 <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
                                 <MudTh Style="width: 140px;">Horario</MudTh>
-                                <MudTh Style="width: 85px;">Comida</MudTh>
-                                <MudTh Style="width: 130px;">Viáticos</MudTh>
+                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                         </HeaderContent>
@@ -548,29 +562,43 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <select value="@context.TiempoComida" 
-                                            @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
-                                            class="form-select form-select-sm" 
-                                            style="width: 72px; font-size: 0.75rem; border: 1px solid #ced4da; border-radius: 4px; padding: 2px 4px; background: white;" 
-                                            title="Tiempo de comida en horas">
-                                        <option value="1.00">1.0h com</option>
-                                        <option value="0.50">0.5h com</option>
-                                        <option value="0.00">Sin com</option>
-                                    </select>
+                                    <input type="number" 
+                                           step="any" 
+                                           min="0" 
+                                           max="24" 
+                                           value="@context.TiempoComida" 
+                                           @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
+                                           style="width: 52px; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; font-size: 0.8rem; text-align: center; background: white;" 
+                                           title="Tiempo de comida en horas" />
                                 </MudTd>
                                 <MudTd>
                                     @{
                                         var totalVOp = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
                                     }
-                                    <MudButton Variant="Variant.Outlined" 
-                                               Color="@(totalVOp > 0 ? Color.Info : Color.Default)" 
-                                               Size="Size.Small" 
-                                               Class="px-2 font-monospace fw-bold" 
-                                               Style="height: 28px; text-transform: none; font-size: 0.75rem;" 
-                                               OnClick="@(() => AbrirEditorViaticoIndividual(context))"
-                                               Title="Editar viáticos y bono BNC">
-                                        @(totalVOp > 0 ? $"C$ {totalVOp:N0}" : "+ Viático")
-                                    </MudButton>
+                                    @if (totalVOp > 0)
+                                    {
+                                        <MudChip T="string" 
+                                                 Color="Color.Info" 
+                                                 Variant="Variant.Filled" 
+                                                 Size="Size.Small" 
+                                                 Class="cursor-pointer font-monospace fw-bold" 
+                                                 Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
+                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context))"
+                                                 Title="Editar viáticos y bono BNC">
+                                            @($"C$ {totalVOp:N0}")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                           Variant="Variant.Outlined" 
+                                                           Color="Color.Default" 
+                                                           Size="Size.Small" 
+                                                           Style="height: 28px; width: 28px; border-radius: 6px;" 
+                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context))" />
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
@@ -763,29 +791,43 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <select value="@context.TiempoComida" 
-                                            @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
-                                            class="form-select form-select-sm" 
-                                            style="width: 70px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; background: white;" 
-                                            title="Tiempo de comida en horas">
-                                        <option value="1.00">1.0h com</option>
-                                        <option value="0.50">0.5h com</option>
-                                        <option value="0.00">Sin com</option>
-                                    </select>
+                                    <input type="number" 
+                                           step="any" 
+                                           min="0" 
+                                           max="24" 
+                                           value="@context.TiempoComida" 
+                                           @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
+                                           style="width: 50px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: white;" 
+                                           title="Tiempo de comida en horas" />
                                 </MudTd>
                                 <MudTd>
                                     @{
                                         var totalV = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
                                     }
-                                    <MudButton Variant="Variant.Outlined" 
-                                               Color="@(totalV > 0 ? Color.Info : Color.Default)" 
-                                               Size="Size.Small" 
-                                               Class="px-2 font-monospace fw-bold" 
-                                               Style="height: 28px; text-transform: none; font-size: 0.75rem;" 
-                                               OnClick="@(() => AbrirEditorViaticoIndividual(context))"
-                                               Title="Editar viáticos y bono BNC">
-                                        @(totalV > 0 ? $"C$ {totalV:N0}" : "+ Viático")
-                                    </MudButton>
+                                    @if (totalV > 0)
+                                    {
+                                        <MudChip T="string" 
+                                                 Color="Color.Info" 
+                                                 Variant="Variant.Filled" 
+                                                 Size="Size.Small" 
+                                                 Class="cursor-pointer font-monospace fw-bold" 
+                                                 Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
+                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context))"
+                                                 Title="Editar viáticos y bono BNC">
+                                            @($"C$ {totalV:N0}")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                           Variant="Variant.Outlined" 
+                                                           Color="Color.Default" 
+                                                           Size="Size.Small" 
+                                                           Style="height: 28px; width: 28px; border-radius: 6px;" 
+                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context))" />
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
@@ -1415,14 +1457,14 @@
                                                        title="Hora Salida" />
                                             </div>
 
-                                            <select value="@item.TiempoComidaDefault" 
-                                                    @onchange="@(async (ChangeEventArgs e) => { item.TiempoComidaDefault = e.Value?.ToString() ?? "1.00"; await GuardarItemPlantilla(item); })" 
-                                                    style="width: 68px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; background: white;" 
-                                                    title="Tiempo de comida">
-                                                <option value="1.00">1.0h</option>
-                                                <option value="0.50">0.5h</option>
-                                                <option value="0.00">0h</option>
-                                            </select>
+                                            <input type="number" 
+                                                   step="any" 
+                                                   min="0" 
+                                                   max="24" 
+                                                   value="@item.TiempoComidaDefault" 
+                                                   @onchange="@(async (ChangeEventArgs e) => { item.TiempoComidaDefault = NormalizarDecimalComida(e.Value?.ToString()); await GuardarItemPlantilla(item); })" 
+                                                   style="width: 52px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; text-align: center; background: white;" 
+                                                   title="Tiempo de comida en horas" />
                                         </div>
 
                                         @* Viáticos Base *@
@@ -1431,16 +1473,30 @@
                                         }
                                         <div class="d-flex align-center justify-space-between mt-2 pt-1 border-top">
                                             <span class="text-secondary" style="font-size: 0.72rem;">Viáticos Base:</span>
-                                            <MudChip T="string" 
-                                                     Color="@(totalVTarj > 0 ? Color.Info : Color.Default)" 
-                                                     Variant="@(totalVTarj > 0 ? Variant.Filled : Variant.Outlined)" 
-                                                     Size="Size.Small" 
-                                                     Class="cursor-pointer font-monospace fw-bold" 
-                                                     Style="height: 20px; font-size: 0.72rem;"
-                                                     OnClick="@(() => AbrirEditorViaticoPlantilla(item))"
-                                                     Title="Configurar viáticos base">
-                                                @(totalVTarj > 0 ? $"C$ {totalVTarj:N0}" : "Sin viáticos")
-                                            </MudChip>
+                                            @if (totalVTarj > 0)
+                                            {
+                                                <MudChip T="string" 
+                                                         Color="Color.Info" 
+                                                         Variant="Variant.Filled" 
+                                                         Size="Size.Small" 
+                                                         Class="cursor-pointer font-monospace fw-bold" 
+                                                         Style="height: 20px; font-size: 0.72rem; white-space: nowrap;" 
+                                                         OnClick="@(() => AbrirEditorViaticoPlantilla(item))"
+                                                         Title="Configurar viáticos base">
+                                                    @($"C$ {totalVTarj:N0}")
+                                                </MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudTooltip Text="Agregar viáticos base" Arrow="true">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                                   Variant="Variant.Outlined" 
+                                                                   Color="Color.Default" 
+                                                                   Size="Size.Small" 
+                                                                   Style="height: 24px; width: 24px; border-radius: 6px;" 
+                                                                   OnClick="@(() => AbrirEditorViaticoPlantilla(item))" />
+                                                </MudTooltip>
+                                            }
                                         </div>
                                     </MudCardContent>
                                 </MudCard>
@@ -1462,8 +1518,8 @@
                             {
                                 <MudTh>Colaborador & Ubicación Asignada</MudTh>
                                 <MudTh Style="width: 140px;">Horario</MudTh>
-                                <MudTh Style="width: 85px;">Comida</MudTh>
-                                <MudTh Style="width: 130px;">Viáticos Base</MudTh>
+                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px;">Viáticos Base</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                             else if (modoVistaPlantilla == ModoVistaGrilla.Ubicacion)
@@ -1482,8 +1538,8 @@
                                 <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
                                 <MudTh Style="width: 140px;">Horario</MudTh>
-                                <MudTh Style="width: 85px;">Comida</MudTh>
-                                <MudTh Style="width: 130px;">Viáticos Base</MudTh>
+                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px;">Viáticos Base</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                         </HeaderContent>
@@ -1524,29 +1580,43 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <select value="@context.TiempoComidaDefault" 
-                                            @onchange="@(async (ChangeEventArgs e) => { context.TiempoComidaDefault = e.Value?.ToString() ?? "1.00"; await GuardarItemPlantilla(context); })" 
-                                            class="form-select form-select-sm" 
-                                            style="width: 72px; font-size: 0.75rem; border: 1px solid #ced4da; border-radius: 4px; padding: 2px 4px; background: white;" 
-                                            title="Tiempo de comida en horas">
-                                        <option value="1.00">1.0h com</option>
-                                        <option value="0.50">0.5h com</option>
-                                        <option value="0.00">Sin com</option>
-                                    </select>
+                                    <input type="number" 
+                                           step="any" 
+                                           min="0" 
+                                           max="24" 
+                                           value="@context.TiempoComidaDefault" 
+                                           @onchange="@(async (ChangeEventArgs e) => { context.TiempoComidaDefault = NormalizarDecimalComida(e.Value?.ToString()); await GuardarItemPlantilla(context); })" 
+                                           style="width: 52px; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; font-size: 0.8rem; text-align: center; background: white;" 
+                                           title="Tiempo de comida en horas" />
                                 </MudTd>
                                 <MudTd>
                                     @{
                                         var totalVOp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
                                     }
-                                    <MudButton Variant="Variant.Outlined" 
-                                               Color="@(totalVOp > 0 ? Color.Info : Color.Default)" 
-                                               Size="Size.Small" 
-                                               Class="px-2 font-monospace fw-bold" 
-                                               Style="height: 28px; text-transform: none; font-size: 0.75rem;" 
-                                               OnClick="@(() => AbrirEditorViaticoPlantilla(context))"
-                                               Title="Editar viáticos base">
-                                        @(totalVOp > 0 ? $"C$ {totalVOp:N0}" : "+ Viático")
-                                    </MudButton>
+                                    @if (totalVOp > 0)
+                                    {
+                                        <MudChip T="string" 
+                                                 Color="Color.Info" 
+                                                 Variant="Variant.Filled" 
+                                                 Size="Size.Small" 
+                                                 Class="cursor-pointer font-monospace fw-bold" 
+                                                 Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
+                                                 OnClick="@(() => AbrirEditorViaticoPlantilla(context))"
+                                                 Title="Editar viáticos base">
+                                            @($"C$ {totalVOp:N0}")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Agregar viáticos base" Arrow="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                           Variant="Variant.Outlined" 
+                                                           Color="Color.Default" 
+                                                           Size="Size.Small" 
+                                                           Style="height: 28px; width: 28px; border-radius: 6px;" 
+                                                           OnClick="@(() => AbrirEditorViaticoPlantilla(context))" />
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <div class="d-flex align-center gap-1">
@@ -1739,29 +1809,43 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
-                                    <select value="@context.TiempoComidaDefault" 
-                                            @onchange="@(async (ChangeEventArgs e) => { context.TiempoComidaDefault = e.Value?.ToString() ?? "1.00"; await GuardarItemPlantilla(context); })" 
-                                            class="form-select form-select-sm" 
-                                            style="width: 70px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; background: white;" 
-                                            title="Tiempo de comida en horas">
-                                        <option value="1.00">1.0h com</option>
-                                        <option value="0.50">0.5h com</option>
-                                        <option value="0.00">Sin com</option>
-                                    </select>
+                                    <input type="number" 
+                                           step="any" 
+                                           min="0" 
+                                           max="24" 
+                                           value="@context.TiempoComidaDefault" 
+                                           @onchange="@(async (ChangeEventArgs e) => { context.TiempoComidaDefault = NormalizarDecimalComida(e.Value?.ToString()); await GuardarItemPlantilla(context); })" 
+                                           style="width: 50px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: white;" 
+                                           title="Tiempo de comida en horas" />
                                 </MudTd>
                                 <MudTd>
                                     @{
                                         var totalVComp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
                                     }
-                                    <MudButton Variant="Variant.Outlined" 
-                                               Color="@(totalVComp > 0 ? Color.Info : Color.Default)" 
-                                               Size="Size.Small" 
-                                               Class="px-2 font-monospace fw-bold" 
-                                               Style="height: 28px; text-transform: none; font-size: 0.75rem;" 
-                                               OnClick="@(() => AbrirEditorViaticoPlantilla(context))"
-                                               Title="Editar viáticos base">
-                                        @(totalVComp > 0 ? $"C$ {totalVComp:N0}" : "+ Viático")
-                                    </MudButton>
+                                    @if (totalVComp > 0)
+                                    {
+                                        <MudChip T="string" 
+                                                 Color="Color.Info" 
+                                                 Variant="Variant.Filled" 
+                                                 Size="Size.Small" 
+                                                 Class="cursor-pointer font-monospace fw-bold" 
+                                                 Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
+                                                 OnClick="@(() => AbrirEditorViaticoPlantilla(context))"
+                                                 Title="Editar viáticos base">
+                                            @($"C$ {totalVComp:N0}")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Agregar viáticos base" Arrow="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
+                                                           Variant="Variant.Outlined" 
+                                                           Color="Color.Default" 
+                                                           Size="Size.Small" 
+                                                           Style="height: 28px; width: 28px; border-radius: 6px;" 
+                                                           OnClick="@(() => AbrirEditorViaticoPlantilla(context))" />
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <div class="d-flex align-center gap-1">
