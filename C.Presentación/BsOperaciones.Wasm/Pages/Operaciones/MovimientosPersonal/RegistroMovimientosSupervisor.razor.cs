@@ -19,6 +19,14 @@ using NPOI.XSSF.UserModel;
 
 namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 {
+    public enum ModoVistaGrilla
+    {
+        Operativo, // Paso 2: Jornada & Viáticos (Horas, Turno auto, Comida, Viáticos)
+        Ubicacion, // Paso 1: Ubicación & Puesto (Cliente, Área, Cargo)
+        Completo,  // Todas las columnas
+        Tarjetas   // Modo tarjetas touch-friendly para tablets pequeñas o móviles
+    }
+
     public class EmpleadoJornadaItem
     {
         public int Id { get; set; }
@@ -30,6 +38,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string TurnoNombre { get; set; } = "Diurno";
         public string HoraEntrada { get; set; } = "06:00";
         public string HoraSalida { get; set; } = "14:00";
+        public string TiempoComida { get; set; } = "1.00";
         public string Cliente { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
@@ -67,6 +76,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string TurnoNombre { get; set; } = string.Empty;
         public string HoraInicio { get; set; } = string.Empty;
         public string HoraFin { get; set; } = string.Empty;
+        public string TiempoComida { get; set; } = "1.00";
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
         public decimal VtcoBnc { get; set; }
@@ -94,6 +104,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaGuardando = false;
         protected bool estaEnviandoHelpdesk = false;
         protected int activeTabIndex = 0;
+        protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Operativo;
 
         protected string currentUserName = string.Empty;
         protected List<Combos> operacionesList = new();
@@ -406,9 +417,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         NombreEmpleado = m.NombreEmpleado,
                         Area = m.Area,
                         Puesto = m.Puesto,
-                        TurnoNombre = m.TurnoNombre,
+                        TurnoNombre = !string.IsNullOrWhiteSpace(m.TurnoNombre) 
+                            ? m.TurnoNombre 
+                            : DeterminarTurnoSegunLeyNicaragua(m.HoraEntrada, m.HoraSalida),
                         HoraEntrada = m.HoraEntrada,
                         HoraSalida = m.HoraSalida,
+                        TiempoComida = !string.IsNullOrWhiteSpace(m.TiempoComida) ? m.TiempoComida : "1.00",
                         Cliente = !string.IsNullOrWhiteSpace(m.Cliente)
                             ? m.Cliente
                             : (operacionesList.FirstOrDefault(o => o.id == m.OperacionId)?.nombre ?? "General"),
@@ -520,6 +534,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TurnoNombre = !string.IsNullOrWhiteSpace(item.TurnoDefault) ? item.TurnoDefault : "Diurno",
                         HoraEntrada = !string.IsNullOrWhiteSpace(item.HoraEntradaDefault) ? item.HoraEntradaDefault : "06:00",
                         HoraSalida = !string.IsNullOrWhiteSpace(item.HoraSalidaDefault) ? item.HoraSalidaDefault : "14:00",
+                        TiempoComida = "1.00",
                         VtcoTrasp = item.VtcoTraspDefault,
                         VtcoAlim = item.VtcoAlimDefault,
                         BonoBnc = item.BonoBncDefault,
@@ -706,6 +721,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraEntrada = e.HoraEntrada,
                         HoraSalida = e.HoraSalida,
                         TurnoNombre = e.TurnoNombre,
+                        TiempoComida = string.IsNullOrWhiteSpace(e.TiempoComida) ? "1.00" : e.TiempoComida,
                         Bnc = e.Bnc,
                         VtcoTrasp = e.VtcoTrasp,
                         VtcoAlim = e.VtcoAlim,
@@ -938,7 +954,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 string[] headers = new[]
                 {
                     "#", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
-                    "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida",
+                    "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
                     "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
                     "Observaciones", "Estado", "Ticket Redmine", "Ticket Viático", "Supervisor"
                 };
@@ -966,28 +982,29 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     row.CreateCell(8).SetCellValue(emp.TurnoNombre);
                     row.CreateCell(9).SetCellValue(emp.HoraEntrada);
                     row.CreateCell(10).SetCellValue(emp.HoraSalida);
+                    row.CreateCell(11).SetCellValue(emp.TiempoComida);
 
-                    var cTrasp = row.CreateCell(11);
+                    var cTrasp = row.CreateCell(12);
                     cTrasp.SetCellValue((double)emp.VtcoTrasp);
                     cTrasp.CellStyle = currencyStyle;
 
-                    var cAlim = row.CreateCell(12);
+                    var cAlim = row.CreateCell(13);
                     cAlim.SetCellValue((double)emp.VtcoAlim);
                     cAlim.CellStyle = currencyStyle;
 
-                    var cBnc = row.CreateCell(13);
+                    var cBnc = row.CreateCell(14);
                     cBnc.SetCellValue((double)emp.BonoBnc);
                     cBnc.CellStyle = currencyStyle;
 
-                    var cTotal = row.CreateCell(14);
+                    var cTotal = row.CreateCell(15);
                     cTotal.SetCellValue((double)(emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc));
                     cTotal.CellStyle = currencyStyle;
 
-                    row.CreateCell(15).SetCellValue(emp.Observaciones);
-                    row.CreateCell(16).SetCellValue(emp.Estado);
-                    row.CreateCell(17).SetCellValue(emp.TicketRedmineId.HasValue ? emp.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(18).SetCellValue(emp.TicketViaticoId.HasValue ? emp.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(19).SetCellValue(currentUserName);
+                    row.CreateCell(16).SetCellValue(emp.Observaciones);
+                    row.CreateCell(17).SetCellValue(emp.Estado);
+                    row.CreateCell(18).SetCellValue(emp.TicketRedmineId.HasValue ? emp.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(19).SetCellValue(emp.TicketViaticoId.HasValue ? emp.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(20).SetCellValue(currentUserName);
 
                     rowIdx++;
                 }
@@ -1002,19 +1019,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 totalStyle.SetFont(boldFont);
                 totalLabelCell.CellStyle = totalStyle;
 
-                var sumTrasp = totalRow.CreateCell(11);
+                var sumTrasp = totalRow.CreateCell(12);
                 sumTrasp.SetCellValue((double)TotalViaticosTrasp);
                 sumTrasp.CellStyle = currencyStyle;
 
-                var sumAlim = totalRow.CreateCell(12);
+                var sumAlim = totalRow.CreateCell(13);
                 sumAlim.SetCellValue((double)TotalViaticosAlim);
                 sumAlim.CellStyle = currencyStyle;
 
-                var sumBnc = totalRow.CreateCell(13);
+                var sumBnc = totalRow.CreateCell(14);
                 sumBnc.SetCellValue((double)TotalViaticosBnc);
                 sumBnc.CellStyle = currencyStyle;
 
-                var sumGlobal = totalRow.CreateCell(14);
+                var sumGlobal = totalRow.CreateCell(15);
                 sumGlobal.SetCellValue((double)TotalViaticosGlobal);
                 sumGlobal.CellStyle = currencyStyle;
 
@@ -1032,15 +1049,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     14, // 8: Turno
                     14, // 9: Hora Entrada
                     14, // 10: Hora Salida
-                    22, // 11: Viático Transporte (C$)
-                    22, // 12: Viático Alimentación (C$)
-                    18, // 13: Bono BNC (C$)
-                    20, // 14: Total Viáticos (C$)
-                    32, // 15: Observaciones
-                    14, // 16: Estado
-                    16, // 17: Ticket Redmine
-                    16, // 18: Ticket Viático
-                    26  // 19: Supervisor
+                    14, // 11: Tiempo Comida (Hrs)
+                    22, // 12: Viático Transporte (C$)
+                    22, // 13: Viático Alimentación (C$)
+                    18, // 14: Bono BNC (C$)
+                    20, // 15: Total Viáticos (C$)
+                    32, // 16: Observaciones
+                    14, // 17: Estado
+                    16, // 18: Ticket Redmine
+                    16, // 19: Ticket Viático
+                    26  // 20: Supervisor
                 };
 
                 for (int i = 0; i < headers.Length; i++)
@@ -1086,6 +1104,135 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             _snackbar.Add($"Marcados {sel.Count} colaboradores como {(asistio ? "Presentes" : "Ausentes")}.", Severity.Info);
+            ActualizarGruposConsolidados();
+        }
+
+        public static bool TryParseHora(string? str, out TimeSpan time)
+        {
+            time = TimeSpan.Zero;
+            if (string.IsNullOrWhiteSpace(str)) return false;
+            str = str.Trim();
+            if (TimeSpan.TryParse(str, out time)) return true;
+            if (DateTime.TryParse(str, out var dt))
+            {
+                time = dt.TimeOfDay;
+                return true;
+            }
+            return false;
+        }
+
+        public static string DeterminarTurnoSegunLeyNicaragua(string? entradaStr, string? salidaStr)
+        {
+            if (!TryParseHora(entradaStr, out var entrada) || !TryParseHora(salidaStr, out var salida))
+            {
+                return "Diurno";
+            }
+
+            if (entrada == salida)
+            {
+                return "Diurno";
+            }
+
+            int startMinutes = (int)entrada.TotalMinutes;
+            int endMinutes = (int)salida.TotalMinutes;
+
+            if (endMinutes <= startMinutes)
+            {
+                endMinutes += 1440; // Cruza la medianoche
+            }
+
+            int totalMinutes = endMinutes - startMinutes;
+            if (totalMinutes <= 0 || totalMinutes > 1440 * 2) return "Diurno";
+
+            int diurnos = 0;
+            int nocturnos = 0;
+
+            for (int m = startMinutes; m < endMinutes; m++)
+            {
+                int minDelDia = m % 1440;
+                // Código del Trabajo de Nicaragua (Ley N° 185):
+                // Art. 51: Jornada diurna es la que se ejecuta entre las 06:00 y las 20:00 (360 a 1200 minutos).
+                // Art. 52: Jornada nocturna es la que se ejecuta entre las 20:00 y las 06:00 del día siguiente.
+                if (minDelDia >= 360 && minDelDia < 1200)
+                {
+                    diurnos++;
+                }
+                else
+                {
+                    nocturnos++;
+                }
+            }
+
+            // Art. 51: Diurno completo
+            if (nocturnos == 0)
+            {
+                return "Diurno";
+            }
+
+            // Art. 52: Nocturno completo
+            if (diurnos == 0)
+            {
+                return "Nocturno";
+            }
+
+            // Art. 53: Mixto
+            // "siempre que el período nocturno sea menor de tres horas y media (210 minutos).
+            // Si en la jornada mixta se laboran tres horas y media o más en el período nocturno,
+            // se reputará trabajo nocturno para todos los efectos legales."
+            if (nocturnos >= 210)
+            {
+                return "Nocturno";
+            }
+
+            return "Mixto";
+        }
+
+        private static string NormalizarFormatoHora(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "00:00";
+            input = input.Trim();
+            if (TimeSpan.TryParse(input, out var ts))
+            {
+                return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}";
+            }
+            if (DateTime.TryParse(input, out var dt))
+            {
+                return dt.ToString("HH:mm");
+            }
+            return input;
+        }
+
+        protected void OnHorarioEntradaCambiado(EmpleadoJornadaItem item, string? nuevaEntrada)
+        {
+            if (string.IsNullOrWhiteSpace(nuevaEntrada)) nuevaEntrada = "06:00";
+            item.HoraEntrada = NormalizarFormatoHora(nuevaEntrada);
+            item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
+            item.Modificado = true;
+            ActualizarGruposConsolidados();
+        }
+
+        protected void OnHorarioSalidaCambiado(EmpleadoJornadaItem item, string? nuevaSalida)
+        {
+            if (string.IsNullOrWhiteSpace(nuevaSalida)) nuevaSalida = "14:00";
+            item.HoraSalida = NormalizarFormatoHora(nuevaSalida);
+            item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
+            item.Modificado = true;
+            ActualizarGruposConsolidados();
+        }
+
+        protected void AplicarPresetHorario(EmpleadoJornadaItem item, string entrada, string salida)
+        {
+            item.HoraEntrada = entrada;
+            item.HoraSalida = salida;
+            item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(entrada, salida);
+            item.Modificado = true;
+            ActualizarGruposConsolidados();
+        }
+
+        protected void OnTiempoComidaCambiado(EmpleadoJornadaItem item, string? nuevoTiempo)
+        {
+            item.TiempoComida = string.IsNullOrWhiteSpace(nuevoTiempo) ? "1.00" : nuevoTiempo;
+            item.Modificado = true;
             ActualizarGruposConsolidados();
         }
 
@@ -1384,6 +1531,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     HoraInicio = x.HoraEntrada,
                     HoraFin = x.HoraSalida,
                     x.TurnoNombre,
+                    TiempoComida = string.IsNullOrWhiteSpace(x.TiempoComida) ? "1.00" : x.TiempoComida,
                     x.VtcoTrasp,
                     x.VtcoAlim,
                     x.BonoBnc
@@ -1397,6 +1545,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     TurnoNombre = g.Key.TurnoNombre,
                     HoraInicio = g.Key.HoraInicio,
                     HoraFin = g.Key.HoraFin,
+                    TiempoComida = g.Key.TiempoComida,
                     VtcoTrasp = g.Key.VtcoTrasp,
                     VtcoAlim = g.Key.VtcoAlim,
                     VtcoBnc = g.Key.BonoBnc,
@@ -1443,6 +1592,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
                     HoraInicio = g.HoraInicio,
                     HoraFin = g.HoraFin,
+                    TiempoComida = g.TiempoComida,
                     CantidadEmpleados = g.Cantidad,
                     IdsEmpleados = g.IdsEmpleadosTexto,
                     Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),

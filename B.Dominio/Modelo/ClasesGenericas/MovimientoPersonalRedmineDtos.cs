@@ -68,6 +68,7 @@ namespace Modelo.ClasesGenericas
         public string? Bnc { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public string? TiempoComida { get; set; } = "1.00";
         public string? Observaciones { get; set; } = string.Empty;
         public bool Asistio { get; set; } = true;
         public string Estado { get; set; } = "GUARDADO";
