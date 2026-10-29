@@ -613,13 +613,86 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             try
             {
                 item.UsuarioSupervisor = currentUserName;
-                await _odooService.SaveSupervisorPlantillaItem(item);
-                _snackbar.Add($"Actualizado #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault}).", Severity.Success);
+                var resp = await _odooService.SaveSupervisorPlantillaItem(item);
+                if (resp?.Respuesta?.ExisteError == false)
+                {
+                    _snackbar.Add($"✅ Guardado en Mi Plantilla: #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault} - {item.AreaDefault}).", Severity.Success);
+                }
+                else
+                {
+                    string msg = resp?.Respuesta?.MensajeError ?? "No se pudo actualizar en BD";
+                    _snackbar.Add($"⚠️ No se pudo guardar: {msg}", Severity.Warning);
+                }
             }
             catch (Exception ex)
             {
                 _snackbar.Add($"Error al actualizar: {ex.Message}", Severity.Warning);
             }
+        }
+
+        protected async Task AbrirDialogoEditarPlantilla(SupervisorPlantillaItemDto item)
+        {
+            var parameters = new DialogParameters
+            {
+                ["ItemOriginal"] = item,
+                ["OperacionesDisponibles"] = operacionesList,
+                ["AreasPorCliente"] = areasPorCliente,
+                ["CargosDisponibles"] = cargosDisponibles
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarColaboradorPlantilla>("Editar Colaborador en Mi Plantilla", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is SupervisorPlantillaItemDto modificado)
+            {
+                item.ClienteDefault = modificado.ClienteDefault;
+                item.AreaDefault = modificado.AreaDefault;
+                item.PuestoDefault = modificado.PuestoDefault;
+                item.TurnoDefault = modificado.TurnoDefault;
+                item.HoraEntradaDefault = modificado.HoraEntradaDefault;
+                item.HoraSalidaDefault = modificado.HoraSalidaDefault;
+                item.VtcoTraspDefault = modificado.VtcoTraspDefault;
+                item.VtcoAlimDefault = modificado.VtcoAlimDefault;
+                item.BonoBncDefault = modificado.BonoBncDefault;
+
+                await GuardarItemPlantilla(item);
+                StateHasChanged();
+            }
+        }
+
+        protected async Task AbrirEditorViaticoPlantilla(SupervisorPlantillaItemDto item)
+        {
+            var parameters = new DialogParameters
+            {
+                ["CodigoEmpleado"] = item.CodigoEmpleado,
+                ["NombreEmpleado"] = item.NombreEmpleado,
+                ["VtcoTraspInicial"] = item.VtcoTraspDefault,
+                ["VtcoAlimInicial"] = item.VtcoAlimDefault,
+                ["BonoBncInicial"] = item.BonoBncDefault,
+                ["CantidadSeleccionados"] = 0
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Viáticos & Bono de Plantilla", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
+            {
+                item.VtcoTraspDefault = data.VtcoTrasp;
+                item.VtcoAlimDefault = data.VtcoAlim;
+                item.BonoBncDefault = data.BonoBnc;
+
+                await GuardarItemPlantilla(item);
+                StateHasChanged();
+            }
+        }
+
+        protected async Task AplicarPresetHorarioPlantilla(SupervisorPlantillaItemDto item, string entrada, string salida, string turno)
+        {
+            item.TurnoDefault = turno;
+            item.HoraEntradaDefault = entrada;
+            item.HoraSalidaDefault = salida;
+            await GuardarItemPlantilla(item);
+            StateHasChanged();
         }
 
         protected async Task EliminarItemPlantilla(SupervisorPlantillaItemDto item)

@@ -1,4 +1,4 @@
-@page "/operaciones/registro-movimientos-supervisor"
+﻿@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -1511,8 +1511,24 @@
                             @PlantillaFiltrada.Count() colaboradores
                         </span>
 
-                        @* Control de Vistas Estilo Odoo para Mi Personal *@
+                                                @* Control de Vistas Estilo Odoo para Mi Personal *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
+                            <MudTooltip Text="Vista Horarios & Viáticos" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Operativo)"
+                                        title="Vista Horarios & Viáticos">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
+                            <MudTooltip Text="Vista Cliente, Área y Puesto" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Ubicacion ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Ubicacion)"
+                                        title="Vista Cliente, Área y Puesto">
+                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
                             <MudTooltip Text="Vista Tabla Completa" Arrow="true" Placement="Placement.Top">
                                 <button type="button" 
                                         class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Completo ? "active" : "")" 
@@ -1521,7 +1537,7 @@
                                     <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
                                 </button>
                             </MudTooltip>
-                            <MudTooltip Text="Vista Tarjetas (Kanban estilo Odoo)" Arrow="true" Placement="Placement.Top">
+                            <MudTooltip Text="Vista Tarjetas (Kanban)" Arrow="true" Placement="Placement.Top">
                                 <button type="button" 
                                         class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Tarjetas ? "active" : "")" 
                                         @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Tarjetas)"
@@ -1585,11 +1601,18 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
-                                                       Color="Color.Error" 
-                                                       Size="Size.Small" 
-                                                       OnClick="@(() => EliminarItemPlantilla(context))"
-                                                       Title="Quitar de mi plantilla" />
+                                        <div class="d-flex align-center gap-1">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Color="Color.Primary" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => AbrirDialogoEditarPlantilla(context))"
+                                                           Title="Editar datos del colaborador" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                           Color="Color.Error" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => EliminarItemPlantilla(context))"
+                                                           Title="Quitar de mi plantilla" />
+                                        </div>
                                     </div>
 
                                     <MudDivider Class="my-2" />
@@ -1686,10 +1709,26 @@
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             Viáticos Base:
                                         </MudText>
-                                        <MudText Typo="Typo.caption" Class="fw-bold">
-                                            Tr: C$ @context.VtcoTraspDefault.ToString("N0") | Al: C$ @context.VtcoAlimDefault.ToString("N0")
-                                            @(context.BonoBncDefault > 0 ? $" | BNC: C$ {context.BonoBncDefault:N0}" : "")
-                                        </MudText>
+                                        @{
+                                            var totalCardV = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
+                                        }
+                                        <MudButton Variant="Variant.Outlined" 
+                                                   Color="@(totalCardV > 0 ? Color.Success : Color.Default)" 
+                                                   Size="Size.Small" 
+                                                   Class="px-2 py-0" 
+                                                   Style="font-size: 0.72rem; min-height: 22px; text-transform: none;" 
+                                                   StartIcon="@(totalCardV > 0 ? Icons.Material.Filled.AttachMoney : Icons.Material.Filled.Add)" 
+                                                   OnClick="@(() => AbrirEditorViaticoPlantilla(context))" 
+                                                   Title="Editar viáticos y bono base">
+                                            @if (totalCardV > 0)
+                                            {
+                                                <span>Tr: @context.VtcoTraspDefault:N0 | Al: @context.VtcoAlimDefault:N0@(context.BonoBncDefault > 0 ? $" | Bnc: {context.BonoBncDefault:N0}" : "")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>+ Configurar</span>
+                                            }
+                                        </MudButton>
                                     </div>
                                 </MudCard>
                             </MudItem>
@@ -1700,118 +1739,348 @@
                 {
                     <MudTable Items="@PlantillaFiltrada" Dense="true" Hover="true" Striped="true" Elevation="1" Class="rounded-lg">
                         <HeaderContent>
-                            <MudTh Style="width: 80px;">Carnet</MudTh>
-                            <MudTh>Colaborador</MudTh>
-                            <MudTh Style="width: 180px;">Cliente Inicial</MudTh>
-                            <MudTh Style="width: 160px;">Área Inicial</MudTh>
-                            <MudTh Style="width: 200px;">Puesto Inicial</MudTh>
-                            <MudTh Style="width: 150px;">Turno</MudTh>
-                            <MudTh Style="width: 170px;">Viáticos Base (C$)</MudTh>
-                            <MudTh Style="width: 50px;"></MudTh>
+                            @if (modoVistaPlantilla == ModoVistaGrilla.Operativo)
+                            {
+                                <MudTh Style="width: 80px;">Carnet</MudTh>
+                                <MudTh>Colaborador</MudTh>
+                                <MudTh Style="width: 280px;">Turno / Horarios</MudTh>
+                                <MudTh Style="width: 220px;">Viáticos Base (C$)</MudTh>
+                                <MudTh Style="width: 90px;" Class="text-center">Acciones</MudTh>
+                            }
+                            else if (modoVistaPlantilla == ModoVistaGrilla.Ubicacion)
+                            {
+                                <MudTh Style="width: 80px;">Carnet</MudTh>
+                                <MudTh>Colaborador</MudTh>
+                                <MudTh Style="width: 220px;">Cliente Inicial</MudTh>
+                                <MudTh Style="width: 200px;">Área Inicial</MudTh>
+                                <MudTh Style="width: 240px;">Puesto Inicial</MudTh>
+                                <MudTh Style="width: 90px;" Class="text-center">Acciones</MudTh>
+                            }
+                            else
+                            {
+                                <MudTh Style="width: 80px;">Carnet</MudTh>
+                                <MudTh>Colaborador</MudTh>
+                                <MudTh Style="width: 170px;">Cliente Inicial</MudTh>
+                                <MudTh Style="width: 150px;">Área Inicial</MudTh>
+                                <MudTh Style="width: 180px;">Puesto Inicial</MudTh>
+                                <MudTh Style="width: 140px;">Turno</MudTh>
+                                <MudTh Style="width: 200px;">Viáticos Base (C$)</MudTh>
+                                <MudTh Style="width: 90px;" Class="text-center">Acciones</MudTh>
+                            }
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd>
-                                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold">
-                                    #@context.CodigoEmpleado
-                                </MudChip>
-                            </MudTd>
-                            <MudTd>
-                                <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="string" 
-                                           Value="@context.ClienteDefault" 
-                                           Dense="true" 
-                                           Margin="Margin.Dense" 
-                                           Variant="Variant.Outlined"
-                                           ValueChanged="@(async (val) => { 
-                                               context.ClienteDefault = val; 
-                                               var areasCli = GetAreasParaCliente(val);
-                                               if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
-                                               {
-                                                   context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
-                                               }
-                                               await GuardarItemPlantilla(context); 
-                                           })">
-                                    @foreach (var op in operacionesList)
-                                    {
-                                        <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="string" 
-                                           Value="@context.AreaDefault" 
-                                           Dense="true" 
-                                           Margin="Margin.Dense" 
-                                           Variant="Variant.Outlined"
-                                           ValueChanged="@(async (val) => { 
-                                               context.AreaDefault = val; 
-                                               await GuardarItemPlantilla(context); 
-                                           })">
+                            @if (modoVistaPlantilla == ModoVistaGrilla.Operativo)
+                            {
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold">
+                                        #@context.CodigoEmpleado
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column">
+                                        <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            @context.ClienteDefault • @context.AreaDefault • @context.PuestoDefault
+                                        </MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                                        <div class="d-flex align-center gap-1 justify-center">
+                                            <MudChip T="string" 
+                                                     Color="@GetColorTurno(context.TurnoDefault)" 
+                                                     Variant="Variant.Filled" 
+                                                     Size="Size.Small" 
+                                                     Class="px-2" 
+                                                     Style="height: 20px; font-size: 0.72rem; font-weight: 600;">
+                                                @context.TurnoDefault
+                                            </MudChip>
+                                            <MudMenu Icon="@Icons.Material.Filled.ArrowDropDown" Dense="true" Size="Size.Small" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Title="Elegir horario predefinido">
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "06:00", "14:00", "Diurno"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-primary">Diurno (06:00 - 14:00)</MudText>
+                                                </MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "07:00", "16:00", "Sinsa"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-success">Sinsa (07:00 - 16:00)</MudText>
+                                                </MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "08:00", "17:00", "Normal"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-info">Normal (08:00 - 17:00)</MudText>
+                                                </MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "06:00", "15:30", "DCC"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-secondary">DCC (06:00 - 15:30)</MudText>
+                                                </MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "14:00", "22:00", "Mixto"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-warning">Mixto (14:00 - 22:00)</MudText>
+                                                </MudMenuItem>
+                                                <MudMenuItem OnClick="@(() => AplicarPresetHorarioPlantilla(context, "22:00", "06:00", "Nocturno"))">
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-dark">Nocturno (22:00 - 06:00)</MudText>
+                                                </MudMenuItem>
+                                            </MudMenu>
+                                        </div>
+                                        <div class="d-flex align-center justify-center gap-1 font-monospace" style="font-size: 0.75rem;">
+                                            <input type="text" 
+                                                   value="@context.HoraEntradaDefault" 
+                                                   @onchange="@(async (ChangeEventArgs e) => { context.HoraEntradaDefault = e.Value?.ToString() ?? ""; await GuardarItemPlantilla(context); })" 
+                                                   style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
+                                                   title="Hora Entrada (ej. 06:00)" />
+                                            <span>-</span>
+                                            <input type="text" 
+                                                   value="@context.HoraSalidaDefault" 
+                                                   @onchange="@(async (ChangeEventArgs e) => { context.HoraSalidaDefault = e.Value?.ToString() ?? ""; await GuardarItemPlantilla(context); })" 
+                                                   style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
+                                                   title="Hora Salida (ej. 14:00)" />
+                                        </div>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd>
                                     @{
-                                        var areasP = GetAreasParaCliente(context.ClienteDefault);
-                                        if (!string.IsNullOrWhiteSpace(context.AreaDefault) && !areasP.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
-                                        {
-                                            areasP = new List<string>(areasP) { context.AreaDefault };
-                                        }
+                                        var totalVOp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
                                     }
-                                    @foreach (var a in areasP)
-                                    {
-                                        <MudSelectItem Value="@a">@a</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="string" 
-                                           Value="@context.PuestoDefault" 
-                                           Dense="true" 
-                                           Margin="Margin.Dense" 
-                                           Variant="Variant.Outlined"
-                                           ValueChanged="@(async (val) => { context.PuestoDefault = val; await GuardarItemPlantilla(context); })">
-                                    @foreach (var c in cargosDisponibles)
-                                    {
-                                        <MudSelectItem Value="@c">@c</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd>
-                                <MudSelect T="string" 
-                                           Value="@context.TurnoDefault" 
-                                           Dense="true" 
-                                           Margin="Margin.Dense" 
-                                           Variant="Variant.Outlined"
-                                           ValueChanged="@(async (val) => { 
-                                               context.TurnoDefault = val; 
-                                               if (val == "Diurno") { context.HoraEntradaDefault = "06:00"; context.HoraSalidaDefault = "14:00"; }
-                                               else if (val == "Sinsa") { context.HoraEntradaDefault = "07:00"; context.HoraSalidaDefault = "16:00"; }
-                                               else if (val == "Normal") { context.HoraEntradaDefault = "08:00"; context.HoraSalidaDefault = "17:00"; }
-                                               else if (val == "DCC") { context.HoraEntradaDefault = "06:00"; context.HoraSalidaDefault = "15:30"; }
-                                               else if (val == "Mixto") { context.HoraEntradaDefault = "14:00"; context.HoraSalidaDefault = "22:00"; }
-                                               else if (val == "Nocturno") { context.HoraEntradaDefault = "22:00"; context.HoraSalidaDefault = "06:00"; }
-                                               await GuardarItemPlantilla(context); 
-                                           })">
-                                    <MudSelectItem Value="@("Diurno")">Diurno</MudSelectItem>
-                                    <MudSelectItem Value="@("Sinsa")">Sinsa</MudSelectItem>
-                                    <MudSelectItem Value="@("Normal")">Normal</MudSelectItem>
-                                    <MudSelectItem Value="@("DCC")">DCC</MudSelectItem>
-                                    <MudSelectItem Value="@("Mixto")">Mixto</MudSelectItem>
-                                    <MudSelectItem Value="@("Nocturno")">Nocturno</MudSelectItem>
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd>
-                                <MudText Typo="Typo.caption">
-                                    Tr: C$ @context.VtcoTraspDefault.ToString("N0") | Al: C$ @context.VtcoAlimDefault.ToString("N0")
-                                    @(context.BonoBncDefault > 0 ? $" | BNC: C$ {context.BonoBncDefault:N0}" : "")
-                                </MudText>
-                            </MudTd>
-                            <MudTd>
-                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
-                                               Color="Color.Error" 
+                                    <MudButton Variant="Variant.Outlined" 
+                                               Color="@(totalVOp > 0 ? Color.Success : Color.Default)" 
                                                Size="Size.Small" 
-                                               OnClick="@(() => EliminarItemPlantilla(context))"
-                                               Title="Quitar de mi plantilla" />
-                            </MudTd>
+                                               Class="px-2 py-0 text-start" 
+                                               Style="font-size: 0.74rem; min-height: 24px; text-transform: none;" 
+                                               StartIcon="@(totalVOp > 0 ? Icons.Material.Filled.AttachMoney : Icons.Material.Filled.Add)" 
+                                               OnClick="@(() => AbrirEditorViaticoPlantilla(context))" 
+                                               Title="Clic para editar viáticos base">
+                                        @if (totalVOp > 0)
+                                        {
+                                            <span>Tr: @context.VtcoTraspDefault:N0 | Al: @context.VtcoAlimDefault:N0@(context.BonoBncDefault > 0 ? $" | Bnc: {context.BonoBncDefault:N0}" : "")</span>
+                                        }
+                                        else
+                                        {
+                                            <span>+ Viáticos</span>
+                                        }
+                                    </MudButton>
+                                </MudTd>
+                                <MudTd Class="text-center">
+                                    <div class="d-inline-flex align-center gap-1">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarPlantilla(context))" 
+                                                       Title="Editar colaborador" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Title="Quitar de mi plantilla" />
+                                    </div>
+                                </MudTd>
+                            }
+                            else if (modoVistaPlantilla == ModoVistaGrilla.Ubicacion)
+                            {
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold">
+                                        #@context.CodigoEmpleado
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column">
+                                        <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Turno @context.TurnoDefault (@context.HoraEntradaDefault - @context.HoraSalidaDefault)</MudText>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.ClienteDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { 
+                                                   context.ClienteDefault = val; 
+                                                   var areasCli = GetAreasParaCliente(val);
+                                                   if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                                   {
+                                                       context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
+                                                   }
+                                                   await GuardarItemPlantilla(context); 
+                                               })">
+                                        @foreach (var op in operacionesList)
+                                        {
+                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.AreaDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { 
+                                                   context.AreaDefault = val; 
+                                                   await GuardarItemPlantilla(context); 
+                                               })">
+                                        @{
+                                            var areasP = GetAreasParaCliente(context.ClienteDefault);
+                                            if (!string.IsNullOrWhiteSpace(context.AreaDefault) && !areasP.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                areasP = new List<string>(areasP) { context.AreaDefault };
+                                            }
+                                        }
+                                        @foreach (var a in areasP)
+                                        {
+                                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.PuestoDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { context.PuestoDefault = val; await GuardarItemPlantilla(context); })">
+                                        @foreach (var c in cargosDisponibles)
+                                        {
+                                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd Class="text-center">
+                                    <div class="d-inline-flex align-center gap-1">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarPlantilla(context))" 
+                                                       Title="Editar colaborador" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Title="Quitar de mi plantilla" />
+                                    </div>
+                                </MudTd>
+                            }
+                            else
+                            {
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold">
+                                        #@context.CodigoEmpleado
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.ClienteDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { 
+                                                   context.ClienteDefault = val; 
+                                                   var areasCli = GetAreasParaCliente(val);
+                                                   if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                                   {
+                                                       context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
+                                                   }
+                                                   await GuardarItemPlantilla(context); 
+                                               })">
+                                        @foreach (var op in operacionesList)
+                                        {
+                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.AreaDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { 
+                                                   context.AreaDefault = val; 
+                                                   await GuardarItemPlantilla(context); 
+                                               })">
+                                        @{
+                                            var areasP = GetAreasParaCliente(context.ClienteDefault);
+                                            if (!string.IsNullOrWhiteSpace(context.AreaDefault) && !areasP.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                areasP = new List<string>(areasP) { context.AreaDefault };
+                                            }
+                                        }
+                                        @foreach (var a in areasP)
+                                        {
+                                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.PuestoDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { context.PuestoDefault = val; await GuardarItemPlantilla(context); })">
+                                        @foreach (var c in cargosDisponibles)
+                                        {
+                                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@context.TurnoDefault" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@(async (val) => { 
+                                                   context.TurnoDefault = val; 
+                                                   if (val == "Diurno") { context.HoraEntradaDefault = "06:00"; context.HoraSalidaDefault = "14:00"; }
+                                                   else if (val == "Sinsa") { context.HoraEntradaDefault = "07:00"; context.HoraSalidaDefault = "16:00"; }
+                                                   else if (val == "Normal") { context.HoraEntradaDefault = "08:00"; context.HoraSalidaDefault = "17:00"; }
+                                                   else if (val == "DCC") { context.HoraEntradaDefault = "06:00"; context.HoraSalidaDefault = "15:30"; }
+                                                   else if (val == "Mixto") { context.HoraEntradaDefault = "14:00"; context.HoraSalidaDefault = "22:00"; }
+                                                   else if (val == "Nocturno") { context.HoraEntradaDefault = "22:00"; context.HoraSalidaDefault = "06:00"; }
+                                                   await GuardarItemPlantilla(context); 
+                                               })">
+                                        <MudSelectItem Value="@("Diurno")">Diurno</MudSelectItem>
+                                        <MudSelectItem Value="@("Sinsa")">Sinsa</MudSelectItem>
+                                        <MudSelectItem Value="@("Normal")">Normal</MudSelectItem>
+                                        <MudSelectItem Value="@("DCC")">DCC</MudSelectItem>
+                                        <MudSelectItem Value="@("Mixto")">Mixto</MudSelectItem>
+                                        <MudSelectItem Value="@("Nocturno")">Nocturno</MudSelectItem>
+                                    </MudSelect>
+                                </MudTd>
+                                <MudTd>
+                                    @{
+                                        var totalVComp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
+                                    }
+                                    <MudButton Variant="Variant.Outlined" 
+                                               Color="@(totalVComp > 0 ? Color.Success : Color.Default)" 
+                                               Size="Size.Small" 
+                                               Class="px-2 py-0 text-start" 
+                                               Style="font-size: 0.74rem; min-height: 24px; text-transform: none;" 
+                                               StartIcon="@(totalVComp > 0 ? Icons.Material.Filled.AttachMoney : Icons.Material.Filled.Add)" 
+                                               OnClick="@(() => AbrirEditorViaticoPlantilla(context))" 
+                                               Title="Clic para editar viáticos base">
+                                        @if (totalVComp > 0)
+                                        {
+                                            <span>Tr: @context.VtcoTraspDefault:N0 | Al: @context.VtcoAlimDefault:N0@(context.BonoBncDefault > 0 ? $" | Bnc: {context.BonoBncDefault:N0}" : "")</span>
+                                        }
+                                        else
+                                        {
+                                            <span>+ Viáticos</span>
+                                        }
+                                    </MudButton>
+                                </MudTd>
+                                <MudTd Class="text-center">
+                                    <div class="d-inline-flex align-center gap-1">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarPlantilla(context))" 
+                                                       Title="Editar colaborador" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Title="Quitar de mi plantilla" />
+                                    </div>
+                                </MudTd>
+                            }
                         </RowTemplate>
                     </MudTable>
                 }
