@@ -55,23 +55,12 @@
                     </MudItem>
                 }
 
-                @* Asignación: Cliente y Supervisor *@
-                <MudItem xs="12" md="6">
+                @* Asignación: Cliente *@
+                <MudItem xs="12">
                     <MudSelect T="string" Label="Cliente / Operación" Value="ClienteNombre" ValueChanged="@OnClienteChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                         @foreach (var op in OperacionesDisponibles)
                         {
                             <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="string" Label="Supervisor Asignado (Opcional)" @bind-Value="UsuarioSupervisor" 
-                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
-                               AnchorOrigin="Origin.BottomCenter"
-                               Placeholder="Sin Asignar">
-                        @foreach (var u in SupervisoresDisponibles)
-                        {
-                            <MudSelectItem Value="@u.username">@u.nombres @u.apellidos (@u.username)</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
