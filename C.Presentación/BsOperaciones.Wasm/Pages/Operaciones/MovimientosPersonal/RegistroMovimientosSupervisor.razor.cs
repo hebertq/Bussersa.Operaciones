@@ -176,6 +176,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             get
             {
                 var ausentes = empleadosJornada.Where(x => !x.Asistio);
+                DateTime fRef = fechaSeleccionada ?? DateTime.Today;
+                foreach (var a in ausentes)
+                {
+                    if (!a.FechaInicioAusencia.HasValue || a.FechaInicioAusencia.Value <= DateTime.MinValue)
+                        a.FechaInicioAusencia = fRef;
+                    if (!a.FechaFinAusencia.HasValue || a.FechaFinAusencia.Value <= DateTime.MinValue)
+                        a.FechaFinAusencia = a.FechaInicioAusencia ?? fRef;
+                }
+
                 if (string.IsNullOrWhiteSpace(textoBusquedaAusencias))
                     return ausentes;
                 var q = textoBusquedaAusencias.Trim();
@@ -459,41 +468,65 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var resp = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, 0, currentUserName);
                 if (resp?.Model != null && resp.Model.Any())
                 {
-                    empleadosJornada = resp.Model.Select(m => new EmpleadoJornadaItem
+                    DateTime fRef = fechaSeleccionada ?? DateTime.Today;
+                    empleadosJornada = resp.Model.Select(m =>
                     {
-                        Id = m.Id,
-                        IdEmpleado = m.IdEmpleado,
-                        CodigoEmpleado = m.CodigoEmpleado,
-                        NombreEmpleado = m.NombreEmpleado,
-                        Area = m.Area,
-                        Puesto = m.Puesto,
-                        TurnoNombre = !string.IsNullOrWhiteSpace(m.TurnoNombre) 
+                        var entrada = m.HoraEntrada;
+                        var salida = m.HoraSalida;
+                        var comida = !string.IsNullOrWhiteSpace(m.TiempoComida) ? m.TiempoComida : "1.00";
+                        var turno = !string.IsNullOrWhiteSpace(m.TurnoNombre) 
                             ? m.TurnoNombre 
-                            : DeterminarTurnoSegunLeyNicaragua(m.HoraEntrada, m.HoraSalida),
-                        HoraEntrada = m.HoraEntrada,
-                        HoraSalida = m.HoraSalida,
-                        TiempoComida = !string.IsNullOrWhiteSpace(m.TiempoComida) ? m.TiempoComida : "1.00",
-                        Cliente = !string.IsNullOrWhiteSpace(m.Cliente)
-                            ? m.Cliente
-                            : (operacionesList.FirstOrDefault(o => o.id == m.OperacionId)?.nombre ?? "General"),
-                        Bnc = m.Bnc ?? string.Empty,
-                        VtcoTrasp = m.VtcoTrasp,
-                        VtcoAlim = m.VtcoAlim,
-                        Observaciones = m.Observaciones ?? string.Empty,
-                        TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
-                        Asistio = m.Asistio,
-                        Estado = m.Estado,
-                        TicketRedmineId = m.TicketRedmineId,
-                        TicketViaticoId = m.TicketViaticoId,
-                        TicketAusenciaId = m.TicketAusenciaId,
-                        TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
-                        FechaInicioAusencia = m.FechaInicioAusencia ?? m.Fecha,
-                        FechaFinAusencia = m.FechaFinAusencia ?? m.Fecha,
-                        DiasAusencia = m.DiasAusencia.HasValue && m.DiasAusencia.Value > 0 ? m.DiasAusencia.Value : 1.0m,
-                        VacacionesTipo = !string.IsNullOrWhiteSpace(m.VacacionesTipo) ? m.VacacionesTipo : "Descansadas",
-                        ObservacionesAusencia = m.Observaciones ?? string.Empty,
-                        Seleccionado = false,
-                        Modificado = false
+                            : DeterminarTurnoSegunLeyNicaragua(m.HoraEntrada, m.HoraSalida);
+
+                        if (!m.Asistio)
+                        {
+                            entrada = "--:--";
+                            salida = "--:--";
+                            comida = "0";
+                            turno = "Ausente";
+                        }
+
+                        DateTime fIni = (m.FechaInicioAusencia.HasValue && m.FechaInicioAusencia.Value > DateTime.MinValue)
+                            ? m.FechaInicioAusencia.Value
+                            : (m.Fecha > DateTime.MinValue ? m.Fecha : fRef);
+                        DateTime fFin = (m.FechaFinAusencia.HasValue && m.FechaFinAusencia.Value > DateTime.MinValue)
+                            ? m.FechaFinAusencia.Value
+                            : fIni;
+
+                        return new EmpleadoJornadaItem
+                        {
+                            Id = m.Id,
+                            IdEmpleado = m.IdEmpleado,
+                            CodigoEmpleado = m.CodigoEmpleado,
+                            NombreEmpleado = m.NombreEmpleado,
+                            Area = m.Area,
+                            Puesto = m.Puesto,
+                            TurnoNombre = turno,
+                            HoraEntrada = entrada,
+                            HoraSalida = salida,
+                            TiempoComida = comida,
+                            Cliente = !string.IsNullOrWhiteSpace(m.Cliente)
+                                ? m.Cliente
+                                : (operacionesList.FirstOrDefault(o => o.id == m.OperacionId)?.nombre ?? "General"),
+                            Bnc = m.Bnc ?? string.Empty,
+                            VtcoTrasp = m.VtcoTrasp,
+                            VtcoAlim = m.VtcoAlim,
+                            Observaciones = m.Observaciones ?? string.Empty,
+                            TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
+                            Asistio = m.Asistio,
+                            Estado = m.Estado,
+                            TicketRedmineId = m.TicketRedmineId,
+                            TicketViaticoId = m.TicketViaticoId,
+                            TicketAusenciaId = m.TicketAusenciaId,
+                            TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
+                            FechaInicioAusencia = fIni,
+                            FechaFinAusencia = fFin,
+                            DiasAusencia = m.DiasAusencia.HasValue && m.DiasAusencia.Value > 0 ? m.DiasAusencia.Value : 1.0m,
+                            VacacionesTipo = !string.IsNullOrWhiteSpace(m.VacacionesTipo) ? m.VacacionesTipo : "Descansadas",
+                            ObservacionesAusencia = m.Observaciones ?? string.Empty,
+                            Seleccionado = false,
+                            Modificado = false
+                        };
                     }).ToList();
 
                     _snackbar.Add($"Jornada del {fechaSeleccionada:dd/MM/yyyy} cargada ({empleadosJornada.Count} registros de {currentUserName}).", Severity.Info);
@@ -853,6 +886,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TipoEmpleado = !string.IsNullOrWhiteSpace(item.TipoEmpleado) ? item.TipoEmpleado : "Permanente",
                         Asistio = true,
                         Estado = "BORRADOR",
+                        FechaInicioAusencia = fechaSeleccionada ?? DateTime.Today,
+                        FechaFinAusencia = fechaSeleccionada ?? DateTime.Today,
+                        DiasAusencia = 1.0m,
                         Modificado = true
                     });
                     agregados++;
@@ -1097,6 +1133,27 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     int opId = operacionesList.FirstOrDefault(x => x.nombre.Equals(e.Cliente, StringComparison.OrdinalIgnoreCase))?.id 
                                ?? (selectedOperacionId ?? 0);
 
+                    var entrada = e.HoraEntrada;
+                    var salida = e.HoraSalida;
+                    var comida = string.IsNullOrWhiteSpace(e.TiempoComida) ? "1.00" : e.TiempoComida;
+                    var turno = e.TurnoNombre;
+
+                    if (!e.Asistio)
+                    {
+                        entrada = "--:--";
+                        salida = "--:--";
+                        comida = "0";
+                        turno = "Ausente";
+                    }
+
+                    DateTime fRef = fechaSeleccionada.Value;
+                    DateTime fIni = (e.FechaInicioAusencia.HasValue && e.FechaInicioAusencia.Value > DateTime.MinValue)
+                        ? e.FechaInicioAusencia.Value
+                        : fRef;
+                    DateTime fFin = (e.FechaFinAusencia.HasValue && e.FechaFinAusencia.Value > DateTime.MinValue)
+                        ? e.FechaFinAusencia.Value
+                        : fIni;
+
                     return new MovimientoPersonalDiarioDto
                     {
                         Id = e.Id,
@@ -1108,22 +1165,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         NombreEmpleado = e.NombreEmpleado,
                         Puesto = e.Puesto,
                         Area = e.Area,
-                        HoraEntrada = e.HoraEntrada,
-                        HoraSalida = e.HoraSalida,
-                        TurnoNombre = e.TurnoNombre,
-                        TiempoComida = string.IsNullOrWhiteSpace(e.TiempoComida) ? "1.00" : e.TiempoComida,
+                        HoraEntrada = entrada,
+                        HoraSalida = salida,
+                        TurnoNombre = turno,
+                        TiempoComida = comida,
                         Bnc = e.Bnc,
                         VtcoTrasp = e.VtcoTrasp,
                         VtcoAlim = e.VtcoAlim,
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
-                          TicketAusenciaId = e.TicketAusenciaId,
-                          TipoAusencia = e.TipoAusencia,
-                          FechaInicioAusencia = e.FechaInicioAusencia,
-                          FechaFinAusencia = e.FechaFinAusencia,
-                          DiasAusencia = e.DiasAusencia,
-                          VacacionesTipo = e.VacacionesTipo
+                        TicketAusenciaId = e.TicketAusenciaId,
+                        TipoAusencia = !string.IsNullOrWhiteSpace(e.TipoAusencia) ? e.TipoAusencia : "Ausencias justificadas",
+                        FechaInicioAusencia = fIni,
+                        FechaFinAusencia = fFin,
+                        DiasAusencia = e.DiasAusencia > 0 ? e.DiasAusencia : 1.0m,
+                        VacacionesTipo = !string.IsNullOrWhiteSpace(e.VacacionesTipo) ? e.VacacionesTipo : "Descansadas"
                     };
                 }).ToList();
 
@@ -1503,6 +1560,39 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
+        protected void ToggleAsistencia(EmpleadoJornadaItem emp)
+        {
+            AplicarEstadoAsistencia(emp, !emp.Asistio);
+        }
+
+        protected void AplicarEstadoAsistencia(EmpleadoJornadaItem emp, bool asistio)
+        {
+            emp.Asistio = asistio;
+            emp.Modificado = true;
+
+            if (!asistio)
+            {
+                emp.HoraEntrada = "--:--";
+                emp.HoraSalida = "--:--";
+                emp.TiempoComida = "0";
+                emp.TurnoNombre = "Ausente";
+                DateTime fRef = fechaSeleccionada ?? DateTime.Today;
+                emp.FechaInicioAusencia = fRef;
+                emp.FechaFinAusencia = fRef;
+                emp.DiasAusencia = 1.0m;
+            }
+            else
+            {
+                var plant = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == emp.CodigoEmpleado);
+                emp.HoraEntrada = !string.IsNullOrWhiteSpace(plant?.HoraEntradaDefault) ? plant.HoraEntradaDefault : "06:00";
+                emp.HoraSalida = !string.IsNullOrWhiteSpace(plant?.HoraSalidaDefault) ? plant.HoraSalidaDefault : "14:00";
+                emp.TiempoComida = !string.IsNullOrWhiteSpace(plant?.TiempoComidaDefault) ? plant.TiempoComidaDefault : "1.00";
+                emp.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(emp.HoraEntrada, emp.HoraSalida);
+            }
+
+            ActualizarGruposConsolidados();
+        }
+
         protected void MarcarAsistenciaSeleccionados(bool asistio)
         {
             var sel = empleadosJornada.Where(x => x.Seleccionado).ToList();
@@ -1510,8 +1600,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             foreach (var e in sel)
             {
-                e.Asistio = asistio;
-                e.Modificado = true;
+                AplicarEstadoAsistencia(e, asistio);
                 e.Seleccionado = false;
             }
 
@@ -1616,6 +1705,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void OnHorarioEntradaCambiado(EmpleadoJornadaItem item, string? nuevaEntrada)
         {
+            if (!item.Asistio) return;
             if (string.IsNullOrWhiteSpace(nuevaEntrada)) nuevaEntrada = "06:00";
             item.HoraEntrada = NormalizarFormatoHora(nuevaEntrada);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
@@ -1625,6 +1715,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void OnHorarioSalidaCambiado(EmpleadoJornadaItem item, string? nuevaSalida)
         {
+            if (!item.Asistio) return;
             if (string.IsNullOrWhiteSpace(nuevaSalida)) nuevaSalida = "14:00";
             item.HoraSalida = NormalizarFormatoHora(nuevaSalida);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
@@ -1654,6 +1745,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void OnTiempoComidaCambiado(EmpleadoJornadaItem item, string? nuevoTiempo)
         {
+            if (!item.Asistio) return;
             item.TiempoComida = NormalizarDecimalComida(nuevoTiempo);
             item.Modificado = true;
             ActualizarGruposConsolidados();
@@ -2367,10 +2459,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void OnFechaInicioAusenciaChanged(EmpleadoJornadaItem emp, DateTime? fecha)
         {
-            emp.FechaInicioAusencia = fecha;
-            if (!emp.FechaFinAusencia.HasValue || (fecha.HasValue && emp.FechaFinAusencia.Value < fecha.Value))
+            DateTime fVal = fecha ?? fechaSeleccionada ?? DateTime.Today;
+            emp.FechaInicioAusencia = fVal;
+            if (!emp.FechaFinAusencia.HasValue || emp.FechaFinAusencia.Value < fVal)
             {
-                emp.FechaFinAusencia = fecha;
+                emp.FechaFinAusencia = fVal;
             }
             CalcularDiasAusencia(emp);
             emp.Modificado = true;
@@ -2378,10 +2471,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void OnFechaFinAusenciaChanged(EmpleadoJornadaItem emp, DateTime? fecha)
         {
-            emp.FechaFinAusencia = fecha;
-            if (emp.FechaInicioAusencia.HasValue && fecha.HasValue && fecha.Value < emp.FechaInicioAusencia.Value)
+            DateTime fVal = fecha ?? emp.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today;
+            emp.FechaFinAusencia = fVal;
+            if (emp.FechaInicioAusencia.HasValue && fVal < emp.FechaInicioAusencia.Value)
             {
-                emp.FechaInicioAusencia = fecha;
+                emp.FechaInicioAusencia = fVal;
             }
             CalcularDiasAusencia(emp);
             emp.Modificado = true;
@@ -2402,10 +2496,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void MarcarComoPresente(EmpleadoJornadaItem emp)
         {
-            emp.Asistio = true;
-            emp.Modificado = true;
+            AplicarEstadoAsistencia(emp, true);
             _snackbar.Add($"Colaborador {emp.NombreEmpleado} marcado como PRESENTE.", Severity.Info);
-            ActualizarGruposConsolidados();
         }
 
         // --- ENVIAR AUSENCIAS A HELPDESK (REDMINE TRACKER 8) ---

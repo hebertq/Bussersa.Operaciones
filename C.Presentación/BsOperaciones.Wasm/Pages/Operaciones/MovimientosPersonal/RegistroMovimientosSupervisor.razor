@@ -382,7 +382,7 @@
                                                          Size="Size.Small" 
                                                          Class="cursor-pointer fw-bold" 
                                                          Style="height: 22px; font-size: 0.72rem;"
-                                                         OnClick="@(() => { emp.Asistio = !emp.Asistio; emp.Modificado = true; ActualizarGruposConsolidados(); })">
+                                                         OnClick="@(() => ToggleAsistencia(emp))">
                                                     @(emp.Asistio ? "PRESENTE" : "AUSENTE")
                                                 </MudChip>
                                                 <MudChip T="string" 
@@ -448,25 +448,30 @@
                                         <div class="d-flex align-center justify-space-between pt-1 border-top" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1 font-monospace">
                                                 <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Style="font-size: 0.85rem;" Color="Color.Default" />
-                                                <input type="text" value="@emp.HoraEntrada" 
+                                                <input type="text" 
+                                                       value="@(emp.Asistio ? emp.HoraEntrada : "--:--")" 
+                                                       disabled="@(!emp.Asistio)"
                                                        @onchange="@((ChangeEventArgs e) => OnHorarioEntradaCambiado(emp, e.Value?.ToString()))" 
-                                                       style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center;" 
-                                                       title="Hora Entrada" />
+                                                       style="@($"width: 44px; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
+                                                       title="@(emp.Asistio ? "Hora Entrada" : "Ausente")" />
                                                 <span>-</span>
-                                                <input type="text" value="@emp.HoraSalida" 
+                                                <input type="text" 
+                                                       value="@(emp.Asistio ? emp.HoraSalida : "--:--")" 
+                                                       disabled="@(!emp.Asistio)"
                                                        @onchange="@((ChangeEventArgs e) => OnHorarioSalidaCambiado(emp, e.Value?.ToString()))" 
-                                                       style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center;" 
-                                                       title="Hora Salida" />
+                                                       style="@($"width: 44px; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
+                                                       title="@(emp.Asistio ? "Hora Salida" : "Ausente")" />
                                             </div>
 
                                             <input type="number" 
                                                    step="any" 
                                                    min="0" 
                                                    max="24" 
-                                                   value="@emp.TiempoComida" 
+                                                   disabled="@(!emp.Asistio)"
+                                                   value="@(emp.Asistio ? emp.TiempoComida : "0")" 
                                                    @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(emp, e.Value?.ToString()))" 
-                                                   style="width: 52px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; text-align: center; background: white;" 
-                                                   title="Tiempo de comida en horas" />
+                                                   style="@($"width: 52px; font-size: 0.72rem; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
+                                                   title="@(emp.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
                                         </div>
                                     </MudCardContent>
                                 </MudCard>
@@ -574,21 +579,25 @@
                                              Variant="@(context.Asistio ? Variant.Filled : Variant.Outlined)" 
                                              Size="Size.Small" 
                                              Class="cursor-pointer" 
-                                             OnClick="@(() => { context.Asistio = !context.Asistio; context.Modificado = true; ActualizarGruposConsolidados(); })">
+                                             OnClick="@(() => ToggleAsistencia(context))">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
                                 </MudTd>
                                 <MudTd>
                                     <div class="d-flex align-center gap-1 font-monospace" style="font-size: 0.8rem;">
-                                        <input type="text" value="@context.HoraEntrada" 
+                                        <input type="text" 
+                                               value="@(context.Asistio ? context.HoraEntrada : "--:--")" 
+                                               disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioEntradaCambiado(context, e.Value?.ToString()))" 
-                                               style="width: 48px; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; text-align: center;" 
-                                               title="Hora Entrada (ej. 06:00)" />
+                                               style="@($"width: 48px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               title="@(context.Asistio ? "Hora Entrada (ej. 06:00)" : "Ausente")" />
                                         <span>-</span>
-                                        <input type="text" value="@context.HoraSalida" 
+                                        <input type="text" 
+                                               value="@(context.Asistio ? context.HoraSalida : "--:--")" 
+                                               disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioSalidaCambiado(context, e.Value?.ToString()))" 
-                                               style="width: 48px; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; text-align: center;" 
-                                               title="Hora Salida (ej. 14:00)" />
+                                               style="@($"width: 48px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               title="@(context.Asistio ? "Hora Salida (ej. 14:00)" : "Ausente")" />
                                     </div>
                                 </MudTd>
                                 <MudTd>
@@ -596,10 +605,11 @@
                                            step="any" 
                                            min="0" 
                                            max="24" 
-                                           value="@context.TiempoComida" 
+                                           disabled="@(!context.Asistio)"
+                                           value="@(context.Asistio ? context.TiempoComida : "0")" 
                                            @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
-                                           style="width: 52px; border: 1px solid #ced4da; border-radius: 4px; padding: 2px; font-size: 0.8rem; text-align: center; background: white;" 
-                                           title="Tiempo de comida en horas" />
+                                           style="@($"width: 52px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 2px; font-size: 0.8rem; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                           title="@(context.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
                                 </MudTd>
                                 <MudTd>
                                     @{
@@ -665,7 +675,7 @@
                                              Variant="@(context.Asistio ? Variant.Filled : Variant.Outlined)" 
                                              Size="Size.Small" 
                                              Class="cursor-pointer" 
-                                             OnClick="@(() => { context.Asistio = !context.Asistio; context.Modificado = true; ActualizarGruposConsolidados(); })">
+                                             OnClick="@(() => ToggleAsistencia(context))">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
                                 </MudTd>
@@ -774,7 +784,7 @@
                                              Variant="@(context.Asistio ? Variant.Filled : Variant.Outlined)" 
                                              Size="Size.Small" 
                                              Class="cursor-pointer" 
-                                             OnClick="@(() => { context.Asistio = !context.Asistio; context.Modificado = true; ActualizarGruposConsolidados(); })">
+                                             OnClick="@(() => ToggleAsistencia(context))">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
                                 </MudTd>
@@ -850,16 +860,18 @@
                                 <MudTd>
                                     <div class="d-flex align-center justify-center gap-1 font-monospace" style="font-size: 0.75rem;">
                                         <input type="text" 
-                                               value="@context.HoraEntrada" 
+                                               value="@(context.Asistio ? context.HoraEntrada : "--:--")" 
+                                               disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioEntradaCambiado(context, e.Value?.ToString()))" 
-                                               style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
-                                               title="Hora Entrada (ej. 06:00)" />
+                                               style="@($"width: 44px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               title="@(context.Asistio ? "Hora Entrada (ej. 06:00)" : "Ausente")" />
                                         <span>-</span>
                                         <input type="text" 
-                                               value="@context.HoraSalida" 
+                                               value="@(context.Asistio ? context.HoraSalida : "--:--")" 
+                                               disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioSalidaCambiado(context, e.Value?.ToString()))" 
-                                               style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center;" 
-                                               title="Hora Salida (ej. 14:00)" />
+                                               style="@($"width: 44px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               title="@(context.Asistio ? "Hora Salida (ej. 14:00)" : "Ausente")" />
                                     </div>
                                 </MudTd>
                                 <MudTd>
@@ -867,10 +879,11 @@
                                            step="any" 
                                            min="0" 
                                            max="24" 
-                                           value="@context.TiempoComida" 
+                                           disabled="@(!context.Asistio)"
+                                           value="@(context.Asistio ? context.TiempoComida : "0")" 
                                            @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(context, e.Value?.ToString()))" 
-                                           style="width: 50px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: white;" 
-                                           title="Tiempo de comida en horas" />
+                                           style="@($"width: 50px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; font-size: 0.75rem; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                           title="@(context.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
                                 </MudTd>
                                 <MudTd>
                                     @{
@@ -1173,7 +1186,7 @@
                                         <div class="d-flex align-center gap-2 mb-2">
                                             <div class="flex-grow-1">
                                                 <MudDatePicker Label="Inicio" 
-                                                               Date="@emp.FechaInicioAusencia" 
+                                                               Date="@(emp.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                                DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(emp, d))" 
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
@@ -1182,7 +1195,7 @@
                                             </div>
                                             <div class="flex-grow-1">
                                                 <MudDatePicker Label="Fin" 
-                                                               Date="@emp.FechaFinAusencia" 
+                                                               Date="@(emp.FechaFinAusencia ?? emp.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                                DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(emp, d))" 
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
@@ -1339,7 +1352,7 @@
                                     <MudTd>
                                         <div class="d-flex align-center gap-1">
                                             <MudDatePicker Label="Inicio" 
-                                                           Date="@context.FechaInicioAusencia" 
+                                                           Date="@(context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                            DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
                                                            DateFormat="dd/MM/yyyy" 
                                                            Margin="Margin.Dense" 
@@ -1347,7 +1360,7 @@
                                                            Class="bg-white"
                                                            Style="width: 105px;" />
                                             <MudDatePicker Label="Fin" 
-                                                           Date="@context.FechaFinAusencia" 
+                                                           Date="@(context.FechaFinAusencia ?? context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                            DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
                                                            DateFormat="dd/MM/yyyy" 
                                                            Margin="Margin.Dense" 
