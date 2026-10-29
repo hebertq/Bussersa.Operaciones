@@ -100,17 +100,6 @@
                                OnClick="@GuardarEnBaseDatos">
                         @(estaGuardando ? "Guardando..." : "Guardar en BD")
                     </MudButton>
-
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Dark" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.RocketLaunch"
-                               Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any())"
-                               OnClick="@EnviarAHelpdeskMasivo"
-                               Style="font-weight: 700; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white;"
-                               Title="Generar y sincronizar tickets de Movimientos y Viáticos en Helpdesk (Redmine)">
-                        @(estaEnviandoHelpdesk ? "Sincronizando..." : "Generar Tickets")
-                    </MudButton>
                 </MudStack>
             </MudItem>
         </MudGrid>
