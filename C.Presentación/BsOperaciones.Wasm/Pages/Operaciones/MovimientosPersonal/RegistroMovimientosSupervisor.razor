@@ -1,4 +1,4 @@
-@page "/operaciones/registro-movimientos-supervisor"
+﻿@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -43,25 +43,6 @@
             @* Botones Principales de Acción Táctica *@
             <MudItem xs="12" sm="7" md="8">
                 <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.Groups"
-                               Disabled="@estaCargando"
-                               OnClick="@(() => PrecargarDesdeMiPlantilla())"
-                               Title="Cargar mi equipo habitual con sus clientes asignados">
-                        Mi Personal
-                    </MudButton>
-
-                    <MudButton Variant="Variant.Outlined" 
-                               Color="Color.Secondary" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.ContentCopy"
-                               Disabled="@estaCargando"
-                               OnClick="@CopiarDeAyer"
-                               Title="Copiar jornada del día anterior">
-                        Copiar Ayer
-                    </MudButton>
 
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Success" 
