@@ -78,29 +78,14 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Puesto y Turno *@
-                <MudItem xs="12" md="6">
+                @* Puesto *@
+                <MudItem xs="12">
                     <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                         @foreach (var c in CargosDisponibles)
                         {
                             <MudSelectItem Value="@c">@c</MudSelectItem>
                         }
                     </MudSelect>
-                </MudItem>
-                <MudItem xs="12" md="6">
-                    <MudSelect T="string" Label="Turno" Value="@TurnoNombre" ValueChanged="@OnTurnoChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="@("Diurno")">Diurno (06:00 - 14:00)</MudSelectItem>
-                        <MudSelectItem Value="@("DCC")">DCC (06:00 - 15:30)</MudSelectItem>
-                        <MudSelectItem Value="@("Mixto")">Mixto (14:00 - 22:00)</MudSelectItem>
-                        <MudSelectItem Value="@("Nocturno")">Nocturno (22:00 - 06:00)</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="HoraEntrada" Label="Hora Entrada" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="HoraSalida" Label="Hora Salida" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
 
                 @* Viáticos y BNC *@
@@ -264,14 +249,7 @@
         }
     }
 
-    private void OnTurnoChanged(string turno)
-    {
-        TurnoNombre = turno;
-        if (turno == "Diurno") { HoraEntrada = "06:00"; HoraSalida = "14:00"; }
-        else if (turno == "DCC") { HoraEntrada = "06:00"; HoraSalida = "15:30"; }
-        else if (turno == "Mixto") { HoraEntrada = "14:00"; HoraSalida = "22:00"; }
-        else if (turno == "Nocturno") { HoraEntrada = "22:00"; HoraSalida = "06:00"; }
-    }
+
 
     private Task<IEnumerable<string>> BuscarAreas(string valor, CancellationToken token)
     {

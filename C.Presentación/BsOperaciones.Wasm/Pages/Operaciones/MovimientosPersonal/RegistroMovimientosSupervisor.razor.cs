@@ -104,7 +104,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaGuardando = false;
         protected bool estaEnviandoHelpdesk = false;
         protected int activeTabIndex = 0;
-        protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Operativo;
+        protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Completo;
 
         protected string currentUserName = string.Empty;
         protected List<Combos> operacionesList = new();

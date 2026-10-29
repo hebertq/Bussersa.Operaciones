@@ -10,7 +10,7 @@
             <div>
                 <MudText Typo="Typo.h6" Class="fw-bold">Asignación Masiva Rápida</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Aplicar área, turno y viáticos a <b>@CantidadSeleccionada colaboradores</b> seleccionados
+                    Aplicar cliente, área, puesto y viáticos a <b>@CantidadSeleccionada colaboradores</b> seleccionados
                 </MudText>
             </div>
         </MudStack>
@@ -18,51 +18,9 @@
     <DialogContent>
         <MudContainer Class="pa-0">
             <MudGrid Spacing="2">
-                @* Selección de Turno Rápido *@
-                <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">1. Turno y Horario</MudText>
-                    <MudStack Row="true" Spacing="1" Class="flex-wrap mb-2">
-                        <MudButton Variant="@(TurnoSeleccionado == "Diurno" ? Variant.Filled : Variant.Outlined)"
-                                   Color="@(TurnoSeleccionado == "Diurno" ? Color.Primary : Color.Default)"
-                                   Size="Size.Medium"
-                                   StartIcon="@Icons.Material.Filled.WbSunny"
-                                   OnClick="@(() => SetTurno("Diurno", "06:00", "14:00"))">
-                            Diurno (06-14)
-                        </MudButton>
-                        <MudButton Variant="@(TurnoSeleccionado == "DCC" ? Variant.Filled : Variant.Outlined)"
-                                   Color="@(TurnoSeleccionado == "DCC" ? Color.Primary : Color.Default)"
-                                   Size="Size.Medium"
-                                   StartIcon="@Icons.Material.Filled.Work"
-                                   OnClick="@(() => SetTurno("DCC", "06:00", "15:30"))">
-                            DCC (06-15:30)
-                        </MudButton>
-                        <MudButton Variant="@(TurnoSeleccionado == "Mixto" ? Variant.Filled : Variant.Outlined)"
-                                   Color="@(TurnoSeleccionado == "Mixto" ? Color.Primary : Color.Default)"
-                                   Size="Size.Medium"
-                                   StartIcon="@Icons.Material.Filled.Brightness6"
-                                   OnClick="@(() => SetTurno("Mixto", "14:00", "22:00"))">
-                            Mixto (14-22)
-                        </MudButton>
-                        <MudButton Variant="@(TurnoSeleccionado == "Nocturno" ? Variant.Filled : Variant.Outlined)"
-                                   Color="@(TurnoSeleccionado == "Nocturno" ? Color.Primary : Color.Default)"
-                                   Size="Size.Medium"
-                                   StartIcon="@Icons.Material.Filled.NightsStay"
-                                   OnClick="@(() => SetTurno("Nocturno", "22:00", "06:00"))">
-                            Nocturno (22-06)
-                        </MudButton>
-                    </MudStack>
-                </MudItem>
-
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="HoraEntrada" Label="Hora Entrada" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="6">
-                    <MudTextField @bind-Value="HoraSalida" Label="Hora Salida" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-
                 @* Cliente, Área y Cargo *@
                 <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">2. Cliente, Área Operativa y Puesto</MudText>
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">1. Cliente, Área Operativa y Puesto</MudText>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudSelect T="string" Label="Cliente / Operación" Value="@Cliente" ValueChanged="@OnClienteChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
@@ -106,7 +64,7 @@
 
                 @* Viáticos *@
                 <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">3. Viáticos por Persona</MudText>
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 mt-2">2. Viáticos por Persona</MudText>
                 </MudItem>
                 <MudItem xs="12" md="4">
                     <MudText Typo="Typo.caption" Color="Color.Secondary">Transporte (C$):</MudText>
