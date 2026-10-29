@@ -120,6 +120,7 @@ namespace Modelo.ClasesGenericas
         public decimal VtcoTraspDefault { get; set; }
         public decimal VtcoAlimDefault { get; set; }
         public decimal BonoBncDefault { get; set; }
+        public string TipoEmpleado { get; set; } = "Permanente"; // "Permanente" o "Prestamo"
         public bool Activo { get; set; } = true;
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }
@@ -129,6 +130,45 @@ namespace Modelo.ClasesGenericas
     {
         public string Usuario { get; set; } = string.Empty;
         public List<SupervisorPlantillaItemDto> Items { get; set; } = new();
+    }
+
+    public class PersonalClienteItemDto
+    {
+        public int Id { get; set; }
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioSupervisor { get; set; } = string.Empty;
+        public int IdEmpleado { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public string AreaDefault { get; set; } = "Operaciones";
+        public string PuestoDefault { get; set; } = "6-Operador de almacen";
+        public string TurnoDefault { get; set; } = "Diurno";
+        public string HoraEntradaDefault { get; set; } = "06:00";
+        public string HoraSalidaDefault { get; set; } = "14:00";
+        public string TiempoComidaDefault { get; set; } = "1.00";
+        public decimal VtcoTraspDefault { get; set; }
+        public decimal VtcoAlimDefault { get; set; }
+        public decimal BonoBncDefault { get; set; }
+        public string TipoEmpleado { get; set; } = "Permanente";
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
+        public string? UsuarioCreacion { get; set; }
+    }
+
+    public class GuardarPersonalClienteRequest
+    {
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioSupervisor { get; set; } = string.Empty;
+        public List<PersonalClienteItemDto> Items { get; set; } = new();
+    }
+
+    public class PrecargarPersonalClienteRequest
+    {
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioSupervisor { get; set; } = string.Empty;
     }
 
     public class ClienteAreaDto

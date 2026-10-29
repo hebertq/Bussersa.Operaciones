@@ -1,0 +1,261 @@
+@using MudBlazor
+@using System.Globalization
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+@using HostService.Interfaces
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Precargar Plantilla de Personal del Cliente</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Consulta los colaboradores activos en Odoo asignados a esta operación y asígnalos en bloque a un supervisor.
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudItem xs="12" sm="5">
+                    <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="SelectedOperacionId" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione el cliente --</MudSelectItem>
+                        @foreach (var op in OperacionesDisponibles)
+                        {
+                            <MudSelectItem T="int?" Value="@op.id">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" Label="Supervisor Responsable" @bind-Value="SelectedSupervisor" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("")">-- Seleccione el supervisor --</MudSelectItem>
+                        @foreach (var u in SupervisoresDisponibles)
+                        {
+                            <MudSelectItem Value="@u.username">@u.nombres @u.apellidos (@u.username)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Medium" FullWidth="true" 
+                               StartIcon="@Icons.Material.Filled.Search" OnClick="@ConsultarColaboradores" Disabled="@consultando">
+                        @(consultando ? "Buscando..." : "Consultar Odoo")
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+
+            @if (consultando)
+            {
+                <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-3" />
+            }
+
+            @if (colaboradoresConsultados.Any())
+            {
+                <div class="d-flex justify-space-between align-center my-2">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary">
+                        Colaboradores encontrados (@colaboradoresConsultados.Count):
+                    </MudText>
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => MarcarTodos(true))">Seleccionar Todos</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="@(() => MarcarTodos(false))">Deseleccionar</MudButton>
+                    </MudStack>
+                </div>
+
+                <div style="max-height: 380px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <MudTable Items="@colaboradoresConsultados" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="width: 50px;">Sel.</MudTh>
+                            <MudTh Style="width: 90px;">Carnet</MudTh>
+                            <MudTh>Nombre Colaborador</MudTh>
+                            <MudTh>Puesto</MudTh>
+                            <MudTh>Área</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudCheckBox T="bool" @bind-Value="@context.Seleccionado" Dense="true" Color="Color.Primary" />
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.Item.CodigoEmpleado</MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@context.Item.NombreEmpleado</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption">@context.Item.PuestoDefault</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption">@context.Item.AreaDefault</MudText>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+            else if (yaConsulto && !consultando)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">
+                    No se encontraron colaboradores activos asociados directamente a la operación seleccionada en Odoo. Puede registrar colaboradores individuales usando "+ Nuevo Colaborador".
+                </MudAlert>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar" Variant="Variant.Outlined" Color="Color.Default">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="GuardarPrecarga" Variant="Variant.Filled" Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="@(!colaboradoresConsultados.Any(c => c.Seleccionado) || guardando)">
+            @(guardando ? "Guardando..." : $"Guardar {colaboradoresConsultados.Count(c => c.Seleccionado)} Colaboradores")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] private IOdooService _odooService { get; set; } = null!;
+    [Inject] private ISnackbar _snackbar { get; set; } = null!;
+
+    [Parameter] public List<Combos> OperacionesDisponibles { get; set; } = new();
+    [Parameter] public List<User> SupervisoresDisponibles { get; set; } = new();
+    [Parameter] public int? OperacionInicialId { get; set; }
+    [Parameter] public string SupervisorInicial { get; set; } = string.Empty;
+
+    private int? SelectedOperacionId;
+    private string SelectedSupervisor = string.Empty;
+
+    private bool consultando = false;
+    private bool guardando = false;
+    private bool yaConsulto = false;
+
+    private class ColaboradorPreviewItem
+    {
+        public bool Seleccionado { get; set; } = true;
+        public PersonalClienteItemDto Item { get; set; } = new();
+    }
+
+    private List<ColaboradorPreviewItem> colaboradoresConsultados = new();
+
+    protected override void OnInitialized()
+    {
+        SelectedOperacionId = OperacionInicialId;
+        SelectedSupervisor = SupervisorInicial;
+    }
+
+    private void MarcarTodos(bool estado)
+    {
+        foreach (var c in colaboradoresConsultados)
+        {
+            c.Seleccionado = estado;
+        }
+    }
+
+    private async Task ConsultarColaboradores()
+    {
+        if (!SelectedOperacionId.HasValue || SelectedOperacionId.Value <= 0)
+        {
+            _snackbar.Add("Seleccione el cliente / operación a consultar.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SelectedSupervisor))
+        {
+            _snackbar.Add("Seleccione el supervisor responsable para estos colaboradores.", Severity.Warning);
+            return;
+        }
+
+        var op = OperacionesDisponibles.FirstOrDefault(o => o.id == SelectedOperacionId.Value);
+        string cName = op?.nombre ?? $"Cliente #{SelectedOperacionId.Value}";
+
+        consultando = true;
+        yaConsulto = true;
+        colaboradoresConsultados.Clear();
+
+        try
+        {
+            var req = new PrecargarPersonalClienteRequest
+            {
+                OperacionId = SelectedOperacionId.Value,
+                ClienteNombre = cName,
+                UsuarioSupervisor = SelectedSupervisor.Trim()
+            };
+
+            var resp = await _odooService.PrecargarPersonalClienteDesdeOperacion(req);
+            if (resp?.Model != null && resp.Model.Any())
+            {
+                colaboradoresConsultados = resp.Model.Select(m => new ColaboradorPreviewItem
+                {
+                    Seleccionado = true,
+                    Item = m
+                }).ToList();
+
+                _snackbar.Add($"Se obtuvieron {colaboradoresConsultados.Count} colaboradores de Odoo.", Severity.Success);
+            }
+            else
+            {
+                _snackbar.Add("No se encontraron colaboradores para esta operación en Odoo.", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al consultar Odoo: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            consultando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private async Task GuardarPrecarga()
+    {
+        var seleccionados = colaboradoresConsultados
+            .Where(c => c.Seleccionado)
+            .Select(c => c.Item)
+            .ToList();
+
+        if (!seleccionados.Any())
+        {
+            _snackbar.Add("No hay colaboradores seleccionados para guardar.", Severity.Warning);
+            return;
+        }
+
+        var op = OperacionesDisponibles.FirstOrDefault(o => o.id == SelectedOperacionId.Value);
+        string cName = op?.nombre ?? $"Cliente #{SelectedOperacionId.Value}";
+
+        guardando = true;
+        try
+        {
+            var req = new GuardarPersonalClienteRequest
+            {
+                ClienteNombre = cName,
+                UsuarioSupervisor = SelectedSupervisor.Trim(),
+                Items = seleccionados
+            };
+
+            var resp = await _odooService.SavePersonalClienteMasivo(req);
+            if (resp?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Plantilla precargada exitosamente: {seleccionados.Count} colaboradores guardados.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                _snackbar.Add(resp?.Respuesta?.MensajeError ?? "Error al guardar la plantilla precargada.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+}

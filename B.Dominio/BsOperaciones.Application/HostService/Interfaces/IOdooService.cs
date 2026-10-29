@@ -198,6 +198,13 @@ namespace HostService.Interfaces
         Task<IResponse> SaveSupervisorPlantillaItem(Modelo.ClasesGenericas.SupervisorPlantillaItemDto item);
         Task<IResponse> SaveSupervisorPlantillaMasivo(Modelo.ClasesGenericas.GuardarSupervisorPlantillaRequest request);
         Task<IResponse> DeleteSupervisorPlantillaItem(int id, string usuario = "");
+
+        // --- PERSONAL POR CLIENTE (ADMINISTRACION DE SUPERVISION) ---
+        Task<IListResponse<Modelo.ClasesGenericas.PersonalClienteItemDto>> GetPersonalCliente(string cliente = "", string usuario = "");
+        Task<IResponse> SavePersonalClienteItem(Modelo.ClasesGenericas.PersonalClienteItemDto item);
+        Task<IResponse> SavePersonalClienteMasivo(Modelo.ClasesGenericas.GuardarPersonalClienteRequest request);
+        Task<IResponse> DeletePersonalClienteItem(int id);
+        Task<IListResponse<Modelo.ClasesGenericas.PersonalClienteItemDto>> PrecargarPersonalClienteDesdeOperacion(Modelo.ClasesGenericas.PrecargarPersonalClienteRequest request);
     }
 }
 

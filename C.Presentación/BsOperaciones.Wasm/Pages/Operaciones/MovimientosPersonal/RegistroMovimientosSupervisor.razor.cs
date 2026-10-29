@@ -656,6 +656,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.VtcoTraspDefault = modificado.VtcoTraspDefault;
                 item.VtcoAlimDefault = modificado.VtcoAlimDefault;
                 item.BonoBncDefault = modificado.BonoBncDefault;
+                item.TipoEmpleado = modificado.TipoEmpleado;
 
                 await GuardarItemPlantilla(item);
                 StateHasChanged();

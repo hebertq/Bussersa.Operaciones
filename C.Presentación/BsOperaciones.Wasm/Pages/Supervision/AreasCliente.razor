@@ -1,0 +1,314 @@
+@page "/admon/supervision/areas-cliente"
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@attribute [Authorize]
+@inject IOdooService _odooService
+@inject ISnackbar _snackbar
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+
+<PageTitle>Áreas del Cliente - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-6">
+    <div class="d-flex align-center justify-space-between mb-3">
+        <div>
+            <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
+            <MudText Typo="Typo.h5" Class="fw-bold text-primary">
+                <MudIcon Icon="@Icons.Material.Filled.Domain" Class="mr-2" />
+                Catálogo de Áreas por Cliente
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Administra las áreas operativas asociadas a cada cliente para la asignación de turnos, asistencias y personal.
+            </MudText>
+        </div>
+        <div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Badge" 
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/personal-cliente"))">
+                Ir a Personal por Cliente
+            </MudButton>
+        </div>
+    </div>
+
+    @* Formulario para registrar nueva área *@
+    <MudPaper Class="pa-4 mb-4 rounded-lg" Elevation="2" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+        <MudText Typo="Typo.subtitle1" Class="fw-bold mb-3 text-primary">
+            <MudIcon Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small" Class="mr-1" />
+            Registrar Nueva Área para Cliente
+        </MudText>
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+            <MudItem xs="12" sm="5" md="4">
+                <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="nuevoClienteAreaOpId" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione el cliente --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="int?" Value="@op.id">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="5" md="4">
+                <MudSelect T="string" Label="Área (Atributo de Inventario)" @bind-Value="nuevaAreaNombre" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="string" Value="@((string?)null)">-- Seleccione el área (@(listaAreasAtributoOdoo.Any() ? listaAreasAtributoOdoo.Count : catalogoClienteAreas.Count) disponibles) --</MudSelectItem>
+                    @if (listaAreasAtributoOdoo.Any())
+                    {
+                        @foreach (var area in listaAreasAtributoOdoo)
+                        {
+                            <MudSelectItem T="string" Value="@area.nombre">@area.nombre</MudSelectItem>
+                        }
+                    }
+                    else
+                    {
+                        @foreach (var areaName in catalogoClienteAreas.Select(c => c.AreaNombre).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().OrderBy(s => s))
+                        {
+                            <MudSelectItem T="string" Value="@areaName">@areaName</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="2" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" FullWidth="true" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarNuevaAreaCliente" Disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* Filtros y Tabla *@
+    <MudPaper Class="pa-4 rounded-lg" Elevation="2">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudItem xs="12" sm="5" md="4">
+                <MudSelect T="int?" Label="Filtrar por Cliente" @bind-Value="filtroClienteAreaId" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Todos los Clientes (@catalogoClienteAreas.Count áreas) --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        int count = catalogoClienteAreas.Count(a => a.OperacionId == op.id);
+                        <MudSelectItem T="int?" Value="@op.id">@op.nombre (@count)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="5" md="5">
+                <MudTextField @bind-Value="filtroTextoArea" Placeholder="Buscar por área o cliente..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="2" md="3" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="@CargarDatos" Disabled="@cargando">
+                    Actualizar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (cargando)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else
+        {
+            <MudTable Items="@CatalogoAreasFiltrado" Dense="true" Hover="true" Striped="true" Elevation="0" Class="rounded-lg" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width: 280px;">Cliente / Operación</MudTh>
+                    <MudTh>Área Operativa</MudTh>
+                    <MudTh Style="width: 160px;">Registrado por</MudTh>
+                    <MudTh Style="width: 140px;">Fecha</MudTh>
+                    <MudTh Style="width: 80px; text-align: center;">Acción</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
+                            @context.ClienteNombre
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                            @context.AreaNombre
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(string.IsNullOrWhiteSpace(context.Usuario) ? "Sistema" : context.Usuario)</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy HH:mm") : "-")</MudText>
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarArea(context))" Title="Eliminar área" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private string currentUserName = string.Empty;
+    private bool cargando = false;
+    private bool guardando = false;
+
+    private List<BreadcrumbItem> _breadcrumbItems = new()
+    {
+        new BreadcrumbItem("Inicio", href: "/"),
+        new BreadcrumbItem("Supervisión", href: null, disabled: true),
+        new BreadcrumbItem("Áreas del Cliente", href: null, disabled: true)
+    };
+
+    private List<Combos> operacionesList = new();
+    private List<ClienteAreaDto> catalogoClienteAreas = new();
+    private List<Combos> listaAreasAtributoOdoo = new();
+
+    private int? nuevoClienteAreaOpId;
+    private string? nuevaAreaNombre;
+    private int? filtroClienteAreaId;
+    private string? filtroTextoArea;
+
+    private IEnumerable<ClienteAreaDto> CatalogoAreasFiltrado
+    {
+        get
+        {
+            var list = catalogoClienteAreas.AsEnumerable();
+            if (filtroClienteAreaId.HasValue && filtroClienteAreaId.Value > 0)
+            {
+                list = list.Where(x => x.OperacionId == filtroClienteAreaId.Value);
+            }
+            if (!string.IsNullOrWhiteSpace(filtroTextoArea))
+            {
+                var term = filtroTextoArea.Trim().ToLowerInvariant();
+                list = list.Where(x => (x.AreaNombre != null && x.AreaNombre.ToLowerInvariant().Contains(term)) ||
+                                       (x.ClienteNombre != null && x.ClienteNombre.ToLowerInvariant().Contains(term)));
+            }
+            return list.OrderBy(x => x.ClienteNombre).ThenBy(x => x.AreaNombre);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var authState = await AuthStateTask;
+                currentUserName = authState.User?.Identity?.Name ?? "Admin";
+            }
+        }
+        catch { }
+
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            var respOp = await _odooService.GetAllCombosHost("Operaciones");
+            if (respOp?.Model != null)
+            {
+                operacionesList = respOp.Model.OrderBy(o => o.nombre).ToList();
+            }
+
+            try
+            {
+                var respAtrib = await _odooService.GetOdooAreasAtributo();
+                if (respAtrib?.Model != null && respAtrib.Model.Any())
+                {
+                    listaAreasAtributoOdoo = respAtrib.Model.OrderBy(a => a.nombre).ToList();
+                }
+            }
+            catch (Exception exAtrib)
+            {
+                Console.WriteLine($"Error cargando áreas atributo: {exAtrib.Message}");
+            }
+
+            var respAreas = await _odooService.GetAllClienteAreas();
+            if (respAreas?.Model != null)
+            {
+                catalogoClienteAreas = respAreas.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GuardarNuevaAreaCliente()
+    {
+        if (!nuevoClienteAreaOpId.HasValue || nuevoClienteAreaOpId.Value <= 0)
+        {
+            _snackbar.Add("Seleccione el cliente para la nueva área.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(nuevaAreaNombre))
+        {
+            _snackbar.Add("Ingrese o seleccione el nombre del área operativa.", Severity.Warning);
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            var op = operacionesList.FirstOrDefault(x => x.id == nuevoClienteAreaOpId.Value);
+            string cName = op?.nombre ?? $"Cliente #{nuevoClienteAreaOpId.Value}";
+
+            var req = new GuardarClienteAreaRequest
+            {
+                OperacionId = nuevoClienteAreaOpId.Value,
+                ClienteNombre = cName,
+                AreaNombre = nuevaAreaNombre.Trim(),
+                Usuario = currentUserName
+            };
+
+            var res = await _odooService.GuardarClienteArea(req);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Área '{nuevaAreaNombre}' guardada exitosamente para '{cName}'.", Severity.Success);
+                nuevaAreaNombre = null;
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar el área.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task EliminarArea(ClienteAreaDto item)
+    {
+        bool? confirm = await _dialogService.ShowMessageBox(
+            "Eliminar Área",
+            $"¿Está seguro de eliminar el área '{item.AreaNombre}' del cliente '{item.ClienteNombre}'?",
+            yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            var res = await _odooService.EliminarClienteArea(item.Id);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Área '{item.AreaNombre}' eliminada.", Severity.Info);
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar área.", Severity.Error);
+            }
+        }
+    }
+}

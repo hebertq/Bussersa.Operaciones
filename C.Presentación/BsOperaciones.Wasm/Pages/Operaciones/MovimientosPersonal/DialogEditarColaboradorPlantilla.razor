@@ -38,13 +38,19 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Puesto *@
-                <MudItem xs="12">
+                @* Puesto y Tipo de Empleado *@
+                <MudItem xs="12" md="7">
                     <MudSelect T="string" Label="Puesto Inicial" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                         @foreach (var c in CargosDisponibles)
                         {
                             <MudSelectItem Value="@c">@c</MudSelectItem>
                         }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="5">
+                    <MudSelect T="string" Label="Tipo de Empleado" @bind-Value="TipoEmpleado" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                        <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                     </MudSelect>
                 </MudItem>
 
@@ -164,6 +170,7 @@
     private string Cliente = string.Empty;
     private string Area = string.Empty;
     private string Puesto = string.Empty;
+    private string TipoEmpleado = "Permanente";
     private string Turno = "Diurno";
     private string HoraEntrada = "06:00";
     private string HoraSalida = "14:00";
@@ -181,6 +188,7 @@
             Cliente = ItemOriginal.ClienteDefault;
             Area = ItemOriginal.AreaDefault;
             Puesto = ItemOriginal.PuestoDefault;
+            TipoEmpleado = string.IsNullOrWhiteSpace(ItemOriginal.TipoEmpleado) ? "Permanente" : ItemOriginal.TipoEmpleado;
             Turno = string.IsNullOrWhiteSpace(ItemOriginal.TurnoDefault) ? "Diurno" : ItemOriginal.TurnoDefault;
             HoraEntrada = string.IsNullOrWhiteSpace(ItemOriginal.HoraEntradaDefault) ? "06:00" : ItemOriginal.HoraEntradaDefault;
             HoraSalida = string.IsNullOrWhiteSpace(ItemOriginal.HoraSalidaDefault) ? "14:00" : ItemOriginal.HoraSalidaDefault;
@@ -246,6 +254,7 @@
             VtcoTraspDefault = VtcoTrasp,
             VtcoAlimDefault = VtcoAlim,
             BonoBncDefault = BonoBnc,
+            TipoEmpleado = TipoEmpleado,
             Activo = true
         };
 

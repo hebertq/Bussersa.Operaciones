@@ -1,4 +1,4 @@
-﻿@using BsOperaciones.Application.Extensions
+@using BsOperaciones.Application.Extensions
 
 <AuthorizeView Policy="@Policies.IsMenu" Resource="22">
     <Authorized>
@@ -7,6 +7,14 @@
             <MenuItem MenuId="24" Name="Roles y Grupos" Url="/admon/roles" IconName="@Icons.Material.Filled.Security" />
             <MenuItem MenuId="25" Name="Menús" Url="/admon/menus" IconName="@Icons.Material.Filled.Menu" />
             <MenuItem MenuId="59" Name="Firma de Correo" Url="/admon/firma-correo" IconName="@Icons.Material.Filled.Badge" />
+            <AuthorizeView Policy="@Policies.IsMenu" Resource="61" Context="supervisionContext">
+                <Authorized>
+                    <MudNavGroup Title="Supervisión" Icon="@Icons.Material.Filled.SupervisorAccount" Expanded="false">
+                        <MenuItem MenuId="62" Name="Áreas del Cliente" Url="/admon/supervision/areas-cliente" IconName="@Icons.Material.Filled.Domain" />
+                        <MenuItem MenuId="63" Name="Personal por Cliente" Url="/admon/supervision/personal-cliente" IconName="@Icons.Material.Filled.Badge" />
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
         </MudNavGroup>
     </Authorized>
     <NotAuthorized />

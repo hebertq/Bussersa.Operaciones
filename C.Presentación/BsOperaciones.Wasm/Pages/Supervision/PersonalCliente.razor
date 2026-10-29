@@ -1,0 +1,442 @@
+@page "/admon/supervision/personal-cliente"
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@attribute [Authorize]
+@inject IOdooService _odooService
+@inject ISnackbar _snackbar
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+
+<PageTitle>Personal por Cliente - Supervisión - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-6">
+    <div class="d-flex align-center justify-space-between mb-3">
+        <div>
+            <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
+            <MudText Typo="Typo.h5" Class="fw-bold text-primary">
+                <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
+                Personal Asignado por Cliente y Supervisor
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Configuración del personal permanente de cada cliente. La plantilla del supervisor se alimenta de esta configuración y garantiza el aislamiento de personal por usuario.
+            </MudText>
+        </div>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Domain"
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))">
+                Áreas del Cliente
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudDownload"
+                       OnClick="@AbrirDialogPrecarga">
+                Precargar Plantilla
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="@AbrirDialogNuevoColaborador">
+                Nuevo Colaborador
+            </MudButton>
+        </MudStack>
+    </div>
+
+    @* Filtros y Resumen *@
+    <MudPaper Class="pa-4 mb-3 rounded-lg" Elevation="2">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+            <MudItem xs="12" sm="4" md="3">
+                <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroCliente" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem Value="@("")">-- Todos los Clientes (@listaPersonal.Count) --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        int count = listaPersonal.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
+                        <MudSelectItem Value="@op.nombre">@op.nombre (@count)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="3">
+                <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisor" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem Value="@("")">-- Todos los Supervisores --</MudSelectItem>
+                    @foreach (var sup in supervisoresList)
+                    {
+                        int count = listaPersonal.Count(p => p.UsuarioSupervisor.Equals(sup.username, StringComparison.OrdinalIgnoreCase));
+                        <MudSelectItem Value="@sup.username">@sup.nombres @sup.apellidos (@count)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4">
+                <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar por carnet, nombre, puesto o área..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="12" md="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" 
+                           StartIcon="@Icons.Material.Filled.Refresh" OnClick="@CargarDatos" Disabled="@cargando">
+                    Actualizar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* Tabla Principal *@
+    <MudPaper Class="pa-2 rounded-lg" Elevation="2">
+        @if (cargando)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else
+        {
+            <MudTable Items="@PersonalFiltrado" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width: 80px;">Carnet</MudTh>
+                    <MudTh>Colaborador</MudTh>
+                    <MudTh>Cliente / Operación</MudTh>
+                    <MudTh>Supervisor Asignado</MudTh>
+                    <MudTh>Área</MudTh>
+                    <MudTh>Puesto</MudTh>
+                    <MudTh Style="width: 120px;">Horario</MudTh>
+                    <MudTh Style="width: 70px;">Comida</MudTh>
+                    <MudTh Style="width: 90px;">Viáticos</MudTh>
+                    <MudTh Style="width: 100px;">Tipo</MudTh>
+                    <MudTh Style="width: 70px;">Estado</MudTh>
+                    <MudTh Style="width: 90px; text-align: center;">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="fw-bold">
+                            @context.CodigoEmpleado
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreEmpleado</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Dark">
+                            @context.ClienteNombre
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        @if (!string.IsNullOrWhiteSpace(context.UsuarioSupervisor))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Person">
+                                @context.UsuarioSupervisor
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Sin asignar</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption">
+                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                            @context.AreaDefault
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption">@context.PuestoDefault</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption" Class="fw-bold">
+                            @context.HoraEntradaDefault - @context.HoraSalidaDefault
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption">@context.TiempoComidaDefault hrs</MudText>
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption">
+                            C$ @((context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault).ToString("N0"))
+                        </MudText>
+                    </MudTd>
+                    <MudTd>
+                        @if (context.TipoEmpleado?.Equals("Prestamo", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Préstamo</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Permanente</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        @if (context.Activo)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">Activo</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Text">Inactivo</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                       OnClick="@(() => AbrirDialogEditar(context))" Title="Editar colaborador" />
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" 
+                                       OnClick="@(() => EliminarColaborador(context))" Title="Eliminar colaborador" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    private string currentUserName = string.Empty;
+    private bool cargando = false;
+
+    private List<BreadcrumbItem> _breadcrumbItems = new()
+    {
+        new BreadcrumbItem("Inicio", href: "/"),
+        new BreadcrumbItem("Supervisión", href: null, disabled: true),
+        new BreadcrumbItem("Personal por Cliente", href: null, disabled: true)
+    };
+
+    private List<Combos> operacionesList = new();
+    private List<User> supervisoresList = new();
+    private List<PersonalClienteItemDto> listaPersonal = new();
+    private Dictionary<string, List<string>> areasPorCliente = new(StringComparer.OrdinalIgnoreCase);
+    private List<string> cargosDisponibles = new()
+    {
+        "6-Operador de almacen",
+        "12-Holler",
+        "10-Operador de montacarga",
+        "5-Supervisor de personal",
+        "11-Conductor",
+        "3-Asistentes de gerencia",
+        "Chequeador",
+        "Estibador",
+        "Auxiliar de bodega"
+    };
+
+    private string? filtroCliente = "";
+    private string? filtroSupervisor = "";
+    private string? filtroTexto = "";
+
+    private IEnumerable<PersonalClienteItemDto> PersonalFiltrado
+    {
+        get
+        {
+            var query = listaPersonal.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroCliente))
+            {
+                query = query.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroSupervisor))
+            {
+                query = query.Where(p => p.UsuarioSupervisor != null && p.UsuarioSupervisor.Equals(filtroSupervisor, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            {
+                var term = filtroTexto.Trim().ToLowerInvariant();
+                query = query.Where(p =>
+                    p.CodigoEmpleado.ToString().Contains(term) ||
+                    (p.NombreEmpleado != null && p.NombreEmpleado.ToLowerInvariant().Contains(term)) ||
+                    (p.AreaDefault != null && p.AreaDefault.ToLowerInvariant().Contains(term)) ||
+                    (p.PuestoDefault != null && p.PuestoDefault.ToLowerInvariant().Contains(term)) ||
+                    (p.UsuarioSupervisor != null && p.UsuarioSupervisor.ToLowerInvariant().Contains(term))
+                );
+            }
+
+            return query.OrderBy(p => p.ClienteNombre).ThenBy(p => p.NombreEmpleado);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var auth = await AuthStateTask;
+                currentUserName = auth.User?.Identity?.Name ?? "Admin";
+            }
+        }
+        catch { }
+
+        await CargarCatalogos();
+        await CargarDatos();
+    }
+
+    private async Task CargarCatalogos()
+    {
+        try
+        {
+            var respOp = await _odooService.GetAllCombosHost("Operaciones");
+            if (respOp?.Model != null)
+            {
+                operacionesList = respOp.Model.OrderBy(o => o.nombre).ToList();
+            }
+
+            var respUsers = await _odooService.GetUsers();
+            if (respUsers?.Model != null)
+            {
+                supervisoresList = respUsers.Model.OrderBy(u => u.nombres).ToList();
+            }
+
+            var respAreas = await _odooService.GetAllClienteAreas();
+            if (respAreas?.Model != null)
+            {
+                areasPorCliente.Clear();
+                foreach (var item in respAreas.Model.Where(x => x.Activo))
+                {
+                    var cName = item.ClienteNombre?.Trim();
+                    var aName = item.AreaNombre?.Trim();
+                    if (!string.IsNullOrWhiteSpace(cName) && !string.IsNullOrWhiteSpace(aName))
+                    {
+                        if (!areasPorCliente.ContainsKey(cName))
+                            areasPorCliente[cName] = new List<string>();
+
+                        if (!areasPorCliente[cName].Contains(aName, StringComparer.OrdinalIgnoreCase))
+                            areasPorCliente[cName].Add(aName);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando catálogos: {ex.Message}");
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            var resp = await _odooService.GetPersonalCliente(cliente: "", usuario: "");
+            if (resp?.Model != null)
+            {
+                listaPersonal = resp.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar el personal: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AbrirDialogNuevoColaborador()
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = new PersonalClienteItemDto(),
+            ["IsNuevo"] = true,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["AreasPorCliente"] = areasPorCliente,
+            ["CargosDisponibles"] = cargosDisponibles,
+            ["SupervisoresDisponibles"] = supervisoresList,
+            ["ClienteSeleccionadoInicial"] = filtroCliente ?? "",
+            ["SupervisorSeleccionadoInicial"] = filtroSupervisor ?? ""
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarPersonalCliente>("Asignar Colaborador al Cliente", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is PersonalClienteItemDto nuevoItem)
+        {
+            var res = await _odooService.SavePersonalClienteItem(nuevoItem);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Colaborador '{nuevoItem.NombreEmpleado}' asignado a '{nuevoItem.ClienteNombre}'.", Severity.Success);
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar colaborador.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task AbrirDialogEditar(PersonalClienteItemDto item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = item,
+            ["IsNuevo"] = false,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["AreasPorCliente"] = areasPorCliente,
+            ["CargosDisponibles"] = cargosDisponibles,
+            ["SupervisoresDisponibles"] = supervisoresList,
+            ["ClienteSeleccionadoInicial"] = item.ClienteNombre,
+            ["SupervisorSeleccionadoInicial"] = item.UsuarioSupervisor
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarPersonalCliente>("Editar Colaborador del Cliente", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is PersonalClienteItemDto modificado)
+        {
+            var res = await _odooService.SavePersonalClienteItem(modificado);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Colaborador '{modificado.NombreEmpleado}' actualizado exitosamente.", Severity.Success);
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al actualizar colaborador.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task AbrirDialogPrecarga()
+    {
+        int? opId = null;
+        if (!string.IsNullOrWhiteSpace(filtroCliente))
+        {
+            var match = operacionesList.FirstOrDefault(o => o.nombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
+            if (match != null) opId = match.id;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["OperacionesDisponibles"] = operacionesList,
+            ["SupervisoresDisponibles"] = supervisoresList,
+            ["OperacionInicialId"] = opId,
+            ["SupervisorInicial"] = filtroSupervisor ?? ""
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogPrecargarPersonalCliente>("Precargar Plantilla desde Operación", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await CargarDatos();
+        }
+    }
+
+    private async Task EliminarColaborador(PersonalClienteItemDto item)
+    {
+        bool? confirm = await _dialogService.ShowMessageBox(
+            "Eliminar Colaborador del Cliente",
+            $"¿Está seguro de eliminar al colaborador '{item.NombreEmpleado}' (#{item.CodigoEmpleado}) del cliente '{item.ClienteNombre}'?",
+            yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            var res = await _odooService.DeletePersonalClienteItem(item.Id);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Colaborador '{item.NombreEmpleado}' eliminado.", Severity.Info);
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar.", Severity.Error);
+            }
+        }
+    }
+}
