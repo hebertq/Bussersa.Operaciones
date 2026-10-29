@@ -88,6 +88,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
         public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
         public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
+        public string Observaciones { get; set; } = string.Empty;
+        public string NotaPrestamos { get; set; } = string.Empty;
     }
 
     public partial class RegistroMovimientosSupervisor : ComponentBase
@@ -149,6 +151,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool cargandoPlantilla = false;
         protected string textoBusquedaPlantilla = string.Empty;
         protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Operativo;
+        protected ModoVistaGrilla modoVistaMovimientos = ModoVistaGrilla.Tarjetas;
         protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
             string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
                 ? miPlantillaPersonal
@@ -1891,6 +1894,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
             var presentes = empleadosJornada.Where(x => x.Asistio).ToList();
 
+            // Preservar observaciones previas del supervisor si ya existían para no sobreescribir lo que digitó
+            var dicObsPrevias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prev in gruposConsolidados)
+            {
+                string key = $"{prev.Cliente}|{prev.Area}|{prev.Puesto}|{prev.HoraInicio}|{prev.HoraFin}";
+                if (!dicObsPrevias.ContainsKey(key))
+                {
+                    dicObsPrevias[key] = prev.Observaciones;
+                }
+            }
+
             var grupos = presentes
                 .GroupBy(x => new
                 {
@@ -1907,20 +1921,69 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.VtcoAlim,
                     x.BonoBnc
                 })
-                .Select((g, idx) => new ConsolidadoHelpdeskItem
+                .Select((g, idx) =>
                 {
-                    GrupoIndex = idx + 1,
-                    Cliente = g.Key.Cliente,
-                    Area = g.Key.Area,
-                    Puesto = g.Key.Puesto,
-                    TurnoNombre = g.Key.TurnoNombre,
-                    HoraInicio = g.Key.HoraInicio,
-                    HoraFin = g.Key.HoraFin,
-                    TiempoComida = g.Key.TiempoComida,
-                    VtcoTrasp = g.Key.VtcoTrasp,
-                    VtcoAlim = g.Key.VtcoAlim,
-                    VtcoBnc = g.Key.BonoBnc,
-                    Empleados = g.ToList()
+                    var empleadosGrupo = g.ToList();
+
+                    // Detectar colaboradores en condición de préstamo o cuyo cliente sea diferente al de la asistencia
+                    var listaPrestamos = new List<string>();
+                    foreach (var emp in empleadosGrupo)
+                    {
+                        var enPlantilla = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == emp.CodigoEmpleado);
+                        string clienteNomina = !string.IsNullOrWhiteSpace(enPlantilla?.ClienteDefault) ? enPlantilla.ClienteDefault : string.Empty;
+
+                        bool esPrestamo = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase)
+                            || (!string.IsNullOrWhiteSpace(clienteNomina) && !string.Equals(clienteNomina, g.Key.Cliente, StringComparison.OrdinalIgnoreCase));
+
+                        if (esPrestamo)
+                        {
+                            string nomDestino = !string.IsNullOrWhiteSpace(clienteNomina) && !string.Equals(clienteNomina, g.Key.Cliente, StringComparison.OrdinalIgnoreCase)
+                                ? clienteNomina
+                                : (!string.IsNullOrWhiteSpace(clienteNomina) ? clienteNomina : "su cliente de origen");
+
+                            listaPrestamos.Add($"ID {emp.CodigoEmpleado} pertenece a la nómina de {nomDestino}");
+                        }
+                    }
+
+                    string notaAutomatica = string.Empty;
+                    if (listaPrestamos.Any())
+                    {
+                        string clausulas = string.Join(", ", listaPrestamos);
+                        notaAutomatica = $"{clausulas} para que sus horas nómina se graben en la nómina correspondiente.";
+                    }
+
+                    string keyGrupo = $"{g.Key.Cliente}|{g.Key.Area}|{g.Key.Puesto}|{g.Key.HoraInicio}|{g.Key.HoraFin}";
+                    string obsFinal = notaAutomatica;
+
+                    if (dicObsPrevias.TryGetValue(keyGrupo, out var obsPrevia) && !string.IsNullOrWhiteSpace(obsPrevia))
+                    {
+                        if (!string.IsNullOrWhiteSpace(notaAutomatica) && !obsPrevia.Contains("pertenece a la nómina de", StringComparison.OrdinalIgnoreCase))
+                        {
+                            obsFinal = $"{notaAutomatica} {obsPrevia}".Trim();
+                        }
+                        else
+                        {
+                            obsFinal = obsPrevia;
+                        }
+                    }
+
+                    return new ConsolidadoHelpdeskItem
+                    {
+                        GrupoIndex = idx + 1,
+                        Cliente = g.Key.Cliente,
+                        Area = g.Key.Area,
+                        Puesto = g.Key.Puesto,
+                        TurnoNombre = g.Key.TurnoNombre,
+                        HoraInicio = g.Key.HoraInicio,
+                        HoraFin = g.Key.HoraFin,
+                        TiempoComida = g.Key.TiempoComida,
+                        VtcoTrasp = g.Key.VtcoTrasp,
+                        VtcoAlim = g.Key.VtcoAlim,
+                        VtcoBnc = g.Key.BonoBnc,
+                        Empleados = empleadosGrupo,
+                        Observaciones = obsFinal,
+                        NotaPrestamos = notaAutomatica
+                    };
                 })
                 .ToList();
 
@@ -1967,6 +2030,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     CantidadEmpleados = g.Cantidad,
                     IdsEmpleados = g.IdsEmpleadosTexto,
                     Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
+                    Observaciones = g.Observaciones,
                     Bonos = g.VtcoBnc > 0 ? g.VtcoBnc.ToString("N2", CultureInfo.InvariantCulture) : "0.00",
                     VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
                     VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"

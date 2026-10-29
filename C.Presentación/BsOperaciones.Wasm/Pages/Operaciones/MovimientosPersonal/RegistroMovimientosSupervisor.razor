@@ -1227,15 +1227,45 @@
                         </MudText>
                     </div>
 
-                    <MudButton Variant="Variant.Filled" 
-                               Color="Color.Primary" 
-                               Size="Size.Large" 
-                               StartIcon="@Icons.Material.Filled.RocketLaunch"
-                               Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any())"
-                               OnClick="@EnviarAHelpdeskMasivo"
-                               Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;">
-                        @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : "ENVIAR JORNADA A HELPDESK")
-                    </MudButton>
+                    <div class="d-flex align-center gap-2">
+                        @* Selector de 4 vistas Odoo *@
+                        <div class="odoo-view-switcher">
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Operativo ? "active" : "")" 
+                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Operativo)" 
+                                    title="Vista Horarios, Comida & Viáticos">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                            </button>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Ubicacion ? "active" : "")" 
+                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Ubicacion)" 
+                                    title="Vista Ubicación & Puesto">
+                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
+                            </button>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Completo ? "active" : "")" 
+                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Completo)" 
+                                    title="Vista Tabla Completa">
+                                <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
+                            </button>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Tarjetas ? "active" : "")" 
+                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Tarjetas)" 
+                                    title="Vista Tarjetas (Kanban)">
+                                <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
+                            </button>
+                        </div>
+
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Large" 
+                                   StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                   Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any())"
+                                   OnClick="@EnviarAHelpdeskMasivo"
+                                   Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;">
+                            @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : "ENVIAR JORNADA A HELPDESK")
+                        </MudButton>
+                    </div>
                 </MudStack>
 
                 @if (estaEnviandoHelpdesk)
@@ -1243,109 +1273,439 @@
                     <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
                 }
 
-                @* Listado de Tarjetas de Grupos Consolidados *@
-                <MudGrid Spacing="2">
-                    @foreach (var grupo in gruposConsolidados)
-                    {
-                        <MudItem xs="12" md="6" lg="4">
-                            <MudCard Elevation="2" Class="rounded-lg" Style="@(grupo.Sincronizado ? "border-left: 5px solid #10b981;" : "border-left: 5px solid #f59e0b;")">
-                                <MudCardHeader Class="pb-1">
-                                    <CardHeaderAvatar>
-                                        <MudAvatar Color="@(grupo.Sincronizado ? Color.Success : Color.Warning)" Variant="Variant.Filled">
-                                            #@grupo.GrupoIndex
-                                        </MudAvatar>
-                                    </CardHeaderAvatar>
-                                    <CardHeaderContent>
-                                        <div class="d-flex align-center gap-1 mb-1">
-                                            @if (!string.IsNullOrWhiteSpace(grupo.Cliente))
+                @if (!gruposConsolidados.Any())
+                {
+                    <MudPaper Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
+                              Elevation="0" 
+                              Style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; min-height: 200px;">
+                        <MudIcon Icon="@Icons.Material.Filled.GroupWork" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                        <MudText Typo="Typo.body1" Class="fw-bold text-dark">
+                            No hay colaboradores presentes para consolidar en grupos
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Registra asistencia en la pestaña de Asistencias para generar automáticamente los grupos de movimiento.
+                        </MudText>
+                    </MudPaper>
+                }
+                else if (modoVistaMovimientos == ModoVistaGrilla.Tarjetas)
+                {
+                    @* 1. VISTA MODO TARJETAS (KANBAN TOUCH-FRIENDLY) *@
+                    <MudGrid Spacing="2">
+                        @foreach (var grupo in gruposConsolidados)
+                        {
+                            <MudItem xs="12" md="6" lg="4">
+                                <MudCard Elevation="2" Class="rounded-lg h-100 d-flex flex-column justify-space-between" Style="@(grupo.Sincronizado ? "border-left: 5px solid #10b981;" : "border-left: 5px solid #f59e0b;")">
+                                    <MudCardHeader Class="pb-1">
+                                        <CardHeaderAvatar>
+                                            <MudAvatar Color="@(grupo.Sincronizado ? Color.Success : Color.Warning)" Variant="Variant.Filled">
+                                                #@grupo.GrupoIndex
+                                            </MudAvatar>
+                                        </CardHeaderAvatar>
+                                        <CardHeaderContent>
+                                            <div class="d-flex align-center gap-1 mb-1 flex-wrap">
+                                                @if (!string.IsNullOrWhiteSpace(grupo.Cliente))
+                                                {
+                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.7rem;">
+                                                        @grupo.Cliente
+                                                    </MudChip>
+                                                }
+                                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-truncate">
+                                                    @grupo.Area
+                                                </MudText>
+                                            </div>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @grupo.Puesto • Horario: @grupo.HoraInicio - @grupo.HoraFin • Comida: @grupo.TiempoComida h
+                                            </MudText>
+                                        </CardHeaderContent>
+                                        <CardHeaderActions>
+                                            @if (grupo.Sincronizado)
                                             {
-                                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.7rem;">
-                                                    @grupo.Cliente
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">
+                                                    Sincronizado
                                                 </MudChip>
                                             }
-                                            <MudText Typo="Typo.subtitle1" Class="fw-bold text-truncate">
-                                                @grupo.Area
-                                            </MudText>
-                                        </div>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            @grupo.Puesto • @grupo.Cliente • @grupo.Area • Horario: @grupo.HoraInicio - @grupo.HoraFin • Comida: @grupo.TiempoComida h
-                                        </MudText>
-                                    </CardHeaderContent>
-                                    <CardHeaderActions>
-                                        @if (grupo.Sincronizado)
-                                        {
-                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">
-                                                Sincronizado
-                                            </MudChip>
-                                        }
-                                        else
-                                        {
-                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
-                                                Pendiente
-                                            </MudChip>
-                                        }
-                                    </CardHeaderActions>
-                                </MudCardHeader>
-
-                                <MudCardContent Class="pt-1 pb-2">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
-                                        <MudText Typo="Typo.body2" Class="fw-bold">
-                                            @grupo.Cantidad colaboradores asignados
-                                        </MudText>
-                                    </MudStack>
-
-                                    @* Lista de Códigos/Carnets *@
-                                    <MudPaper Class="pa-2 mb-2 rounded" Style="background: rgba(0,0,0,0.03); max-height: 80px; overflow-y: auto;">
-                                        <MudText Typo="Typo.caption" Class="font-monospace fw-bold" Style="word-break: break-all;">
-                                            @grupo.IdsEmpleadosTexto
-                                        </MudText>
-                                    </MudPaper>
-
-                                    @* Viáticos *@
-                                    <MudStack Row="true" Spacing="1" Class="flex-wrap">
-                                        @if (grupo.VtcoTrasp > 0)
-                                        {
-                                            <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
-                                                Trasp: C$ @grupo.VtcoTrasp.ToString("N0") c/u
-                                            </MudChip>
-                                        }
-                                        @if (grupo.VtcoAlim > 0)
-                                        {
-                                            <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
-                                                Alim: C$ @grupo.VtcoAlim.ToString("N0") c/u
-                                            </MudChip>
-                                        }
-                                        @if (grupo.VtcoBnc > 0)
-                                        {
-                                            <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
-                                                Bono BNC: C$ @grupo.VtcoBnc.ToString("N0") c/u
-                                            </MudChip>
-                                        }
-                                    </MudStack>
-
-                                    @* Trazabilidad Helpdesk si ya fue enviado *@
-                                    @if (grupo.TicketRedmineId.HasValue && grupo.TicketRedmineId > 0)
-                                    {
-                                        <MudDivider Class="my-2" />
-                                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                            <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Size="Size.Small" Color="Color.Success" />
-                                            <MudText Typo="Typo.caption" Class="fw-bold text-success">
-                                                Ticket Redmine: #@grupo.TicketRedmineId
-                                            </MudText>
-                                            @if (grupo.TicketViaticoId.HasValue && grupo.TicketViaticoId > 0)
+                                            else
                                             {
-                                                <MudText Typo="Typo.caption" Class="fw-bold text-info ml-2">
-                                                    • Viáticos: #@grupo.TicketViaticoId
-                                                </MudText>
+                                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
+                                                    Pendiente
+                                                </MudChip>
+                                            }
+                                        </CardHeaderActions>
+                                    </MudCardHeader>
+
+                                    <MudCardContent Class="pt-1 pb-2">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
+                                            <MudText Typo="Typo.body2" Class="fw-bold">
+                                                @grupo.Cantidad colaboradores asignados
+                                            </MudText>
+                                        </MudStack>
+
+                                        @* Lista de Códigos/Carnets con indicación si son préstamo *@
+                                        <MudPaper Class="pa-2 mb-2 rounded" Style="background: rgba(0,0,0,0.03); max-height: 80px; overflow-y: auto;">
+                                            <div class="d-flex flex-wrap gap-1">
+                                                @foreach (var emp in grupo.Empleados)
+                                                {
+                                                    bool empPrestado = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase);
+                                                    <MudChip T="string" 
+                                                             Size="Size.Small" 
+                                                             Color="@(empPrestado ? Color.Warning : Color.Dark)" 
+                                                             Variant="@(empPrestado ? Variant.Filled : Variant.Outlined)"
+                                                             Class="font-monospace fw-bold px-1" 
+                                                             Style="height: 18px; font-size: 0.68rem;">
+                                                        #@emp.CodigoEmpleado @(empPrestado ? "(Préstamo)" : "")
+                                                    </MudChip>
+                                                }
+                                            </div>
+                                        </MudPaper>
+
+                                        @* Alerta de Nómina de Préstamo si aplica *@
+                                        @if (!string.IsNullOrWhiteSpace(grupo.NotaPrestamos))
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2 my-1" Variant="Variant.Outlined">
+                                                <div class="d-flex align-center gap-1">
+                                                    <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Warning" />
+                                                    <MudText Typo="Typo.caption" Class="fw-bold" Style="color: #c2410c;">
+                                                        @grupo.NotaPrestamos
+                                                    </MudText>
+                                                </div>
+                                            </MudAlert>
+                                        }
+
+                                        @* Observaciones editables por el supervisor *@
+                                        <div class="mt-2">
+                                            <MudTextField T="string" 
+                                                           @bind-Value="@grupo.Observaciones" 
+                                                           Label="Observaciones del Grupo (Nómina / Helpdesk)" 
+                                                           Variant="Variant.Outlined" 
+                                                           Margin="Margin.Dense" 
+                                                           Lines="2" 
+                                                           AutoGrow="true"
+                                                           Placeholder="Indique detalles o nóminas para Helpdesk..." 
+                                                           Class="font-monospace" 
+                                                           Style="font-size: 0.78rem;" />
+                                        </div>
+
+                                        @* Viáticos *@
+                                        <MudStack Row="true" Spacing="1" Class="flex-wrap mt-2">
+                                            @if (grupo.VtcoTrasp > 0)
+                                            {
+                                                <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                                    Trasp: C$ @grupo.VtcoTrasp.ToString("N0") c/u
+                                                </MudChip>
+                                            }
+                                            @if (grupo.VtcoAlim > 0)
+                                            {
+                                                <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                                    Alim: C$ @grupo.VtcoAlim.ToString("N0") c/u
+                                                </MudChip>
+                                            }
+                                            @if (grupo.VtcoBnc > 0)
+                                            {
+                                                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
+                                                    Bono BNC: C$ @grupo.VtcoBnc.ToString("N0") c/u
+                                                </MudChip>
                                             }
                                         </MudStack>
+
+                                        @* Trazabilidad Helpdesk si ya fue enviado *@
+                                        @if (grupo.TicketRedmineId.HasValue && grupo.TicketRedmineId > 0)
+                                        {
+                                            <MudDivider Class="my-2" />
+                                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                                <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Size="Size.Small" Color="Color.Success" />
+                                                <MudText Typo="Typo.caption" Class="fw-bold text-success">
+                                                    Ticket Redmine: #@grupo.TicketRedmineId
+                                                </MudText>
+                                                @if (grupo.TicketViaticoId.HasValue && grupo.TicketViaticoId > 0)
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="fw-bold text-info ml-2">
+                                                        • Viáticos: #@grupo.TicketViaticoId
+                                                    </MudText>
+                                                }
+                                            </MudStack>
+                                        }
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+                else
+                {
+                    @* 2, 3, 4. VISTAS EN TABLA (OPERATIVO, UBICACIÓN, COMPLETO) *@
+                    <MudTable Items="@gruposConsolidados" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            @if (modoVistaMovimientos == ModoVistaGrilla.Operativo)
+                            {
+                                <MudTh Style="width: 50px;">#</MudTh>
+                                <MudTh>Cliente & Área Operativa</MudTh>
+                                <MudTh Style="width: 140px;">Horario & Turno</MudTh>
+                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px;">Viáticos</MudTh>
+                                <MudTh Style="min-width: 180px;">Colaboradores (Recursos)</MudTh>
+                                <MudTh Style="min-width: 250px;">Observaciones / Nómina Préstamo</MudTh>
+                                <MudTh Style="width: 110px;">Estado</MudTh>
+                            }
+                            else if (modoVistaMovimientos == ModoVistaGrilla.Ubicacion)
+                            {
+                                <MudTh Style="width: 50px;">#</MudTh>
+                                <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
+                                <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
+                                <MudTh Style="min-width: 180px;">Cargo / Puesto</MudTh>
+                                <MudTh Style="min-width: 180px;">Colaboradores Asignados</MudTh>
+                                <MudTh Style="min-width: 260px;">Observaciones / Nómina Préstamo</MudTh>
+                                <MudTh Style="width: 110px;">Estado</MudTh>
+                            }
+                            else
+                            {
+                                @* ModoVistaGrilla.Completo *@
+                                <MudTh Style="width: 45px;">#</MudTh>
+                                <MudTh Style="width: 150px;">Cliente</MudTh>
+                                <MudTh Style="width: 150px;">Área</MudTh>
+                                <MudTh Style="width: 160px;">Puesto</MudTh>
+                                <MudTh Style="width: 130px;">Horario</MudTh>
+                                <MudTh Style="width: 70px;">Comida</MudTh>
+                                <MudTh Style="width: 100px;">Viáticos</MudTh>
+                                <MudTh Style="min-width: 160px;">Colaboradores</MudTh>
+                                <MudTh Style="min-width: 240px;">Observaciones</MudTh>
+                                <MudTh Style="width: 105px;">Estado</MudTh>
+                            }
+                        </HeaderContent>
+                        <RowTemplate>
+                            @if (modoVistaMovimientos == ModoVistaGrilla.Operativo)
+                            {
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="font-monospace fw-bold">
+                                        #@context.GrupoIndex
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column">
+                                        <div class="d-flex align-center gap-1">
+                                            <b class="text-primary">@context.Cliente</b>
+                                            <span>•</span>
+                                            <span class="fw-bold">@context.Area</span>
+                                        </div>
+                                        <span class="text-muted" style="font-size: 0.72rem;">@context.Puesto</span>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column font-monospace" style="font-size: 0.78rem;">
+                                        <span>@context.HoraInicio - @context.HoraFin</span>
+                                        <span class="text-secondary" style="font-size: 0.70rem;">@context.TurnoNombre</span>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="font-monospace" style="font-size: 0.78rem;">@context.TiempoComida h</span>
+                                </MudTd>
+                                <MudTd>
+                                    @{
+                                        var totV = context.VtcoTrasp + context.VtcoAlim + context.VtcoBnc;
                                     }
-                                </MudCardContent>
-                            </MudCard>
-                        </MudItem>
-                    }
-                </MudGrid>
+                                    @if (totV > 0)
+                                    {
+                                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem;">
+                                            C$ @totV.ToString("N0")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column gap-1">
+                                        <span class="fw-bold" style="font-size: 0.75rem;">@context.Cantidad recurso(s)</span>
+                                        <div class="d-flex flex-wrap gap-1" style="max-width: 240px;">
+                                            @foreach (var emp in context.Empleados)
+                                            {
+                                                bool esP = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase);
+                                                <MudChip T="string" 
+                                                         Size="Size.Small" 
+                                                         Color="@(esP ? Color.Warning : Color.Dark)" 
+                                                         Variant="@(esP ? Variant.Filled : Variant.Outlined)"
+                                                         Class="px-1 font-monospace fw-bold" 
+                                                         Style="height: 18px; font-size: 0.65rem;"
+                                                         Title="@($"{emp.NombreEmpleado} {(esP ? "(Préstamo)" : "")}")">
+                                                    #@emp.CodigoEmpleado
+                                                </MudChip>
+                                            }
+                                        </div>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                   @bind-Value="@context.Observaciones" 
+                                                   Variant="Variant.Outlined" 
+                                                   Margin="Margin.Dense" 
+                                                   Lines="2" 
+                                                   AutoGrow="true"
+                                                   Placeholder="Observaciones del grupo..."
+                                                   Class="font-monospace" 
+                                                   Style="font-size: 0.75rem;" />
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.Sincronizado)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold" Style="font-size: 0.70rem; height: 20px;">
+                                            #@context.TicketRedmineId
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.70rem; height: 20px;">
+                                            Pendiente
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                            }
+                            else if (modoVistaMovimientos == ModoVistaGrilla.Ubicacion)
+                            {
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="font-monospace fw-bold">
+                                        #@context.GrupoIndex
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <b class="text-primary">@context.Cliente</b>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="fw-bold">@context.Area</span>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="text-secondary" style="font-size: 0.78rem;">@context.Puesto</span>
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-column gap-1">
+                                        <span class="fw-bold" style="font-size: 0.75rem;">@context.Cantidad colaboradores</span>
+                                        <div class="d-flex flex-wrap gap-1" style="max-width: 250px;">
+                                            @foreach (var emp in context.Empleados)
+                                            {
+                                                bool esP = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase);
+                                                <MudChip T="string" 
+                                                         Size="Size.Small" 
+                                                         Color="@(esP ? Color.Warning : Color.Dark)" 
+                                                         Variant="@(esP ? Variant.Filled : Variant.Outlined)"
+                                                         Class="px-1 font-monospace fw-bold" 
+                                                         Style="height: 18px; font-size: 0.65rem;"
+                                                         Title="@($"{emp.NombreEmpleado} {(esP ? "(Préstamo)" : "")}")">
+                                                    #@emp.CodigoEmpleado
+                                                </MudChip>
+                                            }
+                                        </div>
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                   @bind-Value="@context.Observaciones" 
+                                                   Variant="Variant.Outlined" 
+                                                   Margin="Margin.Dense" 
+                                                   Lines="2" 
+                                                   AutoGrow="true"
+                                                   Placeholder="Observaciones del grupo..."
+                                                   Class="font-monospace" 
+                                                   Style="font-size: 0.75rem;" />
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.Sincronizado)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold" Style="font-size: 0.70rem; height: 20px;">
+                                            #@context.TicketRedmineId
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.70rem; height: 20px;">
+                                            Pendiente
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                            }
+                            else
+                            {
+                                @* ModoVistaGrilla.Completo *@
+                                <MudTd>
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="font-monospace fw-bold">
+                                        #@context.GrupoIndex
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <b class="text-primary" style="font-size: 0.78rem;">@context.Cliente</b>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="fw-bold" style="font-size: 0.78rem;">@context.Area</span>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="text-secondary" style="font-size: 0.75rem;">@context.Puesto</span>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="font-monospace" style="font-size: 0.75rem;">@context.HoraInicio - @context.HoraFin</span>
+                                </MudTd>
+                                <MudTd>
+                                    <span class="font-monospace" style="font-size: 0.75rem;">@context.TiempoComida h</span>
+                                </MudTd>
+                                <MudTd>
+                                    @{
+                                        var totComp = context.VtcoTrasp + context.VtcoAlim + context.VtcoBnc;
+                                    }
+                                    @if (totComp > 0)
+                                    {
+                                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 18px; font-size: 0.68rem;">
+                                            C$ @totComp.ToString("N0")
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex flex-wrap gap-1" style="max-width: 180px;">
+                                        @foreach (var emp in context.Empleados)
+                                        {
+                                            bool esP = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase);
+                                            <MudChip T="string" 
+                                                     Size="Size.Small" 
+                                                     Color="@(esP ? Color.Warning : Color.Dark)" 
+                                                     Variant="@(esP ? Variant.Filled : Variant.Outlined)"
+                                                     Class="px-1 font-monospace fw-bold" 
+                                                     Style="height: 18px; font-size: 0.65rem;"
+                                                     Title="@($"{emp.NombreEmpleado} {(esP ? "(Préstamo)" : "")}")">
+                                                #@emp.CodigoEmpleado
+                                            </MudChip>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd>
+                                    <MudTextField T="string" 
+                                                   @bind-Value="@context.Observaciones" 
+                                                   Variant="Variant.Outlined" 
+                                                   Margin="Margin.Dense" 
+                                                   Lines="2" 
+                                                   AutoGrow="true"
+                                                   Placeholder="Observaciones / Nómina préstamo..." 
+                                                   Class="font-monospace" 
+                                                   Style="font-size: 0.75rem;" />
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.Sincronizado)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold" Style="font-size: 0.70rem; height: 20px;">
+                                            #@context.TicketRedmineId
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 0.70rem; height: 20px;">
+                                            Pendiente
+                                        </MudChip>
+                                    }
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+                }
             </MudPaper>
         </MudTabPanel>
 
