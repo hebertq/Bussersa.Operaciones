@@ -31,7 +31,7 @@
                         Personal por Cliente y Asignación de Supervisión
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        Configuración de la plantilla de colaboradores por cliente y gestión de múltiples clientes por supervisor.
+                        Carga directa de plantilla Excel a la grilla, selección de cliente y gestión de múltiples clientes por supervisor.
                     </MudText>
                 </div>
             </div>
@@ -59,8 +59,8 @@
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
                     <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Colaboradores Totales</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #1e3a8a;">@listaPersonal.Count</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">En plantilla general</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #1e3a8a;">@(listaPersonal.Count + colaboradoresPendientes.Count)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">En plantilla y grilla</MudText>
                 </div>
                 <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
                     <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Medium" />
@@ -84,12 +84,12 @@
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
-                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Permanentes</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #059669;">@listaPersonal.Count(p => p.TipoEmpleado == "Permanente" || string.IsNullOrWhiteSpace(p.TipoEmpleado))</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Plantilla fija</MudText>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Pendientes por Guardar</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #d97706;">@colaboradoresPendientes.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Cargados en grilla</MudText>
                 </div>
-                <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
-                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Medium" />
+                <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Medium" />
                 </MudAvatar>
             </MudPaper>
         </MudItem>
@@ -98,10 +98,10 @@
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
                     <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Supervisores con Clientes</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #d97706;">@TotalSupervisoresConAsignacion</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #059669;">@TotalSupervisoresConAsignacion</MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@listaSupervisorClientes.Count asignaciones totales</MudText>
                 </div>
-                <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
                     <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Medium" />
                 </MudAvatar>
             </MudPaper>
@@ -116,20 +116,60 @@
         @* ----------------------------------------------------
            PESTAÑA 1: PERSONAL POR CLIENTE
            ---------------------------------------------------- *@
-        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.Badge" BadgeData="@listaPersonal.Count" BadgeColor="Color.Primary">
+        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.Badge" BadgeData="@(listaPersonal.Count + colaboradoresPendientes.Count)" BadgeColor="Color.Primary">
+
+            @* BANNER DE ALERTA SI HAY REGISTROS PENDIENTES DE GUARDAR EN BASE DE DATOS *@
+            @if (colaboradoresPendientes.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3 rounded-xl shadow-sm d-flex align-center justify-space-between flex-wrap gap-2">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Medium" />
+                        <div>
+                            <span class="fw-bold">Hay @colaboradoresPendientes.Count colaborador(es) cargados en la grilla listos para guardar.</span>
+                            <div style="font-size: 11px; opacity: 0.9;">
+                                Cliente seleccionado: <b>@(string.IsNullOrWhiteSpace(filtroCliente) ? "Sin seleccionar" : filtroCliente)</b>. Puedes cambiar el cliente en el combo y luego presionar Guardar.
+                            </div>
+                        </div>
+                    </div>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="@GuardarEnBaseDeDatos"
+                                   Disabled="@(guardandoEnBd || string.IsNullOrWhiteSpace(filtroCliente))"
+                                   Class="rounded-lg text-capitalize fw-bold">
+                            @if (guardandoEnBd)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                <span>Guardando en BD...</span>
+                            }
+                            else
+                            {
+                                <span>Guardar en Base de Datos (@colaboradoresPendientes.Count)</span>
+                            }
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Dark" Size="Size.Small"
+                                   OnClick="@DescartarPendientes"
+                                   Disabled="@guardandoEnBd"
+                                   Class="rounded-lg text-capitalize">
+                            Descartar
+                        </MudButton>
+                    </MudStack>
+                </MudAlert>
+            }
 
             @* BARRA DE FILTROS Y ACCIONES DIRECTAS *@
             <MudPaper Class="pa-3 mb-4 rounded-xl" Elevation="1" Style="background: #ffffff; border: 1px solid #e2e8f0;">
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center">
                     <MudItem xs="12" sm="4" md="3">
-                        <MudSelect T="string" Label="Cliente / Operación" @bind-Value="filtroCliente" 
+                        <MudSelect T="string" Label="Cliente / Operación" Value="filtroCliente" ValueChanged="OnClienteComboChanged"
                                    Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
-                                   Clearable="true" Placeholder="Todos los Clientes"
+                                   Clearable="true" Placeholder="Seleccione un Cliente"
                                    AnchorOrigin="Origin.BottomCenter"
                                    AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
                             @foreach (var op in operacionesList)
                             {
-                                int count = listaPersonal.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
+                                int count = listaPersonal.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase))
+                                            + colaboradoresPendientes.Count(p => p.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
                                 <MudSelectItem Value="@op.nombre">
                                     <div class="d-flex align-center justify-space-between">
                                         <span>@op.nombre</span>
@@ -158,17 +198,17 @@
                     </MudItem>
 
                     <MudItem xs="12" sm="12" md="4" Class="d-flex justify-end gap-2 flex-wrap align-center">
-                        @* BOTÓN DE CARGA DIRECTA DE ARCHIVO EXCEL (SIN MODAL) *@
+                        @* BOTÓN DE CARGA DIRECTA DE ARCHIVO EXCEL A LA GRILLA (SIN MODAL) *@
                         <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnArchivoExcelSubidoDirecto" Class="d-inline-flex">
                             <ActivatorContent>
                                 <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                                            StartIcon="@Icons.Custom.FileFormats.FileExcel"
-                                           Disabled="@(cargandoPersonal || procesandoExcelDirecto)"
+                                           Disabled="@(cargandoPersonal || procesandoExcelDirecto || guardandoEnBd)"
                                            Class="rounded-lg text-capitalize shadow-sm">
                                     @if (procesandoExcelDirecto)
                                     {
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
-                                        <span>Procesando archivo...</span>
+                                        <span>Cargando en Grilla...</span>
                                     }
                                     else
                                     {
@@ -178,14 +218,34 @@
                             </ActivatorContent>
                         </MudFileUpload>
 
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                        @* BOTÓN GUARDAR EN BASE DE DATOS (HABILITADO SI HAY PENDIENTES) *@
+                        @if (colaboradoresPendientes.Any())
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="@GuardarEnBaseDeDatos"
+                                       Disabled="@(guardandoEnBd || string.IsNullOrWhiteSpace(filtroCliente))"
+                                       Class="rounded-lg text-capitalize shadow-sm fw-bold">
+                                @if (guardandoEnBd)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                    <span>Guardando...</span>
+                                }
+                                else
+                                {
+                                    <span>Guardar en BD (@colaboradoresPendientes.Count)</span>
+                                }
+                            </MudButton>
+                        }
+
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador"
-                                   Class="rounded-lg text-capitalize shadow-sm">
-                            Nuevo Colaborador
+                                   Class="rounded-lg text-capitalize">
+                            Nuevo
                         </MudButton>
 
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
-                                       OnClick="@CargarPersonal" Disabled="@(cargandoPersonal || procesandoExcelDirecto)" Title="Recargar grilla" />
+                                       OnClick="@CargarPersonal" Disabled="@(cargandoPersonal || procesandoExcelDirecto || guardandoEnBd)" Title="Recargar grilla" />
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -204,20 +264,20 @@
                     <MudAvatar Color="Color.Default" Variant="Variant.Filled" Size="Size.Large" Class="mb-3" Style="background: #e2e8f0;">
                         <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Large" Style="color: #64748b;" />
                     </MudAvatar>
-                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay colaboradores registrados para este cliente</MudText>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay colaboradores en la grilla para este cliente</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 520px;">
-                        Selecciona el cliente en el filtro superior y presiona <b>Cargar Plantilla Excel</b> para elegir tu archivo <b>HT.xlsx</b> directamente sin pasos intermedios.
+                        Presiona <b>Cargar Plantilla Excel</b> para subir tu archivo <b>HT.xlsx</b> directamente a la grilla, elige el cliente en el combo y luego presiona <b>Guardar en Base de Datos</b>.
                     </MudText>
                     <MudStack Row="true" Spacing="2" Class="align-center">
                         <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnArchivoExcelSubidoDirecto" Class="d-inline-flex">
                             <ActivatorContent>
                                 <MudButton Variant="Variant.Filled" Color="Color.Success"
                                            StartIcon="@Icons.Custom.FileFormats.FileExcel"
-                                           Disabled="@(cargandoPersonal || procesandoExcelDirecto)">
+                                           Disabled="@(cargandoPersonal || procesandoExcelDirecto || guardandoEnBd)">
                                     @if (procesandoExcelDirecto)
                                     {
                                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
-                                        <span>Procesando...</span>
+                                        <span>Cargando en Grilla...</span>
                                     }
                                     else
                                     {
@@ -247,7 +307,7 @@
                             <MudTh Style="width: 85px; font-weight: 700; color: #475569;">Comida</MudTh>
                             <MudTh Style="width: 105px; font-weight: 700; color: #475569;">Viáticos</MudTh>
                             <MudTh Style="width: 95px; font-weight: 700; color: #475569;">Tipo</MudTh>
-                            <MudTh Style="width: 80px; font-weight: 700; color: #475569;">Estado</MudTh>
+                            <MudTh Style="width: 110px; font-weight: 700; color: #475569;">Estado</MudTh>
                             <MudTh Style="width: 90px; text-align: center; font-weight: 700; color: #475569;">Acciones</MudTh>
                         </HeaderContent>
                         <RowTemplate>
@@ -325,10 +385,16 @@
                                 }
                             </MudTd>
                             <MudTd>
-                                @if (context.Activo)
+                                @if (context.Id == 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Warning" Icon="@Icons.Material.Filled.Pending">
+                                        Por Guardar
+                                    </MudChip>
+                                }
+                                else if (context.Activo)
                                 {
                                     <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
-                                        Activo
+                                        Guardado en BD
                                     </MudChip>
                                 }
                                 else
@@ -339,14 +405,22 @@
                                 }
                             </MudTd>
                             <MudTd Class="text-center">
-                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight">
-                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Primary" OnClick="@(() => AbrirDialogEditar(context))">
-                                        Editar
-                                    </MudMenuItem>
-                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => EliminarColaborador(context))">
-                                        Eliminar
-                                    </MudMenuItem>
-                                </MudMenu>
+                                @if (context.Id == 0)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                   OnClick="@(() => EliminarColaborador(context))" Title="Quitar de la lista pendiente" />
+                                }
+                                else
+                                {
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomRight">
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Primary" OnClick="@(() => AbrirDialogEditar(context))">
+                                            Editar
+                                        </MudMenuItem>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => EliminarColaborador(context))">
+                                            Eliminar
+                                        </MudMenuItem>
+                                    </MudMenu>
+                                }
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -532,6 +606,7 @@
     private bool cargandoPersonal = false;
     private bool cargandoSupervisores = false;
     private bool procesandoExcelDirecto = false;
+    private bool guardandoEnBd = false;
 
     private List<BreadcrumbItem> _breadcrumbItems = new()
     {
@@ -560,6 +635,7 @@
 
     // Datos principales
     private List<PersonalClienteItemDto> listaPersonal = new();
+    private List<PersonalClienteItemDto> colaboradoresPendientes = new();
     private List<SupervisorClienteDto> listaSupervisorClientes = new();
 
     // Filtros Pestaña 1 (Personal)
@@ -573,27 +649,27 @@
     private int TotalSupervisoresConAsignacion =>
         listaSupervisorClientes.Select(x => x.UsuarioSupervisor).Distinct(StringComparer.OrdinalIgnoreCase).Count();
 
-    // Filtro de la grilla de personal
+    // Filtro de la grilla combinada (Pendientes de guardar + Guardados en BD)
     private IEnumerable<PersonalClienteItemDto> PersonalFiltrado
     {
         get
         {
-            var query = listaPersonal.AsEnumerable();
+            var todos = colaboradoresPendientes.Concat(listaPersonal);
 
             if (!string.IsNullOrWhiteSpace(filtroCliente))
             {
-                query = query.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
+                todos = todos.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(filtroTipoPersonal))
             {
-                query = query.Where(p => p.TipoEmpleado != null && p.TipoEmpleado.Equals(filtroTipoPersonal, StringComparison.OrdinalIgnoreCase));
+                todos = todos.Where(p => p.TipoEmpleado != null && p.TipoEmpleado.Equals(filtroTipoPersonal, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(filtroTexto))
             {
                 var term = filtroTexto.Trim().ToLowerInvariant();
-                query = query.Where(p =>
+                todos = todos.Where(p =>
                     p.CodigoEmpleado.ToString().Contains(term) ||
                     (p.NombreEmpleado != null && p.NombreEmpleado.ToLowerInvariant().Contains(term)) ||
                     (p.AreaDefault != null && p.AreaDefault.ToLowerInvariant().Contains(term)) ||
@@ -602,7 +678,7 @@
                 );
             }
 
-            return query.OrderBy(p => p.ClienteNombre).ThenBy(p => p.NombreEmpleado);
+            return todos.OrderBy(p => p.Id > 0 ? 1 : 0).ThenBy(p => p.NombreEmpleado);
         }
     }
 
@@ -762,24 +838,43 @@
     }
 
     // =========================================================================
-    // CARGA DIRECTA DE ARCHIVO EXCEL (SIN MODAL INTERMEDIO)
+    // CAMBIO DE CLIENTE EN EL COMBO
+    // =========================================================================
+    private void OnClienteComboChanged(string nuevoCliente)
+    {
+        filtroCliente = nuevoCliente;
+        if (colaboradoresPendientes.Any() && !string.IsNullOrWhiteSpace(nuevoCliente))
+        {
+            int? opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(nuevoCliente, StringComparison.OrdinalIgnoreCase))?.id;
+            foreach (var item in colaboradoresPendientes)
+            {
+                item.ClienteNombre = nuevoCliente.Trim();
+                item.OperacionId = opId ?? 0;
+            }
+            _snackbar.Add($"Los {colaboradoresPendientes.Count} colaboradores cargados se asignaron a '{nuevoCliente}'.", Severity.Info);
+        }
+        StateHasChanged();
+    }
+
+    // =========================================================================
+    // CARGA DIRECTA DE ARCHIVO EXCEL A LA GRILLA (SIN MODAL INTERMEDIO)
     // =========================================================================
     private async Task OnArchivoExcelSubidoDirecto(IBrowserFile file)
     {
         if (file == null) return;
-
-        // Se requiere tener seleccionado el cliente en el filtro para asignar
-        if (string.IsNullOrWhiteSpace(filtroCliente))
-        {
-            _snackbar.Add("Por favor, seleccione primero el Cliente / Operación en el filtro antes de cargar el archivo Excel.", Severity.Warning);
-            return;
-        }
 
         procesandoExcelDirecto = true;
         StateHasChanged();
 
         try
         {
+            // Si el combo de cliente está vacío, pre-seleccionar el primero para que no quede huérfano
+            if (string.IsNullOrWhiteSpace(filtroCliente))
+            {
+                filtroCliente = operacionesList.FirstOrDefault()?.nombre ?? "WalMart";
+                _snackbar.Add($"Se asignó el cliente '{filtroCliente}' del combo. Puedes cambiarlo si lo deseas.", Severity.Info);
+            }
+
             using var ms = new MemoryStream();
             await file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024).CopyToAsync(ms);
             ms.Position = 0;
@@ -850,49 +945,32 @@
                 }
             }
 
-            // Fallbacks inteligentes de columnas
+            // Fallbacks de columnas para la plantilla HT.xlsx
             if (colIds == -1)
             {
-                if (colNombre >= 0)
-                {
-                    // Formato HT: Área (0), ID Empleado (1), Nombre Completo (2), Puesto (3), Entrada (4), Salida (5), Bnc (6), Trasp (7), Alim (8)
-                    if (colArea == -1) colArea = 0;
-                    colIds = 1;
-                    if (colPuesto == -1) colPuesto = 3;
-                    if (colHoraInicio == -1) colHoraInicio = 4;
-                    if (colHoraFin == -1) colHoraFin = 5;
-                    if (colBnc == -1) colBnc = 6;
-                    if (colVtcoTrasp == -1) colVtcoTrasp = 7;
-                    if (colVtcoAlim == -1) colVtcoAlim = 8;
-                }
-                else
-                {
-                    // Formato Google Sheets: Área (0), Puesto (1), Fecha (2), Inicio (3), Fin (4), Recursos/IDs (5)
-                    if (colArea == -1) colArea = 0;
-                    if (colPuesto == -1) colPuesto = 1;
-                    if (colHoraInicio == -1) colHoraInicio = 3;
-                    if (colHoraFin == -1) colHoraFin = 4;
-                    colIds = 5;
-                    if (colBnc == -1) colBnc = 6;
-                    if (colVtcoTrasp == -1) colVtcoTrasp = 7;
-                    if (colVtcoAlim == -1) colVtcoAlim = 8;
-                }
+                colArea = 0;
+                colIds = 1;
+                colNombre = 2;
+                colPuesto = 3;
+                colHoraInicio = 4;
+                colHoraFin = 5;
+                colBnc = 6;
+                colVtcoTrasp = 7;
+                colVtcoAlim = 8;
             }
             else
             {
                 if (colArea == -1) colArea = 0;
-                if (colPuesto == -1) colPuesto = 1;
-                if (colHoraInicio == -1) colHoraInicio = 3;
-                if (colHoraFin == -1) colHoraFin = 4;
+                if (colPuesto == -1) colPuesto = 3;
+                if (colHoraInicio == -1) colHoraInicio = 4;
+                if (colHoraFin == -1) colHoraFin = 5;
             }
 
-            int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
-            var nuevosColaboradores = new List<PersonalClienteItemDto>();
-            int totalObviados = 0;
+            int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 1;
+            int agregados = 0;
+            int obviados = 0;
 
-            int? opId = null;
-            var matchOp = operacionesList.FirstOrDefault(o => o.nombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
-            if (matchOp != null) opId = matchOp.id;
+            int? opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase))?.id;
 
             for (int r = startRow; r <= sheet.LastRowNum; r++)
             {
@@ -920,17 +998,17 @@
                     if (!int.TryParse(token.Trim(), out int codigoEmpleado) || codigoEmpleado <= 0)
                         continue;
 
-                    // REGLA: Si ya existe en este cliente, obviarlo
-                    bool yaExiste = listaPersonal.Any(p =>
+                    // REGLA: Si ya existe en BD para este cliente, obviarlo
+                    bool yaExisteEnBd = listaPersonal.Any(p =>
                         p.CodigoEmpleado == codigoEmpleado &&
                         p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
 
-                    // REGLA: Si ya se agregó en este mismo archivo, obviarlo
-                    bool yaEnLote = nuevosColaboradores.Any(p => p.CodigoEmpleado == codigoEmpleado);
+                    // REGLA: Si ya está en la lista de pendientes cargados, obviarlo
+                    bool yaEnPendientes = colaboradoresPendientes.Any(p => p.CodigoEmpleado == codigoEmpleado);
 
-                    if (yaExiste || yaEnLote)
+                    if (yaExisteEnBd || yaEnPendientes)
                     {
-                        totalObviados++;
+                        obviados++;
                         continue;
                     }
 
@@ -945,9 +1023,9 @@
 
                     string cargoFinal = !string.IsNullOrWhiteSpace(puesto) ? puesto : (empOdoo?.JobTitle ?? "6-Operador de almacen");
 
-                    nuevosColaboradores.Add(new PersonalClienteItemDto
+                    colaboradoresPendientes.Add(new PersonalClienteItemDto
                     {
-                        Id = 0,
+                        Id = 0, // Id = 0 indica pendiente de persistir en BD
                         OperacionId = opId ?? 0,
                         ClienteNombre = filtroCliente.Trim(),
                         UsuarioSupervisor = string.Empty,
@@ -966,42 +1044,97 @@
                         TipoEmpleado = "Permanente",
                         Activo = true
                     });
+                    agregados++;
                 }
             }
 
-            if (nuevosColaboradores.Any())
+            if (agregados > 0)
             {
-                var res = await _odooService.SavePersonalClienteMasivo(new GuardarPersonalClienteRequest
-                {
-                    ClienteNombre = filtroCliente.Trim(),
-                    UsuarioSupervisor = currentUserName,
-                    Items = nuevosColaboradores
-                });
-
-                if (res?.Respuesta?.ExisteError == false)
-                {
-                    _snackbar.Add($"¡Plantilla cargada con éxito! {nuevosColaboradores.Count} colaboradores agregados a '{filtroCliente}', {totalObviados} ya existían (obviados).", Severity.Success);
-                    await CargarPersonal();
-                }
-                else
-                {
-                    _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar colaboradores de la plantilla.", Severity.Error);
-                }
+                _snackbar.Add($"Se cargaron {agregados} colaboradores a la grilla ({obviados} ya existían). Presiona 'Guardar en Base de Datos' para confirmar.", Severity.Success);
             }
             else
             {
-                _snackbar.Add($"Todos los colaboradores ({totalObviados}) detectados en el archivo ya estaban registrados para '{filtroCliente}'.", Severity.Info);
+                _snackbar.Add($"Todos los colaboradores ({obviados}) detectados ya estaban registrados en la base de datos para '{filtroCliente}'.", Severity.Info);
             }
         }
         catch (Exception ex)
         {
-            _snackbar.Add($"Error al procesar archivo Excel: {ex.Message}", Severity.Error);
+            _snackbar.Add($"Error al leer el archivo Excel: {ex.Message}", Severity.Error);
         }
         finally
         {
             procesandoExcelDirecto = false;
             StateHasChanged();
         }
+    }
+
+    // =========================================================================
+    // GUARDAR EN BASE DE DATOS
+    // =========================================================================
+    private async Task GuardarEnBaseDeDatos()
+    {
+        if (!colaboradoresPendientes.Any())
+        {
+            _snackbar.Add("No hay colaboradores pendientes de guardar en la grilla.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(filtroCliente))
+        {
+            _snackbar.Add("Por favor, seleccione el Cliente / Operación en el combo antes de guardar.", Severity.Warning);
+            return;
+        }
+
+        guardandoEnBd = true;
+        StateHasChanged();
+
+        try
+        {
+            int? opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase))?.id;
+
+            foreach (var item in colaboradoresPendientes)
+            {
+                item.ClienteNombre = filtroCliente.Trim();
+                item.OperacionId = opId ?? 0;
+                item.UsuarioCreacion = currentUserName;
+            }
+
+            var request = new GuardarPersonalClienteRequest
+            {
+                ClienteNombre = filtroCliente.Trim(),
+                UsuarioSupervisor = currentUserName,
+                Items = colaboradoresPendientes.ToList()
+            };
+
+            var res = await _odooService.SavePersonalClienteMasivo(request);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                int guardados = colaboradoresPendientes.Count;
+                colaboradoresPendientes.Clear();
+                _snackbar.Add($"¡Éxito! Se guardaron {guardados} colaboradores en la base de datos para '{filtroCliente}'.", Severity.Success);
+                await CargarPersonal();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar colaboradores en la base de datos.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al guardar en base de datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardandoEnBd = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DescartarPendientes()
+    {
+        colaboradoresPendientes.Clear();
+        _snackbar.Add("Se descartaron los colaboradores cargados pendientes de guardar.", Severity.Info);
+        StateHasChanged();
     }
 
     // =========================================================================
@@ -1075,9 +1208,17 @@
 
     private async Task EliminarColaborador(PersonalClienteItemDto item)
     {
+        if (item.Id == 0)
+        {
+            colaboradoresPendientes.Remove(item);
+            _snackbar.Add($"Colaborador '{item.NombreEmpleado}' removido de la lista.", Severity.Info);
+            StateHasChanged();
+            return;
+        }
+
         bool? confirm = await _dialogService.ShowMessageBox(
             "Eliminar Colaborador del Cliente",
-            $"¿Está seguro de eliminar al colaborador '{item.NombreEmpleado}' (#{item.CodigoEmpleado}) del cliente '{item.ClienteNombre}'?",
+            $"¿Está seguro de eliminar al colaborador '{item.NombreEmpleado}' (#{item.CodigoEmpleado}) del cliente '{item.ClienteNombre}' de la base de datos?",
             yesText: "Sí, Eliminar", cancelText: "Cancelar");
 
         if (confirm == true)
@@ -1085,7 +1226,7 @@
             var res = await _odooService.DeletePersonalClienteItem(item.Id);
             if (res?.Respuesta?.ExisteError == false)
             {
-                _snackbar.Add($"Colaborador '{item.NombreEmpleado}' eliminado.", Severity.Info);
+                _snackbar.Add($"Colaborador '{item.NombreEmpleado}' eliminado de la base de datos.", Severity.Info);
                 await CargarPersonal();
             }
             else
