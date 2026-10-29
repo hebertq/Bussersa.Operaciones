@@ -104,7 +104,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaGuardando = false;
         protected bool estaEnviandoHelpdesk = false;
         protected int activeTabIndex = 0;
-        protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Completo;
+        protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Operativo;
 
         protected string currentUserName = string.Empty;
         protected List<Combos> operacionesList = new();
@@ -139,7 +139,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
         protected bool cargandoPlantilla = false;
         protected string textoBusquedaPlantilla = string.Empty;
-        protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Completo;
+        protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Operativo;
         protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
             string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
                 ? miPlantillaPersonal
