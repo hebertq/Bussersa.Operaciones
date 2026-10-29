@@ -209,6 +209,12 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>> GetSupervisorClientes(string usuario = "", string cliente = "");
         Task<IResponse> SaveSupervisorCliente(Modelo.ClasesGenericas.GuardarSupervisorClienteRequest request);
         Task<IResponse> DeleteSupervisorCliente(int id);
+
+        // --- PLANTILLA DE REQUERIMIENTOS / TURNOS DEL CLIENTE (PRECARGA EXCEL / SHEETS) ---
+        Task<IListResponse<Modelo.ClasesGenericas.PlantillaClienteTurnoDto>> GetPlantillaClienteTurnos(string cliente = "");
+        Task<IResponse> SavePlantillaClienteTurno(Modelo.ClasesGenericas.GuardarPlantillaClienteTurnoRequest request);
+        Task<IResponse> SavePlantillaClienteTurnosBloque(Modelo.ClasesGenericas.GuardarPlantillaClienteTurnosBloqueRequest request);
+        Task<IResponse> DeletePlantillaClienteTurno(int id);
     }
 }
 

@@ -1,0 +1,449 @@
+@using MudBlazor
+@using System.IO
+@using System.Globalization
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@using NPOI.SS.UserModel
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Custom.FileFormats.FileExcel" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Precargar Plantilla de Requerimientos del Cliente</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Importa los turnos y plazas desde archivo Excel (.xlsx) o copiando directamente desde Google Sheets
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            @* Selector de Cliente / Operación *@
+            <MudGrid Spacing="2" Class="mb-3" AlignItems="AlignItems.Center">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Cliente / Operación Destino" @bind-Value="clienteSeleccionado"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Required="true"
+                               AnchorOrigin="Origin.BottomCenter"
+                               AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
+                        @foreach (var op in OperacionesDisponibles)
+                        {
+                            <MudSelectItem Value="@op.nombre">@op.nombre (ID: @op.id)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Columnas esperadas: <b>Área | Puesto | Fecha | Hora Inicio | Hora Fin | Recursos | BNC | Vtco Trasp | Vtco Alim</b>
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+
+            @* Modos de Carga: Archivo Excel o Pegar desde Google Sheets *@
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pt-3">
+                <MudTabPanel Text="Subir Archivo Excel (.xlsx)" Icon="@Icons.Custom.FileFormats.FileExcel">
+                    <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnExcelFileSelected" Class="d-flex align-center gap-3">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@procesando">
+                                Seleccionar Archivo Excel
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    @if (!string.IsNullOrWhiteSpace(nombreArchivo))
+                    {
+                        <MudText Typo="Typo.caption" Class="mt-1 d-block text-success fw-bold">
+                            Archivo cargado: @nombreArchivo
+                        </MudText>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Pegar desde Google Sheets" Icon="@Icons.Material.Filled.ContentPaste">
+                    <MudTextField T="string" @bind-Value="textoPegado"
+                                  Label="Pega aquí los datos copiados desde Google Sheets"
+                                  Placeholder="Pega las filas directamente con Ctrl+V (incluyendo o no encabezados)..."
+                                  Lines="4" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mt-2"
+                               StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="ProcesarTextoPegado">
+                        Procesar Datos Pegados
+                    </MudButton>
+                </MudTabPanel>
+            </MudTabs>
+
+            @if (procesando)
+            {
+                <div class="d-flex align-center justify-center my-4">
+                    <MudProgressCircular Color="Color.Success" Indeterminate="true" Size="Size.Medium" Class="mr-2" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Leyendo y validando datos de la plantilla...</MudText>
+                </div>
+            }
+
+            @* Vista Previa de Filas Detectadas *@
+            @if (turnosDetectados.Any())
+            {
+                <div class="d-flex align-center justify-space-between mt-4 mb-2">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-success">
+                        Turnos detectados (@turnosDetectados.Count):
+                    </MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                            Total Recursos: @turnosDetectados.Sum(x => x.Recursos)
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                            Total BNC: C$ @turnosDetectados.Sum(x => x.BonoBnc * x.Recursos).ToString("N0")
+                        </MudChip>
+                    </MudStack>
+                </div>
+
+                <div style="max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <MudTable Items="@turnosDetectados" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh>Área</MudTh>
+                            <MudTh>Puesto</MudTh>
+                            <MudTh Style="width: 100px;">Fecha</MudTh>
+                            <MudTh Style="width: 110px;">Horario</MudTh>
+                            <MudTh Style="width: 70px;">Recursos</MudTh>
+                            <MudTh Style="width: 75px;">BNC</MudTh>
+                            <MudTh Style="width: 75px;">Trasp</MudTh>
+                            <MudTh Style="width: 75px;">Alim</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><MudText Typo="Typo.body2" Class="fw-bold">@context.Area</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.body2">@context.Puesto</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.caption">@(string.IsNullOrWhiteSpace(context.Fecha) ? "-" : context.Fecha)</MudText></MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.HoraInicio - @context.HoraFin</MudChip></MudTd>
+                            <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">@context.Recursos</MudChip></MudTd>
+                            <MudTd><MudText Typo="Typo.caption">@(context.BonoBnc > 0 ? $"C$ {context.BonoBnc:N0}" : "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.caption">@(context.VtcoTrasp > 0 ? $"C$ {context.VtcoTrasp:N0}" : "-")</MudText></MudTd>
+                            <MudTd><MudText Typo="Typo.caption">@(context.VtcoAlim > 0 ? $"C$ {context.VtcoAlim:N0}" : "-")</MudText></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </div>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="Cancelar">
+            Cancelar
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Importar" Disabled="@(!turnosDetectados.Any() || string.IsNullOrWhiteSpace(clienteSeleccionado) || procesando)">
+            Importar Plantilla (@turnosDetectados.Count turnos)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] private ISnackbar _snackbar { get; set; } = null!;
+
+    [Parameter] public List<Combos> OperacionesDisponibles { get; set; } = new();
+    [Parameter] public string ClienteInicial { get; set; } = string.Empty;
+
+    private string clienteSeleccionado = string.Empty;
+    private string nombreArchivo = string.Empty;
+    private string textoPegado = string.Empty;
+    private bool procesando = false;
+    private List<PlantillaClienteTurnoDto> turnosDetectados = new();
+
+    protected override void OnInitialized()
+    {
+        clienteSeleccionado = !string.IsNullOrWhiteSpace(ClienteInicial)
+            ? ClienteInicial
+            : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? string.Empty);
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private void Importar()
+    {
+        if (string.IsNullOrWhiteSpace(clienteSeleccionado))
+        {
+            _snackbar.Add("Debe seleccionar el cliente / operación destino.", Severity.Warning);
+            return;
+        }
+
+        if (!turnosDetectados.Any())
+        {
+            _snackbar.Add("No hay turnos para importar.", Severity.Warning);
+            return;
+        }
+
+        int? operacionId = null;
+        var match = OperacionesDisponibles.FirstOrDefault(o => o.nombre.Equals(clienteSeleccionado, StringComparison.OrdinalIgnoreCase));
+        if (match != null) operacionId = match.id;
+
+        foreach (var t in turnosDetectados)
+        {
+            t.ClienteNombre = clienteSeleccionado.Trim();
+            t.OperacionId = operacionId;
+        }
+
+        var request = new GuardarPlantillaClienteTurnosBloqueRequest
+        {
+            OperacionId = operacionId,
+            ClienteNombre = clienteSeleccionado.Trim(),
+            Turnos = turnosDetectados
+        };
+
+        MudDialog.Close(DialogResult.Ok(request));
+    }
+
+    private async Task OnExcelFileSelected(IBrowserFile file)
+    {
+        if (file == null) return;
+        nombreArchivo = file.Name;
+        procesando = true;
+        turnosDetectados.Clear();
+        StateHasChanged();
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+
+            IWorkbook workbook = WorkbookFactory.Create(ms);
+            IFormulaEvaluator evaluator = workbook.GetCreationHelper().CreateFormulaEvaluator();
+
+            // Buscar la pestaña
+            ISheet? sheet = null;
+            for (int s = 0; s < workbook.NumberOfSheets; s++)
+            {
+                var sName = workbook.GetSheetName(s).ToLowerInvariant();
+                if (sName.Contains("consolidado") || sName.Contains("plantilla") || sName.Contains("horario") || sName.Contains("programaci"))
+                {
+                    sheet = workbook.GetSheetAt(s);
+                    break;
+                }
+            }
+            if (sheet == null) sheet = workbook.GetSheetAt(0);
+
+            // Buscar fila de encabezados
+            IRow? headerRow = null;
+            int headerRowIndex = -1;
+            for (int r = 0; r <= Math.Min(sheet.LastRowNum, 15); r++)
+            {
+                var row = sheet.GetRow(r);
+                if (row == null) continue;
+
+                for (int c = 0; c < row.LastCellNum; c++)
+                {
+                    var val = row.GetCell(c)?.ToString()?.Trim()?.ToLowerInvariant() ?? "";
+                    if (val.Contains("área") || val.Contains("area") || val.Contains("puesto") || val.Contains("inicio"))
+                    {
+                        headerRow = row;
+                        headerRowIndex = r;
+                        break;
+                    }
+                }
+                if (headerRow != null) break;
+            }
+
+            int colArea = 0, colPuesto = 1, colFecha = 2, colHoraInicio = 3, colHoraFin = 4, colRecursos = 5, colBnc = 6, colVtcoTrasp = 7, colVtcoAlim = 8;
+
+            if (headerRow != null)
+            {
+                for (int c = 0; c < headerRow.LastCellNum; c++)
+                {
+                    var val = headerRow.GetCell(c)?.ToString()?.Trim()?.ToLowerInvariant() ?? "";
+                    if (val.Contains("área") || val.Contains("area")) colArea = c;
+                    else if (val.Contains("puesto") || val.Contains("cargo")) colPuesto = c;
+                    else if (val.Contains("fecha")) colFecha = c;
+                    else if (val.Contains("hora inicio") || val.Contains("inicio") || val.Contains("entrada")) colHoraInicio = c;
+                    else if (val.Contains("hora fin") || val.Contains("fin") || val.Contains("salida")) colHoraFin = c;
+                    else if (val.Contains("recurso") || val.Contains("cant")) colRecursos = c;
+                    else if (val.Contains("bnc")) colBnc = c;
+                    else if (val.Contains("trasp") || val.Contains("transporte")) colVtcoTrasp = c;
+                    else if (val.Contains("alim") || val.Contains("alimentaci")) colVtcoAlim = c;
+                }
+            }
+
+            int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+            for (int r = startRow; r <= sheet.LastRowNum; r++)
+            {
+                var row = sheet.GetRow(r);
+                if (row == null) continue;
+
+                string area = ExtraerString(row.GetCell(colArea), evaluator);
+                string puesto = ExtraerString(row.GetCell(colPuesto), evaluator);
+                string fecha = ExtraerFecha(row.GetCell(colFecha), evaluator);
+                string horaInicio = ExtraerHora(row.GetCell(colHoraInicio), evaluator);
+                string horaFin = ExtraerHora(row.GetCell(colHoraFin), evaluator);
+                int recursos = ExtraerEntero(row.GetCell(colRecursos), evaluator);
+                decimal bnc = ExtraerDecimal(row.GetCell(colBnc), evaluator);
+                decimal vtcoTrasp = ExtraerDecimal(row.GetCell(colVtcoTrasp), evaluator);
+                decimal vtcoAlim = ExtraerDecimal(row.GetCell(colVtcoAlim), evaluator);
+
+                if (string.IsNullOrWhiteSpace(area) && string.IsNullOrWhiteSpace(puesto))
+                    continue;
+
+                turnosDetectados.Add(new PlantillaClienteTurnoDto
+                {
+                    Area = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area,
+                    Puesto = string.IsNullOrWhiteSpace(puesto) ? "6-Operador de almacen" : puesto,
+                    Fecha = fecha,
+                    HoraInicio = string.IsNullOrWhiteSpace(horaInicio) ? "06:00" : horaInicio,
+                    HoraFin = string.IsNullOrWhiteSpace(horaFin) ? "14:00" : horaFin,
+                    Recursos = recursos <= 0 ? 1 : recursos,
+                    BonoBnc = bnc,
+                    VtcoTrasp = vtcoTrasp,
+                    VtcoAlim = vtcoAlim,
+                    Activo = true
+                });
+            }
+
+            _snackbar.Add($"Se detectaron {turnosDetectados.Count} turnos/requerimientos desde el archivo Excel.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al procesar archivo Excel: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            procesando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ProcesarTextoPegado()
+    {
+        if (string.IsNullOrWhiteSpace(textoPegado))
+        {
+            _snackbar.Add("Pegue el contenido copiado desde Google Sheets.", Severity.Warning);
+            return;
+        }
+
+        turnosDetectados.Clear();
+        var lines = textoPegado.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var line in lines)
+        {
+            var parts = line.Split('\t');
+            if (parts.Length < 2) continue;
+
+            string col0 = parts[0].Trim();
+            // Ignorar cabecera si la pegó
+            if (col0.Equals("Área", StringComparison.OrdinalIgnoreCase) || col0.Equals("Area", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string area = parts.Length > 0 ? parts[0].Trim() : "";
+            string puesto = parts.Length > 1 ? parts[1].Trim() : "";
+            string fecha = parts.Length > 2 ? parts[2].Trim() : "";
+            string horaInicio = parts.Length > 3 ? parts[3].Trim() : "06:00";
+            string horaFin = parts.Length > 4 ? parts[4].Trim() : "14:00";
+
+            int recursos = 1;
+            if (parts.Length > 5 && int.TryParse(parts[5].Trim(), out int r)) recursos = r;
+
+            decimal bnc = 0;
+            if (parts.Length > 6 && decimal.TryParse(parts[6].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal b)) bnc = b;
+
+            decimal vtcoTrasp = 0;
+            if (parts.Length > 7 && decimal.TryParse(parts[7].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal vt)) vtcoTrasp = vt;
+
+            decimal vtcoAlim = 0;
+            if (parts.Length > 8 && decimal.TryParse(parts[8].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal va)) vtcoAlim = va;
+
+            if (string.IsNullOrWhiteSpace(area) && string.IsNullOrWhiteSpace(puesto)) continue;
+
+            turnosDetectados.Add(new PlantillaClienteTurnoDto
+            {
+                Area = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area,
+                Puesto = string.IsNullOrWhiteSpace(puesto) ? "6-Operador de almacen" : puesto,
+                Fecha = fecha,
+                HoraInicio = string.IsNullOrWhiteSpace(horaInicio) ? "06:00" : horaInicio,
+                HoraFin = string.IsNullOrWhiteSpace(horaFin) ? "14:00" : horaFin,
+                Recursos = recursos <= 0 ? 1 : recursos,
+                BonoBnc = bnc,
+                VtcoTrasp = vtcoTrasp,
+                VtcoAlim = vtcoAlim,
+                Activo = true
+            });
+        }
+
+        _snackbar.Add($"Se procesaron {turnosDetectados.Count} turnos/requerimientos desde el texto pegado.", Severity.Success);
+    }
+
+    private string ExtraerString(ICell? cell, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return string.Empty;
+        try
+        {
+            if (cell.CellType == CellType.Formula)
+            {
+                var eval = evaluator.Evaluate(cell);
+                return eval?.StringValue?.Trim() ?? cell.ToString()?.Trim() ?? string.Empty;
+            }
+            return cell.ToString()?.Trim() ?? string.Empty;
+        }
+        catch { return cell.ToString()?.Trim() ?? string.Empty; }
+    }
+
+    private string ExtraerFecha(ICell? cell, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return string.Empty;
+        try
+        {
+            if (cell.CellType == CellType.Numeric && DateUtil.IsCellDateFormatted(cell))
+                return cell.DateCellValue.ToString("dd-MM-yyyy");
+            return cell.ToString()?.Trim() ?? string.Empty;
+        }
+        catch { return cell.ToString()?.Trim() ?? string.Empty; }
+    }
+
+    private string ExtraerHora(ICell? cell, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return string.Empty;
+        try
+        {
+            if (cell.CellType == CellType.Numeric)
+            {
+                double num = cell.NumericCellValue;
+                if (num < 1.0)
+                {
+                    var ts = TimeSpan.FromDays(num);
+                    return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}";
+                }
+                if (DateUtil.IsCellDateFormatted(cell))
+                    return cell.DateCellValue.ToString("HH:mm");
+            }
+            var s = cell.ToString()?.Trim() ?? string.Empty;
+            if (TimeSpan.TryParse(s, out TimeSpan tParsed))
+                return $"{(int)tParsed.TotalHours:D2}:{tParsed.Minutes:D2}";
+            return s;
+        }
+        catch { return cell.ToString()?.Trim() ?? string.Empty; }
+    }
+
+    private int ExtraerEntero(ICell? cell, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return 1;
+        try
+        {
+            if (cell.CellType == CellType.Numeric) return (int)Math.Round(cell.NumericCellValue);
+            if (int.TryParse(cell.ToString(), out int val)) return val;
+            return 1;
+        }
+        catch { return 1; }
+    }
+
+    private decimal ExtraerDecimal(ICell? cell, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return 0;
+        try
+        {
+            if (cell.CellType == CellType.Numeric) return (decimal)cell.NumericCellValue;
+            var text = cell.ToString()?.Trim() ?? "";
+            text = text.Replace("C$", "").Replace("$", "").Trim();
+            if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal val)) return val;
+            if (decimal.TryParse(text, NumberStyles.Any, new CultureInfo("es-NI"), out decimal valNi)) return valNi;
+            return 0;
+        }
+        catch { return 0; }
+    }
+}

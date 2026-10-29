@@ -9,7 +9,7 @@
 @inject IDialogService _dialogService
 @inject NavigationManager _navigationManager
 
-<PageTitle>Personal por Cliente - Supervisión - BUSSERSA</PageTitle>
+<PageTitle>Plantilla y Personal por Cliente - Supervisión - BUSSERSA</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-8">
 
@@ -20,15 +20,15 @@
         <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-3">
             <div class="d-flex align-center gap-3">
                 <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="rounded-lg shadow-sm" Style="background-color: #1e3a8a !important;">
-                    <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Medium" />
+                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Medium" />
                 </MudAvatar>
                 <div>
                     <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
                     <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #0f172a;">
-                        Gestión de Personal por Cliente y Asignación de Supervisores
+                        Plantilla y Asignación de Personal por Cliente
                     </MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        Configura la plantilla permanente de colaboradores por cliente y gestiona la asignación de cuentas a cada supervisor.
+                        Configura la plantilla de turnos/requerimientos desde Excel/Sheets y administra los colaboradores y supervisores asignados.
                     </MudText>
                 </div>
             </div>
@@ -50,11 +50,24 @@
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
-                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Colaboradores Totales</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #1e3a8a;">@listaPersonal.Count</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">En plantilla de clientes</MudText>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Turnos Requeridos</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #1e3a8a;">@listaPlantillaTurnos.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">En plantilla del cliente</MudText>
                 </div>
                 <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Medium" />
+                </MudAvatar>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
+                <div>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Recursos Solicitados</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #0284c7;">@listaPlantillaTurnos.Sum(x => x.Recursos)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Total plazas requeridas</MudText>
+                </div>
+                <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
                     <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Medium" />
                 </MudAvatar>
             </MudPaper>
@@ -63,25 +76,12 @@
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
-                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Clientes con Personal</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #0284c7;">@ClientesConPersonalCount</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">De @operacionesList.Count clientes registrados</MudText>
-                </div>
-                <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
-                    <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Medium" />
-                </MudAvatar>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
-                <div>
-                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Supervisores con Cuenta</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #059669;">@SupervisoresAsignadosCount</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">De @supervisoresList.Count supervisores activos</MudText>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Colaboradores Asignados</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #059669;">@listaPersonal.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Personal permanente</MudText>
                 </div>
                 <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
-                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Medium" />
+                    <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Medium" />
                 </MudAvatar>
             </MudPaper>
         </MudItem>
@@ -89,32 +89,204 @@
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Class="pa-4 rounded-xl d-flex align-center justify-space-between" Elevation="1" Style="border: 1px solid #e2e8f0; background: #ffffff;">
                 <div>
-                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Vínculos Cliente-Supervisor</MudText>
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Clientes a Supervisores</MudText>
                     <MudText Typo="Typo.h4" Class="fw-bold my-1" Style="color: #d97706;">@listaSupervisorClientes.Count(x => x.Activo)</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Asignaciones configuradas</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Asignaciones activas</MudText>
                 </div>
                 <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Large" Class="rounded-xl">
-                    <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Medium" />
+                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Medium" />
                 </MudAvatar>
             </MudPaper>
         </MudItem>
     </MudGrid>
 
     @* ==========================================
-       TABS PRINCIPALES (2 PESTAÑAS)
+       TABS PRINCIPALES
        ========================================== *@
     <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" Color="Color.Primary" Centered="false">
-        
+
         @* --------------------------------------------------------------------------------------------------
-           TAB 1: PERSONAL ASIGNADO POR CLIENTE
+           TAB 1: PLANTILLA DEL CLIENTE (TURNOS / REQUERIMIENTOS DESDE EXCEL O SHEETS)
            -------------------------------------------------------------------------------------------------- *@
-        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.PeopleAlt" BadgeData="@listaPersonal.Count" BadgeColor="Color.Primary">
+        <MudTabPanel Text="Plantilla del Cliente" Icon="@Icons.Material.Filled.Description" BadgeData="@listaPlantillaTurnos.Count" BadgeColor="Color.Primary">
             
             @* Barra de Filtros y Acciones del Tab 1 *@
             <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center">
                     <MudItem xs="12" sm="4" md="3">
-                        <MudSelect T="string" Label="Cliente / Operación" @bind-Value="filtroCliente" 
+                        <MudSelect T="string" Label="Cliente / Operación" @bind-Value="filtroClienteTurno" 
+                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
+                                   Clearable="true" Placeholder="Todos los Clientes"
+                                   AnchorOrigin="Origin.BottomCenter"
+                                   AdornmentIcon="@Icons.Material.Filled.Business" Adornment="Adornment.Start">
+                            @foreach (var op in operacionesList)
+                            {
+                                int count = listaPlantillaTurnos.Count(t => t.ClienteNombre.Equals(op.nombre, StringComparison.OrdinalIgnoreCase));
+                                <MudSelectItem Value="@op.nombre">
+                                    <div class="d-flex align-center justify-space-between">
+                                        <span>@op.nombre</span>
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="ml-2">@count</MudChip>
+                                    </div>
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" md="4">
+                        <MudTextField @bind-Value="filtroTextoTurno" Placeholder="Buscar por área, puesto o fecha..." 
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="5" Class="d-flex justify-end gap-2 flex-wrap">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="@AbrirDialogPrecargaExcel"
+                                   Class="rounded-lg text-capitalize shadow-sm">
+                            Precargar Plantilla Excel / Sheets
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="@AbrirDialogNuevoTurno"
+                                   Class="rounded-lg text-capitalize shadow-sm">
+                            Nuevo Turno
+                        </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
+                                       OnClick="@CargarPlantillaTurnos" Disabled="@cargandoTurnos" Title="Recargar datos" />
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @* Tabla de Turnos / Requerimientos *@
+            @if (cargandoTurnos)
+            {
+                <div class="d-flex flex-column align-center justify-center my-8">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-3">Cargando plantilla de requerimientos...</MudText>
+                </div>
+            }
+            else if (!PlantillaTurnosFiltrados.Any())
+            {
+                <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl my-4 text-center" Elevation="0" Style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+                    <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Large" Class="mb-3" Style="background: #dcfce7; color: #15803d;">
+                        <MudIcon Icon="@Icons.Custom.FileFormats.FileExcel" Size="Size.Large" />
+                    </MudAvatar>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay turnos o requerimientos cargados</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 520px;">
+                        Importa la plantilla desde archivo Excel (.xlsx) o copiando directamente desde Google Sheets con las columnas:
+                        <br /><b>Área | Puesto | Fecha | Hora Inicio | Hora Fin | Recursos | BNC | Vtco Trasp | Vtco Alim</b>
+                    </MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="@AbrirDialogPrecargaExcel">
+                            Precargar Plantilla Excel / Sheets
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="@AbrirDialogNuevoTurno">
+                            Nuevo Turno Manual
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Elevation="0" Class="rounded-lg overflow-hidden" Style="border: 1px solid #e2e8f0;">
+                    <MudTable Items="@PlantillaTurnosFiltrados" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh Style="font-weight: 700; color: #475569;">Cliente / Operación</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Área Operativa</MudTh>
+                            <MudTh Style="font-weight: 700; color: #475569;">Puesto</MudTh>
+                            <MudTh Style="width: 110px; font-weight: 700; color: #475569;">Fecha</MudTh>
+                            <MudTh Style="width: 130px; font-weight: 700; color: #475569;">Horario</MudTh>
+                            <MudTh Style="width: 90px; font-weight: 700; color: #475569; text-align: center;">Recursos</MudTh>
+                            <MudTh Style="width: 90px; font-weight: 700; color: #475569;">BNC</MudTh>
+                            <MudTh Style="width: 95px; font-weight: 700; color: #475569;">Vtco Trasp</MudTh>
+                            <MudTh Style="width: 95px; font-weight: 700; color: #475569;">Vtco Alim</MudTh>
+                            <MudTh Style="width: 80px; text-align: center; font-weight: 700; color: #475569;">Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" Icon="@Icons.Material.Filled.Business" Class="rounded-pill">
+                                    @context.ClienteNombre
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                                    <MudText Typo="Typo.body2" Class="fw-bold">@context.Area</MudText>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@context.Puesto</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold">
+                                    @(string.IsNullOrWhiteSpace(context.Fecha) ? "General" : context.Fecha)
+                                </MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info" Icon="@Icons.Material.Filled.Schedule">
+                                    @context.HoraInicio - @context.HoraFin
+                                </MudChip>
+                            </MudTd>
+                            <MudTd Style="text-align: center;">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="fw-bold px-3">
+                                    @context.Recursos @(context.Recursos == 1 ? "rec." : "recs.")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                @if (context.BonoBnc > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning">
+                                        C$ @context.BonoBnc.ToString("N0")
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                @if (context.VtcoTrasp > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Class="fw-bold text-success">C$ @context.VtcoTrasp.ToString("N0")</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                }
+                            </MudTd>
+                            <MudTd>
+                                @if (context.VtcoAlim > 0)
+                                {
+                                    <MudText Typo="Typo.caption" Class="fw-bold text-success">C$ @context.VtcoAlim.ToString("N0")</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                }
+                            </MudTd>
+                            <MudTd Style="text-align: center;">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" 
+                                               OnClick="@(() => AbrirDialogEditarTurno(context))" Title="Editar turno" />
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" 
+                                               OnClick="@(() => EliminarTurno(context))" Title="Eliminar turno" />
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        @* --------------------------------------------------------------------------------------------------
+           TAB 2: ASIGNACIÓN DE COLABORADORES AL CLIENTE (PERSONAL FIJO / PRESTAMO)
+           -------------------------------------------------------------------------------------------------- *@
+        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.PeopleAlt" BadgeData="@listaPersonal.Count" BadgeColor="Color.Success">
+            
+            @* Barra de Filtros y Acciones del Tab 2 *@
+            <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" sm="4" md="3">
+                        <MudSelect T="string" Label="Cliente / Operación" @bind-Value="filtroClientePersonal" 
                                    Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
                                    Clearable="true" Placeholder="Todos los Clientes"
                                    AnchorOrigin="Origin.BottomCenter"
@@ -144,21 +316,16 @@
                     </MudItem>
 
                     <MudItem xs="12" sm="4" md="3">
-                        <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar carnet, nombre, puesto, área..." 
+                        <MudTextField @bind-Value="filtroTextoPersonal" Placeholder="Buscar carnet, nombre, puesto, área..." 
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                                       Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
                     </MudItem>
 
                     <MudItem xs="12" sm="12" md="3" Class="d-flex justify-end gap-2 flex-wrap">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.CloudDownload" OnClick="@AbrirDialogPrecarga"
-                                   Class="rounded-lg text-capitalize">
-                            Precargar Odoo
-                        </MudButton>
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                    StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador"
                                    Class="rounded-lg text-capitalize shadow-sm">
-                            Nuevo
+                            Nuevo Colaborador
                         </MudButton>
                         <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small"
                                        OnClick="@CargarPersonal" Disabled="@cargandoPersonal" Title="Recargar datos" />
@@ -182,18 +349,11 @@
                     </MudAvatar>
                     <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No se encontraron colaboradores</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 480px;">
-                        @(string.IsNullOrWhiteSpace(filtroCliente) && string.IsNullOrWhiteSpace(filtroTexto)
-                            ? "Aún no hay colaboradores configurados en esta plantilla. Puedes precargarlos automáticamente desde Odoo o agregar uno nuevo."
-                            : "No hay colaboradores que coincidan con los filtros aplicados. Intenta cambiar el cliente o limpiar la búsqueda.")
+                        Agrega colaboradores fijos o permanentes a este cliente para que se reflejen en la plantilla de los supervisores.
                     </MudText>
-                    <MudStack Row="true" Spacing="2">
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudDownload" OnClick="@AbrirDialogPrecarga">
-                            Precargar desde Odoo
-                        </MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador">
-                            Nuevo Colaborador
-                        </MudButton>
-                    </MudStack>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="@AbrirDialogNuevoColaborador">
+                        Nuevo Colaborador
+                    </MudButton>
                 </MudPaper>
             }
             else
@@ -234,22 +394,15 @@
                                 </div>
                             </MudTd>
                             <MudTd>
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" Icon="@Icons.Material.Filled.Domain" Class="rounded-pill">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Dark" Icon="@Icons.Material.Filled.Business" Class="rounded-pill">
                                     @context.ClienteNombre
                                 </MudChip>
                             </MudTd>
                             <MudTd>
-                                @if (!string.IsNullOrWhiteSpace(context.AreaDefault))
-                                {
-                                    <div class="d-flex align-center">
-                                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
-                                        <MudText Typo="Typo.body2">@context.AreaDefault</MudText>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">General</MudText>
-                                }
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 text-secondary" />
+                                    <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(context.AreaDefault) ? "General" : context.AreaDefault)</MudText>
+                                </div>
                             </MudTd>
                             <MudTd>
                                 <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(context.PuestoDefault) ? "-" : context.PuestoDefault)</MudText>
@@ -311,15 +464,15 @@
         </MudTabPanel>
 
         @* --------------------------------------------------------------------------------------------------
-           TAB 2: ASIGNACIÓN DE CLIENTES A SUPERVISORES
+           TAB 3: ASIGNACIÓN DE CLIENTES A SUPERVISORES
            -------------------------------------------------------------------------------------------------- *@
         <MudTabPanel Text="Asignación Clientes a Supervisores" Icon="@Icons.Material.Filled.SupervisorAccount" BadgeData="@listaSupervisorClientes.Count(x => x.Activo)" BadgeColor="Color.Warning">
             
-            @* Barra de Filtros y Acciones del Tab 2 *@
+            @* Barra de Filtros y Acciones del Tab 3 *@
             <MudPaper Class="pa-3 mb-4 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center">
                     <MudItem xs="12" sm="4" md="4">
-                        <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisorTab2" 
+                        <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisorTab3" 
                                    Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
                                    Clearable="true" Placeholder="Todos los Supervisores"
                                    AnchorOrigin="Origin.BottomCenter"
@@ -338,7 +491,7 @@
                     </MudItem>
 
                     <MudItem xs="12" sm="4" md="4">
-                        <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroClienteTab2" 
+                        <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroClienteTab3" 
                                    Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" 
                                    Clearable="true" Placeholder="Todos los Clientes"
                                    AnchorOrigin="Origin.BottomCenter"
@@ -384,9 +537,7 @@
                     </MudAvatar>
                     <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #334155;">No hay asignaciones de clientes a supervisores</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 480px;">
-                        @(string.IsNullOrWhiteSpace(filtroSupervisorTab2) && string.IsNullOrWhiteSpace(filtroClienteTab2)
-                            ? "Vincule clientes u operaciones a los supervisores para que en su tablet o módulo de supervisión únicamente visualicen los colaboradores de sus clientes asignados."
-                            : "No hay asignaciones que coincidan con los filtros seleccionados.")
+                        Vincule clientes u operaciones a los supervisores para que en su tablet únicamente visualicen los colaboradores de sus clientes asignados.
                     </MudText>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAddAlt1" OnClick="@AbrirDialogAsignarSupervisorCliente">
                         Asignar Cliente a Supervisor
@@ -488,6 +639,7 @@
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 
     private string currentUserName = string.Empty;
+    private bool cargandoTurnos = false;
     private bool cargandoPersonal = false;
     private bool cargandoSupervisorClientes = false;
 
@@ -495,7 +647,7 @@
     {
         new BreadcrumbItem("Inicio", href: "/"),
         new BreadcrumbItem("Supervisión", href: null, disabled: true),
-        new BreadcrumbItem("Personal por Cliente", href: null, disabled: true)
+        new BreadcrumbItem("Plantilla por Cliente", href: null, disabled: true)
     };
 
     // Catálogos
@@ -515,34 +667,60 @@
         "Auxiliar de bodega"
     };
 
-    // Datos Tab 1: Personal por Cliente
+    // Datos Tab 1: Plantilla Requerimientos / Turnos
+    private List<PlantillaClienteTurnoDto> listaPlantillaTurnos = new();
+    private string? filtroClienteTurno = "";
+    private string? filtroTextoTurno = "";
+
+    // Datos Tab 2: Personal por Cliente
     private List<PersonalClienteItemDto> listaPersonal = new();
-    private string? filtroCliente = "";
+    private string? filtroClientePersonal = "";
     private string? filtroTipoPersonal = "";
-    private string? filtroTexto = "";
+    private string? filtroTextoPersonal = "";
 
-    // Datos Tab 2: Asignación Supervisor - Cliente
+    // Datos Tab 3: Asignación Supervisor - Cliente
     private List<SupervisorClienteDto> listaSupervisorClientes = new();
-    private string? filtroSupervisorTab2 = "";
-    private string? filtroClienteTab2 = "";
-
-    // Métricas calculadas
-    private int ClientesConPersonalCount =>
-        listaPersonal.Select(p => p.ClienteNombre).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-
-    private int SupervisoresAsignadosCount =>
-        listaSupervisorClientes.Where(x => x.Activo).Select(x => x.UsuarioSupervisor).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+    private string? filtroSupervisorTab3 = "";
+    private string? filtroClienteTab3 = "";
 
     // Filtro Tab 1
+    private IEnumerable<PlantillaClienteTurnoDto> PlantillaTurnosFiltrados
+    {
+        get
+        {
+            var query = listaPlantillaTurnos.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroClienteTurno))
+            {
+                query = query.Where(t => t.ClienteNombre != null && t.ClienteNombre.Equals(filtroClienteTurno, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroTextoTurno))
+            {
+                var term = filtroTextoTurno.Trim().ToLowerInvariant();
+                query = query.Where(t =>
+                    (t.Area != null && t.Area.ToLowerInvariant().Contains(term)) ||
+                    (t.Puesto != null && t.Puesto.ToLowerInvariant().Contains(term)) ||
+                    (t.Fecha != null && t.Fecha.ToLowerInvariant().Contains(term)) ||
+                    (t.HoraInicio != null && t.HoraInicio.Contains(term)) ||
+                    (t.HoraFin != null && t.HoraFin.Contains(term))
+                );
+            }
+
+            return query.OrderBy(t => t.ClienteNombre).ThenBy(t => t.Area).ThenBy(t => t.Puesto);
+        }
+    }
+
+    // Filtro Tab 2
     private IEnumerable<PersonalClienteItemDto> PersonalFiltrado
     {
         get
         {
             var query = listaPersonal.AsEnumerable();
 
-            if (!string.IsNullOrWhiteSpace(filtroCliente))
+            if (!string.IsNullOrWhiteSpace(filtroClientePersonal))
             {
-                query = query.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(p => p.ClienteNombre != null && p.ClienteNombre.Equals(filtroClientePersonal, StringComparison.OrdinalIgnoreCase));
             }
 
             if (!string.IsNullOrWhiteSpace(filtroTipoPersonal))
@@ -550,9 +728,9 @@
                 query = query.Where(p => p.TipoEmpleado != null && p.TipoEmpleado.Equals(filtroTipoPersonal, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            if (!string.IsNullOrWhiteSpace(filtroTextoPersonal))
             {
-                var term = filtroTexto.Trim().ToLowerInvariant();
+                var term = filtroTextoPersonal.Trim().ToLowerInvariant();
                 query = query.Where(p =>
                     p.CodigoEmpleado.ToString().Contains(term) ||
                     (p.NombreEmpleado != null && p.NombreEmpleado.ToLowerInvariant().Contains(term)) ||
@@ -566,21 +744,21 @@
         }
     }
 
-    // Filtro Tab 2
+    // Filtro Tab 3
     private IEnumerable<SupervisorClienteDto> SupervisorClientesFiltrados
     {
         get
         {
             var query = listaSupervisorClientes.AsEnumerable();
 
-            if (!string.IsNullOrWhiteSpace(filtroSupervisorTab2))
+            if (!string.IsNullOrWhiteSpace(filtroSupervisorTab3))
             {
-                query = query.Where(x => x.UsuarioSupervisor != null && x.UsuarioSupervisor.Equals(filtroSupervisorTab2, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(x => x.UsuarioSupervisor != null && x.UsuarioSupervisor.Equals(filtroSupervisorTab3, StringComparison.OrdinalIgnoreCase));
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroClienteTab2))
+            if (!string.IsNullOrWhiteSpace(filtroClienteTab3))
             {
-                query = query.Where(x => x.ClienteNombre != null && x.ClienteNombre.Equals(filtroClienteTab2, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(x => x.ClienteNombre != null && x.ClienteNombre.Equals(filtroClienteTab3, StringComparison.OrdinalIgnoreCase));
             }
 
             return query.OrderBy(x => x.UsuarioSupervisor).ThenBy(x => x.ClienteNombre);
@@ -600,7 +778,7 @@
         catch { }
 
         await CargarCatalogos();
-        await Task.WhenAll(CargarPersonal(), CargarSupervisorClientes());
+        await Task.WhenAll(CargarPlantillaTurnos(), CargarPersonal(), CargarSupervisorClientes());
     }
 
     private async Task CargarCatalogos()
@@ -644,6 +822,30 @@
         }
     }
 
+    // --- CARGA TAB 1: TURNOS / REQUERIMIENTOS ---
+    private async Task CargarPlantillaTurnos()
+    {
+        cargandoTurnos = true;
+        try
+        {
+            var resp = await _odooService.GetPlantillaClienteTurnos(cliente: "");
+            if (resp?.Model != null)
+            {
+                listaPlantillaTurnos = resp.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar turnos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargandoTurnos = false;
+            StateHasChanged();
+        }
+    }
+
+    // --- CARGA TAB 2: PERSONAL ---
     private async Task CargarPersonal()
     {
         cargandoPersonal = true;
@@ -657,7 +859,7 @@
         }
         catch (Exception ex)
         {
-            _snackbar.Add($"Error al cargar el personal: {ex.Message}", Severity.Error);
+            _snackbar.Add($"Error al cargar personal: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -666,6 +868,7 @@
         }
     }
 
+    // --- CARGA TAB 3: ASIGNACIÓN SUPERVISORES ---
     private async Task CargarSupervisorClientes()
     {
         cargandoSupervisorClientes = true;
@@ -679,7 +882,7 @@
         }
         catch (Exception ex)
         {
-            _snackbar.Add($"Error al cargar asignaciones de supervisores: {ex.Message}", Severity.Error);
+            _snackbar.Add($"Error al cargar asignaciones: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -688,7 +891,118 @@
         }
     }
 
-    // --- ACCIONES TAB 1: PERSONAL ---
+    // --- ACCIONES TAB 1: PLANTILLA DE REQUERIMIENTOS / TURNOS ---
+
+    private async Task AbrirDialogPrecargaExcel()
+    {
+        var parameters = new DialogParameters
+        {
+            ["OperacionesDisponibles"] = operacionesList,
+            ["ClienteInicial"] = filtroClienteTurno ?? ""
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogPrecargarPlantillaExcel>("Precargar Plantilla Excel / Sheets", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is GuardarPlantillaClienteTurnosBloqueRequest request)
+        {
+            request.UsuarioCreacion = currentUserName;
+            var res = await _odooService.SavePlantillaClienteTurnosBloque(request);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Plantilla importada exitosamente ({request.Turnos.Count} turnos).", Severity.Success);
+                await CargarPlantillaTurnos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar plantilla.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task AbrirDialogNuevoTurno()
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = new PlantillaClienteTurnoDto(),
+            ["IsNuevo"] = true,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["CargosDisponibles"] = cargosDisponibles,
+            ["ClienteSeleccionadoInicial"] = filtroClienteTurno ?? ""
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarPlantillaTurno>("Nuevo Turno / Requerimiento", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is GuardarPlantillaClienteTurnoRequest request)
+        {
+            request.UsuarioCreacion = currentUserName;
+            var res = await _odooService.SavePlantillaClienteTurno(request);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add("Turno registrado exitosamente.", Severity.Success);
+                await CargarPlantillaTurnos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar turno.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task AbrirDialogEditarTurno(PlantillaClienteTurnoDto item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = item,
+            ["IsNuevo"] = false,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["CargosDisponibles"] = cargosDisponibles,
+            ["ClienteSeleccionadoInicial"] = item.ClienteNombre
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarPlantillaTurno>("Editar Turno / Requerimiento", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is GuardarPlantillaClienteTurnoRequest request)
+        {
+            request.UsuarioCreacion = currentUserName;
+            var res = await _odooService.SavePlantillaClienteTurno(request);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add("Turno actualizado exitosamente.", Severity.Success);
+                await CargarPlantillaTurnos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al actualizar turno.", Severity.Error);
+            }
+        }
+    }
+
+    private async Task EliminarTurno(PlantillaClienteTurnoDto item)
+    {
+        bool? confirm = await _dialogService.ShowMessageBox(
+            "Eliminar Turno del Cliente",
+            $"¿Está seguro de eliminar el turno '{item.Puesto}' en '{item.Area}' ({item.HoraInicio}-{item.HoraFin}) del cliente '{item.ClienteNombre}'?",
+            yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            var res = await _odooService.DeletePlantillaClienteTurno(item.Id);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add("Turno eliminado.", Severity.Info);
+                await CargarPlantillaTurnos();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar turno.", Severity.Error);
+            }
+        }
+    }
+
+    // --- ACCIONES TAB 2: PERSONAL POR CLIENTE ---
 
     private async Task AbrirDialogNuevoColaborador()
     {
@@ -700,7 +1014,7 @@
             ["AreasPorCliente"] = areasPorCliente,
             ["CargosDisponibles"] = cargosDisponibles,
             ["SupervisoresDisponibles"] = supervisoresList,
-            ["ClienteSeleccionadoInicial"] = filtroCliente ?? "",
+            ["ClienteSeleccionadoInicial"] = filtroClientePersonal ?? "",
             ["SupervisorSeleccionadoInicial"] = ""
         };
 
@@ -756,32 +1070,6 @@
         }
     }
 
-    private async Task AbrirDialogPrecarga()
-    {
-        int? opId = null;
-        if (!string.IsNullOrWhiteSpace(filtroCliente))
-        {
-            var match = operacionesList.FirstOrDefault(o => o.nombre.Equals(filtroCliente, StringComparison.OrdinalIgnoreCase));
-            if (match != null) opId = match.id;
-        }
-
-        var parameters = new DialogParameters
-        {
-            ["OperacionesDisponibles"] = operacionesList,
-            ["SupervisoresDisponibles"] = supervisoresList,
-            ["OperacionInicialId"] = opId,
-            ["SupervisorInicial"] = ""
-        };
-
-        var dialog = await _dialogService.ShowAsync<DialogPrecargarPersonalCliente>("Precargar Plantilla desde Operación", parameters);
-        var result = await dialog.Result;
-
-        if (result != null && !result.Canceled)
-        {
-            await CargarPersonal();
-        }
-    }
-
     private async Task EliminarColaborador(PersonalClienteItemDto item)
     {
         bool? confirm = await _dialogService.ShowMessageBox(
@@ -804,7 +1092,7 @@
         }
     }
 
-    // --- ACCIONES TAB 2: ASIGNACIÓN SUPERVISOR - CLIENTE ---
+    // --- ACCIONES TAB 3: ASIGNACIÓN SUPERVISOR - CLIENTE ---
 
     private async Task AbrirDialogAsignarSupervisorCliente()
     {
@@ -812,8 +1100,8 @@
         {
             ["SupervisoresDisponibles"] = supervisoresList,
             ["OperacionesDisponibles"] = operacionesList,
-            ["SupervisorInicial"] = filtroSupervisorTab2 ?? "",
-            ["ClienteInicial"] = filtroClienteTab2 ?? ""
+            ["SupervisorInicial"] = filtroSupervisorTab3 ?? "",
+            ["ClienteInicial"] = filtroClienteTab3 ?? ""
         };
 
         var dialog = await _dialogService.ShowAsync<DialogAsignarClienteSupervisor>("Asignar Cliente a Supervisor", parameters);

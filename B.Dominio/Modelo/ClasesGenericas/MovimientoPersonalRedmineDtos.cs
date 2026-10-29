@@ -209,4 +209,49 @@ namespace Modelo.ClasesGenericas
         public string AreaNombre { get; set; } = string.Empty;
         public string Usuario { get; set; } = "Supervisor";
     }
+
+    public class PlantillaClienteTurnoDto
+    {
+        public int Id { get; set; }
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string Fecha { get; set; } = string.Empty;
+        public string HoraInicio { get; set; } = "06:00";
+        public string HoraFin { get; set; } = "14:00";
+        public int Recursos { get; set; } = 1;
+        public decimal BonoBnc { get; set; }
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public string? UsuarioCreacion { get; set; }
+    }
+
+    public class GuardarPlantillaClienteTurnoRequest
+    {
+        public int Id { get; set; }
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string Fecha { get; set; } = string.Empty;
+        public string HoraInicio { get; set; } = "06:00";
+        public string HoraFin { get; set; } = "14:00";
+        public int Recursos { get; set; } = 1;
+        public decimal BonoBnc { get; set; }
+        public decimal VtcoTrasp { get; set; }
+        public decimal VtcoAlim { get; set; }
+        public bool Activo { get; set; } = true;
+        public string UsuarioCreacion { get; set; } = string.Empty;
+    }
+
+    public class GuardarPlantillaClienteTurnosBloqueRequest
+    {
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string UsuarioCreacion { get; set; } = string.Empty;
+        public List<PlantillaClienteTurnoDto> Turnos { get; set; } = new();
+    }
 }

@@ -65,8 +65,10 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect T="string" Label="Supervisor Asignado" @bind-Value="UsuarioSupervisor" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                        <MudSelectItem Value="@("")">-- Sin Asignar --</MudSelectItem>
+                    <MudSelect T="string" Label="Supervisor Asignado (Opcional)" @bind-Value="UsuarioSupervisor" 
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
+                               AnchorOrigin="Origin.BottomCenter"
+                               Placeholder="Sin Asignar">
                         @foreach (var u in SupervisoresDisponibles)
                         {
                             <MudSelectItem Value="@u.username">@u.nombres @u.apellidos (@u.username)</MudSelectItem>
