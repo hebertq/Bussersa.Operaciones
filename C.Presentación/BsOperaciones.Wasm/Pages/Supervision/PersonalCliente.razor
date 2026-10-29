@@ -926,22 +926,22 @@
 
                     if (val.Contains("rea") || val.Contains("area") || val.Contains("área"))
                         colArea = c;
-                    else if (val.Contains("nombre") || (val.Contains("colaborador") && !val.Contains("id") && !val.Contains("código") && !val.Contains("carnet")))
-                        colNombre = c;
-                    else if (val.Contains("id") || val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || (val.Contains("empleado") && !val.Contains("nombre")))
-                        colIds = c;
-                    else if (val.Contains("puesto") || val.Contains("cargo") || val.Contains("posici"))
-                        colPuesto = c;
-                    else if (val.Contains("entrada") || val.Contains("inicio") || (val.Contains("hora") && val.Contains("inici")))
-                        colHoraInicio = c;
-                    else if (val.Contains("salida") || val.Contains("fin") || (val.Contains("hora") && val.Contains("fin")))
+                    else if (val.Contains("salida") || val.Contains("fin"))
                         colHoraFin = c;
+                    else if (val.Contains("entrada") || val.Contains("inicio"))
+                        colHoraInicio = c;
+                    else if (val.Contains("nombre"))
+                        colNombre = c;
+                    else if (val.Contains("puesto") || val.Contains("cargo"))
+                        colPuesto = c;
                     else if (val.Contains("bnc") || val.Contains("bono"))
                         colBnc = c;
                     else if (val.Contains("trasp") || val.Contains("transp"))
                         colVtcoTrasp = c;
                     else if (val.Contains("alim"))
                         colVtcoAlim = c;
+                    else if (val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || val.StartsWith("id") || val.EndsWith("id") || val.Contains(" id") || val.Contains("id ") || (val.Contains("empleado") && !val.Contains("nombre")))
+                        colIds = c;
                 }
             }
 
@@ -958,13 +958,10 @@
                 colVtcoTrasp = 7;
                 colVtcoAlim = 8;
             }
-            else
-            {
-                if (colArea == -1) colArea = 0;
-                if (colPuesto == -1) colPuesto = 3;
-                if (colHoraInicio == -1) colHoraInicio = 4;
-                if (colHoraFin == -1) colHoraFin = 5;
-            }
+            if (colArea == -1) colArea = 0;
+            if (colPuesto == -1) colPuesto = 3;
+            if (colHoraInicio == -1) colHoraInicio = 4;
+            if (colHoraFin == -1) colHoraFin = 5;
 
             int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 1;
             int agregados = 0;
@@ -1050,11 +1047,15 @@
 
             if (agregados > 0)
             {
-                _snackbar.Add($"Se cargaron {agregados} colaboradores a la grilla ({obviados} ya existían). Presiona 'Guardar en Base de Datos' para confirmar.", Severity.Success);
+                _snackbar.Add($"¡Éxito! Se cargaron {agregados} colaboradores de la plantilla a la grilla ({obviados} ya existían). Presiona 'Guardar en Base de Datos' para confirmar.", Severity.Success);
+            }
+            else if (obviados > 0)
+            {
+                _snackbar.Add($"Todos los colaboradores ({obviados}) detectados ya estaban registrados en la base de datos para '{filtroCliente}'.", Severity.Info);
             }
             else
             {
-                _snackbar.Add($"Todos los colaboradores ({obviados}) detectados ya estaban registrados en la base de datos para '{filtroCliente}'.", Severity.Info);
+                _snackbar.Add($"No se detectaron filas válidas en el archivo Excel. Verifique que la columna 'ID Empleado' contenga carnets numéricos.", Severity.Warning);
             }
         }
         catch (Exception ex)

@@ -266,22 +266,22 @@
 
                     if (val.Contains("rea") || val.Contains("area") || val.Contains("área"))
                         colArea = c;
-                    else if (val.Contains("nombre") || (val.Contains("colaborador") && !val.Contains("id") && !val.Contains("código") && !val.Contains("carnet")))
-                        colNombre = c;
-                    else if (val.Contains("id") || val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || (val.Contains("empleado") && !val.Contains("nombre")))
-                        colIds = c;
-                    else if (val.Contains("puesto") || val.Contains("cargo") || val.Contains("posici"))
-                        colPuesto = c;
-                    else if (val.Contains("entrada") || val.Contains("inicio") || (val.Contains("hora") && val.Contains("inici")))
-                        colHoraInicio = c;
-                    else if (val.Contains("salida") || val.Contains("fin") || (val.Contains("hora") && val.Contains("fin")))
+                    else if (val.Contains("salida") || val.Contains("fin"))
                         colHoraFin = c;
+                    else if (val.Contains("entrada") || val.Contains("inicio"))
+                        colHoraInicio = c;
+                    else if (val.Contains("nombre"))
+                        colNombre = c;
+                    else if (val.Contains("puesto") || val.Contains("cargo"))
+                        colPuesto = c;
                     else if (val.Contains("bnc") || val.Contains("bono"))
                         colBnc = c;
                     else if (val.Contains("trasp") || val.Contains("transp"))
                         colVtcoTrasp = c;
                     else if (val.Contains("alim"))
                         colVtcoAlim = c;
+                    else if (val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || val.StartsWith("id") || val.EndsWith("id") || val.Contains(" id") || val.Contains("id ") || (val.Contains("empleado") && !val.Contains("nombre")))
+                        colIds = c;
                 }
             }
 
