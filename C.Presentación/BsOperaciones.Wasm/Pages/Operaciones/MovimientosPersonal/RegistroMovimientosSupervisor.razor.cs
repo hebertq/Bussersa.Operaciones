@@ -59,6 +59,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
         public string Observaciones { get; set; } = string.Empty;
+        public string TipoEmpleado { get; set; } = "Permanente"; // "Permanente" o "Prestamo"
         public bool Asistio { get; set; } = true;
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
@@ -440,6 +441,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoTrasp = m.VtcoTrasp,
                         VtcoAlim = m.VtcoAlim,
                         Observaciones = m.Observaciones ?? string.Empty,
+                        TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
                         Asistio = m.Asistio,
                         Estado = m.Estado,
                         TicketRedmineId = m.TicketRedmineId,
@@ -802,6 +804,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoTrasp = item.VtcoTraspDefault,
                         VtcoAlim = item.VtcoAlimDefault,
                         BonoBnc = item.BonoBncDefault,
+                        TipoEmpleado = !string.IsNullOrWhiteSpace(item.TipoEmpleado) ? item.TipoEmpleado : "Permanente",
                         Asistio = true,
                         Estado = "BORRADOR",
                         Modificado = true
@@ -849,6 +852,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     VtcoTraspDefault = e.VtcoTrasp,
                     VtcoAlimDefault = e.VtcoAlim,
                     BonoBncDefault = e.BonoBnc,
+                    TipoEmpleado = !string.IsNullOrWhiteSpace(e.TipoEmpleado) ? e.TipoEmpleado : "Permanente",
                     Activo = true
                 }).ToList();
 
@@ -1169,7 +1173,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["CargosDisponibles"] = cargosDisponibles,
                 ["OperacionDefecto"] = defaultOp,
                 ["AreaDefecto"] = defaultAreas.FirstOrDefault() ?? "Operaciones",
-                ["TextoBusquedaInicial"] = textoInicial
+                ["TextoBusquedaInicial"] = textoInicial,
+                ["PlantillaExistente"] = miPlantillaPersonal
             };
 
             var dialog = await _dialogService.ShowAsync<DialogAgregarColaboradorJornada>("Agregar Colaborador a la Jornada", parameters);
@@ -1210,10 +1215,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoTraspDefault = nuevo.VtcoTrasp,
                         VtcoAlimDefault = nuevo.VtcoAlim,
                         BonoBncDefault = nuevo.BonoBnc,
+                        TipoEmpleado = nuevo.TipoEmpleado,
                         Activo = true
                     };
                     await _odooService.SaveSupervisorPlantillaItem(itemP);
                     miPlantillaPersonal.Add(itemP);
+                }
+                else
+                {
+                    var enPlantilla = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == nuevo.CodigoEmpleado);
+                    if (enPlantilla != null && enPlantilla.TipoEmpleado != nuevo.TipoEmpleado)
+                    {
+                        enPlantilla.TipoEmpleado = nuevo.TipoEmpleado;
+                        await _odooService.SaveSupervisorPlantillaItem(enPlantilla);
+                    }
                 }
 
                 ActualizarGruposConsolidados();

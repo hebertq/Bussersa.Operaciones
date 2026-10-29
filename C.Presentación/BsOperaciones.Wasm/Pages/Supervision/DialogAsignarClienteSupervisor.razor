@@ -133,7 +133,9 @@
         var user = SupervisoresDisponibles.FirstOrDefault(u => 
             u.username.Equals(usuarioSeleccionado, StringComparison.OrdinalIgnoreCase) ||
             u.id.ToString() == usuarioSeleccionado ||
-            (u.email != null && u.email.Equals(usuarioSeleccionado, StringComparison.OrdinalIgnoreCase)));
+            (u.email != null && u.email.Equals(usuarioSeleccionado, StringComparison.OrdinalIgnoreCase)) ||
+            (u.username != null && usuarioSeleccionado.Contains(u.username, StringComparison.OrdinalIgnoreCase)) ||
+            (u.email != null && usuarioSeleccionado.Contains(u.email, StringComparison.OrdinalIgnoreCase)));
 
         int? operacionId = null;
         var op = OperacionesDisponibles.FirstOrDefault(o => o.nombre.Equals(clienteSeleccionado, StringComparison.OrdinalIgnoreCase));
@@ -142,13 +144,17 @@
             operacionId = op.id;
         }
 
+        string emailUser = !string.IsNullOrWhiteSpace(user?.email) 
+            ? user.email.Trim() 
+            : (usuarioSeleccionado.Contains("@") ? usuarioSeleccionado.Trim() : string.Empty);
+
         var request = new GuardarSupervisorClienteRequest
         {
             OperacionId = operacionId,
             ClienteNombre = clienteSeleccionado.Trim(),
             UsuarioSupervisor = user != null ? user.username : usuarioSeleccionado.Trim(),
             UsuarioId = user?.id,
-            UsuarioEmail = user?.email,
+            UsuarioEmail = !string.IsNullOrWhiteSpace(emailUser) ? emailUser : null,
             NombreSupervisor = user != null ? $"{user.nombres} {user.apellidos}".Trim() : string.Empty,
             UsuarioCreacion = string.Empty
         };

@@ -348,10 +348,16 @@
                                             <MudCheckBox @bind-Value="@emp.Seleccionado" Color="Color.Primary" Dense="true" Class="ma-0 pa-0" />
                                         </CardHeaderAvatar>
                                         <CardHeaderContent>
-                                            <div class="d-flex align-center gap-1">
+                                            <div class="d-flex align-center gap-1 flex-wrap">
                                                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 18px; font-size: 0.7rem; min-width: 42px; justify-content: center;">
                                                     #@emp.CodigoEmpleado
                                                 </MudChip>
+                                                @if (string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
+                                                        PRÉSTAMO
+                                                    </MudChip>
+                                                }
                                                 <MudText Typo="Typo.subtitle2" Class="fw-bold text-truncate" Style="max-width: 140px;" Title="@emp.NombreEmpleado">
                                                     @emp.NombreEmpleado
                                                 </MudText>
@@ -369,15 +375,31 @@
                                     <MudCardContent Class="pa-2 pt-0 pb-1">
                                         @* Asistencia *@
                                         <div class="d-flex align-center justify-space-between mb-2">
-                                            <MudChip T="string" 
-                                                     Color="@(emp.Asistio ? Color.Success : Color.Error)" 
-                                                     Variant="@(emp.Asistio ? Variant.Filled : Variant.Outlined)" 
-                                                     Size="Size.Small" 
-                                                     Class="cursor-pointer fw-bold" 
-                                                     Style="height: 22px; font-size: 0.72rem;"
-                                                     OnClick="@(() => { emp.Asistio = !emp.Asistio; emp.Modificado = true; ActualizarGruposConsolidados(); })">
-                                                @(emp.Asistio ? "PRESENTE" : "AUSENTE")
-                                            </MudChip>
+                                            <div class="d-flex align-center gap-1">
+                                                <MudChip T="string" 
+                                                         Color="@(emp.Asistio ? Color.Success : Color.Error)" 
+                                                         Variant="@(emp.Asistio ? Variant.Filled : Variant.Outlined)" 
+                                                         Size="Size.Small" 
+                                                         Class="cursor-pointer fw-bold" 
+                                                         Style="height: 22px; font-size: 0.72rem;"
+                                                         OnClick="@(() => { emp.Asistio = !emp.Asistio; emp.Modificado = true; ActualizarGruposConsolidados(); })">
+                                                    @(emp.Asistio ? "PRESENTE" : "AUSENTE")
+                                                </MudChip>
+                                                <MudChip T="string" 
+                                                         Color="@(string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) ? Color.Warning : Color.Default)" 
+                                                         Variant="Variant.Outlined" 
+                                                         Size="Size.Small" 
+                                                         Class="cursor-pointer font-monospace fw-bold" 
+                                                         Style="height: 22px; font-size: 0.68rem;"
+                                                         OnClick="@(() => { 
+                                                             emp.TipoEmpleado = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) ? "Permanente" : "Prestamo"; 
+                                                             emp.Modificado = true; 
+                                                             ActualizarGruposConsolidados();
+                                                         })"
+                                                         Title="Clic para alternar entre Permanente y Préstamo">
+                                                    @(string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) ? "Préstamo" : "Perm.")
+                                                </MudChip>
+                                            </div>
 
                                             @* Viáticos Resumen *@
                                             @{
@@ -487,9 +509,10 @@
                                 </MudTh>
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 220px;">Cliente / Operación</MudTh>
-                                <MudTh Style="min-width: 190px;">Área Operativa</MudTh>
-                                <MudTh Style="width: 200px;">Cargo / Puesto</MudTh>
+                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
+                                <MudTh Style="min-width: 180px;">Área Operativa</MudTh>
+                                <MudTh Style="width: 190px;">Cargo / Puesto</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else
@@ -503,6 +526,7 @@
                                 </MudTh>
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
+                                <MudTh Style="width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 170px;">Cliente / Operación</MudTh>
                                 <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
@@ -527,6 +551,12 @@
                                             <MudText Typo="Typo.body2" Class="fw-bold" Style="white-space: normal; line-height: 1.2;">
                                                 @context.NombreEmpleado
                                             </MudText>
+                                            @if (string.Equals(context.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
+                                                    PRÉSTAMO
+                                                </MudChip>
+                                            }
                                         </div>
                                         <div class="d-flex align-center gap-1 mt-1 text-secondary" style="font-size: 0.72rem;">
                                             <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.8rem;" Color="Color.Primary" />
@@ -621,6 +651,12 @@
                                         <MudText Typo="Typo.body2" Class="fw-bold" Style="white-space: normal; line-height: 1.2;">
                                             @context.NombreEmpleado
                                         </MudText>
+                                        @if (string.Equals(context.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
+                                                PRÉSTAMO
+                                            </MudChip>
+                                        }
                                     </div>
                                 </MudTd>
                                 <MudTd>
@@ -632,6 +668,21 @@
                                              OnClick="@(() => { context.Asistio = !context.Asistio; context.Modificado = true; ActualizarGruposConsolidados(); })">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@(string.IsNullOrWhiteSpace(context.TipoEmpleado) ? "Permanente" : context.TipoEmpleado)" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@((val) => { 
+                                                   context.TipoEmpleado = val; 
+                                                   context.Modificado = true; 
+                                                   ActualizarGruposConsolidados(); 
+                                               })">
+                                        <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
+                                    </MudSelect>
                                 </MudTd>
                                 <MudTd>
                                     <MudSelect T="string" 
@@ -709,6 +760,12 @@
                                         <MudText Typo="Typo.body2" Class="fw-bold" Style="white-space: normal; line-height: 1.2;">
                                             @context.NombreEmpleado
                                         </MudText>
+                                        @if (string.Equals(context.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
+                                                PRÉSTAMO
+                                            </MudChip>
+                                        }
                                     </div>
                                 </MudTd>
                                 <MudTd>
@@ -720,6 +777,21 @@
                                              OnClick="@(() => { context.Asistio = !context.Asistio; context.Modificado = true; ActualizarGruposConsolidados(); })">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <MudSelect T="string" 
+                                               Value="@(string.IsNullOrWhiteSpace(context.TipoEmpleado) ? "Permanente" : context.TipoEmpleado)" 
+                                               Dense="true" 
+                                               Margin="Margin.Dense" 
+                                               Variant="Variant.Outlined"
+                                               ValueChanged="@((val) => { 
+                                                   context.TipoEmpleado = val; 
+                                                   context.Modificado = true; 
+                                                   ActualizarGruposConsolidados(); 
+                                               })">
+                                        <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
+                                    </MudSelect>
                                 </MudTd>
                                 <MudTd>
                                     <MudSelect T="string" 

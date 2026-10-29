@@ -79,8 +79,8 @@
                     </MudSelect>
                 </MudItem>
 
-                @* Puesto *@
-                <MudItem xs="12">
+                @* Puesto y Tipo de Colaborador *@
+                <MudItem xs="12" md="7">
                     <MudSelect T="string" Label="Cargo / Puesto" @bind-Value="Puesto" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                         @foreach (var c in CargosDisponibles)
                         {
@@ -88,6 +88,39 @@
                         }
                     </MudSelect>
                 </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudSelect T="string" 
+                               Label="Tipo de Colaborador" 
+                               @bind-Value="TipoEmpleado" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true">
+                        <MudSelectItem Value="@("Permanente")">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Primary" />
+                                <span>Permanente</span>
+                            </div>
+                        </MudSelectItem>
+                        <MudSelectItem Value="@("Prestamo")">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Warning" />
+                                <span class="fw-bold text-warning">Préstamo</span>
+                            </div>
+                        </MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (TipoEmpleado == "Prestamo")
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
+                            <MudText Typo="Typo.caption">
+                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Se registrará como apoyo temporal en esta jornada.
+                            </MudText>
+                        </MudAlert>
+                    </MudItem>
+                }
 
                 @* Horario y Tiempo de Comida *@
                 <MudItem xs="12">
@@ -178,6 +211,8 @@
     [Parameter] public string OperacionDefecto { get; set; } = string.Empty;
     [Parameter] public string AreaDefecto { get; set; } = string.Empty;
     [Parameter] public string TextoBusquedaInicial { get; set; } = string.Empty;
+    [Parameter] public List<SupervisorPlantillaItemDto> PlantillaExistente { get; set; } = new();
+    [Parameter] public string TipoEmpleadoInicial { get; set; } = "Permanente";
 
     private int IdEmpleado;
     private int CodigoEmpleado;
@@ -185,6 +220,7 @@
     private string Cliente = string.Empty;
     private string Area = string.Empty;
     private string Puesto = "6-Operador de almacen";
+    private string TipoEmpleado = "Permanente";
     private string TurnoNombre = "General";
     private string HoraEntrada = "06:00";
     private string HoraSalida = "14:00";
@@ -199,6 +235,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrWhiteSpace(TipoEmpleadoInicial))
+        {
+            TipoEmpleado = TipoEmpleadoInicial;
+        }
+
         Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) ? OperacionDefecto : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? "WalMart");
         ActualizarAreasParaCliente(Cliente);
         Area = !string.IsNullOrWhiteSpace(AreaDefecto) && areasActuales.Contains(AreaDefecto, StringComparer.OrdinalIgnoreCase)
@@ -297,6 +338,42 @@
                 var cargoMatch = CargosDisponibles.FirstOrDefault(c => c.Contains(emp.JobTitle, StringComparison.OrdinalIgnoreCase));
                 Puesto = cargoMatch ?? emp.JobTitle;
             }
+
+            // Si ya existe en la plantilla del supervisor, precargar su configuración previa
+            var enPlantilla = PlantillaExistente.FirstOrDefault(p => 
+                (emp.CodigoEmpleado.HasValue && p.CodigoEmpleado == emp.CodigoEmpleado.Value) 
+                || p.IdEmpleado == emp.Id 
+                || (p.CodigoEmpleado > 0 && p.CodigoEmpleado == emp.Id));
+
+            if (enPlantilla != null)
+            {
+                if (!string.IsNullOrWhiteSpace(enPlantilla.TipoEmpleado))
+                {
+                    TipoEmpleado = enPlantilla.TipoEmpleado;
+                }
+                if (!string.IsNullOrWhiteSpace(enPlantilla.ClienteDefault))
+                {
+                    Cliente = enPlantilla.ClienteDefault;
+                    ActualizarAreasParaCliente(Cliente);
+                }
+                if (!string.IsNullOrWhiteSpace(enPlantilla.AreaDefault))
+                {
+                    Area = enPlantilla.AreaDefault;
+                }
+                if (!string.IsNullOrWhiteSpace(enPlantilla.PuestoDefault))
+                {
+                    Puesto = enPlantilla.PuestoDefault;
+                }
+                if (!string.IsNullOrWhiteSpace(enPlantilla.HoraEntradaDefault)) HoraEntrada = enPlantilla.HoraEntradaDefault;
+                if (!string.IsNullOrWhiteSpace(enPlantilla.HoraSalidaDefault)) HoraSalida = enPlantilla.HoraSalidaDefault;
+                if (decimal.TryParse(enPlantilla.TiempoComidaDefault, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal tc))
+                {
+                    TiempoComida = tc;
+                }
+                VtcoTrasp = enPlantilla.VtcoTraspDefault;
+                VtcoAlim = enPlantilla.VtcoAlimDefault;
+                BonoBnc = enPlantilla.BonoBncDefault;
+            }
         }
     }
 
@@ -340,6 +417,7 @@
             VtcoTrasp = VtcoTrasp,
             VtcoAlim = VtcoAlim,
             BonoBnc = BonoBnc,
+            TipoEmpleado = !string.IsNullOrWhiteSpace(TipoEmpleado) ? TipoEmpleado : "Permanente",
             Asistio = true,
             Estado = "BORRADOR",
             Modificado = true

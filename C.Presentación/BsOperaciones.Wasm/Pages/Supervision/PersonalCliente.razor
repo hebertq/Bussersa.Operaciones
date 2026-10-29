@@ -1085,10 +1085,15 @@
                                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 11px;">
                                                         @@@grupo.Key
                                                     </MudText>
-                                                    @if (!string.IsNullOrWhiteSpace(user?.email ?? grupo.FirstOrDefault()?.UsuarioEmail))
+                                                    @{
+                                                        string correoCard = !string.IsNullOrWhiteSpace(user?.email) 
+                                                            ? user.email 
+                                                            : (!string.IsNullOrWhiteSpace(grupo.FirstOrDefault()?.UsuarioEmail) ? grupo.FirstOrDefault()!.UsuarioEmail! : "");
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(correoCard))
                                                     {
                                                         <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 11px;">
-                                                            &bull; @(user?.email ?? grupo.FirstOrDefault()?.UsuarioEmail)
+                                                            &bull; @correoCard
                                                         </MudText>
                                                     }
                                                 </div>
@@ -1170,7 +1175,13 @@
                                 </div>
                             </MudTd>
                             <MudTd>
-                                <span class="text-secondary" style="font-size: 12px;">@(context.UsuarioEmail ?? ObtenerSupervisor(context)?.email ?? "-")</span>
+                                @{
+                                    var supFila = ObtenerSupervisor(context);
+                                    string correoMostrar = !string.IsNullOrWhiteSpace(context.UsuarioEmail) 
+                                        ? context.UsuarioEmail 
+                                        : (!string.IsNullOrWhiteSpace(supFila?.email) ? supFila!.email : "-");
+                                }
+                                <span class="text-secondary" style="font-size: 12px;">@correoMostrar</span>
                             </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="background-color: #1e3a8a !important;">
