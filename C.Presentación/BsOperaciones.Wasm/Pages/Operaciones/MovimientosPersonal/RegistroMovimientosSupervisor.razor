@@ -1,4 +1,4 @@
-@page "/operaciones/registro-movimientos-supervisor"
+﻿@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -1283,8 +1283,24 @@
         <MudTabPanel Text="Mi Personal" ToolTip="Mi Personal" Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
             <MudPaper Class="pa-4 mt-2" Elevation="0">
                 <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
-                    Define tu equipo habitual de colaboradores con su <b>Cliente Inicial</b>, área y puesto. 
-                    Al abrir la aplicación o presionar <b>"Mi Personal"</b> en la barra superior, la jornada diaria se cargará automáticamente con esta lista.
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <div>
+                            Define tu equipo habitual de colaboradores con su <b>Cliente Inicial</b>, área y puesto. 
+                            Al presionar <b>"Cargar Mi Personal"</b> en la barra superior, la jornada diaria se cargará automáticamente con esta lista.
+                        </div>
+                        @if (NombresMisClientes.Any())
+                        {
+                            <div class="d-flex align-center gap-1 flex-wrap">
+                                <span class="text-secondary fw-bold" style="font-size: 0.8rem;">Clientes Asignados:</span>
+                                @foreach (var c in NombresMisClientes)
+                                {
+                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Business" Class="font-weight-bold">
+                                        @c
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </div>
                 </MudAlert>
 
                 @* BARRA DE HERRAMIENTAS Y VISTAS ESTILO ODOO *@
@@ -1310,6 +1326,26 @@
                     </div>
 
                     <div class="d-flex align-center gap-2 flex-wrap">
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small" 
+                                   StartIcon="@Icons.Material.Filled.CloudDownload"
+                                   OnClick="@CargarDatosBasePlantilla"
+                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #1e3a8a; color: white;"
+                                   Title="Copia la lista de colaboradores maestros de tus clientes asignados desde la tabla de administración">
+                            Cargar Datos Base
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Info" 
+                                   Size="Size.Small" 
+                                   StartIcon="@Icons.Material.Filled.Sync"
+                                   OnClick="@ActualizarPlantillaDesdeBase"
+                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #0284c7; color: white;"
+                                   Title="Compara y agrega nuevos registros de tus clientes desde la tabla maestra de administración">
+                            Actualizar
+                        </MudButton>
+
                         <MudButton Variant="Variant.Outlined" 
                                    Color="Color.Secondary" 
                                    Size="Size.Small" 
@@ -1383,16 +1419,25 @@
                         <MudText Typo="Typo.h6" Class="fw-bold text-dark mb-1">
                             Tu plantilla personal aún está vacía
                         </MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 500px;">
-                            Configura aquí los colaboradores habituales de tu equipo con sus clientes, áreas y viáticos base asignados por defecto.
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 550px;">
+                            Puedes copiar los colaboradores base de tus clientes asignados @(NombresMisClientes.Any() ? $"({string.Join(", ", NombresMisClientes)})" : "") directamente desde la administración maestra o agregar colaboradores manualmente.
                         </MudText>
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Primary" 
-                                   StartIcon="@Icons.Material.Filled.PersonAdd" 
-                                   OnClick="@(() => AbrirDialogoAgregarColaborador())"
-                                   Style="text-transform: none; font-weight: 700;">
-                            Agregar Primer Colaborador a Mi Plantilla
-                        </MudButton>
+                        <div class="d-flex align-center gap-3 flex-wrap justify-center">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.CloudDownload" 
+                                       OnClick="@CargarDatosBasePlantilla"
+                                       Style="text-transform: none; font-weight: 700; background: #1e3a8a; color: white;">
+                                Cargar Datos Base @(NombresMisClientes.Any() ? $"({string.Join(", ", NombresMisClientes)})" : "")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Secondary" 
+                                       StartIcon="@Icons.Material.Filled.PersonAdd" 
+                                       OnClick="@(() => AbrirDialogoAgregarColaborador())"
+                                       Style="text-transform: none; font-weight: 600;">
+                                + Agregar Colaborador Manual
+                            </MudButton>
+                        </div>
                     </MudPaper>
                 }
                 else if (modoVistaPlantilla == ModoVistaGrilla.Tarjetas)

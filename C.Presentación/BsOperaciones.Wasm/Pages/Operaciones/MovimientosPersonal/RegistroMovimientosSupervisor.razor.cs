@@ -135,6 +135,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Lista de grupos consolidados para Helpdesk (Tab 2)
         protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
 
+        // Clientes Asignados al Supervisor (desde tbl_bs_supervisor_cliente)
+        protected List<SupervisorClienteDto> misClientesAsignados = new();
+        protected List<string> NombresMisClientes => misClientesAsignados
+            .Select(c => c.ClienteNombre?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         // Plantilla Personal del Supervisor (Tab 4)
         protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
         protected bool cargandoPlantilla = false;
@@ -253,6 +261,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 await PurgarBorradoresLocales();
                 await CargarOperaciones();
                 await CargarCatalogoClienteAreas();
+                await CargarMisClientesAsignados();
                 await RecuperarOperacionPrevia();
                 await CargarMiPlantilla();
                 await CargarJornadaActual();
@@ -459,16 +468,53 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
+        // --- CLIENTES ASIGNADOS DEL SUPERVISOR ---
+        protected async Task CargarMisClientesAsignados()
+        {
+            try
+            {
+                var resp = await _odooService.GetSupervisorClientes(usuario: currentUserName);
+                if (resp?.Model != null && resp.Model.Any())
+                {
+                    misClientesAsignados = resp.Model.Where(c => c.Activo).ToList();
+                }
+                else if (currentUserName.Contains("@"))
+                {
+                    string userSinDominio = currentUserName.Split('@')[0];
+                    var respSinDom = await _odooService.GetSupervisorClientes(usuario: userSinDominio);
+                    if (respSinDom?.Model != null && respSinDom.Model.Any())
+                    {
+                        misClientesAsignados = respSinDom.Model.Where(c => c.Activo).ToList();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al consultar clientes asignados: {ex.Message}");
+            }
+        }
+
         // --- GESTIÓN DE PLANTILLA DE PERSONAL DEL SUPERVISOR ---
         protected async Task CargarMiPlantilla()
         {
             cargandoPlantilla = true;
             try
             {
+                if (!misClientesAsignados.Any())
+                {
+                    await CargarMisClientesAsignados();
+                }
+
                 var resp = await _odooService.GetSupervisorPlantilla(currentUserName);
                 if (resp?.Model != null)
                 {
-                    miPlantillaPersonal = resp.Model.ToList();
+                    var items = resp.Model.ToList();
+                    // Filtrar estrictamente por los clientes configurados del usuario supervisor
+                    if (NombresMisClientes.Any())
+                    {
+                        items = items.Where(x => NombresMisClientes.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase)).ToList();
+                    }
+                    miPlantillaPersonal = items;
                 }
             }
             catch (Exception ex)
@@ -478,6 +524,181 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             finally
             {
                 cargandoPlantilla = false;
+            }
+        }
+
+        // --- CARGAR DATOS BASE (COPIAR DE LA TABLA MAESTRA DE ADMINISTRACIÓN) ---
+        protected async Task CargarDatosBasePlantilla()
+        {
+            try
+            {
+                cargandoPlantilla = true;
+
+                if (!misClientesAsignados.Any())
+                {
+                    await CargarMisClientesAsignados();
+                }
+
+                if (!NombresMisClientes.Any())
+                {
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración. Consulta con el administrador para que te asigne tus clientes.", Severity.Warning);
+                    return;
+                }
+
+                if (miPlantillaPersonal.Any())
+                {
+                    bool? confirm = await _dialogService.ShowMessageBox(
+                        "Cargar Datos Base",
+                        $"¿Deseas reemplazar tu plantilla actual ({miPlantillaPersonal.Count} colaboradores) con los datos base de administración de tus clientes ({string.Join(", ", NombresMisClientes)})?",
+                        yesText: "Sí, Cargar Base",
+                        cancelText: "Cancelar");
+
+                    if (confirm != true) return;
+                }
+
+                var nuevosBase = new List<PersonalClienteItemDto>();
+                foreach (var cl in NombresMisClientes)
+                {
+                    var respPersonal = await _odooService.GetPersonalCliente(cliente: cl);
+                    if (respPersonal?.Model != null && respPersonal.Model.Any())
+                    {
+                        nuevosBase.AddRange(respPersonal.Model.Where(p => p.Activo));
+                    }
+                }
+
+                if (!nuevosBase.Any())
+                {
+                    _snackbar.Add($"No se encontraron colaboradores en la base de administración para los clientes: {string.Join(", ", NombresMisClientes)}.", Severity.Info);
+                    return;
+                }
+
+                var unicos = nuevosBase
+                    .GroupBy(p => p.CodigoEmpleado)
+                    .Select(g => g.First())
+                    .ToList();
+
+                miPlantillaPersonal.Clear();
+                int guardados = 0;
+
+                foreach (var b in unicos)
+                {
+                    var item = new SupervisorPlantillaItemDto
+                    {
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = b.IdEmpleado,
+                        CodigoEmpleado = b.CodigoEmpleado,
+                        NombreEmpleado = b.NombreEmpleado,
+                        ClienteDefault = b.ClienteNombre,
+                        AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
+                        PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
+                        TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
+                        HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
+                        HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
+                        TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
+                        VtcoTraspDefault = b.VtcoTraspDefault,
+                        VtcoAlimDefault = b.VtcoAlimDefault,
+                        BonoBncDefault = b.BonoBncDefault,
+                        TipoEmpleado = "Permanente",
+                        Activo = true
+                    };
+
+                    await _odooService.SaveSupervisorPlantillaItem(item);
+                    miPlantillaPersonal.Add(item);
+                    guardados++;
+                }
+
+                _snackbar.Add($"Se cargaron exitosamente {guardados} colaboradores base de {string.Join(", ", NombresMisClientes)} a tu plantilla.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al cargar datos base: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoPlantilla = false;
+                StateHasChanged();
+            }
+        }
+
+        // --- ACTUALIZAR PLANTILLA (AGREGAR NUEVOS REGISTROS DE LA TABLA MAESTRA) ---
+        protected async Task ActualizarPlantillaDesdeBase()
+        {
+            try
+            {
+                cargandoPlantilla = true;
+
+                if (!misClientesAsignados.Any())
+                {
+                    await CargarMisClientesAsignados();
+                }
+
+                if (!NombresMisClientes.Any())
+                {
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
+                    return;
+                }
+
+                var baseMaestra = new List<PersonalClienteItemDto>();
+                foreach (var cl in NombresMisClientes)
+                {
+                    var respPersonal = await _odooService.GetPersonalCliente(cliente: cl);
+                    if (respPersonal?.Model != null && respPersonal.Model.Any())
+                    {
+                        baseMaestra.AddRange(respPersonal.Model.Where(p => p.Activo));
+                    }
+                }
+
+                var existentes = miPlantillaPersonal.Select(x => x.CodigoEmpleado).ToHashSet();
+                var nuevosPorAgregar = baseMaestra
+                    .Where(p => !existentes.Contains(p.CodigoEmpleado))
+                    .GroupBy(p => p.CodigoEmpleado)
+                    .Select(g => g.First())
+                    .ToList();
+
+                if (!nuevosPorAgregar.Any())
+                {
+                    _snackbar.Add($"Tu plantilla ya está al día. No hay nuevos colaboradores en la base de {string.Join(", ", NombresMisClientes)}.", Severity.Info);
+                    return;
+                }
+
+                int agregados = 0;
+                foreach (var b in nuevosPorAgregar)
+                {
+                    var item = new SupervisorPlantillaItemDto
+                    {
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = b.IdEmpleado,
+                        CodigoEmpleado = b.CodigoEmpleado,
+                        NombreEmpleado = b.NombreEmpleado,
+                        ClienteDefault = b.ClienteNombre,
+                        AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
+                        PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
+                        TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
+                        HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
+                        HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
+                        TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
+                        VtcoTraspDefault = b.VtcoTraspDefault,
+                        VtcoAlimDefault = b.VtcoAlimDefault,
+                        BonoBncDefault = b.BonoBncDefault,
+                        TipoEmpleado = "Permanente",
+                        Activo = true
+                    };
+
+                    await _odooService.SaveSupervisorPlantillaItem(item);
+                    miPlantillaPersonal.Add(item);
+                    agregados++;
+                }
+
+                _snackbar.Add($"Se actualizaron y agregaron {agregados} nuevos colaboradores desde la administración base ({string.Join(", ", nuevosPorAgregar.Take(3).Select(n => $"#{n.CodigoEmpleado} {n.NombreEmpleado}"))}{(nuevosPorAgregar.Count > 3 ? "..." : "")}).", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al actualizar plantilla: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoPlantilla = false;
+                StateHasChanged();
             }
         }
 
