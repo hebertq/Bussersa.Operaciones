@@ -171,33 +171,24 @@
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
-                <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-2">
-                    @* Búsqueda y Agregar Colaborador *@
-                    <MudItem xs="12" sm="5" md="4">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                            <MudTextField @bind-Value="textoBusqueda" 
-                                          Placeholder="Buscar por nombre o carnet (#)..." 
-                                          Adornment="Adornment.Start" 
-                                          AdornmentIcon="@Icons.Material.Filled.Search" 
-                                          Variant="Variant.Outlined" 
-                                          Margin="Margin.Dense" 
-                                          Immediate="true" 
-                                          Clearable="true" 
-                                          Class="flex-grow-1" />
-                            <MudButton Variant="Variant.Filled" 
-                                       Color="Color.Info" 
-                                       Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.PersonAdd"
-                                       OnClick="@(() => AbrirDialogoAgregarColaborador(textoBusqueda))"
-                                       Title="Agregar colaborador a la jornada">
-                                + Agregar
-                            </MudButton>
-                        </MudStack>
-                    </MudItem>
+                <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-2">
+                    @* Izquierda: Buscador Limpio *@
+                    <div style="flex: 1 1 240px; max-width: 360px;">
+                        <MudTextField @bind-Value="textoBusqueda" 
+                                      Placeholder="Buscar por nombre o carnet (#)..." 
+                                      Adornment="Adornment.Start" 
+                                      AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" 
+                                      Margin="Margin.Dense" 
+                                      Immediate="true" 
+                                      Clearable="true" 
+                                      FullWidth="true" />
+                    </div>
 
-                    @* Filtros de Asistencia y Selección Rápida *@
-                    <MudItem xs="12" sm="7" md="5">
-                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap">
+                    @* Derecha: Filtros de Asistencia y Control de Vistas Estilo Odoo *@
+                    <div class="d-flex flex-wrap align-center gap-2 justify-end" style="flex: 2 1 auto;">
+                        @* Filtros de Asistencia y Selección Rápida *@
+                        <div class="d-flex align-center gap-1 flex-wrap">
                             <MudChip T="string" Color="@(filtroAsistencia == "TODOS" ? Color.Primary : Color.Default)"
                                      Variant="@(filtroAsistencia == "TODOS" ? Variant.Filled : Variant.Outlined)"
                                      Size="Size.Small"
@@ -219,20 +210,20 @@
                             <MudButton Variant="Variant.Text" 
                                        Color="Color.Default" 
                                        Size="Size.Small" 
+                                       Class="px-1" 
                                        OnClick="@(() => MarcarTodos(true))">
                                 Todos
                             </MudButton>
                             <MudButton Variant="Variant.Text" 
                                        Color="Color.Default" 
                                        Size="Size.Small" 
+                                       Class="px-1" 
                                        OnClick="@(() => MarcarTodos(false))">
                                 Ninguno
                             </MudButton>
-                        </MudStack>
-                    </MudItem>
+                        </div>
 
-                    @* Control de Vistas Estilo Odoo (Alineado a la Derecha) *@
-                    <MudItem xs="12" sm="12" md="3" Class="d-flex justify-end align-center">
+                        @* Control de Vistas Estilo Odoo *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
                             <MudTooltip Text="Vista Operativa (Horarios, Comida & Viáticos)" Arrow="true" Placement="Placement.Top">
                                 <button type="button" 
@@ -267,8 +258,8 @@
                                 </button>
                             </MudTooltip>
                         </div>
-                    </MudItem>
-                </MudGrid>
+                    </div>
+                </div>
 
                 @* BARRA DE ACCIÓN FLOTANTE / MASIVA (Cuando hay seleccionados) *@
                 @if (CantidadSeleccionados > 0)
