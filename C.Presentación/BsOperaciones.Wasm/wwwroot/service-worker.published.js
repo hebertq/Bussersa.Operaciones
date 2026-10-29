@@ -14,11 +14,16 @@ const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 async function onInstall(event) {
     console.info('Service Worker Busser Tablet: Instalando activos...');
     self.skipWaiting();
-    const assetsRequests = self.assetsManifest.assets
-        .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
-        .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
-        .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
-    await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+    try {
+        const assetsRequests = self.assetsManifest.assets
+            .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
+            .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
+            .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
+        const cache = await caches.open(cacheName);
+        await cache.addAll(assetsRequests);
+    } catch (err) {
+        console.warn('Aviso: pre-caching parcial completado en Service Worker:', err);
+    }
 }
 
 async function onActivate(event) {
@@ -27,50 +32,71 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+    await self.clients.claim();
 }
 
 async function onFetch(event) {
-    let cachedResponse = null;
-    if (event.request.method === 'GET') {
-        const cache = await caches.open(cacheName);
-
-        // Para navegaciones (modo PWA o recargas de ruta como /operaciones/registro-movimientos-supervisor)
-        if (event.request.mode === 'navigate') {
-            try {
-                // Intentar cargar de la red primero
-                const networkResponse = await fetch(event.request);
-                if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaqueredirect')) {
-                    return networkResponse;
-                }
-            } catch (err) {
-                // Silenciar error de red para no disparar uncaught rejection en consola
-            }
-
-            // Fallback a index.html desde caché para SPA Blazor WASM
-            const indexResponse = await cache.match('index.html');
-            if (indexResponse) {
-                return indexResponse;
-            }
-        } else {
-            // Para activos estáticos (dll, wasm, css, js, imágenes)
-            const relativeUrl = event.request.url.substring(self.location.origin.length + 1);
-            const isAsset = self.assetsManifest.assets.some(asset => asset.url === relativeUrl);
-
-            if (isAsset) {
-                cachedResponse = await cache.match(event.request);
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-            }
-        }
+    if (event.request.method !== 'GET') {
+        return fetch(event.request);
     }
 
+    // 1. Manejo para NAVEGACIONES (rutas de la SPA: /login, /operaciones/..., /admon/...)
+    if (event.request.mode === 'navigate') {
+        // Red primero: intentar obtener la página más reciente
+        try {
+            const networkResponse = await fetch(event.request);
+            if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaqueredirect')) {
+                return networkResponse;
+            }
+        } catch (err) {
+            // Error de red, continuar a fallback
+        }
+
+        // Fallback a index.html desde caché o red
+        try {
+            const cache = await caches.open(cacheName);
+            const indexCached = await cache.match('index.html') || await caches.match('index.html');
+            if (indexCached) {
+                return indexCached;
+            }
+        } catch (err) { }
+
+        try {
+            const indexNetwork = await fetch('index.html');
+            if (indexNetwork && indexNetwork.ok) {
+                return indexNetwork;
+            }
+        } catch (err) { }
+
+        // Último recurso para navegación: devolver index.html de cualquier caché existente
+        const anyIndex = await caches.match('index.html');
+        if (anyIndex) return anyIndex;
+
+        return fetch(event.request);
+    }
+
+    // 2. Manejo para ACTIVOS ESTÁTICOS (dll, wasm, css, js, json, fuentes, imágenes)
+    const relativeUrl = event.request.url.substring(self.location.origin.length + 1);
+    const isAsset = self.assetsManifest.assets.some(asset => asset.url === relativeUrl);
+
+    if (isAsset) {
+        try {
+            const cache = await caches.open(cacheName);
+            const cachedResponse = await cache.match(event.request);
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+        } catch (err) { }
+    }
+
+    // 3. Fallback general a la red
     try {
         return await fetch(event.request);
     } catch (err) {
-        if (cachedResponse) {
-            return cachedResponse;
+        const fallback = await caches.match(event.request);
+        if (fallback) {
+            return fallback;
         }
-        return new Response('', { status: 408, statusText: 'Network request failed' });
+        return new Response('Recurso no disponible temporalmente', { status: 503, statusText: 'Service Unavailable' });
     }
 }

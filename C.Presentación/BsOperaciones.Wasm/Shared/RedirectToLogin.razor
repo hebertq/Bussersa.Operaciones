@@ -13,16 +13,16 @@
                 !redirectUrl.Equals("login", StringComparison.OrdinalIgnoreCase) && 
                 !redirectUrl.Equals("Login", StringComparison.OrdinalIgnoreCase))
             {
-                NavigationManager.NavigateTo($"login?redirectUrl={Uri.EscapeDataString(redirectUrl)}", true);
+                NavigationManager.NavigateTo($"login?redirectUrl={Uri.EscapeDataString(redirectUrl)}", false);
             }
             else
             {
-                NavigationManager.NavigateTo("login", true);
+                NavigationManager.NavigateTo("login", false);
             }
         }
         else
         {
-            NavigationManager.NavigateTo("Error403");
+            NavigationManager.NavigateTo("Error403", false);
         }
     }
 }
