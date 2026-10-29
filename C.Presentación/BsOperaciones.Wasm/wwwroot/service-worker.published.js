@@ -32,16 +32,45 @@ async function onActivate(event) {
 async function onFetch(event) {
     let cachedResponse = null;
     if (event.request.method === 'GET') {
-        // En navegaciones, verificar si coincide con activos en caché
-        const shouldServeFromCache = event.request.mode === 'navigate'
-            ? false // Las navegaciones van a la red primero para asegurar datos actualizados
-            : self.assetsManifest.assets.some(asset => asset.url === event.request.url.substring(self.location.origin.length + 1));
+        const cache = await caches.open(cacheName);
 
-        if (shouldServeFromCache) {
-            const cache = await caches.open(cacheName);
-            cachedResponse = await cache.match(event.request);
+        // Para navegaciones (modo PWA o recargas de ruta como /operaciones/registro-movimientos-supervisor)
+        if (event.request.mode === 'navigate') {
+            try {
+                // Intentar cargar de la red primero
+                const networkResponse = await fetch(event.request);
+                if (networkResponse && (networkResponse.ok || networkResponse.type === 'opaqueredirect')) {
+                    return networkResponse;
+                }
+            } catch (err) {
+                // Silenciar error de red para no disparar uncaught rejection en consola
+            }
+
+            // Fallback a index.html desde caché para SPA Blazor WASM
+            const indexResponse = await cache.match('index.html');
+            if (indexResponse) {
+                return indexResponse;
+            }
+        } else {
+            // Para activos estáticos (dll, wasm, css, js, imágenes)
+            const relativeUrl = event.request.url.substring(self.location.origin.length + 1);
+            const isAsset = self.assetsManifest.assets.some(asset => asset.url === relativeUrl);
+
+            if (isAsset) {
+                cachedResponse = await cache.match(event.request);
+                if (cachedResponse) {
+                    return cachedResponse;
+                }
+            }
         }
     }
 
-    return cachedResponse || fetch(event.request);
+    try {
+        return await fetch(event.request);
+    } catch (err) {
+        if (cachedResponse) {
+            return cachedResponse;
+        }
+        return new Response('', { status: 408, statusText: 'Network request failed' });
+    }
 }
