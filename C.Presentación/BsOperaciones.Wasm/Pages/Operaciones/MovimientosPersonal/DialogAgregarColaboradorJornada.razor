@@ -88,22 +88,71 @@
                     </MudSelect>
                 </MudItem>
 
+                @* Horario y Tiempo de Comida *@
+                <MudItem xs="12">
+                    <MudDivider Class="my-1" />
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 text-primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                        Horario y Tiempo de Comida
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" Label="Hora Entrada" @bind-Value="HoraEntrada" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="06:00" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" Label="Hora Salida" @bind-Value="HoraSalida" Variant="Variant.Outlined" Margin="Margin.Dense" Placeholder="14:00" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="string" Label="Tiempo Comida" @bind-Value="TiempoComida" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="@("1.00")">1.0 hora</MudSelectItem>
+                        <MudSelectItem Value="@("0.50")">0.5 hora (30m)</MudSelectItem>
+                        <MudSelectItem Value="@("0.00")">Sin comida</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
                 @* Viáticos y BNC *@
+                <MudItem xs="12">
+                    <MudDivider Class="my-1" />
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1 text-primary">
+                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Class="mr-1" />
+                        Viáticos y Bonos (Opcional)
+                    </MudText>
+                </MudItem>
+
                 <MudItem xs="4">
                     <MudNumericField T="decimal" @bind-Value="VtcoTrasp" Label="Trasp (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                    <div class="d-flex gap-1 mt-1">
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoTrasp = 0)">0</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 35 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 35)">35</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 50 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 50)">50</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 70 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 70)">70</MudChip>
+                    </div>
                 </MudItem>
                 <MudItem xs="4">
                     <MudNumericField T="decimal" @bind-Value="VtcoAlim" Label="Alim (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                    <div class="d-flex gap-1 mt-1">
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoAlim = 0)">0</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 50 ? Variant.Filled : Variant.Outlined)" Color="Color.Secondary" OnClick="@(() => VtcoAlim = 50)">50</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 70 ? Variant.Filled : Variant.Outlined)" Color="Color.Secondary" OnClick="@(() => VtcoAlim = 70)">70</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Secondary" OnClick="@(() => VtcoAlim = 100)">100</MudChip>
+                    </div>
                 </MudItem>
                 <MudItem xs="4">
                     <MudNumericField T="decimal" @bind-Value="BonoBnc" Label="BNC (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                    <div class="d-flex gap-1 mt-1">
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => BonoBnc = 0)">0</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 100)">100</MudChip>
+                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 150 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 150)">150</MudChip>
+                    </div>
                 </MudItem>
             </MudGrid>
         </MudContainer>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="@Cancelar" Variant="Variant.Text">Cancelar</MudButton>
-        <MudButton OnClick="@Agregar" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.PersonAdd">
+        <MudButton OnClick="Cancelar" Variant="Variant.Outlined" Color="Color.Default">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="Agregar" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd">
             Agregar a la Jornada
         </MudButton>
     </DialogActions>
@@ -111,6 +160,7 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
     [Inject] private IOdooService _odooService { get; set; } = null!;
     [Inject] private ISnackbar _snackbar { get; set; } = null!;
 
@@ -119,41 +169,35 @@
     [Parameter] public Dictionary<string, List<string>> AreasPorCliente { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     [Parameter] public List<string> CargosDisponibles { get; set; } = new();
     [Parameter] public string OperacionDefecto { get; set; } = string.Empty;
-    [Parameter] public string AreaDefecto { get; set; } = "Operaciones";
+    [Parameter] public string AreaDefecto { get; set; } = string.Empty;
     [Parameter] public string TextoBusquedaInicial { get; set; } = string.Empty;
+
+    private int IdEmpleado;
+    private int CodigoEmpleado;
+    private string NombreEmpleado = string.Empty;
+    private string Cliente = string.Empty;
+    private string Area = string.Empty;
+    private string Puesto = "6-Operador de almacen";
+    private string TurnoNombre = "General";
+    private string HoraEntrada = "06:00";
+    private string HoraSalida = "14:00";
+    private string TiempoComida = "1.00";
+    private decimal VtcoTrasp = 0;
+    private decimal VtcoAlim = 0;
+    private decimal BonoBnc = 0;
 
     private List<string> areasActuales = new();
     private List<OdooEmployeeDto> catalogoOdooCompleto = new();
     private OdooEmployeeDto? empleadoSeleccionado;
 
-    public int IdEmpleado { get; set; } = 0;
-    public int CodigoEmpleado { get; set; } = 0;
-    public string NombreEmpleado { get; set; } = string.Empty;
-    public string Cliente { get; set; } = string.Empty;
-    public string Area { get; set; } = "Operaciones";
-    public string Puesto { get; set; } = "6-Operador de almacen";
-    public string TurnoNombre { get; set; } = "Diurno";
-    public string HoraEntrada { get; set; } = "06:00";
-    public string HoraSalida { get; set; } = "14:00";
-    public decimal VtcoTrasp { get; set; } = 0;
-    public decimal VtcoAlim { get; set; } = 0;
-    public decimal BonoBnc { get; set; } = 0;
-
     protected override async Task OnInitializedAsync()
     {
         Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) ? OperacionDefecto : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? "WalMart");
         ActualizarAreasParaCliente(Cliente);
+        Area = !string.IsNullOrWhiteSpace(AreaDefecto) && areasActuales.Contains(AreaDefecto, StringComparer.OrdinalIgnoreCase)
+            ? AreaDefecto
+            : (areasActuales.FirstOrDefault() ?? "Operaciones");
 
-        if (!string.IsNullOrWhiteSpace(AreaDefecto) && areasActuales.Contains(AreaDefecto, StringComparer.OrdinalIgnoreCase))
-        {
-            Area = AreaDefecto;
-        }
-        else
-        {
-            Area = areasActuales.FirstOrDefault() ?? "Operaciones";
-        }
-
-        // Cargar catálogo de Odoo para búsqueda rápida
         try
         {
             var resp = await _odooService.GetAllActiveEmployeesForRotation();
@@ -249,8 +293,6 @@
         }
     }
 
-
-
     private Task<IEnumerable<string>> BuscarAreas(string valor, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(valor))
@@ -287,7 +329,7 @@
             TurnoNombre = TurnoNombre,
             HoraEntrada = HoraEntrada,
             HoraSalida = HoraSalida,
-            TiempoComida = "1.00",
+            TiempoComida = TiempoComida,
             VtcoTrasp = VtcoTrasp,
             VtcoAlim = VtcoAlim,
             BonoBnc = BonoBnc,

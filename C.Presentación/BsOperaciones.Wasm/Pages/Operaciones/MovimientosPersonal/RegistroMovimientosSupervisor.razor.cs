@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -535,7 +535,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TurnoNombre = !string.IsNullOrWhiteSpace(item.TurnoDefault) ? item.TurnoDefault : "Diurno",
                         HoraEntrada = !string.IsNullOrWhiteSpace(item.HoraEntradaDefault) ? item.HoraEntradaDefault : "06:00",
                         HoraSalida = !string.IsNullOrWhiteSpace(item.HoraSalidaDefault) ? item.HoraSalidaDefault : "14:00",
-                        TiempoComida = "1.00",
+                        TiempoComida = !string.IsNullOrWhiteSpace(item.TiempoComidaDefault) ? item.TiempoComidaDefault : "1.00",
                         VtcoTrasp = item.VtcoTraspDefault,
                         VtcoAlim = item.VtcoAlimDefault,
                         BonoBnc = item.BonoBncDefault,
@@ -582,6 +582,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     TurnoDefault = e.TurnoNombre,
                     HoraEntradaDefault = e.HoraEntrada,
                     HoraSalidaDefault = e.HoraSalida,
+                    TiempoComidaDefault = string.IsNullOrWhiteSpace(e.TiempoComida) ? "1.00" : e.TiempoComida,
                     VtcoTraspDefault = e.VtcoTrasp,
                     VtcoAlimDefault = e.VtcoAlim,
                     BonoBncDefault = e.BonoBnc,
@@ -651,6 +652,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.TurnoDefault = modificado.TurnoDefault;
                 item.HoraEntradaDefault = modificado.HoraEntradaDefault;
                 item.HoraSalidaDefault = modificado.HoraSalidaDefault;
+                item.TiempoComidaDefault = modificado.TiempoComidaDefault;
                 item.VtcoTraspDefault = modificado.VtcoTraspDefault;
                 item.VtcoAlimDefault = modificado.VtcoAlimDefault;
                 item.BonoBncDefault = modificado.BonoBncDefault;
@@ -870,6 +872,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     emp.TurnoNombre = data.TurnoNombre;
                     emp.HoraEntrada = data.HoraEntrada;
                     emp.HoraSalida = data.HoraSalida;
+                    if (!string.IsNullOrWhiteSpace(data.TiempoComida)) emp.TiempoComida = data.TiempoComida;
                     if (!string.IsNullOrWhiteSpace(data.Area)) emp.Area = data.Area;
                     if (!string.IsNullOrWhiteSpace(data.Puesto)) emp.Puesto = data.Puesto;
                     if (!string.IsNullOrWhiteSpace(data.Cliente)) emp.Cliente = data.Cliente;
@@ -939,6 +942,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TurnoDefault = nuevo.TurnoNombre,
                         HoraEntradaDefault = nuevo.HoraEntrada,
                         HoraSalidaDefault = nuevo.HoraSalida,
+                        TiempoComidaDefault = nuevo.TiempoComida,
                         VtcoTraspDefault = nuevo.VtcoTrasp,
                         VtcoAlimDefault = nuevo.VtcoAlim,
                         BonoBncDefault = nuevo.BonoBnc,

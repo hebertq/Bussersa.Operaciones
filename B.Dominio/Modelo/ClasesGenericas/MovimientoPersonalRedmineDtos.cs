@@ -116,6 +116,7 @@ namespace Modelo.ClasesGenericas
         public string TurnoDefault { get; set; } = "Diurno";
         public string HoraEntradaDefault { get; set; } = "06:00";
         public string HoraSalidaDefault { get; set; } = "14:00";
+        public string TiempoComidaDefault { get; set; } = "1.00";
         public decimal VtcoTraspDefault { get; set; }
         public decimal VtcoAlimDefault { get; set; }
         public decimal BonoBncDefault { get; set; }
