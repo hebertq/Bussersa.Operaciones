@@ -16,7 +16,7 @@
             <div>
                 <MudText Typo="Typo.h6" Class="fw-bold">Cargar Plantilla de Personal (Excel / Google Sheets)</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Importa colaboradores desde la plantilla. Los empleados que ya existan en este cliente serán obviados automáticamente.
+                    Compatible con plantilla <b>HT</b> y Google Sheets. Los empleados que ya existan en este cliente serán obviados automáticamente.
                 </MudText>
             </div>
         </MudStack>
@@ -24,7 +24,7 @@
     <DialogContent>
         <MudContainer Class="pa-0">
             @* Selector de Cliente *@
-            <MudGrid Spacing="2" Class="mb-3" AlignItems="AlignItems.Center">
+            <MudGrid Spacing="2" Class="mb-2" AlignItems="AlignItems.Center">
                 <MudItem xs="12" sm="6">
                     <MudSelect T="string" Label="Cliente / Operación Destino" @bind-Value="clienteSeleccionado"
                                Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Required="true"
@@ -37,15 +37,15 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Formato esperado: <b>Área | Puesto | Fecha | Hora Inicio | Hora Fin | Recursos / IDs | BNC | Vtco Trasp | Vtco Alim</b>
-                    </MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="mt-1">
+                        Formato HT: Área | ID Empleado | Nombre | Puesto | Horarios | Viáticos
+                    </MudChip>
                 </MudItem>
             </MudGrid>
 
             @* Pestañas de Carga: Archivo .xlsx o Pegar desde Google Sheets *@
             <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pt-2">
-                <MudTabPanel Text="Subir Archivo Excel (.xlsx)" Icon="@Icons.Custom.FileFormats.FileExcel">
+                <MudTabPanel Text="Subir Archivo Excel (HT.xlsx)" Icon="@Icons.Custom.FileFormats.FileExcel">
                     <MudFileUpload T="IBrowserFile" Accept=".xlsx" FilesChanged="OnExcelFileSelected" Class="d-flex align-center gap-3">
                         <ActivatorContent>
                             <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.UploadFile" Disabled="@procesando">
@@ -56,14 +56,14 @@
                     @if (!string.IsNullOrWhiteSpace(nombreArchivo))
                     {
                         <MudText Typo="Typo.caption" Class="mt-1 d-block text-success fw-bold">
-                            Archivo: @nombreArchivo
+                            Archivo cargado: @nombreArchivo
                         </MudText>
                     }
                 </MudTabPanel>
 
                 <MudTabPanel Text="Pegar desde Google Sheets" Icon="@Icons.Material.Filled.ContentPaste">
                     <MudTextField T="string" @bind-Value="textoPegado"
-                                  Label="Pegar datos copiados desde Google Sheets"
+                                  Label="Pegar datos copiados desde Excel o Google Sheets"
                                   Placeholder="Pega aquí las celdas copiadas con Ctrl+V..."
                                   Lines="3" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Class="mt-2"
@@ -97,7 +97,7 @@
                         }
                     </MudStack>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Total detectados en plantilla: @(colaboradoresNuevos.Count + totalObviados)
+                        Total en plantilla: @(colaboradoresNuevos.Count + totalObviados)
                     </MudText>
                 </div>
 
@@ -226,7 +226,7 @@
             for (int s = 0; s < workbook.NumberOfSheets; s++)
             {
                 var sName = workbook.GetSheetName(s).ToLowerInvariant();
-                if (sName.Contains("consolidado") || sName.Contains("plantilla") || sName.Contains("personal") || sName.Contains("horario"))
+                if (sName.Contains("ht") || sName.Contains("consolidado") || sName.Contains("plantilla") || sName.Contains("personal") || sName.Contains("horario"))
                 {
                     sheet = workbook.GetSheetAt(s);
                     break;
@@ -245,7 +245,7 @@
                 for (int c = 0; c < row.LastCellNum; c++)
                 {
                     var val = row.GetCell(c)?.ToString()?.Trim()?.ToLowerInvariant() ?? "";
-                    if (val.Contains("área") || val.Contains("area") || val.Contains("puesto") || val.Contains("empleado") || val.Contains("carnet"))
+                    if (val.Contains("rea") || val.Contains("puesto") || val.Contains("empleado") || val.Contains("carnet") || val.Contains("id"))
                     {
                         headerRow = row;
                         headerRowIndex = r;
@@ -255,32 +255,71 @@
                 if (headerRow != null) break;
             }
 
-            int colArea = -1, colPuesto = -1, colHoraInicio = -1, colHoraFin = -1, colBnc = -1, colVtcoTrasp = -1, colVtcoAlim = -1, colIds = -1;
+            int colArea = -1, colPuesto = -1, colHoraInicio = -1, colHoraFin = -1, colBnc = -1, colVtcoTrasp = -1, colVtcoAlim = -1, colIds = -1, colNombre = -1;
 
             if (headerRow != null)
             {
                 for (int c = 0; c < headerRow.LastCellNum; c++)
                 {
                     var val = headerRow.GetCell(c)?.ToString()?.Trim()?.ToLowerInvariant() ?? "";
-                    if (val == "área" || val == "area") colArea = c;
-                    else if (val.Contains("puesto") || val.Contains("cargo")) colPuesto = c;
-                    else if (val.Contains("hora inicio") || val.Contains("inicio") || val.Contains("entrada")) colHoraInicio = c;
-                    else if (val.Contains("hora fin") || val.Contains("fin") || val.Contains("salida")) colHoraFin = c;
-                    else if (val.Contains("bnc")) colBnc = c;
-                    else if (val.Contains("trasp") || val.Contains("transporte")) colVtcoTrasp = c;
-                    else if (val.Contains("alim") || val.Contains("alimentaci")) colVtcoAlim = c;
-                    else if (val.Contains("id") || val.Contains("carnet") || val.Contains("empleado") || val.Contains("colaborador") || val.Contains("código")) colIds = c;
+                    if (string.IsNullOrWhiteSpace(val)) continue;
+
+                    if (val.Contains("rea") || val.Contains("area") || val.Contains("área"))
+                        colArea = c;
+                    else if (val.Contains("nombre") || (val.Contains("colaborador") && !val.Contains("id") && !val.Contains("código") && !val.Contains("carnet")))
+                        colNombre = c;
+                    else if (val.Contains("id") || val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || (val.Contains("empleado") && !val.Contains("nombre")))
+                        colIds = c;
+                    else if (val.Contains("puesto") || val.Contains("cargo") || val.Contains("posici"))
+                        colPuesto = c;
+                    else if (val.Contains("entrada") || val.Contains("inicio") || (val.Contains("hora") && val.Contains("inici")))
+                        colHoraInicio = c;
+                    else if (val.Contains("salida") || val.Contains("fin") || (val.Contains("hora") && val.Contains("fin")))
+                        colHoraFin = c;
+                    else if (val.Contains("bnc") || val.Contains("bono"))
+                        colBnc = c;
+                    else if (val.Contains("trasp") || val.Contains("transp"))
+                        colVtcoTrasp = c;
+                    else if (val.Contains("alim"))
+                        colVtcoAlim = c;
                 }
             }
 
-            if (colArea == -1) colArea = 0;
-            if (colPuesto == -1) colPuesto = 1;
-            if (colHoraInicio == -1) colHoraInicio = 3;
-            if (colHoraFin == -1) colHoraFin = 4;
-            if (colIds == -1) colIds = 5;
-            if (colBnc == -1) colBnc = 6;
-            if (colVtcoTrasp == -1) colVtcoTrasp = 7;
-            if (colVtcoAlim == -1) colVtcoAlim = 8;
+            // Fallbacks de columnas si no se detectaron por cabecera
+            if (colIds == -1)
+            {
+                if (colNombre >= 0)
+                {
+                    // Formato HT: Área (0), ID Empleado (1), Nombre Completo (2), Puesto (3), Hora Entrada (4), Hora Salida (5), Bnc (6), Vtco Trasp (7), Vtco Alim (8)
+                    if (colArea == -1) colArea = 0;
+                    colIds = 1;
+                    if (colPuesto == -1) colPuesto = 3;
+                    if (colHoraInicio == -1) colHoraInicio = 4;
+                    if (colHoraFin == -1) colHoraFin = 5;
+                    if (colBnc == -1) colBnc = 6;
+                    if (colVtcoTrasp == -1) colVtcoTrasp = 7;
+                    if (colVtcoAlim == -1) colVtcoAlim = 8;
+                }
+                else
+                {
+                    // Formato Google Sheets: Área (0), Puesto (1), Fecha (2), Hora Inicio (3), Hora Fin (4), Recursos/IDs (5), BNC (6), Vtco Trasp (7), Vtco Alim (8)
+                    if (colArea == -1) colArea = 0;
+                    if (colPuesto == -1) colPuesto = 1;
+                    if (colHoraInicio == -1) colHoraInicio = 3;
+                    if (colHoraFin == -1) colHoraFin = 4;
+                    colIds = 5;
+                    if (colBnc == -1) colBnc = 6;
+                    if (colVtcoTrasp == -1) colVtcoTrasp = 7;
+                    if (colVtcoAlim == -1) colVtcoAlim = 8;
+                }
+            }
+            else
+            {
+                if (colArea == -1) colArea = 0;
+                if (colPuesto == -1) colPuesto = 1;
+                if (colHoraInicio == -1) colHoraInicio = 3;
+                if (colHoraFin == -1) colHoraFin = 4;
+            }
 
             int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
             for (int r = startRow; r <= sheet.LastRowNum; r++)
@@ -288,11 +327,12 @@
                 var row = sheet.GetRow(r);
                 if (row == null) continue;
 
-                string area = ExtraerString(row.GetCell(colArea), evaluator);
-                string puesto = ExtraerString(row.GetCell(colPuesto), evaluator);
-                string horaInicio = ExtraerHora(row.GetCell(colHoraInicio), evaluator);
-                string horaFin = ExtraerHora(row.GetCell(colHoraFin), evaluator);
+                string area = colArea >= 0 ? ExtraerString(row.GetCell(colArea), evaluator) : "";
+                string puesto = colPuesto >= 0 ? ExtraerString(row.GetCell(colPuesto), evaluator) : "";
+                string horaInicio = colHoraInicio >= 0 ? ExtraerHora(row.GetCell(colHoraInicio), evaluator) : "";
+                string horaFin = colHoraFin >= 0 ? ExtraerHora(row.GetCell(colHoraFin), evaluator) : "";
                 string rawIds = colIds >= 0 ? ExtraerString(row.GetCell(colIds), evaluator) : "";
+                string nombre = colNombre >= 0 ? ExtraerString(row.GetCell(colNombre), evaluator) : "";
                 decimal bnc = colBnc >= 0 ? ExtraerDecimal(row.GetCell(colBnc), evaluator) : 0;
                 decimal vtcoTrasp = colVtcoTrasp >= 0 ? ExtraerDecimal(row.GetCell(colVtcoTrasp), evaluator) : 0;
                 decimal vtcoAlim = colVtcoAlim >= 0 ? ExtraerDecimal(row.GetCell(colVtcoAlim), evaluator) : 0;
@@ -300,10 +340,10 @@
                 if (string.IsNullOrWhiteSpace(area) && string.IsNullOrWhiteSpace(puesto) && string.IsNullOrWhiteSpace(rawIds))
                     continue;
 
-                ProcesarFilaColaboradores(area, puesto, horaInicio, horaFin, rawIds, bnc, vtcoTrasp, vtcoAlim);
+                ProcesarFilaColaboradores(area, puesto, horaInicio, horaFin, rawIds, bnc, vtcoTrasp, vtcoAlim, nombre);
             }
 
-            _snackbar.Add($"Proceso terminado: {colaboradoresNuevos.Count} nuevos para agregar, {totalObviados} ya existían.", Severity.Success);
+            _snackbar.Add($"Plantilla HT procesada: {colaboradoresNuevos.Count} nuevos para agregar, {totalObviados} ya existían.", Severity.Success);
         }
         catch (Exception ex)
         {
@@ -320,7 +360,7 @@
     {
         if (string.IsNullOrWhiteSpace(textoPegado))
         {
-            _snackbar.Add("Pegue el contenido desde Google Sheets.", Severity.Warning);
+            _snackbar.Add("Pegue el contenido desde Excel o Google Sheets.", Severity.Warning);
             return;
         }
 
@@ -328,46 +368,87 @@
         totalObviados = 0;
 
         var lines = textoPegado.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        if (!lines.Any()) return;
+
+        int colArea = -1, colIds = -1, colNombre = -1, colPuesto = -1, colHoraInicio = -1, colHoraFin = -1, colBnc = -1, colVtcoTrasp = -1, colVtcoAlim = -1;
+        int startIdx = 0;
+
+        var firstRowCols = lines[0].Split('\t').Select(x => x.Trim().ToLowerInvariant()).ToArray();
+        bool hasHeader = firstRowCols.Any(v => v.Contains("rea") || v.Contains("puesto") || v.Contains("id") || v.Contains("empleado") || v.Contains("carnet"));
+
+        if (hasHeader)
         {
-            var parts = line.Split('\t');
+            startIdx = 1;
+            for (int c = 0; c < firstRowCols.Length; c++)
+            {
+                var val = firstRowCols[c];
+                if (val.Contains("rea") || val.Contains("area") || val.Contains("área")) colArea = c;
+                else if (val.Contains("nombre") || (val.Contains("colaborador") && !val.Contains("id") && !val.Contains("código") && !val.Contains("carnet"))) colNombre = c;
+                else if (val.Contains("id") || val.Contains("carnet") || val.Contains("código") || val.Contains("codigo") || val.Contains("recurso") || (val.Contains("empleado") && !val.Contains("nombre"))) colIds = c;
+                else if (val.Contains("puesto") || val.Contains("cargo") || val.Contains("posici")) colPuesto = c;
+                else if (val.Contains("entrada") || val.Contains("inicio") || (val.Contains("hora") && val.Contains("inici"))) colHoraInicio = c;
+                else if (val.Contains("salida") || val.Contains("fin") || (val.Contains("hora") && val.Contains("fin"))) colHoraFin = c;
+                else if (val.Contains("bnc") || val.Contains("bono")) colBnc = c;
+                else if (val.Contains("trasp") || val.Contains("transp")) colVtcoTrasp = c;
+                else if (val.Contains("alim")) colVtcoAlim = c;
+            }
+        }
+
+        // Si no detectó encabezado, inferir según columnas
+        if (colIds == -1)
+        {
+            if (lines.Length > startIdx)
+            {
+                var sampleCols = lines[startIdx].Split('\t');
+                if (sampleCols.Length >= 4 && int.TryParse(sampleCols[1].Trim(), out _))
+                {
+                    // Formato HT: Área (0), ID (1), Nombre (2), Puesto (3), Entrada (4), Salida (5), BNC (6), Trasp (7), Alim (8)
+                    colArea = 0; colIds = 1; colNombre = 2; colPuesto = 3; colHoraInicio = 4; colHoraFin = 5;
+                    colBnc = 6; colVtcoTrasp = 7; colVtcoAlim = 8;
+                }
+                else
+                {
+                    // Formato Google Sheets: Área (0), Puesto (1), Fecha (2), Inicio (3), Fin (4), Recursos (5)
+                    colArea = 0; colPuesto = 1; colHoraInicio = 3; colHoraFin = 4; colIds = 5;
+                    colBnc = 6; colVtcoTrasp = 7; colVtcoAlim = 8;
+                }
+            }
+        }
+
+        for (int i = startIdx; i < lines.Length; i++)
+        {
+            var parts = lines[i].Split('\t');
             if (parts.Length < 2) continue;
 
-            string col0 = parts[0].Trim();
-            if (col0.Equals("Área", StringComparison.OrdinalIgnoreCase) || col0.Equals("Area", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            string area = parts.Length > 0 ? parts[0].Trim() : "";
-            string puesto = parts.Length > 1 ? parts[1].Trim() : "";
-            string horaInicio = parts.Length > 3 ? parts[3].Trim() : "09:00";
-            string horaFin = parts.Length > 4 ? parts[4].Trim() : "17:00";
-            string rawIds = parts.Length > 5 ? parts[5].Trim() : "";
+            string area = (colArea >= 0 && parts.Length > colArea) ? parts[colArea].Trim() : "";
+            string puesto = (colPuesto >= 0 && parts.Length > colPuesto) ? parts[colPuesto].Trim() : "";
+            string rawIds = (colIds >= 0 && parts.Length > colIds) ? parts[colIds].Trim() : "";
+            string nombre = (colNombre >= 0 && parts.Length > colNombre) ? parts[colNombre].Trim() : "";
+            string horaInicio = (colHoraInicio >= 0 && parts.Length > colHoraInicio) ? NormalizarHoraTexto(parts[colHoraInicio]) : "09:00";
+            string horaFin = (colHoraFin >= 0 && parts.Length > colHoraFin) ? NormalizarHoraTexto(parts[colHoraFin]) : "17:00";
 
             decimal bnc = 0;
-            if (parts.Length > 6 && decimal.TryParse(parts[6].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal b)) bnc = b;
+            if (colBnc >= 0 && parts.Length > colBnc && decimal.TryParse(parts[colBnc].Trim().Replace("C$", "").Replace("$", "").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal b)) bnc = b;
 
             decimal vtcoTrasp = 0;
-            if (parts.Length > 7 && decimal.TryParse(parts[7].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal vt)) vtcoTrasp = vt;
+            if (colVtcoTrasp >= 0 && parts.Length > colVtcoTrasp && decimal.TryParse(parts[colVtcoTrasp].Trim().Replace("C$", "").Replace("$", "").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal vt)) vtcoTrasp = vt;
 
             decimal vtcoAlim = 0;
-            if (parts.Length > 8 && decimal.TryParse(parts[8].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal va)) vtcoAlim = va;
+            if (colVtcoAlim >= 0 && parts.Length > colVtcoAlim && decimal.TryParse(parts[colVtcoAlim].Trim().Replace("C$", "").Replace("$", "").Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal va)) vtcoAlim = va;
 
-            ProcesarFilaColaboradores(area, puesto, horaInicio, horaFin, rawIds, bnc, vtcoTrasp, vtcoAlim);
+            ProcesarFilaColaboradores(area, puesto, horaInicio, horaFin, rawIds, bnc, vtcoTrasp, vtcoAlim, nombre);
         }
 
         _snackbar.Add($"Texto procesado: {colaboradoresNuevos.Count} nuevos para agregar, {totalObviados} ya existían.", Severity.Success);
     }
 
-    private void ProcesarFilaColaboradores(string area, string puesto, string horaInicio, string horaFin, string rawIds, decimal bnc, decimal vtcoTrasp, decimal vtcoAlim)
+    private void ProcesarFilaColaboradores(string area, string puesto, string horaInicio, string horaFin, string rawIds, decimal bnc, decimal vtcoTrasp, decimal vtcoAlim, string nombreExcel = "")
     {
-        // Separar si vienen múltiples IDs/carnets separados por coma o espacio
         var idTokens = rawIds.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (!idTokens.Any())
         {
-            // Si la columna Recursos es un número (ej. "2") sin carnet explícito
             if (int.TryParse(rawIds, out int cantRecursos) && cantRecursos > 0)
             {
-                // No trae carnet explícito, se omite o se maneja
                 return;
             }
             return;
@@ -383,7 +464,7 @@
                 p.CodigoEmpleado == codigoEmpleado &&
                 p.ClienteNombre.Equals(clienteSeleccionado, StringComparison.OrdinalIgnoreCase));
 
-            // También verificar si ya lo agregamos en esta misma carga
+            // También verificar si ya lo agregamos en este mismo lote procesado
             bool yaAgregadoEnLote = colaboradoresNuevos.Any(p => p.CodigoEmpleado == codigoEmpleado);
 
             if (yaExiste || yaAgregadoEnLote)
@@ -397,7 +478,10 @@
                 e.CodigoEmpleado.HasValue && e.CodigoEmpleado.Value == codigoEmpleado ||
                 e.Id == codigoEmpleado);
 
-            string nombre = empOdoo != null ? empOdoo.Name : $"Colaborador #{codigoEmpleado}";
+            string nombre = !string.IsNullOrWhiteSpace(nombreExcel)
+                ? nombreExcel.Trim()
+                : (empOdoo != null ? empOdoo.Name : $"Colaborador #{codigoEmpleado}");
+
             string cargoFinal = !string.IsNullOrWhiteSpace(puesto) ? puesto : (empOdoo?.JobTitle ?? "6-Operador de almacen");
 
             colaboradoresNuevos.Add(new PersonalClienteItemDto
@@ -432,8 +516,27 @@
             if (cell.CellType == CellType.Formula)
             {
                 var eval = evaluator.Evaluate(cell);
-                return eval?.StringValue?.Trim() ?? cell.ToString()?.Trim() ?? string.Empty;
+                if (eval != null)
+                {
+                    if (eval.CellType == CellType.Numeric)
+                    {
+                        double v = eval.NumberValue;
+                        if (Math.Abs(v - Math.Round(v)) < 0.0001)
+                            return Math.Round(v).ToString("0");
+                        return v.ToString(CultureInfo.InvariantCulture);
+                    }
+                    return eval.StringValue?.Trim() ?? cell.ToString()?.Trim() ?? string.Empty;
+                }
             }
+
+            if (cell.CellType == CellType.Numeric)
+            {
+                double v = cell.NumericCellValue;
+                if (Math.Abs(v - Math.Round(v)) < 0.0001)
+                    return Math.Round(v).ToString("0");
+                return v.ToString(CultureInfo.InvariantCulture);
+            }
+
             return cell.ToString()?.Trim() ?? string.Empty;
         }
         catch { return cell.ToString()?.Trim() ?? string.Empty; }
@@ -444,23 +547,60 @@
         if (cell == null) return string.Empty;
         try
         {
+            if (cell.CellType == CellType.Formula)
+            {
+                var eval = evaluator.Evaluate(cell);
+                if (eval != null)
+                {
+                    if (eval.CellType == CellType.Numeric)
+                        return FormatearHoraNumero(eval.NumberValue);
+                    return NormalizarHoraTexto(eval.StringValue);
+                }
+            }
             if (cell.CellType == CellType.Numeric)
             {
-                double num = cell.NumericCellValue;
-                if (num < 1.0)
-                {
-                    var ts = TimeSpan.FromDays(num);
-                    return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}";
-                }
                 if (DateUtil.IsCellDateFormatted(cell))
                     return cell.DateCellValue.ToString("HH:mm");
+                return FormatearHoraNumero(cell.NumericCellValue);
             }
-            var s = cell.ToString()?.Trim() ?? string.Empty;
-            if (TimeSpan.TryParse(s, out TimeSpan tParsed))
-                return $"{(int)tParsed.TotalHours:D2}:{tParsed.Minutes:D2}";
-            return s;
+            return NormalizarHoraTexto(cell.ToString());
         }
         catch { return cell.ToString()?.Trim() ?? string.Empty; }
+    }
+
+    private string FormatearHoraNumero(double num)
+    {
+        // En Excel, si el número es fracción de día (ej: 0.625 = 15:00)
+        if (num >= 0 && num <= 1.0)
+        {
+            int totalMinutes = (int)Math.Round(num * 1440.0);
+            int h = (totalMinutes / 60) % 24;
+            int m = totalMinutes % 60;
+            return $"{h:D2}:{m:D2}";
+        }
+        try
+        {
+            var dt = DateTime.FromOADate(num);
+            return dt.ToString("HH:mm");
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private string NormalizarHoraTexto(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        s = s.Trim();
+        if (double.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out double num) && num >= 0 && num <= 1.0)
+            return FormatearHoraNumero(num);
+
+        if (DateTime.TryParse(s, out DateTime dt))
+            return dt.ToString("HH:mm");
+        if (TimeSpan.TryParse(s, out TimeSpan ts))
+            return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}";
+        return s;
     }
 
     private decimal ExtraerDecimal(ICell? cell, IFormulaEvaluator evaluator)
@@ -468,6 +608,11 @@
         if (cell == null) return 0;
         try
         {
+            if (cell.CellType == CellType.Formula)
+            {
+                var eval = evaluator.Evaluate(cell);
+                if (eval != null && eval.CellType == CellType.Numeric) return (decimal)eval.NumberValue;
+            }
             if (cell.CellType == CellType.Numeric) return (decimal)cell.NumericCellValue;
             var text = cell.ToString()?.Trim() ?? "";
             text = text.Replace("C$", "").Replace("$", "").Trim();
