@@ -14,6 +14,18 @@
 
 <PageTitle>Personal por Cliente y Supervisión - BUSSERSA</PageTitle>
 
+<style>
+    .tabs-personal-supervisor .mud-tab {
+        padding-right: 32px !important;
+        padding-left: 20px !important;
+        margin-right: 8px !important;
+        letter-spacing: 0.3px;
+    }
+    .tabs-personal-supervisor .mud-tab .mud-tab-badge {
+        margin-left: 10px !important;
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-8">
 
     @* ==========================================
@@ -37,11 +49,6 @@
             </div>
 
             <MudStack Row="true" Spacing="2" Class="align-self-end align-self-md-center flex-wrap">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Domain"
-                           OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))"
-                           Class="rounded-pill px-3 text-capitalize">
-                    Áreas del Cliente
-                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.SupervisorAccount"
                            OnClick="@(() => AbrirDialogAsignarConSupervisor())"
                            Class="rounded-pill px-3 text-capitalize shadow-sm">
@@ -111,12 +118,12 @@
     @* ==========================================
        PESTAÑAS PRINCIPALES DEL MÓDULO
        ========================================== *@
-    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3 pt-4" Color="Color.Surface">
+    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3 pt-4" Color="Color.Surface" Class="tabs-personal-supervisor">
 
         @* ----------------------------------------------------
            PESTAÑA 1: PERSONAL POR CLIENTE
            ---------------------------------------------------- *@
-        <MudTabPanel Text="Personal por Cliente" Icon="@Icons.Material.Filled.Badge" BadgeData="@(listaPersonal.Count + colaboradoresPendientes.Count)" BadgeColor="Color.Primary">
+        <MudTabPanel Text="@("Personal por Cliente\u00A0\u00A0\u00A0")" Icon="@Icons.Material.Filled.Badge" BadgeData="@(listaPersonal.Count + colaboradoresPendientes.Count)" BadgeColor="Color.Primary">
 
             @* BANNER DE ALERTA SI HAY REGISTROS PENDIENTES DE GUARDAR EN BASE DE DATOS *@
             @if (colaboradoresPendientes.Any())
@@ -431,7 +438,7 @@
         @* ----------------------------------------------------
            PESTAÑA 2: ASIGNACIÓN DE CLIENTES A SUPERVISORES
            ---------------------------------------------------- *@
-        <MudTabPanel Text="Clientes por Supervisor" Icon="@Icons.Material.Filled.SupervisorAccount" BadgeData="@listaSupervisorClientes.Count" BadgeColor="Color.Warning">
+        <MudTabPanel Text="@("Clientes por Supervisor\u00A0\u00A0\u00A0")" Icon="@Icons.Material.Filled.SupervisorAccount" BadgeData="@listaSupervisorClientes.Count" BadgeColor="Color.Warning">
 
             @* BARRA DE HERRAMIENTAS Y BÚSQUEDA *@
             <MudPaper Class="pa-3 mb-4 rounded-xl" Elevation="1" Style="background: #ffffff; border: 1px solid #e2e8f0;">
