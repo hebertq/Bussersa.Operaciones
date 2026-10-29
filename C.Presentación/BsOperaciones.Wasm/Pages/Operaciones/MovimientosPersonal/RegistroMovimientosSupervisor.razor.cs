@@ -64,6 +64,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketAusenciaId { get; set; }
+        public string TipoAusencia { get; set; } = "Ausencias justificadas";
+        public DateTime? FechaInicioAusencia { get; set; }
+        public DateTime? FechaFinAusencia { get; set; }
+        public decimal DiasAusencia { get; set; } = 1.0m;
+        public string VacacionesTipo { get; set; } = "Descansadas";
+        public string ObservacionesAusencia { get; set; } = string.Empty;
+        public bool SincronizadoAusencia => TicketAusenciaId.HasValue && TicketAusenciaId.Value > 0;
         public bool Seleccionado { get; set; }
         public bool Modificado { get; set; }
     }
@@ -152,6 +160,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string textoBusquedaPlantilla = string.Empty;
         protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Operativo;
         protected ModoVistaGrilla modoVistaMovimientos = ModoVistaGrilla.Tarjetas;
+
+        // Pestaña Ausencias (Tab 2)
+        protected List<Combos> tiposAusenciaOdoo = new();
+        protected ModoVistaGrilla modoVistaAusencias = ModoVistaGrilla.Operativo;
+        protected string textoBusquedaAusencias = string.Empty;
+        protected bool estaEnviandoAusencias = false;
+
+        protected int TotalAusenciasSincronizadas => empleadosJornada.Count(x => !x.Asistio && x.TicketAusenciaId.HasValue && x.TicketAusenciaId > 0);
+        protected int TotalAusenciasPendientes => empleadosJornada.Count(x => !x.Asistio && (!x.TicketAusenciaId.HasValue || x.TicketAusenciaId <= 0));
+        protected int CantidadAusentesSeleccionados => empleadosJornada.Count(x => !x.Asistio && x.Seleccionado);
+
+        protected IEnumerable<EmpleadoJornadaItem> AusentesFiltrados
+        {
+            get
+            {
+                var ausentes = empleadosJornada.Where(x => !x.Asistio);
+                if (string.IsNullOrWhiteSpace(textoBusquedaAusencias))
+                    return ausentes;
+                var q = textoBusquedaAusencias.Trim();
+                return ausentes.Where(x =>
+                    (x.NombreEmpleado != null && x.NombreEmpleado.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                    x.CodigoEmpleado.ToString().Contains(q) ||
+                    (x.Cliente != null && x.Cliente.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.TipoAusencia != null && x.TipoAusencia.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.Area != null && x.Area.Contains(q, StringComparison.OrdinalIgnoreCase)));
+            }
+        }
         protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
             string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
                 ? miPlantillaPersonal
@@ -268,6 +303,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 await CargarMisClientesAsignados();
                 await RecuperarOperacionPrevia();
                 await CargarMiPlantilla();
+                await CargarTiposAusencias();
                 await CargarJornadaActual();
             }
             catch (Exception ex)
@@ -449,6 +485,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Estado = m.Estado,
                         TicketRedmineId = m.TicketRedmineId,
                         TicketViaticoId = m.TicketViaticoId,
+                        TicketAusenciaId = m.TicketAusenciaId,
+                        TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
+                        FechaInicioAusencia = m.FechaInicioAusencia ?? m.Fecha,
+                        FechaFinAusencia = m.FechaFinAusencia ?? m.Fecha,
+                        DiasAusencia = m.DiasAusencia.HasValue && m.DiasAusencia.Value > 0 ? m.DiasAusencia.Value : 1.0m,
+                        VacacionesTipo = !string.IsNullOrWhiteSpace(m.VacacionesTipo) ? m.VacacionesTipo : "Descansadas",
+                        ObservacionesAusencia = m.Observaciones ?? string.Empty,
                         Seleccionado = false,
                         Modificado = false
                     }).ToList();
@@ -1074,7 +1117,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoAlim = e.VtcoAlim,
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
-                        Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO"
+                        Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
+                          TicketAusenciaId = e.TicketAusenciaId,
+                          TipoAusencia = e.TipoAusencia,
+                          FechaInicioAusencia = e.FechaInicioAusencia,
+                          FechaFinAusencia = e.FechaFinAusencia,
+                          DiasAusencia = e.DiasAusencia,
+                          VacacionesTipo = e.VacacionesTipo
                     };
                 }).ToList();
 
@@ -2278,5 +2327,260 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         private async Task GuardarBorradorLocal() => await Task.CompletedTask;
         private async Task<bool> RecuperarBorradorLocal() => await Task.FromResult(false);
         private async Task LimpiarBorradorLocal() => await PurgarBorradoresLocales();
-    }
+
+        protected async Task CargarTiposAusencias()
+        {
+            try
+            {
+                var resp = await _odooService.GetTiposAusencias();
+                if (resp?.Model != null && resp.Model.Any())
+                {
+                    tiposAusenciaOdoo = resp.Model.ToList();
+                }
+            }
+            catch
+            {
+                // Fallback local
+            }
+
+            if (!tiposAusenciaOdoo.Any())
+            {
+                tiposAusenciaOdoo = new List<Combos>
+                {
+                    new() { id = 9, nombre = "Ausencias justificadas" },
+                    new() { id = 8, nombre = "Falta injustificada" },
+                    new() { id = 6, nombre = "Vacaciones" },
+                    new() { id = 7, nombre = "Subsidio" },
+                    new() { id = 10, nombre = "Cuarentena" },
+                    new() { id = 11, nombre = "Suspensión laboral" }
+                };
+            }
+        }
+
+        protected void MarcarTodosAusentes(bool marcar)
+        {
+            foreach (var a in AusentesFiltrados)
+            {
+                a.Seleccionado = marcar;
+            }
+        }
+
+        protected void OnFechaInicioAusenciaChanged(EmpleadoJornadaItem emp, DateTime? fecha)
+        {
+            emp.FechaInicioAusencia = fecha;
+            if (!emp.FechaFinAusencia.HasValue || (fecha.HasValue && emp.FechaFinAusencia.Value < fecha.Value))
+            {
+                emp.FechaFinAusencia = fecha;
+            }
+            CalcularDiasAusencia(emp);
+            emp.Modificado = true;
+        }
+
+        protected void OnFechaFinAusenciaChanged(EmpleadoJornadaItem emp, DateTime? fecha)
+        {
+            emp.FechaFinAusencia = fecha;
+            if (emp.FechaInicioAusencia.HasValue && fecha.HasValue && fecha.Value < emp.FechaInicioAusencia.Value)
+            {
+                emp.FechaInicioAusencia = fecha;
+            }
+            CalcularDiasAusencia(emp);
+            emp.Modificado = true;
+        }
+
+        protected void CalcularDiasAusencia(EmpleadoJornadaItem emp)
+        {
+            if (emp.FechaInicioAusencia.HasValue && emp.FechaFinAusencia.HasValue)
+            {
+                int diff = (emp.FechaFinAusencia.Value.Date - emp.FechaInicioAusencia.Value.Date).Days + 1;
+                emp.DiasAusencia = Math.Max(1, diff);
+            }
+            else
+            {
+                emp.DiasAusencia = 1.0m;
+            }
+        }
+
+        protected void MarcarComoPresente(EmpleadoJornadaItem emp)
+        {
+            emp.Asistio = true;
+            emp.Modificado = true;
+            _snackbar.Add($"Colaborador {emp.NombreEmpleado} marcado como PRESENTE.", Severity.Info);
+            ActualizarGruposConsolidados();
+        }
+
+        // --- ENVIAR AUSENCIAS A HELPDESK (REDMINE TRACKER 8) ---
+        protected async Task EnviarAusenciasAHelpdeskMasivo(bool soloSeleccionados = false)
+        {
+            var ausentes = soloSeleccionados 
+                ? empleadosJornada.Where(x => !x.Asistio && x.Seleccionado).ToList()
+                : empleadosJornada.Where(x => !x.Asistio).ToList();
+
+            if (!ausentes.Any())
+            {
+                _snackbar.Add("No hay colaboradores ausentes para enviar a Helpdesk.", Severity.Warning);
+                return;
+            }
+
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            int total = ausentes.Count;
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Confirmar Solicitud de Ausencias",
+                $"¿Estás seguro de generar la solicitud de ausencia en Helpdesk para {total} colaborador(es) ausente(s)?",
+                yesText: "Sí, Solicitar en Helpdesk", cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaEnviandoAusencias = true;
+            try
+            {
+                var dtos = ausentes.Select((a, idx) => new AusenciaPersonalItemDto
+                {
+                    FilaIndex = idx + 1,
+                    MovimientoId = a.Id,
+                    CodigoEmpleado = a.CodigoEmpleado,
+                    NombreEmpleado = a.NombreEmpleado,
+                    Cliente = !string.IsNullOrWhiteSpace(a.Cliente) ? a.Cliente : (clienteRedmineIdentificador ?? string.Empty),
+                    Area = a.Area,
+                    Puesto = a.Puesto,
+                    TipoAusencia = !string.IsNullOrWhiteSpace(a.TipoAusencia) ? a.TipoAusencia : "Ausencias justificadas",
+                    FechaInicio = (a.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                    FechaFin = (a.FechaFinAusencia ?? a.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                    DiasSolicitados = a.DiasAusencia > 0 ? a.DiasAusencia : 1.0m,
+                    VacacionesTipo = !string.IsNullOrWhiteSpace(a.VacacionesTipo) ? a.VacacionesTipo : "Descansadas",
+                    Observaciones = !string.IsNullOrWhiteSpace(a.ObservacionesAusencia) ? a.ObservacionesAusencia : a.Observaciones
+                }).ToList();
+
+                var request = new CrearAusenciasPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
+                    AutorizadoPor = "9",
+                    Ausencias = dtos
+                };
+
+                var response = await _odooService.CrearAusenciasPersonalMasivo(request);
+                if (response?.Model != null)
+                {
+                    var res = response.Model;
+                    if (res.Detalles != null)
+                    {
+                        foreach (var det in res.Detalles)
+                        {
+                            var emp = ausentes.FirstOrDefault(x => x.CodigoEmpleado == det.CodigoEmpleado);
+                            if (emp != null && det.RedmineIssueId.HasValue)
+                            {
+                                emp.TicketAusenciaId = det.RedmineIssueId;
+                                emp.Modificado = true;
+                                if (emp.Id > 0)
+                                {
+                                    await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                                    {
+                                        Ids = new List<int> { emp.Id },
+                                        TicketAusenciaId = det.RedmineIssueId,
+                                        Estado = "SINCRONIZADO"
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if (res.Exitosos > 0)
+                    {
+                        _snackbar.Add($"✅ Se generaron {res.Exitosos} solicitud(es) de ausencia en Helpdesk con éxito.", Severity.Success);
+                    }
+                    if (res.Fallidos > 0)
+                    {
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) que no se pudieron procesar.", Severity.Warning);
+                    }
+                }
+                else
+                {
+                    _snackbar.Add("Error al comunicarse con el servicio de Helpdesk.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al enviar ausencias a Helpdesk: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEnviandoAusencias = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task EnviarAusenciaIndividual(EmpleadoJornadaItem emp)
+        {
+            if (emp == null) return;
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            estaEnviandoAusencias = true;
+            try
+            {
+                var dto = new AusenciaPersonalItemDto
+                {
+                    FilaIndex = 1,
+                    MovimientoId = emp.Id,
+                    CodigoEmpleado = emp.CodigoEmpleado,
+                    NombreEmpleado = emp.NombreEmpleado,
+                    Cliente = !string.IsNullOrWhiteSpace(emp.Cliente) ? emp.Cliente : (clienteRedmineIdentificador ?? string.Empty),
+                    Area = emp.Area,
+                    Puesto = emp.Puesto,
+                    TipoAusencia = !string.IsNullOrWhiteSpace(emp.TipoAusencia) ? emp.TipoAusencia : "Ausencias justificadas",
+                    FechaInicio = (emp.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                    FechaFin = (emp.FechaFinAusencia ?? emp.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                    DiasSolicitados = emp.DiasAusencia > 0 ? emp.DiasAusencia : 1.0m,
+                    VacacionesTipo = !string.IsNullOrWhiteSpace(emp.VacacionesTipo) ? emp.VacacionesTipo : "Descansadas",
+                    Observaciones = !string.IsNullOrWhiteSpace(emp.ObservacionesAusencia) ? emp.ObservacionesAusencia : emp.Observaciones
+                };
+
+                var request = new CrearAusenciasPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
+                    AutorizadoPor = "9",
+                    Ausencias = new List<AusenciaPersonalItemDto> { dto }
+                };
+
+                var response = await _odooService.CrearAusenciasPersonalMasivo(request);
+                var det = response?.Model?.Detalles?.FirstOrDefault();
+                if (det != null && det.Exitoso && det.RedmineIssueId.HasValue)
+                {
+                    emp.TicketAusenciaId = det.RedmineIssueId;
+                    emp.Modificado = true;
+                    if (emp.Id > 0)
+                    {
+                        await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                        {
+                            Ids = new List<int> { emp.Id },
+                            TicketAusenciaId = det.RedmineIssueId,
+                            Estado = "SINCRONIZADO"
+                        });
+                    }
+                    _snackbar.Add($"✅ Solicitud de ausencia #{det.RedmineIssueId} generada exitosamente.", Severity.Success);
+                }
+                else
+                {
+                    _snackbar.Add($"Error al generar ausencia: {det?.Mensaje ?? "Respuesta no exitosa"}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEnviandoAusencias = false;
+                StateHasChanged();
+            }
+        }
+
 }
+    }

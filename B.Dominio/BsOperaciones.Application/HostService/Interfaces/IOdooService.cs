@@ -215,6 +215,10 @@ namespace HostService.Interfaces
         Task<IResponse> SavePlantillaClienteTurno(Modelo.ClasesGenericas.GuardarPlantillaClienteTurnoRequest request);
         Task<IResponse> SavePlantillaClienteTurnosBloque(Modelo.ClasesGenericas.GuardarPlantillaClienteTurnosBloqueRequest request);
         Task<IResponse> DeletePlantillaClienteTurno(int id);
+
+        // --- AUSENCIAS DE PERSONAL (HELPDESK TRACKER 8 & ODOO LEAVE TYPES) ---
+        Task<IListResponse<Combos>> GetTiposAusencias();
+        Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>> CrearAusenciasPersonalMasivo(Modelo.ClasesGenericas.CrearAusenciasPersonalRequestDto request);
     }
 }
 

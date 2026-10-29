@@ -4479,6 +4479,64 @@ namespace HostService.Clases
             }
             return response;
         }
+        public async Task<IListResponse<Combos>> GetTiposAusencias()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Combos> response = new ListResponse<Combos>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetTiposAusencias");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Combos>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>> CrearAusenciasPersonalMasivo(Modelo.ClasesGenericas.CrearAusenciasPersonalRequestDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto> response = new SingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("OCommand/CrearAusenciasPersonalMasivo");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         #endregion
     }
 }

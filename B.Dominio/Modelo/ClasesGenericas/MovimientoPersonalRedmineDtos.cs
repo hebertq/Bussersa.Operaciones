@@ -74,6 +74,12 @@ namespace Modelo.ClasesGenericas
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketAusenciaId { get; set; }
+        public string? TipoAusencia { get; set; } = "Ausencias justificadas";
+        public DateTime? FechaInicioAusencia { get; set; }
+        public DateTime? FechaFinAusencia { get; set; }
+        public decimal? DiasAusencia { get; set; } = 1.0m;
+        public string? VacacionesTipo { get; set; } = "Descansadas";
         public string? UsuarioRegistro { get; set; }
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }
@@ -100,7 +106,51 @@ namespace Modelo.ClasesGenericas
         public List<int> Ids { get; set; } = new();
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketAusenciaId { get; set; }
         public string Estado { get; set; } = "SINCRONIZADO";
+    }
+
+    public class CrearAusenciasPersonalRequestDto
+    {
+        public int OperacionId { get; set; }
+        public string? UsuarioRedmine { get; set; }
+        public string? AutorizadoPor { get; set; } = "9";
+        public List<AusenciaPersonalItemDto> Ausencias { get; set; } = new();
+    }
+
+    public class AusenciaPersonalItemDto
+    {
+        public int FilaIndex { get; set; }
+        public int MovimientoId { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public string Cliente { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string TipoAusencia { get; set; } = "Ausencias justificadas";
+        public string FechaInicio { get; set; } = string.Empty; // yyyy-MM-dd
+        public string FechaFin { get; set; } = string.Empty;    // yyyy-MM-dd
+        public decimal DiasSolicitados { get; set; } = 1.0m;
+        public string VacacionesTipo { get; set; } = "Descansadas";
+        public string Observaciones { get; set; } = string.Empty;
+    }
+
+    public class ResultadoCreacionAusenciasDto
+    {
+        public int TotalProcesados { get; set; }
+        public int Exitosos { get; set; }
+        public int Fallidos { get; set; }
+        public List<ResultadoAusenciaItemDto> Detalles { get; set; } = new();
+    }
+
+    public class ResultadoAusenciaItemDto
+    {
+        public int FilaIndex { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public int MovimientoId { get; set; }
+        public bool Exitoso { get; set; }
+        public int? RedmineIssueId { get; set; }
+        public string? Mensaje { get; set; }
     }
 
     public class SupervisorPlantillaItemDto
