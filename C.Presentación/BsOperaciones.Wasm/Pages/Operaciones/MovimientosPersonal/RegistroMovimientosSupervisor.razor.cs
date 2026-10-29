@@ -135,10 +135,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Lista de grupos consolidados para Helpdesk (Tab 2)
         protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
 
-        // Plantilla Personal del Supervisor (Tab 3)
+        // Plantilla Personal del Supervisor (Tab 4)
         protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
         protected bool cargandoPlantilla = false;
         protected string textoBusquedaPlantilla = string.Empty;
+        protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Completo;
         protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
             string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
                 ? miPlantillaPersonal
@@ -193,9 +194,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0 || x.BonoBnc > 0));
         protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp == 0 && x.VtcoAlim == 0 && x.BonoBnc == 0));
 
-        // Filtros para la pestaña de Viáticos & BNC
+        // Filtros para la pestaña de Viáticos
         protected string textoBusquedaViaticos = string.Empty;
-        protected string filtroViaticos = "TODOS"; // "TODOS", "CON_VIATICOS", "SIN_VIATICOS"
+        protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viático o bono
 
         protected IEnumerable<EmpleadoJornadaItem> EmpleadosViaticosFiltrados
         {
@@ -839,13 +840,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var existente = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == nuevo.CodigoEmpleado);
                 if (existente != null)
                 {
-                    _snackbar.Add($"El colaborador #{nuevo.CodigoEmpleado} ({nuevo.NombreEmpleado}) ya se encuentra en la jornada.", Severity.Warning);
-                    textoBusqueda = nuevo.CodigoEmpleado.ToString();
-                    return;
+                    _snackbar.Add($"ℹ️ Registro adicional (Turno {nuevo.TurnoNombre}) agregado para #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado}.", Severity.Info);
+                }
+                else
+                {
+                    _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
                 }
 
+                nuevo.Modificado = true;
                 empleadosJornada.Insert(0, nuevo);
-                _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
+                ActualizarGruposConsolidados();
 
                 // Guardar también en la plantilla del supervisor si aún no estaba
                 if (!miPlantillaPersonal.Any(p => p.CodigoEmpleado == nuevo.CodigoEmpleado))
