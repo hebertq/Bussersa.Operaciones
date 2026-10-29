@@ -74,6 +74,7 @@ namespace Modelo.ClasesGenericas
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketBonoId { get; set; }
         public int? TicketAusenciaId { get; set; }
         public string? TipoAusencia { get; set; } = "Ausencias justificadas";
         public DateTime? FechaInicioAusencia { get; set; }
@@ -106,6 +107,7 @@ namespace Modelo.ClasesGenericas
         public List<int> Ids { get; set; } = new();
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketBonoId { get; set; }
         public int? TicketAusenciaId { get; set; }
         public string Estado { get; set; } = "SINCRONIZADO";
     }
@@ -114,6 +116,7 @@ namespace Modelo.ClasesGenericas
     {
         public int OperacionId { get; set; }
         public string? UsuarioRedmine { get; set; }
+        public string? ClienteRedmine { get; set; }
         public string? AutorizadoPor { get; set; } = "9";
         public List<AusenciaPersonalItemDto> Ausencias { get; set; } = new();
     }
@@ -144,6 +147,47 @@ namespace Modelo.ClasesGenericas
     }
 
     public class ResultadoAusenciaItemDto
+    {
+        public int FilaIndex { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public int MovimientoId { get; set; }
+        public bool Exitoso { get; set; }
+        public int? RedmineIssueId { get; set; }
+        public string? Mensaje { get; set; }
+    }
+
+    public class CrearBonosPersonalRequestDto
+    {
+        public int OperacionId { get; set; }
+        public string? UsuarioRedmine { get; set; }
+        public string? ClienteRedmine { get; set; }
+        public string? AutorizadoPor { get; set; } = "9";
+        public List<BonoPersonalItemDto> Bonos { get; set; } = new();
+    }
+
+    public class BonoPersonalItemDto
+    {
+        public int FilaIndex { get; set; }
+        public int MovimientoId { get; set; }
+        public int CodigoEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public string Cliente { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string Fecha { get; set; } = string.Empty; // yyyy-MM-dd
+        public decimal MontoBono { get; set; }
+        public string Observaciones { get; set; } = string.Empty;
+    }
+
+    public class ResultadoCreacionBonosDto
+    {
+        public int TotalProcesados { get; set; }
+        public int Exitosos { get; set; }
+        public int Fallidos { get; set; }
+        public List<ResultadoBonoItemDto> Detalles { get; set; } = new();
+    }
+
+    public class ResultadoBonoItemDto
     {
         public int FilaIndex { get; set; }
         public int CodigoEmpleado { get; set; }

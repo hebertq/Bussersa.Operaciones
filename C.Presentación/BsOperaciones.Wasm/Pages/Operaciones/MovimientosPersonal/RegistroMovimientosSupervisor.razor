@@ -1426,7 +1426,7 @@
         </MudTabPanel>
 
 
-        <MudTabPanel Text="Viáticos" ToolTip="Viáticos" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
+        <MudTabPanel Text="Viáticos" ToolTip="Viáticos (Operaciones - Tracker 27)" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticosTransporteAlim" BadgeColor="Color.Warning">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 @* Cards de Resumen de Viáticos *@
                 <MudGrid Spacing="2" Class="mb-3">
@@ -1435,7 +1435,7 @@
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                 <div>
                                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Total Viáticos</MudText>
-                                    <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">C$ @TotalViaticosGlobal.ToString("N2")</MudText>
+                                    <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">C$ @((TotalViaticosTrasp + TotalViaticosAlim).ToString("N2"))</MudText>
                                 </div>
                                 <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Medium">
                                     <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" />
@@ -1697,6 +1697,235 @@
                 }
             </MudPaper>
         </MudTabPanel>
+
+                @* ==========================================
+           TAB 4: BONO DIARIO (RRHH - TRACKER 11: APLICAR BONO DEL DIA)
+           ========================================== *@
+        <MudTabPanel Text="Bono Diario" ToolTip="Bono Diario (RRHH - Tracker 11)" Icon="@Icons.Material.Filled.MonetizationOn" BadgeData="@TotalConBono" BadgeColor="Color.Primary">
+            <MudPaper Class="pa-3 mt-2" Elevation="0">
+                <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
+                    La solicitud de <b>Bono Diario (Tracker 11 - Aplicar bono del dia)</b> se genera en el proyecto <b>RRHH</b> 
+                    de forma individual para registrar formalmente el pago de bono de cumplimiento o BNC a los colaboradores autorizados en la jornada.
+                </MudAlert>
+
+                @* Cards de Resumen de Bonos *@
+                <MudGrid Spacing="2" Class="mb-3">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-primary" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-primary) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Total Bonos</MudText>
+                                    <MudText Typo="Typo.h5" Color="Color.Primary" Class="fw-bold">C$ @TotalViaticosBnc.ToString("N2")</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                                    <MudIcon Icon="@Icons.Material.Filled.Paid" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-info" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-info) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Colaboradores</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Info" Class="fw-bold">@TotalConBono</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="6" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-success" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-success) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">En RRHH (Sinc)</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Success" Class="fw-bold">@TotalBonosSincronizados</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCard Elevation="1" Class="pa-3 border-l-4 border-solid border-warning" Style="border-left-width: 4px !important; border-left-color: var(--mud-palette-warning) !important;">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Pendientes</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Warning" Class="fw-bold">@TotalBonosPendientes</MudText>
+                                </div>
+                                <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small">
+                                    <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Small" />
+                                </MudAvatar>
+                            </MudStack>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+
+                @* Filtros de Bonos y Acciones *@
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudTextField @bind-Value="textoBusquedaBonos" 
+                                      Placeholder="Buscar colaborador con bono..." 
+                                      Adornment="Adornment.Start" 
+                                      AdornmentIcon="@Icons.Material.Filled.Search" 
+                                      Variant="Variant.Outlined" 
+                                      Margin="Margin.Dense" 
+                                      Immediate="true" 
+                                      Clearable="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudStack Row="true" Spacing="1" Class="flex-wrap">
+                            <MudChip T="string" Color="@(filtroBonos == "CON_BONO" ? Color.Primary : Color.Default)"
+                                     Variant="@(filtroBonos == "CON_BONO" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Small"
+                                     Class="fw-bold"
+                                     OnClick="@(() => filtroBonos = "CON_BONO")">
+                                Con Bono (@TotalConBono)
+                            </MudChip>
+                            <MudChip T="string" Color="@(filtroBonos == "PENDIENTES" ? Color.Warning : Color.Default)"
+                                     Variant="@(filtroBonos == "PENDIENTES" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Small"
+                                     OnClick="@(() => filtroBonos = "PENDIENTES")">
+                                Pendientes (@TotalBonosPendientes)
+                            </MudChip>
+                            <MudChip T="string" Color="@(filtroBonos == "TODOS" ? Color.Dark : Color.Default)"
+                                     Variant="@(filtroBonos == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                     Size="Size.Small"
+                                     OnClick="@(() => filtroBonos = "TODOS")">
+                                Todos (@TotalPresentes)
+                            </MudChip>
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small" 
+                                       StartIcon="@Icons.Material.Filled.Send"
+                                       Disabled="@(estaEnviandoBonos || TotalConBono == 0)"
+                                       OnClick="@EnviarBonosMasivo"
+                                       Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
+                                       Title="Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)">
+                                @(estaEnviandoBonos ? "Enviando a RRHH..." : $"Enviar Bonos a RRHH ({TotalConBono})")
+                            </MudButton>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+
+                @if (estaEnviandoBonos)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
+                }
+
+                @* Tabla Detallada de Bonos *@
+                @if (!EmpleadosBonosFiltrados.Any())
+                {
+                    <MudPaper Elevation="0" Class="pa-6 text-center" Style="border: 2px dashed #cbd5e1; border-radius: 12px;">
+                        <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Large" Color="Color.Secondary" Class="mb-1" />
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold">No hay colaboradores con bono asignado</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
+                            Puedes asignar montos de bono BNC en la grilla de Asistencias o directamente en esta tabla.
+                        </MudText>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudTable Items="@EmpleadosBonosFiltrados" 
+                              Dense="true" 
+                              Hover="true" 
+                              Striped="true" 
+                              Elevation="1" 
+                              Class="rounded-lg"
+                              Breakpoint="Breakpoint.None">
+                        <HeaderContent>
+                            <MudTh>Colaborador</MudTh>
+                            <MudTh Style="width: 170px;">Área / Cliente</MudTh>
+                            <MudTh Style="width: 130px;">Monto Bono (C$)</MudTh>
+                            <MudTh>Observaciones</MudTh>
+                            <MudTh Style="width: 150px;" Class="text-center">Ticket RRHH</MudTh>
+                            <MudTh Style="width: 80px;" Class="text-center">Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <div class="d-flex align-center gap-2">
+                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem; min-width: 48px; justify-content: center;">
+                                        #@context.CodigoEmpleado
+                                    </MudChip>
+                                    <MudText Typo="Typo.body2" Class="fw-bold">
+                                        @context.NombreEmpleado
+                                    </MudText>
+                                </div>
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.caption" Class="fw-bold d-block">@context.Area</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Cliente</MudText>
+                            </MudTd>
+                            <MudTd>
+                                <MudNumericField T="decimal" 
+                                                 Value="@context.BonoBnc" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense" 
+                                                 Dense="true" 
+                                                 Min="0" 
+                                                 HideSpinButtons="true"
+                                                 Format="N2"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentText="C$"
+                                                 Style="font-size: 0.82rem; text-align: right;" 
+                                                 ValueChanged="@((val) => { context.BonoBnc = val; context.Modificado = true; ActualizarGruposConsolidados(); })" />
+                            </MudTd>
+                            <MudTd>
+                                <MudTextField @bind-Value="@context.Observaciones" 
+                                              Variant="Variant.Outlined" 
+                                              Margin="Margin.Dense" 
+                                              Dense="true" 
+                                              Placeholder="Motivo de bono de cumplimiento..." 
+                                              Style="font-size: 0.8rem;"
+                                              OnBlur="@(() => context.Modificado = true)" />
+                            </MudTd>
+                            <MudTd Class="text-center">
+                                @if (context.SincronizadoBono)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="px-2 fw-bold" Style="height: 22px; font-size: 0.75rem;">
+                                        RRHH #@context.TicketBonoId
+                                    </MudChip>
+                                }
+                                else if (context.BonoBnc > 0)
+                                {
+                                    <MudButton Variant="Variant.Outlined" 
+                                               Color="Color.Primary" 
+                                               Size="Size.Small" 
+                                               StartIcon="@Icons.Material.Filled.Send"
+                                               Disabled="@estaEnviandoBonos"
+                                               OnClick="@(() => EnviarBonoIndividual(context))"
+                                               Style="font-size: 0.72rem; padding: 2px 6px;">
+                                        Enviar RRHH
+                                    </MudButton>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                }
+                            </MudTd>
+                            <MudTd Class="text-center">
+                                @if (context.BonoBnc > 0)
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Clear" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error" 
+                                                   OnClick="@(() => { context.BonoBnc = 0; context.Modificado = true; ActualizarGruposConsolidados(); })"
+                                                   Title="Poner bono a 0" />
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudTabPanel>
+
 
         @* ==========================================
            TAB 3: CONSOLIDADO & ENVÍO A HELPDESK

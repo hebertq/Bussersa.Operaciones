@@ -4536,6 +4536,34 @@ namespace HostService.Clases
             }
             return response;
         }
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionBonosDto>> CrearBonosPersonalMasivo(Modelo.ClasesGenericas.CrearBonosPersonalRequestDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionBonosDto> response = new SingleResponse<Modelo.ClasesGenericas.ResultadoCreacionBonosDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("OCommand/CrearBonosPersonalMasivo");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.ResultadoCreacionBonosDto>(reg.detail.ToString());
+                        response.Respuesta.SetErrHost(reg);
+                    }
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
 
         #endregion
     }

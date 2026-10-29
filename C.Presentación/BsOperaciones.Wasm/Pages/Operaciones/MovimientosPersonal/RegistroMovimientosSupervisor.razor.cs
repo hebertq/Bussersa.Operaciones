@@ -64,7 +64,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
         public int? TicketViaticoId { get; set; }
+        public int? TicketBonoId { get; set; }
         public int? TicketAusenciaId { get; set; }
+        public bool SincronizadoBono => TicketBonoId.HasValue && TicketBonoId.Value > 0;
+        public bool SincronizadoViatico => TicketViaticoId.HasValue && TicketViaticoId.Value > 0;
         public string TipoAusencia { get; set; } = "Ausencias justificadas";
         public DateTime? FechaInicioAusencia { get; set; }
         public DateTime? FechaFinAusencia { get; set; }
@@ -95,6 +98,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string NombresResumen => string.Join(", ", Empleados.Take(3).Select(e => e.NombreEmpleado)) + (Empleados.Count > 3 ? $" y {Empleados.Count - 3} más..." : "");
         public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
         public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
+        public int? TicketBonoId => Empleados.FirstOrDefault(e => e.TicketBonoId.HasValue && e.TicketBonoId > 0)?.TicketBonoId;
         public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
         public string Observaciones { get; set; } = string.Empty;
         public string NotaPrestamos { get; set; } = string.Empty;
@@ -166,6 +170,49 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected ModoVistaGrilla modoVistaAusencias = ModoVistaGrilla.Tarjetas;
         protected string textoBusquedaAusencias = string.Empty;
         protected bool estaEnviandoAusencias = false;
+        // Pestaña Bonos (Tab 4 - RRHH Tracker 11)
+        protected string textoBusquedaBonos = string.Empty;
+        protected string filtroBonos = "CON_BONO"; // "CON_BONO", "PENDIENTES", "TODOS"
+        protected bool estaEnviandoBonos = false;
+        protected bool estaEnviandoViaticos = false;
+        protected ModoVistaGrilla modoVistaBonos = ModoVistaGrilla.Tarjetas;
+
+        protected int TotalConBono => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0);
+        protected int TotalBonosSincronizados => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && x.TicketBonoId.HasValue && x.TicketBonoId > 0);
+        protected int TotalBonosPendientes => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && (!x.TicketBonoId.HasValue || x.TicketBonoId <= 0));
+        protected int CantidadBonosSeleccionados => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && x.Seleccionado);
+
+        protected int TotalConViaticosTransporteAlim => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
+        protected int TotalViaticosSincronizados => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && x.TicketViaticoId.HasValue && x.TicketViaticoId > 0);
+        protected int TotalViaticosPendientes => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && (!x.TicketViaticoId.HasValue || x.TicketViaticoId <= 0));
+
+        protected IEnumerable<EmpleadoJornadaItem> EmpleadosBonosFiltrados
+        {
+            get
+            {
+                var query = empleadosJornada.Where(x => x.Asistio);
+                if (filtroBonos == "CON_BONO")
+                {
+                    query = query.Where(x => x.BonoBnc > 0);
+                }
+                else if (filtroBonos == "PENDIENTES")
+                {
+                    query = query.Where(x => x.BonoBnc > 0 && (!x.TicketBonoId.HasValue || x.TicketBonoId <= 0));
+                }
+
+                if (!string.IsNullOrWhiteSpace(textoBusquedaBonos))
+                {
+                    var busq = textoBusquedaBonos.Trim();
+                    query = query.Where(x =>
+                        x.NombreEmpleado.Contains(busq, StringComparison.OrdinalIgnoreCase) ||
+                        x.CodigoEmpleado.ToString().Contains(busq) ||
+                        x.Area.Contains(busq, StringComparison.OrdinalIgnoreCase) ||
+                        x.Cliente.Contains(busq, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return query;
+            }
+        }
 
         protected int TotalAusenciasSincronizadas => empleadosJornada.Count(x => !x.Asistio && x.TicketAusenciaId.HasValue && x.TicketAusenciaId > 0);
         protected int TotalAusenciasPendientes => empleadosJornada.Count(x => !x.Asistio && (!x.TicketAusenciaId.HasValue || x.TicketAusenciaId <= 0));
@@ -517,6 +564,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Estado = m.Estado,
                             TicketRedmineId = m.TicketRedmineId,
                             TicketViaticoId = m.TicketViaticoId,
+                            TicketBonoId = m.TicketBonoId,
                             TicketAusenciaId = m.TicketAusenciaId,
                             TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
                             FechaInicioAusencia = fIni,
@@ -1175,6 +1223,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
+                        TicketRedmineId = e.TicketRedmineId,
+                        TicketViaticoId = e.TicketViaticoId,
+                        TicketBonoId = e.TicketBonoId,
                         TicketAusenciaId = e.TicketAusenciaId,
                         TipoAusencia = !string.IsNullOrWhiteSpace(e.TipoAusencia) ? e.TipoAusencia : "Ausencias justificadas",
                         FechaInicioAusencia = fIni,
@@ -2674,5 +2725,275 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
+
+        // --- ENVIAR SOLICITUD DE VIÁTICOS A HELPDESK (OPERACIONES - TRACKER 27) ---
+        protected async Task EnviarViaticosMasivo()
+        {
+            var conViaticos = empleadosJornada.Where(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0)).ToList();
+            if (!conViaticos.Any())
+            {
+                _snackbar.Add("No hay colaboradores con viáticos (transporte o alimentación) asignados.", Severity.Warning);
+                return;
+            }
+
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            decimal totalViat = TotalViaticosTrasp + TotalViaticosAlim;
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Solicitud de Viáticos (Operaciones - Tracker 27)",
+                $"¿Deseas enviar la solicitud de viáticos para {conViaticos.Count} colaboradores por un total de C$ {totalViat:N2} (Transporte: C$ {TotalViaticosTrasp:N2}, Alimentación: C$ {TotalViaticosAlim:N2})?",
+                yesText: "Sí, Enviar a Operaciones", cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaEnviandoViaticos = true;
+            try
+            {
+                ActualizarGruposConsolidados();
+                var gruposConViaticos = gruposConsolidados.Where(g => g.VtcoTrasp > 0 || g.VtcoAlim > 0).ToList();
+
+                var movimientosRedmine = gruposConViaticos.Select(g => new MovimientoPersonalItemDto
+                {
+                    FilaIndex = g.GrupoIndex,
+                    Cliente = g.Cliente,
+                    Area = g.Area,
+                    Cargo = g.Puesto,
+                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                    HoraInicio = g.HoraInicio,
+                    HoraFin = g.HoraFin,
+                    TiempoComida = g.TiempoComida,
+                    CantidadEmpleados = g.Cantidad,
+                    IdsEmpleados = g.IdsEmpleadosTexto,
+                    Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"SOLICITUD DE VIATICOS - {g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"SOLICITUD DE VIATICOS - {g.Area} - {g.Puesto}".Trim(),
+                    Observaciones = g.Observaciones,
+                    Bonos = "0.00",
+                    VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
+                    VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
+                }).ToList();
+
+                var request = new CrearMovimientosPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    ClienteRedmine = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones",
+                    ModoGeneracion = "SoloViaticos",
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
+                    Movimientos = movimientosRedmine
+                };
+
+                var response = await _odooService.CrearMovimientosPersonalMasivo(request);
+                if (response?.Model != null)
+                {
+                    var res = response.Model;
+                    if (res.Detalles != null)
+                    {
+                        foreach (var det in res.Detalles)
+                        {
+                            var grupo = gruposConViaticos.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
+                            if (grupo != null && det.RedmineViaticosIssueId.HasValue)
+                            {
+                                var idsDb = grupo.Empleados.Where(e => e.Id > 0).Select(e => e.Id).ToList();
+                                if (idsDb.Any())
+                                {
+                                    await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                                    {
+                                        Ids = idsDb,
+                                        TicketViaticoId = det.RedmineViaticosIssueId,
+                                        Estado = "SINCRONIZADO"
+                                    });
+                                }
+
+                                foreach (var emp in grupo.Empleados)
+                                {
+                                    emp.TicketViaticoId = det.RedmineViaticosIssueId;
+                                    emp.Modificado = true;
+                                }
+                            }
+                        }
+                    }
+
+                    _snackbar.Add($"✅ {res.Exitosos} solicitud(es) de viáticos generadas en Operaciones (Tracker 27).", Severity.Success);
+                }
+                else
+                {
+                    _snackbar.Add($"Error al enviar viáticos: {response?.Respuesta?.MensajeError}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error en comunicación con Helpdesk: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEnviandoViaticos = false;
+                StateHasChanged();
+            }
+        }
+
+        // --- ENVIAR SOLICITUDES DE BONO DIARIO A HELPDESK (RRHH - TRACKER 11: APLICAR BONO DEL DIA) ---
+        protected async Task EnviarBonosMasivo()
+        {
+            var conBono = empleadosJornada.Where(x => x.Asistio && x.BonoBnc > 0).ToList();
+            if (!conBono.Any())
+            {
+                _snackbar.Add("No hay colaboradores con bono asignado para enviar.", Severity.Warning);
+                return;
+            }
+
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Solicitud de Bono Diario (RRHH - Tracker 11)",
+                $"¿Deseas enviar las solicitudes individuales de Bono del Día a RRHH para {conBono.Count} colaboradores por un total de C$ {TotalViaticosBnc:N2}?",
+                yesText: "Sí, Enviar a RRHH", cancelText: "Cancelar");
+
+            if (confirm != true) return;
+
+            estaEnviandoBonos = true;
+            try
+            {
+                var dtos = conBono.Select((b, idx) => new BonoPersonalItemDto
+                {
+                    FilaIndex = idx + 1,
+                    MovimientoId = b.Id,
+                    CodigoEmpleado = b.CodigoEmpleado,
+                    NombreEmpleado = b.NombreEmpleado,
+                    Cliente = !string.IsNullOrWhiteSpace(b.Cliente) ? b.Cliente : (clienteRedmineIdentificador ?? string.Empty),
+                    Area = b.Area,
+                    Puesto = b.Puesto,
+                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                    MontoBono = b.BonoBnc,
+                    Observaciones = b.Observaciones
+                }).ToList();
+
+                var request = new CrearBonosPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
+                    AutorizadoPor = "9",
+                    Bonos = dtos
+                };
+
+                var response = await _odooService.CrearBonosPersonalMasivo(request);
+                if (response?.Model != null)
+                {
+                    var res = response.Model;
+                    if (res.Detalles != null)
+                    {
+                        foreach (var det in res.Detalles)
+                        {
+                            var emp = conBono.FirstOrDefault(x => x.CodigoEmpleado == det.CodigoEmpleado);
+                            if (emp != null && det.RedmineIssueId.HasValue)
+                            {
+                                emp.TicketBonoId = det.RedmineIssueId;
+                                emp.Modificado = true;
+                                if (emp.Id > 0)
+                                {
+                                    await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                                    {
+                                        Ids = new List<int> { emp.Id },
+                                        TicketBonoId = det.RedmineIssueId,
+                                        Estado = "SINCRONIZADO"
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    if (res.Exitosos > 0)
+                    {
+                        _snackbar.Add($"✅ Se generaron {res.Exitosos} solicitud(es) de Bono Diario en RRHH (Tracker 11) con éxito.", Severity.Success);
+                    }
+                    if (res.Fallidos > 0)
+                    {
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) de bono que no se pudieron procesar.", Severity.Warning);
+                    }
+                }
+                else
+                {
+                    _snackbar.Add($"Error al comunicarse con Helpdesk: {response?.Respuesta?.MensajeError}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al enviar bonos a Helpdesk: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEnviandoBonos = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task EnviarBonoIndividual(EmpleadoJornadaItem emp)
+        {
+            if (emp == null || emp.BonoBnc <= 0) return;
+            if (HayCambiosSinGuardar)
+            {
+                await GuardarEnBaseDatos();
+            }
+
+            estaEnviandoBonos = true;
+            try
+            {
+                var dto = new BonoPersonalItemDto
+                {
+                    FilaIndex = 1,
+                    MovimientoId = emp.Id,
+                    CodigoEmpleado = emp.CodigoEmpleado,
+                    NombreEmpleado = emp.NombreEmpleado,
+                    Cliente = !string.IsNullOrWhiteSpace(emp.Cliente) ? emp.Cliente : (clienteRedmineIdentificador ?? string.Empty),
+                    Area = emp.Area,
+                    Puesto = emp.Puesto,
+                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                    MontoBono = emp.BonoBnc,
+                    Observaciones = emp.Observaciones
+                };
+
+                var request = new CrearBonosPersonalRequestDto
+                {
+                    OperacionId = selectedOperacionId ?? 0,
+                    UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
+                    AutorizadoPor = "9",
+                    Bonos = new List<BonoPersonalItemDto> { dto }
+                };
+
+                var response = await _odooService.CrearBonosPersonalMasivo(request);
+                var det = response?.Model?.Detalles?.FirstOrDefault();
+                if (det != null && det.Exitoso && det.RedmineIssueId.HasValue)
+                {
+                    emp.TicketBonoId = det.RedmineIssueId;
+                    emp.Modificado = true;
+                    if (emp.Id > 0)
+                    {
+                        await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
+                        {
+                            Ids = new List<int> { emp.Id },
+                            TicketBonoId = det.RedmineIssueId,
+                            Estado = "SINCRONIZADO"
+                        });
+                    }
+                    _snackbar.Add($"✅ Solicitud de Bono #{det.RedmineIssueId} generada exitosamente en RRHH.", Severity.Success);
+                }
+                else
+                {
+                    _snackbar.Add($"Error al generar bono: {det?.Mensaje ?? "Respuesta no exitosa"}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEnviandoBonos = false;
+                StateHasChanged();
+            }
+        }
 }
     }

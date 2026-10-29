@@ -219,6 +219,7 @@ namespace HostService.Interfaces
         // --- AUSENCIAS DE PERSONAL (HELPDESK TRACKER 8 & ODOO LEAVE TYPES) ---
         Task<IListResponse<Combos>> GetTiposAusencias();
         Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>> CrearAusenciasPersonalMasivo(Modelo.ClasesGenericas.CrearAusenciasPersonalRequestDto request);
+        Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionBonosDto>> CrearBonosPersonalMasivo(Modelo.ClasesGenericas.CrearBonosPersonalRequestDto request);
     }
 }
 
