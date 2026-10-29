@@ -167,7 +167,7 @@
         @* ==========================================
            TAB 1: ASISTENCIAS
            ========================================== *@
-        <MudTabPanel Text="Asistencias" Icon="@Icons.Material.Filled.TableChart" BadgeData="@TotalPresentes" BadgeColor="Color.Success">
+        <MudTabPanel Text="Asistencias" ToolTip="Asistencias" Icon="@Icons.Material.Filled.TableChart" BadgeData="@TotalPresentes" BadgeColor="Color.Success">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
@@ -1026,7 +1026,7 @@
         @* ==========================================
            TAB 2: VIÁTICOS
            ========================================== *@
-        <MudTabPanel Text="Viáticos" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
+        <MudTabPanel Text="Viáticos" ToolTip="Viáticos" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticos" BadgeColor="Color.Warning">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 @* Cards de Resumen de Viáticos *@
                 <MudGrid Spacing="2" Class="mb-3">
@@ -1278,7 +1278,7 @@
         @* ==========================================
            TAB 3: CONSOLIDADO & ENVÍO A HELPDESK
            ========================================== *@
-        <MudTabPanel Text="Movimientos" Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
+        <MudTabPanel Text="Movimientos" ToolTip="Movimientos" Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     Esta pestaña agrupa automáticamente la asistencia activa exactamente con la lógica de <b>OPM_Produccion_Diaria_Hrs</b> 
@@ -1418,7 +1418,7 @@
         @* ==========================================
            TAB 4: MI PERSONAL (PLANTILLA PERMANENTE)
            ========================================== *@
-        <MudTabPanel Text="Mi Personal" Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
+        <MudTabPanel Text="Mi Personal" ToolTip="Mi Personal" Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
             <MudPaper Class="pa-4 mt-2" Elevation="0">
                 <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
                     Define tu equipo habitual de colaboradores con su <b>Cliente Inicial</b>, área y puesto. 
@@ -1601,7 +1601,7 @@
         @* ==========================================
            TAB 5: CONFIGURACIÓN DE ÁREAS POR CLIENTE
            ========================================== *@
-        <MudTabPanel Text="Configuración" Icon="@Icons.Material.Filled.Settings" BadgeData="@catalogoClienteAreas.Count" BadgeColor="Color.Dark">
+        <MudTabPanel Text="Configuración" ToolTip="Configuración" Icon="@Icons.Material.Filled.Settings" BadgeData="@catalogoClienteAreas.Count" BadgeColor="Color.Dark">
             <MudPaper Class="pa-4 mt-2" Elevation="0">
                 <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Tune">
                     Gestiona el catálogo de <b>Áreas Operativas correspondientes a cada Cliente / Operación</b>. 
@@ -1738,6 +1738,43 @@
     }
     .tablet-tabs .mud-tab-slider {
         height: 3px !important;
+    }
+
+    /* En resoluciones medianas y pequenas (tablets y telefonos, max 1080px):
+       Ocultar el texto del tab para dejar solo el icono + badge y que nunca se corte ni desaparezca Configuracion */
+    @@media (max-width: 1080px) {
+        .tablet-tabs .mud-tabs-tabbar {
+            overflow-x: visible !important;
+        }
+        .tablet-tabs .mud-tab {
+            font-size: 0 !important;
+            margin-right: 4px !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            min-width: 44px !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            justify-content: center;
+        }
+        .tablet-tabs .mud-tab .mud-tab-text {
+            display: none !important;
+        }
+        .tablet-tabs .mud-tab .mud-icon-root {
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+            font-size: 1.45rem !important;
+            width: 1.45rem !important;
+            height: 1.45rem !important;
+        }
+        .tablet-tabs .mud-tab-badge {
+            margin-left: 4px !important;
+            margin-right: 0 !important;
+            font-size: 0.72rem !important;
+            padding: 2px 4px !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            line-height: 14px !important;
+        }
     }
 
     /* Control de Vistas Estilo Odoo (Top-Right Toolbar Switcher) */
