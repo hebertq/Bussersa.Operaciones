@@ -970,6 +970,21 @@
         <MudTabPanel Text="Ausencias" ToolTip="Ausencias del Personal" Icon="@Icons.Material.Filled.PersonOff" BadgeData="@TotalAusentes" BadgeColor="Color.Error">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
 
+                @if (HayCambiosSinGuardar)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                            <span>
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                                <b>Cambios pendientes:</b> Hay información sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de reportar ausencias a Helpdesk.
+                            </span>
+                            <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarEnBaseDatos" Style="font-weight: 700;">
+                                Guardar en BD Ahora
+                            </MudButton>
+                        </div>
+                    </MudAlert>
+                }
+
                 @* KPIs Resumen de Ausencias *@
                 <MudGrid Spacing="2" Class="mb-3">
                     <MudItem xs="12" sm="4">
@@ -1038,8 +1053,9 @@
                                        Color="Color.Error" 
                                        Size="Size.Small" 
                                        StartIcon="@Icons.Material.Filled.Send" 
-                                       Disabled="@(estaEnviandoAusencias || TotalAusentes == 0)"
+                                       Disabled="@(estaEnviandoAusencias || TotalAusentes == 0 || HayCambiosSinGuardar)"
                                        OnClick="@(() => EnviarAusenciasAHelpdeskMasivo(CantidadAusentesSeleccionados > 0))"
+                                       Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de reportar ausencias a Helpdesk" : "Reportar ausencias a RRHH Helpdesk")"
                                        Style="font-weight: 700; text-transform: none; border-radius: 8px; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);">
                                 @if (estaEnviandoAusencias)
                                 {
@@ -1261,8 +1277,9 @@
                                                            Color="Color.Error" 
                                                            Size="Size.Small" 
                                                            StartIcon="@Icons.Material.Filled.Send" 
-                                                           Disabled="@estaEnviandoAusencias"
+                                                           Disabled="@(estaEnviandoAusencias || HayCambiosSinGuardar)"
                                                            OnClick="@(() => EnviarAusenciaIndividual(emp))"
+                                                           Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de reportar la ausencia" : "Solicitar")"
                                                            Style="text-transform: none; font-weight: 700; border-radius: 8px;">
                                                     Solicitar
                                                 </MudButton>
@@ -1416,8 +1433,9 @@
                                                        Color="Color.Error" 
                                                        Size="Size.Small" 
                                                        StartIcon="@Icons.Material.Filled.Send" 
-                                                       Disabled="@estaEnviandoAusencias"
+                                                       Disabled="@(estaEnviandoAusencias || HayCambiosSinGuardar)"
                                                        OnClick="@(() => EnviarAusenciaIndividual(context))"
+                                                       Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de reportar la ausencia" : "Solicitar")"
                                                        Style="font-size: 0.72rem; text-transform: none; padding: 2px 8px; border-radius: 6px;">
                                                 Solicitar
                                             </MudButton>
@@ -1442,6 +1460,22 @@
 
         <MudTabPanel Text="Viáticos" ToolTip="Viáticos (Operaciones - Tracker 27)" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticosTransporteAlim" BadgeColor="Color.Warning">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
+
+                @if (HayCambiosSinGuardar)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                            <span>
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                                <b>Cambios pendientes:</b> Hay información sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de enviar viáticos a Helpdesk.
+                            </span>
+                            <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarEnBaseDatos" Style="font-weight: 700;">
+                                Guardar en BD Ahora
+                            </MudButton>
+                        </div>
+                    </MudAlert>
+                }
+
                 @* Cards de Resumen de Viáticos *@
                 <MudGrid Spacing="2" Class="mb-3">
                     <MudItem xs="12" sm="6" md="3">
@@ -1510,22 +1544,40 @@
                                       Immediate="true" 
                                       Clearable="true" />
                     </MudItem>
-                    <MudItem xs="12" sm="6" md="3">
-                        @* Selector de vista: Solicitudes (Grupos con Recursos) vs Por Colaborador *@
-                        <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
-                            <MudButton Variant="@(modoVistaViaticos == "GRUPOS" ? Variant.Filled : Variant.Outlined)"
-                                       StartIcon="@Icons.Material.Filled.GroupWork"
-                                       OnClick="@(() => modoVistaViaticos = "GRUPOS")">
-                                Solicitudes (@GruposViaticos.Count)
-                            </MudButton>
-                            <MudButton Variant="@(modoVistaViaticos == "COLABORADORES" ? Variant.Filled : Variant.Outlined)"
-                                       StartIcon="@Icons.Material.Filled.Person"
-                                       OnClick="@(() => modoVistaViaticos = "COLABORADORES")">
-                                Colaboradores (@TotalPresentes)
-                            </MudButton>
-                        </MudButtonGroup>
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="flex-wrap">
+                            @* Selector de vista: Solicitudes (Grupos con Recursos) vs Por Colaborador *@
+                            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
+                                <MudButton Variant="@(modoVistaViaticos == "GRUPOS" ? Variant.Filled : Variant.Outlined)"
+                                           StartIcon="@Icons.Material.Filled.GroupWork"
+                                           OnClick="@(() => modoVistaViaticos = "GRUPOS")">
+                                    Solicitudes (@GruposViaticos.Count)
+                                </MudButton>
+                                <MudButton Variant="@(modoVistaViaticos == "COLABORADORES" ? Variant.Filled : Variant.Outlined)"
+                                           StartIcon="@Icons.Material.Filled.Person"
+                                           OnClick="@(() => modoVistaViaticos = "COLABORADORES")">
+                                    Colaboradores (@TotalPresentes)
+                                </MudButton>
+                            </MudButtonGroup>
+
+                            @* Selector de 2 Formatos: Tarjetas vs Tabla *@
+                            <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary">
+                                <MudButton Variant="@(modoVistaViaticosFormato == ModoVistaGrilla.Tarjetas ? Variant.Filled : Variant.Outlined)"
+                                           StartIcon="@Icons.Material.Filled.GridView"
+                                           OnClick="@(() => modoVistaViaticosFormato = ModoVistaGrilla.Tarjetas)"
+                                           Title="Vista de Tarjetas">
+                                    Tarjetas
+                                </MudButton>
+                                <MudButton Variant="@(modoVistaViaticosFormato == ModoVistaGrilla.Operativo ? Variant.Filled : Variant.Outlined)"
+                                           StartIcon="@Icons.Material.Filled.TableChart"
+                                           OnClick="@(() => modoVistaViaticosFormato = ModoVistaGrilla.Operativo)"
+                                           Title="Vista de Tabla">
+                                    Tabla
+                                </MudButton>
+                            </MudButtonGroup>
+                        </MudStack>
                     </MudItem>
-                    <MudItem xs="12" sm="6" md="3">
+                    <MudItem xs="12" sm="6" md="2">
                         @if (modoVistaViaticos == "COLABORADORES")
                         {
                             <MudStack Row="true" Spacing="1" Class="flex-wrap">
@@ -1576,12 +1628,12 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.RocketLaunch"
-                                       Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any())"
-                                       OnClick="@EnviarAHelpdeskMasivo"
+                                       StartIcon="@Icons.Material.Filled.Payments"
+                                       Disabled="@(estaEnviandoViaticos || TotalConViaticosTransporteAlim == 0 || HayCambiosSinGuardar)"
+                                       OnClick="@EnviarViaticosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
-                                       Title="Generar y sincronizar tickets de Viáticos (Tracker 27) y Movimientos en Helpdesk (Redmine)">
-                                @(estaEnviandoHelpdesk ? "Generando..." : "Generar Tickets")
+                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los viáticos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Operaciones" : "Generar solicitudes de Viáticos (Tracker 27) en Operaciones Helpdesk")">
+                                @(estaEnviandoViaticos ? "Enviando a Operaciones..." : $"Enviar Viáticos ({GruposViaticos.Count})")
                             </MudButton>
                         </MudStack>
                     </MudItem>
@@ -1606,6 +1658,108 @@
                                 Ver Colaboradores para Asignar Viáticos (@TotalPresentes)
                             </MudButton>
                         </MudPaper>
+                    }
+                    else if (modoVistaViaticosFormato == ModoVistaGrilla.Tarjetas)
+                    {
+                        @* 1.A: MODO TARJETAS DE SOLICITUDES *@
+                        <MudGrid Spacing="2">
+                            @foreach (var grupo in GruposViaticos)
+                            {
+                                <MudItem xs="12" md="6" lg="4">
+                                    <MudCard Elevation="2" Class="rounded-lg h-100 d-flex flex-column justify-space-between" 
+                                             Style="@(grupo.Sincronizado ? "border-left: 5px solid #10b981; background: #fff;" : "border-left: 5px solid #f59e0b; background: #fff;")">
+                                        <MudCardHeader Class="pb-2 pt-3 px-3">
+                                            <CardHeaderContent>
+                                                <div class="d-flex align-center justify-space-between">
+                                                    <div class="d-flex align-center gap-2">
+                                                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled" Class="font-monospace fw-bold">
+                                                            #@grupo.Index
+                                                        </MudChip>
+                                                        <div>
+                                                            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary">@grupo.Cliente</MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">@grupo.Area</MudText>
+                                                        </div>
+                                                    </div>
+                                                    @if (grupo.Sincronizado)
+                                                    {
+                                                        <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{grupo.TicketViaticoId}")" Target="_blank" Underline="Underline.Always">
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Payments" Class="fw-bold">
+                                                                Viat #@grupo.TicketViaticoId
+                                                            </MudChip>
+                                                        </MudLink>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Class="fw-bold">
+                                                            Pendiente
+                                                        </MudChip>
+                                                    }
+                                                </div>
+                                            </CardHeaderContent>
+                                        </MudCardHeader>
+
+                                        <MudCardContent Class="py-2 px-3">
+                                            @* Puesto y Horario *@
+                                            <div class="mb-2">
+                                                <MudText Typo="Typo.body2" Class="fw-bold">@grupo.Puesto</MudText>
+                                                <div class="d-flex align-center gap-1 font-monospace text-secondary" style="font-size: 0.78rem;">
+                                                    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Style="font-size: 0.9rem;" />
+                                                    <span>@grupo.HoraInicio - @grupo.HoraFin (@grupo.TurnoNombre)</span>
+                                                </div>
+                                            </div>
+
+                                            @* Cuadro Destacado: Recursos y Montos *@
+                                            <MudPaper Elevation="0" Class="pa-2 my-2 rounded" Style="background: #f1f5f9; border: 1px solid #e2e8f0;">
+                                                <div class="d-flex justify-space-between align-center mb-1">
+                                                    <span style="font-size: 0.78rem; font-weight: 600; color: #475569;">RECURSOS:</span>
+                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 22px; font-size: 0.78rem;">
+                                                        @grupo.Recursos recurso(s)
+                                                    </MudChip>
+                                                </div>
+                                                <div class="d-flex justify-space-between text-secondary" style="font-size: 0.78rem;">
+                                                    <span>Trasp: C$ @grupo.VtcoTrasp.ToString("N2")</span>
+                                                    <span>Alim: C$ @grupo.VtcoAlim.ToString("N2")</span>
+                                                </div>
+                                                <MudDivider Class="my-1" />
+                                                <div class="d-flex justify-space-between align-center">
+                                                    <span style="font-size: 0.82rem; font-weight: 700; color: #1e293b;">TOTAL VIÁTICO:</span>
+                                                    <span class="font-monospace fw-bold" style="font-size: 0.95rem; color: #059669;">
+                                                        C$ @grupo.TotalGrupo.ToString("N2")
+                                                    </span>
+                                                </div>
+                                                <div class="text-right text-muted" style="font-size: 0.68rem;">
+                                                    (@grupo.Recursos × C$ @grupo.TotalPorPersona.ToString("N2"))
+                                                </div>
+                                            </MudPaper>
+
+                                            @* Colaboradores asignados (Chips) *@
+                                            <div>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold mb-1 d-block">Colaboradores:</MudText>
+                                                <div class="d-flex flex-wrap gap-1" style="max-height: 80px; overflow-y: auto;">
+                                                    @foreach (var emp in grupo.Empleados)
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Dark" Variant="Variant.Outlined" Class="font-monospace fw-bold px-1" Style="height: 20px; font-size: 0.70rem;" Title="@emp.NombreEmpleado">
+                                                            #@emp.CodigoEmpleado @emp.NombreEmpleado
+                                                        </MudChip>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudCardContent>
+
+                                        <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
+                                            <MudButton Variant="Variant.Outlined" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       StartIcon="@Icons.Material.Filled.Edit" 
+                                                       OnClick="@(() => AbrirEditorViaticoGrupo(grupo))"
+                                                       Style="font-size: 0.75rem;">
+                                                Editar Viáticos
+                                            </MudButton>
+                                        </MudCardActions>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
                     }
                     else
                     {
@@ -1721,6 +1875,97 @@
                             </MudText>
                         </MudPaper>
                     }
+                    else if (modoVistaViaticosFormato == ModoVistaGrilla.Tarjetas)
+                    {
+                        @* 2.A: MODO TARJETAS POR COLABORADOR *@
+                        <MudGrid Spacing="2">
+                            @foreach (var emp in EmpleadosViaticosFiltrados)
+                            {
+                                <MudItem xs="12" sm="6" md="4" lg="3">
+                                    <MudCard Elevation="2" Class="rounded-lg h-100 d-flex flex-column justify-space-between"
+                                             Style="@((emp.VtcoTrasp > 0 || emp.VtcoAlim > 0) ? "border-left: 5px solid #10b981; background: #fff;" : "border-left: 5px solid #cbd5e1; background: #fff;")">
+                                        <MudCardHeader Class="pb-1 pt-3 px-3">
+                                            <CardHeaderContent>
+                                                <div class="d-flex align-center justify-space-between">
+                                                    <div class="d-flex align-center gap-1">
+                                                        <MudCheckBox @bind-Value="@emp.Seleccionado" Color="Color.Primary" Dense="true" Class="pa-0 ma-0" />
+                                                        <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem;">
+                                                            #@emp.CodigoEmpleado
+                                                        </MudChip>
+                                                    </div>
+                                                    @{
+                                                        var tot = emp.VtcoTrasp + emp.VtcoAlim;
+                                                    }
+                                                    <MudChip T="string" Color="@(tot > 0 ? Color.Success : Color.Default)" Variant="Variant.Filled" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem;">
+                                                        C$ @tot.ToString("N2")
+                                                    </MudChip>
+                                                </div>
+                                            </CardHeaderContent>
+                                        </MudCardHeader>
+
+                                        <MudCardContent Class="py-2 px-3">
+                                            <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" Title="@emp.NombreEmpleado">
+                                                @emp.NombreEmpleado
+                                            </MudText>
+                                            <div class="mb-2">
+                                                <MudText Typo="Typo.caption" Class="fw-bold d-block">@emp.Area</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.Cliente</MudText>
+                                            </div>
+
+                                            <div class="d-flex gap-2">
+                                                <div class="flex-grow-1">
+                                                    <MudNumericField T="decimal" 
+                                                                     Label="Trasp"
+                                                                     Value="@emp.VtcoTrasp" 
+                                                                     Variant="Variant.Outlined" 
+                                                                     Margin="Margin.Dense" 
+                                                                     Min="0" 
+                                                                     HideSpinButtons="true" 
+                                                                     Format="N2" 
+                                                                     Adornment="Adornment.Start" 
+                                                                     AdornmentText="C$" 
+                                                                     Style="font-size: 0.82rem; text-align: right;" 
+                                                                     ValueChanged="@((val) => { emp.VtcoTrasp = val; emp.Modificado = true; ActualizarGruposConsolidados(); })" />
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <MudNumericField T="decimal" 
+                                                                     Label="Alim"
+                                                                     Value="@emp.VtcoAlim" 
+                                                                     Variant="Variant.Outlined" 
+                                                                     Margin="Margin.Dense" 
+                                                                     Min="0" 
+                                                                     HideSpinButtons="true" 
+                                                                     Format="N2" 
+                                                                     Adornment="Adornment.Start" 
+                                                                     AdornmentText="C$" 
+                                                                     Style="font-size: 0.82rem; text-align: right;" 
+                                                                     ValueChanged="@((val) => { emp.VtcoAlim = val; emp.Modificado = true; ActualizarGruposConsolidados(); })" />
+                                                </div>
+                                            </div>
+                                        </MudCardContent>
+
+                                        <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
+                                            <MudButton Variant="Variant.Text" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       StartIcon="@Icons.Material.Filled.Edit" 
+                                                       OnClick="@(() => AbrirEditorViaticoIndividual(emp, true))">
+                                                Editar
+                                            </MudButton>
+                                            @if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Clear" 
+                                                               Size="Size.Small" 
+                                                               Color="Color.Error" 
+                                                               OnClick="@(() => { emp.VtcoTrasp = 0; emp.VtcoAlim = 0; emp.Modificado = true; ActualizarGruposConsolidados(); })" 
+                                                               Title="Poner viáticos a 0" />
+                                            }
+                                        </MudCardActions>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
                     else
                     {
                         <MudTable Items="@EmpleadosViaticosFiltrados" 
@@ -1827,6 +2072,22 @@
            ========================================== *@
         <MudTabPanel Text="Bono Diario" ToolTip="Bono Diario (RRHH - Tracker 11)" Icon="@Icons.Material.Filled.MonetizationOn" BadgeData="@TotalConBono" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
+
+                @if (HayCambiosSinGuardar)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                            <span>
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                                <b>Cambios pendientes:</b> Hay información sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de enviar bonos a Helpdesk.
+                            </span>
+                            <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarEnBaseDatos" Style="font-weight: 700;">
+                                Guardar en BD Ahora
+                            </MudButton>
+                        </div>
+                    </MudAlert>
+                }
+
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     La solicitud de <b>Bono Diario (Tracker 11 - Aplicar bono del dia)</b> se genera en el proyecto <b>RRHH</b> 
                     de forma individual para registrar formalmente el pago de bono de cumplimiento o BNC a los colaboradores autorizados en la jornada.
@@ -1890,7 +2151,7 @@
 
                 @* Filtros de Bonos y Acciones *@
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
-                    <MudItem xs="12" sm="6" md="4">
+                    <MudItem xs="12" sm="6" md="3">
                         <MudTextField @bind-Value="textoBusquedaBonos" 
                                       Placeholder="Buscar colaborador con bono..." 
                                       Adornment="Adornment.Start" 
@@ -1900,7 +2161,7 @@
                                       Immediate="true" 
                                       Clearable="true" />
                     </MudItem>
-                    <MudItem xs="12" sm="6" md="4">
+                    <MudItem xs="12" sm="6" md="3">
                         <MudStack Row="true" Spacing="1" Class="flex-wrap">
                             <MudChip T="string" Color="@(filtroBonos == "CON_BONO" ? Color.Primary : Color.Default)"
                                      Variant="@(filtroBonos == "CON_BONO" ? Variant.Filled : Variant.Outlined)"
@@ -1923,16 +2184,33 @@
                             </MudChip>
                         </MudStack>
                     </MudItem>
-                    <MudItem xs="12" md="4">
+                    <MudItem xs="12" sm="6" md="3">
+                        @* Selector de 2 Formatos: Tarjetas vs Tabla *@
+                        <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary">
+                            <MudButton Variant="@(modoVistaBonos == ModoVistaGrilla.Tarjetas ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.GridView"
+                                       OnClick="@(() => modoVistaBonos = ModoVistaGrilla.Tarjetas)"
+                                       Title="Vista de Tarjetas">
+                                Tarjetas
+                            </MudButton>
+                            <MudButton Variant="@(modoVistaBonos == ModoVistaGrilla.Operativo ? Variant.Filled : Variant.Outlined)"
+                                       StartIcon="@Icons.Material.Filled.TableChart"
+                                       OnClick="@(() => modoVistaBonos = ModoVistaGrilla.Operativo)"
+                                       Title="Vista de Tabla">
+                                Tabla
+                            </MudButton>
+                        </MudButtonGroup>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
                         <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
                                        StartIcon="@Icons.Material.Filled.Send"
-                                       Disabled="@(estaEnviandoBonos || TotalConBono == 0)"
+                                       Disabled="@(estaEnviandoBonos || TotalConBono == 0 || HayCambiosSinGuardar)"
                                        OnClick="@EnviarBonosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
-                                       Title="Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)">
+                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los bonos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a RRHH" : "Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)")">
                                 @(estaEnviandoBonos ? "Enviando a RRHH..." : $"Enviar Bonos a RRHH ({TotalConBono})")
                             </MudButton>
                         </MudStack>
@@ -1954,6 +2232,93 @@
                             Puedes asignar montos de bono BNC en la grilla de Asistencias o directamente en esta tabla.
                         </MudText>
                     </MudPaper>
+                }
+                else if (modoVistaBonos == ModoVistaGrilla.Tarjetas)
+                {
+                    @* 1. VISTA MODO TARJETAS DE BONOS *@
+                    <MudGrid Spacing="2">
+                        @foreach (var emp in EmpleadosBonosFiltrados)
+                        {
+                            <MudItem xs="12" sm="6" md="4" lg="3">
+                                <MudCard Elevation="2" Class="rounded-lg h-100 d-flex flex-column justify-space-between"
+                                         Style="@(emp.SincronizadoBono ? "border-left: 5px solid #10b981; background: #fff;" : (emp.BonoBnc > 0 ? "border-left: 5px solid #3b82f6; background: #fff;" : "border-left: 5px solid #cbd5e1; background: #fff;"))">
+                                    <MudCardHeader Class="pb-1 pt-3 px-3">
+                                        <CardHeaderContent>
+                                            <div class="d-flex align-center justify-space-between">
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 22px; font-size: 0.75rem; min-width: 48px; justify-content: center;">
+                                                        #@emp.CodigoEmpleado
+                                                    </MudChip>
+                                                    <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" Title="@emp.NombreEmpleado">
+                                                        @emp.NombreEmpleado
+                                                    </MudText>
+                                                </div>
+                                                @if (emp.SincronizadoBono)
+                                                {
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Class="px-2 fw-bold" Style="height: 22px; font-size: 0.72rem;">
+                                                        RRHH #@emp.TicketBonoId
+                                                    </MudChip>
+                                                }
+                                                else if (emp.BonoBnc > 0)
+                                                {
+                                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Class="px-2 fw-bold" Style="height: 22px; font-size: 0.72rem;">
+                                                        Pendiente
+                                                    </MudChip>
+                                                }
+                                            </div>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+
+                                    <MudCardContent Class="py-2 px-3">
+                                        <div class="mb-2">
+                                            <MudText Typo="Typo.caption" Class="fw-bold d-block">@emp.Area</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.Cliente</MudText>
+                                        </div>
+
+                                        <MudNumericField T="decimal" 
+                                                         Label="Monto Bono"
+                                                         Value="@emp.BonoBnc" 
+                                                         Variant="Variant.Outlined" 
+                                                         Margin="Margin.Dense" 
+                                                         Min="0" 
+                                                         HideSpinButtons="true"
+                                                         Format="N2"
+                                                         Adornment="Adornment.Start"
+                                                         AdornmentText="C$"
+                                                         Class="mb-2"
+                                                         Style="font-weight: 700; text-align: right;" 
+                                                         ValueChanged="@((val) => { emp.BonoBnc = val; emp.Modificado = true; ActualizarGruposConsolidados(); })" />
+
+                                        <MudTextField @bind-Value="@emp.Observaciones" 
+                                                      Label="Observaciones / Motivo"
+                                                      Variant="Variant.Outlined" 
+                                                      Margin="Margin.Dense" 
+                                                      Placeholder="Motivo de bono de cumplimiento..." 
+                                                      Lines="2"
+                                                      Style="font-size: 0.8rem;"
+                                                      OnBlur="@(() => emp.Modificado = true)" />
+                                    </MudCardContent>
+
+                                    <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
+                                        @if (emp.BonoBnc > 0)
+                                        {
+                                            <MudButton Variant="Variant.Text" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       StartIcon="@Icons.Material.Filled.Clear"
+                                                       OnClick="@(() => { emp.BonoBnc = 0; emp.Modificado = true; ActualizarGruposConsolidados(); })">
+                                                Quitar Bono
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            <div></div>
+                                        }
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
                 }
                 else
                 {
@@ -2019,15 +2384,9 @@
                                 }
                                 else if (context.BonoBnc > 0)
                                 {
-                                    <MudButton Variant="Variant.Outlined" 
-                                               Color="Color.Primary" 
-                                               Size="Size.Small" 
-                                               StartIcon="@Icons.Material.Filled.Send"
-                                               Disabled="@estaEnviandoBonos"
-                                               OnClick="@(() => EnviarBonoIndividual(context))"
-                                               Style="font-size: 0.72rem; padding: 2px 6px;">
-                                        Enviar RRHH
-                                    </MudButton>
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Class="px-2 fw-bold" Style="height: 22px; font-size: 0.75rem;">
+                                        Pendiente
+                                    </MudChip>
                                 }
                                 else
                                 {
@@ -2056,6 +2415,22 @@
            ========================================== *@
         <MudTabPanel Text="Movimientos" ToolTip="Movimientos" Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
+
+                @if (HayCambiosSinGuardar)
+                {
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                            <span>
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
+                                <b>Cambios pendientes:</b> Hay información sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de enviar la jornada a Helpdesk.
+                            </span>
+                            <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarEnBaseDatos" Style="font-weight: 700;">
+                                Guardar en BD Ahora
+                            </MudButton>
+                        </div>
+                    </MudAlert>
+                }
+
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     Esta pestaña agrupa automáticamente la asistencia activa exactamente con la lógica de <b>OPM_Produccion_Diaria_Hrs</b> 
                     para generar y sincronizar los tickets de <b>Movimientos de Personal (Tracker 1)</b> y <b>Viáticos Operativos (Tracker 28)</b> en Helpdesk.
@@ -2102,9 +2477,10 @@
                                    Color="Color.Primary" 
                                    Size="Size.Large" 
                                    StartIcon="@Icons.Material.Filled.RocketLaunch"
-                                   Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any())"
+                                   Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any() || HayCambiosSinGuardar)"
                                    OnClick="@EnviarAHelpdeskMasivo"
-                                   Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;">
+                                   Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;"
+                                   Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Helpdesk" : "Sincronizar y generar tickets de Movimientos en Helpdesk")">
                             @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : "ENVIAR JORNADA A HELPDESK")
                         </MudButton>
                     </div>

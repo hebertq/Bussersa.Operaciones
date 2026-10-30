@@ -321,6 +321,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string textoBusquedaViaticos = string.Empty;
         protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viático
         protected string modoVistaViaticos = "GRUPOS"; // "GRUPOS" (Solicitudes con Recursos) o "COLABORADORES"
+        protected ModoVistaGrilla modoVistaViaticosFormato = ModoVistaGrilla.Tarjetas; // Tarjetas o Tabla (Operativo)
 
         protected List<GrupoViaticoItem> GruposViaticos
         {
@@ -2287,7 +2288,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la jornada.",
+                    yesText: "Entendido");
+                return;
             }
 
             int totalGrupos = gruposConsolidados.Count;
@@ -2660,7 +2665,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información de ausencias o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de reportar las ausencias.",
+                    yesText: "Entendido");
+                return;
             }
 
             int total = ausentes.Count;
@@ -2755,8 +2764,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (emp == null) return;
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la ausencia.",
+                    yesText: "Entendido");
+                return;
             }
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Confirmar Solicitud de Ausencia",
+                $"¿Deseas generar la solicitud de ausencia en Helpdesk para {emp.NombreEmpleado} (#{emp.CodigoEmpleado})?",
+                yesText: "Sí, Solicitar", cancelText: "Cancelar");
+
+            if (confirm != true) return;
 
             estaEnviandoAusencias = true;
             try
@@ -2832,7 +2852,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información de viáticos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de viáticos.",
+                    yesText: "Entendido");
+                return;
             }
 
             decimal totalViat = TotalViaticosTrasp + TotalViaticosAlim;
@@ -2938,7 +2962,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información de bonos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de bono.",
+                    yesText: "Entendido");
+                return;
             }
 
             bool? confirm = await _dialogService.ShowMessageBox(
@@ -3029,8 +3057,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (emp == null || emp.BonoBnc <= 0) return;
             if (HayCambiosSinGuardar)
             {
-                await GuardarEnBaseDatos();
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar el bono.",
+                    yesText: "Entendido");
+                return;
             }
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Confirmar Solicitud de Bono",
+                $"¿Deseas generar la solicitud individual de Bono del Día (Tracker 11) en RRHH para {emp.NombreEmpleado} (#{emp.CodigoEmpleado}) por C$ {emp.BonoBnc:N2}?",
+                yesText: "Sí, Enviar", cancelText: "Cancelar");
+
+            if (confirm != true) return;
 
             estaEnviandoBonos = true;
             try
