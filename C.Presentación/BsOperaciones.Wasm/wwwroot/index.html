@@ -96,10 +96,13 @@
             isIos: function () {
                 return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             },
+            isMac: function () {
+                return /Macintosh|Mac OS X/.test(navigator.userAgent) && !window.MSStream;
+            },
             canInstall: function () {
                 var installed = window.pwaInterop.isStandalone();
                 if (installed) return false;
-                return !!window.deferredPrompt || window.pwaInterop.isIos();
+                return !!window.deferredPrompt || window.pwaInterop.isIos() || window.pwaInterop.isMac();
             },
             registerListener: function (dotNetHelper) {
                 if (!window._pwaDotNetListeners) window._pwaDotNetListeners = [];
@@ -107,7 +110,7 @@
                     window._pwaDotNetListeners.push(dotNetHelper);
                 }
                 var installed = window.pwaInterop.isStandalone();
-                if (!installed && (window.deferredPrompt || window.pwaInterop.isIos())) {
+                if (!installed && (window.deferredPrompt || window.pwaInterop.isIos() || window.pwaInterop.isMac())) {
                     try {
                         dotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
                     } catch (e) { }
@@ -132,6 +135,9 @@
                 }
                 if (window.pwaInterop.isIos()) {
                     return "IOS_INSTRUCTIONS";
+                }
+                if (window.pwaInterop.isMac()) {
+                    return "MAC_INSTRUCTIONS";
                 }
                 return "UNSUPPORTED";
             }

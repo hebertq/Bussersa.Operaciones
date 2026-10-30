@@ -101,25 +101,17 @@
             return !!document.fullscreenElement;
         },
         isStandalone: function () {
-            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            return window.pwaInterop ? window.pwaInterop.isStandalone() : (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
         },
         initPwa: function (dotNetHelper) {
-            window._tabletDotNetHelper = dotNetHelper;
-            window.addEventListener('pwa-installable', function () {
-                if (window._tabletDotNetHelper) {
-                    window._tabletDotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
-                }
-            });
-            if (window.deferredPrompt) {
-                dotNetHelper.invokeMethodAsync('SetCanInstallPwa', true);
+            if (window.pwaInterop) {
+                window.pwaInterop.registerListener(dotNetHelper);
             }
         },
         installPwa: async function () {
-            if (window.deferredPrompt) {
-                window.deferredPrompt.prompt();
-                const choice = await window.deferredPrompt.userChoice;
-                window.deferredPrompt = null;
-                return choice.outcome === 'accepted';
+            if (window.pwaInterop) {
+                var res = await window.pwaInterop.installPwa();
+                return res === "ACCEPTED";
             }
             return false;
         }
