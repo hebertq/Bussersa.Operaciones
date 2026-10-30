@@ -25,6 +25,7 @@
                                    DateFormat="dd/MM/yyyy"
                                    Variant="Variant.Outlined" 
                                    Margin="Margin.Dense"
+                                   PickerVariant="PickerVariant.Dialog"
                                    Class="flex-grow-1" />
                     <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
                                    Size="Size.Medium" 
@@ -1209,6 +1210,7 @@
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
                                                                Variant="Variant.Outlined" 
+                                                               PickerVariant="PickerVariant.Dialog"
                                                                Class="bg-white" />
                                             </div>
                                             <div class="flex-grow-1">
@@ -1218,6 +1220,7 @@
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
                                                                Variant="Variant.Outlined" 
+                                                               PickerVariant="PickerVariant.Dialog"
                                                                Class="bg-white" />
                                             </div>
                                             <div style="width: 72px;">
@@ -1279,7 +1282,7 @@
                                       Striped="true" 
                                       Elevation="0" 
                                       Class="odoo-table"
-                                      Style="min-width: 880px;">
+                                      Style="min-width: 980px;">
                                 <HeaderContent>
                                     <MudTh Style="width: 40px; text-align: center;"><MudCheckBox T="bool" Value="@(AusentesFiltrados.Any() && AusentesFiltrados.All(x => x.Seleccionado))" ValueChanged="@((bool v) => MarcarTodosAusentes(v))" Color="Color.Error" Dense="true" /></MudTh>
                                     <MudTh Style="width: 220px;">Colaborador</MudTh>
@@ -1292,7 +1295,7 @@
                                     {
                                         <MudTh Style="width: 120px;">Modalidad</MudTh>
                                     }
-                                    <MudTh Style="width: 220px;">Período (Inicio - Fin)</MudTh>
+                                    <MudTh Style="width: 300px;">Período (Inicio - Fin)</MudTh>
                                     <MudTh Style="width: 60px; text-align: center;">Días</MudTh>
                                     <MudTh Style="min-width: 150px;">Motivo / Observaciones</MudTh>
                                     <MudTh Style="width: 130px; text-align: center;">Helpdesk</MudTh>
@@ -1358,24 +1361,26 @@
                                             }
                                         </MudTd>
                                     }
-                                    <MudTd>
-                                        <div class="d-flex align-center gap-1">
+                                    <MudTd Style="min-width: 300px;">
+                                        <div class="d-flex align-center gap-2">
                                             <MudDatePicker Label="Inicio" 
                                                            Date="@(context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                            DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
                                                            DateFormat="dd/MM/yyyy" 
                                                            Margin="Margin.Dense" 
                                                            Variant="Variant.Outlined" 
+                                                           PickerVariant="PickerVariant.Dialog"
                                                            Class="bg-white"
-                                                           Style="width: 105px;" />
+                                                           Style="width: 140px;" />
                                             <MudDatePicker Label="Fin" 
                                                            Date="@(context.FechaFinAusencia ?? context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
                                                            DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
                                                            DateFormat="dd/MM/yyyy" 
                                                            Margin="Margin.Dense" 
                                                            Variant="Variant.Outlined" 
+                                                           PickerVariant="PickerVariant.Dialog"
                                                            Class="bg-white"
-                                                           Style="width: 105px;" />
+                                                           Style="width: 140px;" />
                                         </div>
                                     </MudTd>
                                     <MudTd Style="text-align: center;">
@@ -2949,27 +2954,9 @@
                             Actualizar
                         </MudButton>
 
-                        <MudButton Variant="Variant.Outlined" 
-                                   Color="Color.Secondary" 
-                                   Size="Size.Small" 
-                                   StartIcon="@Icons.Material.Filled.DownloadForOffline"
-                                   Disabled="@(!empleadosJornada.Any())"
-                                   OnClick="@GuardarJornadaComoMiPlantilla"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600;"
-                                   Title="Guarda los colaboradores de la grilla diaria actual como tu plantilla permanente">
-                            Guardar Grilla como Plantilla
-                        </MudButton>
 
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Success" 
-                                   Size="Size.Small" 
-                                   StartIcon="@Icons.Material.Filled.PlayArrow"
-                                   Disabled="@(!miPlantillaPersonal.Any())"
-                                   OnClick="@(() => PrecargarDesdeMiPlantilla())"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600;"
-                                   Title="Cargar estos colaboradores a la grilla diaria">
-                            Cargar en Grilla
-                        </MudButton>
+
+
 
                         <span class="text-secondary fw-bold ml-1" style="font-size: 0.8rem; white-space: nowrap;">
                             @PlantillaFiltrada.Count() colaboradores
@@ -2977,38 +2964,18 @@
 
                                                                                                                         @* Control de Vistas Estilo Odoo para Mi Personal *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
-                            <MudTooltip Text="Vista Horarios, Comida & Viáticos" Arrow="true" Placement="Placement.Top">
-                                <button type="button" 
-                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "active" : "")" 
-                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Operativo)"
-                                        title="Vista Horarios, Comida & Viáticos">
-                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
-                                </button>
-                            </MudTooltip>
-                            <MudTooltip Text="Vista Ubicación & Puesto (Cliente, Área, Cargo)" Arrow="true" Placement="Placement.Top">
-                                <button type="button" 
-                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Ubicacion ? "active" : "")" 
-                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Ubicacion)"
-                                        title="Vista Ubicación & Puesto">
-                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
-                                </button>
-                            </MudTooltip>
-                            <MudTooltip Text="Vista Tabla Completa (Todas las columnas)" Arrow="true" Placement="Placement.Top">
-                                <button type="button" 
-                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Completo ? "active" : "")" 
-                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Completo)"
-                                        title="Vista Tabla Completa">
-                                    <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
-                                </button>
-                            </MudTooltip>
-                            <MudTooltip Text="Vista Tarjetas (Kanban estilo Odoo)" Arrow="true" Placement="Placement.Top">
-                                <button type="button" 
-                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Tarjetas ? "active" : "")" 
-                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Tarjetas)"
-                                        title="Vista Tarjetas (Kanban)">
-                                    <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
-                                </button>
-                            </MudTooltip>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Tarjetas ? "active" : "")" 
+                                    @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Tarjetas)" 
+                                    title="Vista Tarjetas (Kanban)">
+                                <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
+                            </button>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "active" : "")" 
+                                    @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Operativo)" 
+                                    title="Vista Operativa (Tabla)">
+                                <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -3676,5 +3643,15 @@
     }
     .odoo-view-btn.active .mud-icon-root {
         fill: #ffffff !important;
+    }
+
+    /* Modal / Popover de Selección de Fecha */
+    .mud-picker-container, 
+    .mud-picker-content {
+        min-width: 290px !important;
+    }
+    .mud-picker-dialog .mud-dialog {
+        max-width: 360px !important;
+        width: 100% !important;
     }
 </style>
