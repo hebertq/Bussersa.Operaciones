@@ -184,3 +184,5 @@ a, .btn-link {
 }
 
 /*
+
+.mud-popover.mud-picker-popover-wide, .mud-picker-popover-wide { width: 315px !important; min-width: 315px !important; max-width: 340px !important; overflow: visible !important; } .mud-picker-popover-wide .mud-picker-container, .mud-picker-popover-wide .mud-picker-content, .mud-picker-popover-wide .mud-calendar, .mud-picker-popover-wide .mud-picker { min-width: 295px !important; width: 100% !important; }

@@ -25,7 +25,7 @@
                                    DateFormat="dd/MM/yyyy"
                                    Variant="Variant.Outlined" 
                                    Margin="Margin.Dense"
-                                   PickerVariant="PickerVariant.Dialog"
+                                   PopoverClass="mud-picker-popover-wide"
                                    Class="flex-grow-1" />
                     <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
                                    Size="Size.Medium" 
@@ -1210,7 +1210,7 @@
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
                                                                Variant="Variant.Outlined" 
-                                                               PickerVariant="PickerVariant.Dialog"
+                                                               PopoverClass="mud-picker-popover-wide"
                                                                Class="bg-white" />
                                             </div>
                                             <div class="flex-grow-1">
@@ -1220,7 +1220,7 @@
                                                                DateFormat="dd/MM/yyyy" 
                                                                Margin="Margin.Dense" 
                                                                Variant="Variant.Outlined" 
-                                                               PickerVariant="PickerVariant.Dialog"
+                                                               PopoverClass="mud-picker-popover-wide"
                                                                Class="bg-white" />
                                             </div>
                                             <div style="width: 72px;">
@@ -1295,7 +1295,7 @@
                                     {
                                         <MudTh Style="width: 120px;">Modalidad</MudTh>
                                     }
-                                    <MudTh Style="width: 300px;">Período (Inicio - Fin)</MudTh>
+                                    <MudTh Style="width: 320px;">Período (Inicio - Fin)</MudTh>
                                     <MudTh Style="width: 60px; text-align: center;">Días</MudTh>
                                     <MudTh Style="min-width: 150px;">Motivo / Observaciones</MudTh>
                                     <MudTh Style="width: 130px; text-align: center;">Helpdesk</MudTh>
@@ -1361,26 +1361,28 @@
                                             }
                                         </MudTd>
                                     }
-                                    <MudTd Style="min-width: 300px;">
+                                    <MudTd Style="min-width: 320px; width: 320px;">
                                         <div class="d-flex align-center gap-2">
-                                            <MudDatePicker Label="Inicio" 
-                                                           Date="@(context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
-                                                           DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
-                                                           DateFormat="dd/MM/yyyy" 
-                                                           Margin="Margin.Dense" 
-                                                           Variant="Variant.Outlined" 
-                                                           PickerVariant="PickerVariant.Dialog"
-                                                           Class="bg-white"
-                                                           Style="width: 140px;" />
-                                            <MudDatePicker Label="Fin" 
-                                                           Date="@(context.FechaFinAusencia ?? context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
-                                                           DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
-                                                           DateFormat="dd/MM/yyyy" 
-                                                           Margin="Margin.Dense" 
-                                                           Variant="Variant.Outlined" 
-                                                           PickerVariant="PickerVariant.Dialog"
-                                                           Class="bg-white"
-                                                           Style="width: 140px;" />
+                                            <div style="width: 145px; min-width: 140px;">
+                                                <MudDatePicker Label="Inicio" 
+                                                               Date="@(context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
+                                                               DateChanged="@((DateTime? d) => OnFechaInicioAusenciaChanged(context, d))" 
+                                                               DateFormat="dd/MM/yyyy" 
+                                                               Margin="Margin.Dense" 
+                                                               Variant="Variant.Outlined" 
+                                                               PopoverClass="mud-picker-popover-wide"
+                                                               Class="bg-white" />
+                                            </div>
+                                            <div style="width: 145px; min-width: 140px;">
+                                                <MudDatePicker Label="Fin" 
+                                                               Date="@(context.FechaFinAusencia ?? context.FechaInicioAusencia ?? fechaSeleccionada ?? DateTime.Today)" 
+                                                               DateChanged="@((DateTime? d) => OnFechaFinAusenciaChanged(context, d))" 
+                                                               DateFormat="dd/MM/yyyy" 
+                                                               Margin="Margin.Dense" 
+                                                               Variant="Variant.Outlined" 
+                                                               PopoverClass="mud-picker-popover-wide"
+                                                               Class="bg-white" />
+                                            </div>
                                         </div>
                                     </MudTd>
                                     <MudTd Style="text-align: center;">
@@ -3646,10 +3648,26 @@
     }
 
     /* Modal / Popover de Selección de Fecha */
+    .mud-popover.mud-picker-popover-wide,
+    .mud-picker-popover-wide,
+    .mud-popover:has(.mud-picker-container),
+    .mud-popover:has(.mud-picker) {
+        width: 315px !important;
+        min-width: 315px !important;
+        max-width: 340px !important;
+        overflow: visible !important;
+    }
+
+    .mud-picker-popover-wide .mud-picker-container,
+    .mud-picker-popover-wide .mud-picker-content,
+    .mud-picker-popover-wide .mud-calendar,
+    .mud-picker-popover-wide .mud-picker,
     .mud-picker-container, 
     .mud-picker-content {
-        min-width: 290px !important;
+        min-width: 295px !important;
+        width: 100% !important;
     }
+
     .mud-picker-dialog .mud-dialog {
         max-width: 360px !important;
         width: 100% !important;
