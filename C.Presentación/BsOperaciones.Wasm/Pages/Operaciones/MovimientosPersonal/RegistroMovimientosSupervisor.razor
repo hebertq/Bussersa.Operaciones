@@ -1069,31 +1069,19 @@
                             </MudButton>
                         }
 
-                        @* Selector de 4 Visualizaciones Estilo Odoo (Tarjetas por defecto) *@
+                        @* Selector de 2 Vistas (Tarjetas y Operativa) *@
                         <div class="odoo-view-switcher">
                             <button type="button" 
                                     class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Tarjetas ? "active" : "")" 
                                     @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Tarjetas)" 
-                                    title="Vista Tarjetas Kanban (Predefinida)">
+                                    title="Vista Tarjetas (Predefinida)">
                                 <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
                             </button>
                             <button type="button" 
                                     class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Operativo ? "active" : "")" 
                                     @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Operativo)" 
-                                    title="Vista Operativa (Horarios & Días)">
+                                    title="Vista Operativa">
                                 <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
-                            </button>
-                            <button type="button" 
-                                    class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Ubicacion ? "active" : "")" 
-                                    @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Ubicacion)" 
-                                    title="Vista Ubicación & Puesto">
-                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
-                            </button>
-                            <button type="button" 
-                                    class="switcher-btn @(modoVistaAusencias == ModoVistaGrilla.Completo ? "active" : "")" 
-                                    @onclick="@(() => modoVistaAusencias = ModoVistaGrilla.Completo)" 
-                                    title="Vista Tabla Completa">
-                                <MudIcon Icon="@Icons.Material.Filled.ViewList" Size="Size.Small" />
                             </button>
                         </div>
                     </div>
@@ -1269,20 +1257,10 @@
                                             }
                                             else
                                             {
-                                                <span class="text-caption text-secondary">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" Style="vertical-align: middle; font-size: 0.9rem;" />
-                                                    Sin Ticket en Helpdesk
-                                                </span>
-                                                <MudButton Variant="Variant.Filled" 
-                                                           Color="Color.Error" 
-                                                           Size="Size.Small" 
-                                                           StartIcon="@Icons.Material.Filled.Send" 
-                                                           Disabled="@(estaEnviandoAusencias || HayCambiosSinGuardar)"
-                                                           OnClick="@(() => EnviarAusenciaIndividual(emp))"
-                                                           Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de reportar la ausencia" : "Solicitar")"
-                                                           Style="text-transform: none; font-weight: 700; border-radius: 8px;">
-                                                    Solicitar
-                                                </MudButton>
+                                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 22px; font-size: 0.72rem;">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" Style="font-size: 0.85rem;" />
+                                                    Pendiente
+                                                </MudChip>
                                             }
                                         </div>
                                     </MudCard>
@@ -1429,16 +1407,9 @@
                                         }
                                         else
                                         {
-                                            <MudButton Variant="Variant.Filled" 
-                                                       Color="Color.Error" 
-                                                       Size="Size.Small" 
-                                                       StartIcon="@Icons.Material.Filled.Send" 
-                                                       Disabled="@(estaEnviandoAusencias || HayCambiosSinGuardar)"
-                                                       OnClick="@(() => EnviarAusenciaIndividual(context))"
-                                                       Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de reportar la ausencia" : "Solicitar")"
-                                                       Style="font-size: 0.72rem; text-transform: none; padding: 2px 8px; border-radius: 6px;">
-                                                Solicitar
-                                            </MudButton>
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Class="font-monospace fw-bold" Style="height: 22px; font-size: 0.75rem;">
+                                                Pendiente
+                                            </MudChip>
                                         }
                                     </MudTd>
                                     <MudTd Style="text-align: center;">
@@ -2445,31 +2416,19 @@
                     </div>
 
                     <div class="d-flex align-center gap-2">
-                        @* Selector de 4 vistas Odoo *@
+                        @* Selector de 2 Vistas (Tarjetas y Operativa) *@
                         <div class="odoo-view-switcher">
-                            <button type="button" 
-                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Operativo ? "active" : "")" 
-                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Operativo)" 
-                                    title="Vista Horarios, Comida & Viáticos">
-                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
-                            </button>
-                            <button type="button" 
-                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Ubicacion ? "active" : "")" 
-                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Ubicacion)" 
-                                    title="Vista Ubicación & Puesto">
-                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
-                            </button>
-                            <button type="button" 
-                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Completo ? "active" : "")" 
-                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Completo)" 
-                                    title="Vista Tabla Completa">
-                                <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
-                            </button>
                             <button type="button" 
                                     class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Tarjetas ? "active" : "")" 
                                     @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Tarjetas)" 
                                     title="Vista Tarjetas (Kanban)">
                                 <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
+                            </button>
+                            <button type="button" 
+                                    class="odoo-view-btn @(modoVistaMovimientos == ModoVistaGrilla.Operativo ? "active" : "")" 
+                                    @onclick="@(() => modoVistaMovimientos = ModoVistaGrilla.Operativo)" 
+                                    title="Vista Operativa (Tabla)">
+                                <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" />
                             </button>
                         </div>
 
