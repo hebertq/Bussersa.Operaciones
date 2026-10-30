@@ -102,6 +102,12 @@
                                 <span>Permanente</span>
                             </div>
                         </MudSelectItem>
+                        <MudSelectItem Value="@("Temporal")">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
+                                <span class="fw-bold text-info">Temporal</span>
+                            </div>
+                        </MudSelectItem>
                         <MudSelectItem Value="@("Prestamo")">
                             <div class="d-flex align-center gap-2">
                                 <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Color="Color.Warning" />
@@ -111,12 +117,22 @@
                     </MudSelect>
                 </MudItem>
 
+                @if (TipoEmpleado == "Temporal")
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
+                            <MudText Typo="Typo.caption">
+                                <b>Colaborador Temporal:</b> Se guardará únicamente en tu plantilla de personal (no en la tabla base de clientes).
+                            </MudText>
+                        </MudAlert>
+                    </MudItem>
+                }
                 @if (TipoEmpleado == "Prestamo")
                 {
                     <MudItem xs="12">
                         <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
                             <MudText Typo="Typo.caption">
-                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Se registrará como apoyo temporal en esta jornada.
+                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Se registrará como apoyo temporal en tu personal y esta jornada.
                             </MudText>
                         </MudAlert>
                     </MudItem>

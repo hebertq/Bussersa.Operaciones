@@ -1070,9 +1070,38 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 item.UsuarioSupervisor = currentUserName;
                 var resp = await _odooService.SaveSupervisorPlantillaItem(item);
+
+                // Si es Permanente, guardar también en la tabla base de administración (tbl_bs_personal_cliente)
+                if (string.Equals(item.TipoEmpleado, "Permanente", StringComparison.OrdinalIgnoreCase))
+                {
+                    int opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(item.ClienteDefault, StringComparison.OrdinalIgnoreCase))?.id ?? (selectedOperacionId ?? 0);
+                    var itemBase = new PersonalClienteItemDto
+                    {
+                        OperacionId = opId,
+                        ClienteNombre = item.ClienteDefault,
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = item.IdEmpleado,
+                        CodigoEmpleado = item.CodigoEmpleado,
+                        NombreEmpleado = item.NombreEmpleado,
+                        AreaDefault = item.AreaDefault,
+                        PuestoDefault = item.PuestoDefault,
+                        TurnoDefault = item.TurnoDefault,
+                        HoraEntradaDefault = item.HoraEntradaDefault,
+                        HoraSalidaDefault = item.HoraSalidaDefault,
+                        TiempoComidaDefault = item.TiempoComidaDefault,
+                        VtcoTraspDefault = item.VtcoTraspDefault,
+                        VtcoAlimDefault = item.VtcoAlimDefault,
+                        BonoBncDefault = item.BonoBncDefault,
+                        TipoEmpleado = "Permanente",
+                        Activo = true,
+                        UsuarioCreacion = currentUserName
+                    };
+                    await _odooService.SavePersonalClienteItem(itemBase);
+                }
+
                 if (resp?.Respuesta?.ExisteError == false)
                 {
-                    _snackbar.Add($"✅ Guardado en Mi Plantilla: #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault} - {item.AreaDefault}).", Severity.Success);
+                    _snackbar.Add($"✅ Guardado en Mi Personal: #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault} - {item.AreaDefault}).", Severity.Success);
                 }
                 else
                 {
@@ -1304,9 +1333,45 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var res = await _odooService.SaveMovimientosPersonalDiario(request);
                 if (res?.Respuesta != null && !res.Respuesta.ExisteError)
                 {
-                    _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
+                    // 1. Conservar los datos en pantalla y marcar como guardados sin refrescar destructivamente
+                    foreach (var emp in empleadosJornada)
+                    {
+                        emp.Modificado = false;
+                        if (emp.Estado == "BORRADOR" || emp.Estado == "MODIFICADO" || string.IsNullOrWhiteSpace(emp.Estado))
+                        {
+                            emp.Estado = "GUARDADO";
+                        }
+                    }
                     await LimpiarBorradorLocal();
-                    await CargarJornadaActual();
+                    _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
+
+                    // 2. En segundo plano (sin vaciar la grilla ni mostrar spinner destructivo), sincronizar IDs asignados por BD
+                    try
+                    {
+                        var respBd = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, 0, currentUserName);
+                        if (respBd?.Model != null && respBd.Model.Any())
+                        {
+                            foreach (var itemBd in respBd.Model)
+                            {
+                                var local = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == itemBd.CodigoEmpleado);
+                                if (local != null)
+                                {
+                                    local.Id = itemBd.Id;
+                                    if (itemBd.TicketRedmineId.HasValue && itemBd.TicketRedmineId > 0) local.TicketRedmineId = itemBd.TicketRedmineId;
+                                    if (itemBd.TicketViaticoId.HasValue && itemBd.TicketViaticoId > 0) local.TicketViaticoId = itemBd.TicketViaticoId;
+                                    if (itemBd.TicketBonoId.HasValue && itemBd.TicketBonoId > 0) local.TicketBonoId = itemBd.TicketBonoId;
+                                    if (itemBd.TicketAusenciaId.HasValue && itemBd.TicketAusenciaId > 0) local.TicketAusenciaId = itemBd.TicketAusenciaId;
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // No interrumpir si la sincronización de IDs tarda
+                    }
+
+                    ActualizarGruposConsolidados();
+                    StateHasChanged();
                 }
                 else
                 {
@@ -1414,10 +1479,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 empleadosJornada.Insert(0, nuevo);
                 ActualizarGruposConsolidados();
 
-                // Guardar también en la plantilla del supervisor si aún no estaba
-                if (!miPlantillaPersonal.Any(p => p.CodigoEmpleado == nuevo.CodigoEmpleado))
+                // Guardar también en la plantilla del supervisor si aún no estaba o actualizar datos
+                var itemP = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == nuevo.CodigoEmpleado);
+                if (itemP == null)
                 {
-                    var itemP = new SupervisorPlantillaItemDto
+                    itemP = new SupervisorPlantillaItemDto
                     {
                         UsuarioSupervisor = currentUserName,
                         IdEmpleado = nuevo.IdEmpleado,
@@ -1441,15 +1507,50 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    var enPlantilla = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == nuevo.CodigoEmpleado);
-                    if (enPlantilla != null && enPlantilla.TipoEmpleado != nuevo.TipoEmpleado)
+                    itemP.ClienteDefault = nuevo.Cliente;
+                    itemP.AreaDefault = nuevo.Area;
+                    itemP.PuestoDefault = nuevo.Puesto;
+                    itemP.TurnoDefault = nuevo.TurnoNombre;
+                    itemP.HoraEntradaDefault = nuevo.HoraEntrada;
+                    itemP.HoraSalidaDefault = nuevo.HoraSalida;
+                    itemP.TiempoComidaDefault = nuevo.TiempoComida;
+                    itemP.VtcoTraspDefault = nuevo.VtcoTrasp;
+                    itemP.VtcoAlimDefault = nuevo.VtcoAlim;
+                    itemP.BonoBncDefault = nuevo.BonoBnc;
+                    itemP.TipoEmpleado = nuevo.TipoEmpleado;
+                    await _odooService.SaveSupervisorPlantillaItem(itemP);
+                }
+
+                // SI ES PERMANENTE -> GUARDAR TAMBIÉN EN LA TABLA BASE DE PERSONAL_CLIENTE
+                if (string.Equals(nuevo.TipoEmpleado, "Permanente", StringComparison.OrdinalIgnoreCase))
+                {
+                    int opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(nuevo.Cliente, StringComparison.OrdinalIgnoreCase))?.id ?? (selectedOperacionId ?? 0);
+                    var itemBase = new PersonalClienteItemDto
                     {
-                        enPlantilla.TipoEmpleado = nuevo.TipoEmpleado;
-                        await _odooService.SaveSupervisorPlantillaItem(enPlantilla);
-                    }
+                        OperacionId = opId,
+                        ClienteNombre = nuevo.Cliente,
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = nuevo.IdEmpleado,
+                        CodigoEmpleado = nuevo.CodigoEmpleado,
+                        NombreEmpleado = nuevo.NombreEmpleado,
+                        AreaDefault = nuevo.Area,
+                        PuestoDefault = nuevo.Puesto,
+                        TurnoDefault = nuevo.TurnoNombre,
+                        HoraEntradaDefault = nuevo.HoraEntrada,
+                        HoraSalidaDefault = nuevo.HoraSalida,
+                        TiempoComidaDefault = nuevo.TiempoComida,
+                        VtcoTraspDefault = nuevo.VtcoTrasp,
+                        VtcoAlimDefault = nuevo.VtcoAlim,
+                        BonoBncDefault = nuevo.BonoBnc,
+                        TipoEmpleado = "Permanente",
+                        Activo = true,
+                        UsuarioCreacion = currentUserName
+                    };
+                    await _odooService.SavePersonalClienteItem(itemBase);
                 }
 
                 ActualizarGruposConsolidados();
+                StateHasChanged();
             }
         }
 
