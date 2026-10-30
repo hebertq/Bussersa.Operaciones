@@ -77,6 +77,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public bool SincronizadoAusencia => TicketAusenciaId.HasValue && TicketAusenciaId.Value > 0;
         public bool Seleccionado { get; set; }
         public bool Modificado { get; set; }
+        public bool GuardadoEnBd => Id > 0 && !Modificado;
+        public bool TieneConflictoHorario { get; set; }
+        public string DetalleConflictoHorario { get; set; } = string.Empty;
     }
 
     public class ConsolidadoHelpdeskItem
@@ -313,6 +316,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim;
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
+        protected int TotalGuardadosEnBd => empleadosJornada.Count(x => x.Id > 0 && !x.Modificado);
+        protected int TotalModificadosSinGuardar => empleadosJornada.Count(x => x.Id > 0 && x.Modificado);
+        protected int TotalNuevosSinGuardar => empleadosJornada.Count(x => x.Id <= 0);
+        protected int TotalConflictosHorarios => empleadosJornada.Count(x => x.TieneConflictoHorario);
 
         protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
         protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && x.VtcoTrasp == 0 && x.VtcoAlim == 0);
@@ -643,6 +650,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     empleadosJornada.Clear();
                 }
 
+                ValidarConflictosHorarios(out _);
                 ActualizarGruposConsolidados();
             }
             catch (Exception ex)
@@ -1260,6 +1268,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
+            if (!ValidarConflictosHorarios(out var errorCruce))
+            {
+                _snackbar.Add($"❌ No se puede guardar: se detectaron cruces de horarios entre turnos del mismo colaborador:\n{errorCruce}", Severity.Error, config => config.VisibleStateDuration = 10000);
+                return;
+            }
+
             estaGuardando = true;
             try
             {
@@ -1353,10 +1367,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         {
                             foreach (var itemBd in respBd.Model)
                             {
-                                var local = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == itemBd.CodigoEmpleado);
+                                var local = empleadosJornada.FirstOrDefault(e => 
+                                    (e.Id > 0 && e.Id == itemBd.Id) || 
+                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado && string.Equals(e.Cliente, itemBd.Cliente, StringComparison.OrdinalIgnoreCase)) ||
+                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado));
                                 if (local != null)
                                 {
                                     local.Id = itemBd.Id;
+                                    local.Modificado = false;
+                                    local.Estado = "GUARDADO";
                                     if (itemBd.TicketRedmineId.HasValue && itemBd.TicketRedmineId > 0) local.TicketRedmineId = itemBd.TicketRedmineId;
                                     if (itemBd.TicketViaticoId.HasValue && itemBd.TicketViaticoId > 0) local.TicketViaticoId = itemBd.TicketViaticoId;
                                     if (itemBd.TicketBonoId.HasValue && itemBd.TicketBonoId > 0) local.TicketBonoId = itemBd.TicketBonoId;
@@ -1375,7 +1394,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    _snackbar.Add($"Error al guardar: {res?.Respuesta?.MensajeError}", Severity.Error);
+                    string errorMsg = res?.Respuesta?.MensajeError ?? "Error al guardar en base de datos.";
+                    if (errorMsg.Contains("Cruce de horario para"))
+                    {
+                        int idx = errorMsg.IndexOf("Cruce de horario para");
+                        errorMsg = errorMsg.Substring(idx);
+                        int nl = errorMsg.IndexOf('\n');
+                        if (nl > 0) errorMsg = errorMsg.Substring(0, nl);
+                    }
+                    _snackbar.Add($"❌ {errorMsg}", Severity.Error, config => config.VisibleStateDuration = 12000);
                 }
             }
             catch (Exception ex)
@@ -1477,6 +1504,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 nuevo.Modificado = true;
                 empleadosJornada.Insert(0, nuevo);
+                ValidarConflictosHorarios(out var msgConflicto);
+                if (!string.IsNullOrWhiteSpace(msgConflicto))
+                {
+                    _snackbar.Add($"⚠️ Advertencia de cruce de horario:\n{msgConflicto}", Severity.Warning, config => config.VisibleStateDuration = 8000);
+                }
                 ActualizarGruposConsolidados();
 
                 // Guardar también en la plantilla del supervisor si aún no estaba o actualizar datos
@@ -1632,7 +1664,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 string[] headers = new[]
                 {
-                    "#", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
+                    "#", "ID BD", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
                     "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
                     "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
                     "Tipo Ausencia", "Días Ausencia", "Observaciones", "Estado",
@@ -1652,43 +1684,44 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     var row = sheet.CreateRow(rowIdx);
                     row.CreateCell(0).SetCellValue(rowIdx);
-                    row.CreateCell(1).SetCellValue(fechaSeleccionada?.ToString("yyyy-MM-dd") ?? "");
-                    row.CreateCell(2).SetCellValue(emp.CodigoEmpleado);
-                    row.CreateCell(3).SetCellValue(emp.NombreEmpleado);
-                    row.CreateCell(4).SetCellValue(emp.Cliente);
-                    row.CreateCell(5).SetCellValue(emp.Asistio ? "PRESENTE" : "AUSENTE");
-                    row.CreateCell(6).SetCellValue(emp.Area);
-                    row.CreateCell(7).SetCellValue(emp.Puesto);
-                    row.CreateCell(8).SetCellValue(emp.TurnoNombre);
-                    row.CreateCell(9).SetCellValue(emp.HoraEntrada);
-                    row.CreateCell(10).SetCellValue(emp.HoraSalida);
-                    row.CreateCell(11).SetCellValue(emp.TiempoComida);
+                    row.CreateCell(1).SetCellValue(emp.Id > 0 ? emp.Id.ToString() : "Sin Guardar");
+                    row.CreateCell(2).SetCellValue(fechaSeleccionada?.ToString("yyyy-MM-dd") ?? "");
+                    row.CreateCell(3).SetCellValue(emp.CodigoEmpleado);
+                    row.CreateCell(4).SetCellValue(emp.NombreEmpleado);
+                    row.CreateCell(5).SetCellValue(emp.Cliente);
+                    row.CreateCell(6).SetCellValue(emp.Asistio ? "PRESENTE" : "AUSENTE");
+                    row.CreateCell(7).SetCellValue(emp.Area);
+                    row.CreateCell(8).SetCellValue(emp.Puesto);
+                    row.CreateCell(9).SetCellValue(emp.TurnoNombre);
+                    row.CreateCell(10).SetCellValue(emp.HoraEntrada);
+                    row.CreateCell(11).SetCellValue(emp.HoraSalida);
+                    row.CreateCell(12).SetCellValue(emp.TiempoComida);
 
-                    var cTrasp = row.CreateCell(12);
+                    var cTrasp = row.CreateCell(13);
                     cTrasp.SetCellValue((double)emp.VtcoTrasp);
                     cTrasp.CellStyle = currencyStyle;
 
-                    var cAlim = row.CreateCell(13);
+                    var cAlim = row.CreateCell(14);
                     cAlim.SetCellValue((double)emp.VtcoAlim);
                     cAlim.CellStyle = currencyStyle;
 
-                    var cBnc = row.CreateCell(14);
+                    var cBnc = row.CreateCell(15);
                     cBnc.SetCellValue((double)emp.BonoBnc);
                     cBnc.CellStyle = currencyStyle;
 
-                    var cTotal = row.CreateCell(15);
+                    var cTotal = row.CreateCell(16);
                     cTotal.SetCellValue((double)(emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc));
                     cTotal.CellStyle = currencyStyle;
 
-                    row.CreateCell(16).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
-                    row.CreateCell(17).SetCellValue(!emp.Asistio ? (double)emp.DiasAusencia : 0);
-                    row.CreateCell(18).SetCellValue(emp.Observaciones);
-                    row.CreateCell(19).SetCellValue(emp.Estado);
-                    row.CreateCell(20).SetCellValue(emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0 ? emp.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(21).SetCellValue(emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0 ? emp.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(22).SetCellValue(emp.TicketBonoId.HasValue && emp.TicketBonoId > 0 ? emp.TicketBonoId.Value.ToString() : "");
-                    row.CreateCell(23).SetCellValue(emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0 ? emp.TicketAusenciaId.Value.ToString() : "");
-                    row.CreateCell(24).SetCellValue(currentUserName);
+                    row.CreateCell(17).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
+                    row.CreateCell(18).SetCellValue(!emp.Asistio ? (double)emp.DiasAusencia : 0);
+                    row.CreateCell(19).SetCellValue(emp.Observaciones);
+                    row.CreateCell(20).SetCellValue(emp.Estado);
+                    row.CreateCell(21).SetCellValue(emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0 ? emp.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(22).SetCellValue(emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0 ? emp.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(23).SetCellValue(emp.TicketBonoId.HasValue && emp.TicketBonoId > 0 ? emp.TicketBonoId.Value.ToString() : "");
+                    row.CreateCell(24).SetCellValue(emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0 ? emp.TicketAusenciaId.Value.ToString() : "");
+                    row.CreateCell(25).SetCellValue(currentUserName);
 
                     rowIdx++;
                 }
@@ -1809,6 +1842,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 emp.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(emp.HoraEntrada, emp.HoraSalida);
             }
 
+            ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
         }
 
@@ -1907,6 +1941,79 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             return "Mixto";
         }
 
+        protected bool ValidarConflictosHorarios(out string mensajeConflicto)
+        {
+            mensajeConflicto = string.Empty;
+
+            foreach (var item in empleadosJornada)
+            {
+                item.TieneConflictoHorario = false;
+                item.DetalleConflictoHorario = string.Empty;
+            }
+
+            if (!fechaSeleccionada.HasValue) return true;
+            var f = fechaSeleccionada.Value.Date;
+
+            var gruposPorEmpleado = empleadosJornada
+                .Where(e => e.Asistio && !string.IsNullOrWhiteSpace(e.HoraEntrada) && !string.IsNullOrWhiteSpace(e.HoraSalida)
+                            && e.HoraEntrada != "--:--" && e.HoraSalida != "--:--")
+                .GroupBy(e => e.CodigoEmpleado);
+
+            bool hayConflicto = false;
+            var listaConflictos = new List<string>();
+
+            foreach (var grupo in gruposPorEmpleado)
+            {
+                var items = grupo.ToList();
+                if (items.Count <= 1) continue;
+
+                var intervalos = new List<(EmpleadoJornadaItem item, DateTime inicio, DateTime fin)>();
+                foreach (var it in items)
+                {
+                    if (TryParseHora(it.HoraEntrada, out var tIn) && TryParseHora(it.HoraSalida, out var tOut))
+                    {
+                        var dtStart = f + tIn;
+                        var dtEnd = tOut <= tIn ? f.AddDays(1) + tOut : f + tOut;
+                        intervalos.Add((it, dtStart, dtEnd));
+                    }
+                }
+
+                for (int i = 0; i < intervalos.Count; i++)
+                {
+                    for (int j = i + 1; j < intervalos.Count; j++)
+                    {
+                        var (itemA, sA, eA) = intervalos[i];
+                        var (itemB, sB, eB) = intervalos[j];
+
+                        // Traslape de horarios
+                        if (sA < eB && sB < eA)
+                        {
+                            hayConflicto = true;
+                            itemA.TieneConflictoHorario = true;
+                            itemA.DetalleConflictoHorario = $"Cruce de horario con turno de {itemB.HoraEntrada} a {itemB.HoraSalida} en {itemB.Cliente}";
+
+                            itemB.TieneConflictoHorario = true;
+                            itemB.DetalleConflictoHorario = $"Cruce de horario con turno de {itemA.HoraEntrada} a {itemA.HoraSalida} en {itemA.Cliente}";
+
+                            string msg = $"{itemA.NombreEmpleado} (#{itemA.CodigoEmpleado}): Horario {itemA.HoraEntrada}-{itemA.HoraSalida} ({itemA.Cliente}) se cruza con {itemB.HoraEntrada}-{itemB.HoraSalida} ({itemB.Cliente})";
+                            if (!listaConflictos.Contains(msg))
+                            {
+                                listaConflictos.Add(msg);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (hayConflicto)
+            {
+                mensajeConflicto = string.Join("; ", listaConflictos);
+                return false;
+            }
+
+            return true;
+        }
+
         private static string NormalizarFormatoHora(string input)
         {
             if (string.IsNullOrWhiteSpace(input)) return "00:00";
@@ -1929,6 +2036,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             item.HoraEntrada = NormalizarFormatoHora(nuevaEntrada);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
             item.Modificado = true;
+            ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
         }
 
@@ -1939,6 +2047,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             item.HoraSalida = NormalizarFormatoHora(nuevaSalida);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
             item.Modificado = true;
+            ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
         }
 
@@ -1948,6 +2057,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             item.HoraSalida = salida;
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(entrada, salida);
             item.Modificado = true;
+            ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
         }
 
@@ -2478,6 +2588,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                     emp.TicketRedmineId = det.RedmineIssueId;
                                     emp.TicketViaticoId = det.RedmineViaticosIssueId;
                                     emp.Estado = "SINCRONIZADO";
+                                    emp.Modificado = false;
                                 }
                             }
                         }
@@ -2830,7 +2941,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             if (emp != null && det.RedmineIssueId.HasValue)
                             {
                                 emp.TicketAusenciaId = det.RedmineIssueId;
-                                emp.Modificado = true;
+                                emp.Modificado = false;
+                                emp.Estado = "SINCRONIZADO";
                                 if (emp.Id > 0)
                                 {
                                     await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
@@ -2921,7 +3033,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (det != null && det.Exitoso && det.RedmineIssueId.HasValue)
                 {
                     emp.TicketAusenciaId = det.RedmineIssueId;
-                    emp.Modificado = true;
+                    emp.Modificado = false;
+                    emp.Estado = "SINCRONIZADO";
                     if (emp.Id > 0)
                     {
                         await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
@@ -3036,7 +3149,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                 foreach (var emp in grupo.Empleados)
                                 {
                                     emp.TicketViaticoId = det.RedmineViaticosIssueId;
-                                    emp.Modificado = true;
+                                    emp.Modificado = false;
+                                    emp.Estado = "SINCRONIZADO";
                                 }
                             }
                         }
@@ -3123,7 +3237,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             if (emp != null && det.RedmineIssueId.HasValue)
                             {
                                 emp.TicketBonoId = det.RedmineIssueId;
-                                emp.Modificado = true;
+                                emp.Modificado = false;
+                                emp.Estado = "SINCRONIZADO";
                                 if (emp.Id > 0)
                                 {
                                     await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
@@ -3211,7 +3326,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (det != null && det.Exitoso && det.RedmineIssueId.HasValue)
                 {
                     emp.TicketBonoId = det.RedmineIssueId;
-                    emp.Modificado = true;
+                    emp.Modificado = false;
+                    emp.Estado = "SINCRONIZADO";
                     if (emp.Id > 0)
                     {
                         await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest

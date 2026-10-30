@@ -75,12 +75,12 @@
                     </MudButton>
 
                     <MudButton Variant="Variant.Filled" 
-                               Color="@(HayCambiosSinGuardar ? Color.Warning : Color.Success)" 
+                               Color="@(TotalConflictosHorarios > 0 ? Color.Error : (HayCambiosSinGuardar ? Color.Warning : Color.Success))" 
                                Size="Size.Small" 
                                StartIcon="@Icons.Material.Filled.Save"
                                Disabled="@(estaGuardando || estaCargando || !empleadosJornada.Any())"
                                OnClick="@GuardarEnBaseDatos">
-                        @(estaGuardando ? "Guardando..." : "Guardar en BD")
+                        @(estaGuardando ? "Guardando..." : (HayCambiosSinGuardar ? $"Guardar en BD ({TotalModificadosSinGuardar + TotalNuevosSinGuardar})" : "Guardar en BD"))
                     </MudButton>
                 </MudStack>
             </MudItem>
@@ -102,6 +102,27 @@
                         Ausentes: <b>@TotalAusentes</b>
                     </MudChip>
                 }
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.CloudDone">
+                    En BD: <b>@TotalGuardadosEnBd</b>
+                </MudChip>
+                @if (TotalModificadosSinGuardar > 0)
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Edit">
+                        Modificados: <b>@TotalModificadosSinGuardar</b>
+                    </MudChip>
+                }
+                @if (TotalNuevosSinGuardar > 0)
+                {
+                    <MudChip T="string" Color="Color.Default" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.FiberNew" Style="background: #ea580c; color: white;">
+                        Sin Guardar: <b>@TotalNuevosSinGuardar</b>
+                    </MudChip>
+                }
+                @if (TotalConflictosHorarios > 0)
+                {
+                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ErrorOutline">
+                        Cruces Horario: <b>@TotalConflictosHorarios</b>
+                    </MudChip>
+                }
                 <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.DirectionsBus">
                     Trasp: <b>C$ @TotalViaticosTrasp.ToString("N0")</b>
                 </MudChip>
@@ -120,20 +141,33 @@
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
                     Supervisor: <b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
                 </MudChip>
-                @if (HayCambiosSinGuardar)
+                @if (TotalConflictosHorarios > 0)
+                {
+                    <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                        Conflicto de Horarios
+                    </MudChip>
+                }
+                else if (HayCambiosSinGuardar)
                 {
                     <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
-                        Cambios sin guardar en BD
+                        @(TotalModificadosSinGuardar + TotalNuevosSinGuardar) pendientes de guardar
                     </MudChip>
                 }
                 else if (empleadosJornada.Any())
                 {
                     <MudChip T="string" Color="Color.Success" Variant="Variant.Text" Size="Size.Small" Icon="@Icons.Material.Filled.CloudDone">
-                        Sincronizado con BD
+                        Todo guardado en BD
                     </MudChip>
                 }
             </MudStack>
         </MudStack>
+
+        @if (TotalConflictosHorarios > 0)
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mt-2 mb-1">
+                <b>¡Conflicto de Horarios Detectado!</b> Uno o más colaboradores tienen turnos que se cruzan en su horario de entrada y salida (ya sea en el mismo cliente o en clientes separados). Revise las filas o tarjetas marcadas en rojo antes de guardar.
+            </MudAlert>
+        }
     </MudPaper>
 
     @* --- PESTAÑAS PRINCIPALES DE LA APLICACIÓN --- *@
@@ -343,7 +377,7 @@
                             <MudItem xs="12" sm="6" md="4" lg="3">
                                 <MudCard Elevation="2" 
                                          Class="@(emp.Seleccionado ? "border-2 border-primary" : "")" 
-                                         Style="@($"border-radius: 12px; transition: transform 0.15s ease, box-shadow 0.15s ease; border-left: 5px solid {(emp.Asistio ? "#16a34a" : "#dc2626")};")">
+                                         Style="@($"border-radius: 12px; transition: transform 0.15s ease, box-shadow 0.15s ease; border-left: 5px solid {(emp.TieneConflictoHorario ? "#dc2626" : (emp.Asistio ? "#16a34a" : "#dc2626"))}; background: {(emp.TieneConflictoHorario ? "#fef2f2" : "inherit")};")">
                                     <MudCardHeader Class="pa-2 pb-1">
                                         <CardHeaderAvatar>
                                             <MudCheckBox @bind-Value="@emp.Seleccionado" Color="Color.Primary" Dense="true" Class="ma-0 pa-0" />
@@ -353,6 +387,38 @@
                                                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 18px; font-size: 0.7rem; min-width: 42px; justify-content: center;">
                                                     #@emp.CodigoEmpleado
                                                 </MudChip>
+                                                @if (emp.TieneConflictoHorario)
+                                                {
+                                                    <MudTooltip Text="@emp.DetalleConflictoHorario" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ErrorOutline" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            CRUCE
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                                else if (emp.GuardadoEnBd)
+                                                {
+                                                    <MudTooltip Text="@($"Guardado en BD (#{emp.Id})")" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Style="height: 18px; font-size: 0.65rem; font-weight: 600; padding: 0 4px;">
+                                                            BD #@emp.Id
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                                else if (emp.Id > 0 && emp.Modificado)
+                                                {
+                                                    <MudTooltip Text="@($"Registro #{emp.Id} modificado (pendiente de guardar)")" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            Modificado
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                                else
+                                                {
+                                                    <MudTooltip Text="Colaborador nuevo aún sin guardar en BD" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FiberNew" Style="height: 18px; font-size: 0.65rem; font-weight: 700; border-color: #f97316; color: #ea580c; padding: 0 4px;">
+                                                            Sin Guardar
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
                                                 @if (string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
@@ -459,22 +525,30 @@
                                             </div>
                                         </div>
 
+                                        @if (emp.TieneConflictoHorario)
+                                        {
+                                            <div class="pa-1 mb-1 rounded d-flex align-center gap-1" style="background: #fee2e2; border: 1px solid #f87171; color: #991b1b; font-size: 0.70rem; line-height: 1.2;">
+                                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Style="font-size: 0.85rem;" Color="Color.Error" />
+                                                <span><b>Cruce de horario:</b> @emp.DetalleConflictoHorario</span>
+                                            </div>
+                                        }
+
                                         @* Horario y Tiempo de Comida *@
                                         <div class="d-flex align-center justify-space-between pt-1 border-top" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1 font-monospace">
-                                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Style="font-size: 0.85rem;" Color="Color.Default" />
+                                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Style="font-size: 0.85rem;" Color="@(emp.TieneConflictoHorario ? Color.Error : Color.Default)" />
                                                 <input type="text" 
                                                        value="@(emp.Asistio ? emp.HoraEntrada : "--:--")" 
                                                        disabled="@(!emp.Asistio)"
                                                        @onchange="@((ChangeEventArgs e) => OnHorarioEntradaCambiado(emp, e.Value?.ToString()))" 
-                                                       style="@($"width: 44px; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
+                                                       style="@($"width: 44px; border: {(emp.TieneConflictoHorario ? "2px solid #ef4444" : (emp.Asistio ? "1px solid #ced4da" : "1px dashed #cbd5e1"))}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.TieneConflictoHorario ? "#fee2e2" : (emp.Asistio ? "white" : "#f8fafc"))}; color: {(emp.TieneConflictoHorario ? "#b91c1c; font-weight: bold;" : (emp.Asistio ? "inherit" : "#94a3b8"))};")" 
                                                        title="@(emp.Asistio ? "Hora Entrada" : "Ausente")" />
                                                 <span>-</span>
                                                 <input type="text" 
                                                        value="@(emp.Asistio ? emp.HoraSalida : "--:--")" 
                                                        disabled="@(!emp.Asistio)"
                                                        @onchange="@((ChangeEventArgs e) => OnHorarioSalidaCambiado(emp, e.Value?.ToString()))" 
-                                                       style="@($"width: 44px; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
+                                                       style="@($"width: 44px; border: {(emp.TieneConflictoHorario ? "2px solid #ef4444" : (emp.Asistio ? "1px solid #ced4da" : "1px dashed #cbd5e1"))}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.TieneConflictoHorario ? "#fee2e2" : (emp.Asistio ? "white" : "#f8fafc"))}; color: {(emp.TieneConflictoHorario ? "#b91c1c; font-weight: bold;" : (emp.Asistio ? "inherit" : "#94a3b8"))};")" 
                                                        title="@(emp.Asistio ? "Hora Salida" : "Ausente")" />
                                             </div>
 
@@ -487,6 +561,55 @@
                                                    @onchange="@((ChangeEventArgs e) => OnTiempoComidaCambiado(emp, e.Value?.ToString()))" 
                                                    style="@($"width: 52px; font-size: 0.72rem; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
                                                    title="@(emp.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
+                                        </div>
+
+                                        @* Tickets de Helpdesk *@
+                                        <div class="d-flex align-center gap-1 flex-wrap pt-1 border-top mt-1" style="font-size: 0.72rem;">
+                                            <span class="text-muted fw-bold" style="font-size: 0.68rem;">Tickets:</span>
+                                            @if (emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0)
+                                            {
+                                                <MudTooltip Text="Ver Movimiento en Helpdesk" Arrow="true">
+                                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketRedmineId}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            Mov #@emp.TicketRedmineId
+                                                        </MudChip>
+                                                    </MudLink>
+                                                </MudTooltip>
+                                            }
+                                            @if (emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0)
+                                            {
+                                                <MudTooltip Text="Ver Viáticos en Helpdesk" Arrow="true">
+                                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketViaticoId}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            Viat #@emp.TicketViaticoId
+                                                        </MudChip>
+                                                    </MudLink>
+                                                </MudTooltip>
+                                            }
+                                            @if (emp.TicketBonoId.HasValue && emp.TicketBonoId > 0)
+                                            {
+                                                <MudTooltip Text="Ver Bono en Helpdesk" Arrow="true">
+                                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketBonoId}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            Bono #@emp.TicketBonoId
+                                                        </MudChip>
+                                                    </MudLink>
+                                                </MudTooltip>
+                                            }
+                                            @if (emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0)
+                                            {
+                                                <MudTooltip Text="Ver Ausencia en Helpdesk" Arrow="true">
+                                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{emp.TicketAusenciaId}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            Aus #@emp.TicketAusenciaId
+                                                        </MudChip>
+                                                    </MudLink>
+                                                </MudTooltip>
+                                            }
+                                            @if (!emp.TicketRedmineId.HasValue && !emp.TicketViaticoId.HasValue && !emp.TicketBonoId.HasValue && !emp.TicketAusenciaId.HasValue)
+                                            {
+                                                <span class="text-muted font-monospace" style="font-size: 0.68rem;">—</span>
+                                            }
                                         </div>
                                     </MudCardContent>
                                 </MudCard>
@@ -502,7 +625,8 @@
                               Hover="true" 
                               Striped="true" 
                               Elevation="0" 
-                              Breakpoint="Breakpoint.None">
+                              Breakpoint="Breakpoint.None"
+                              RowStyleFunc="@((item, idx) => item.TieneConflictoHorario ? "background-color: #fee2e2 !important;" : "")">
                         <HeaderContent>
                             @if (modoVistaGrilla == ModoVistaGrilla.Operativo)
                             {
@@ -513,10 +637,12 @@
                                                  Color="Color.Primary" />
                                 </MudTh>
                                 <MudTh>Colaborador & Ubicación Asignada</MudTh>
+                                <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
                                 <MudTh Style="width: 140px;">Horario</MudTh>
                                 <MudTh Style="width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
+                                <MudTh Style="width: 145px;">Tickets Helpdesk</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else if (modoVistaGrilla == ModoVistaGrilla.Ubicacion)
@@ -528,6 +654,7 @@
                                                  Color="Color.Primary" />
                                 </MudTh>
                                 <MudTh>Colaborador</MudTh>
+                                <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
                                 <MudTh Style="width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
@@ -545,6 +672,7 @@
                                                  Color="Color.Primary" />
                                 </MudTh>
                                 <MudTh>Colaborador</MudTh>
+                                <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
                                 <MudTh Style="width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 170px;">Cliente / Operación</MudTh>
@@ -553,6 +681,7 @@
                                 <MudTh Style="width: 140px;">Horario</MudTh>
                                 <MudTh Style="width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
+                                <MudTh Style="width: 145px;">Tickets Helpdesk</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                         </HeaderContent>
@@ -589,6 +718,40 @@
                                     </div>
                                 </MudTd>
                                 <MudTd>
+                                    @if (context.TieneConflictoHorario)
+                                    {
+                                        <MudTooltip Text="@context.DetalleConflictoHorario" Arrow="true">
+                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ErrorOutline" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                CRUCE
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.GuardadoEnBd)
+                                    {
+                                        <MudTooltip Text="@($"Guardado en BD con ID #{context.Id}")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Style="height: 22px; font-size: 0.68rem; font-weight: 600;">
+                                                En BD #@context.Id
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.Id > 0 && context.Modificado)
+                                    {
+                                        <MudTooltip Text="@($"Registro #{context.Id} modificado (pendiente de guardar en BD)")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                Modificado
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Colaborador nuevo aún sin guardar en BD" Arrow="true">
+                                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FiberNew" Style="height: 22px; font-size: 0.68rem; font-weight: 700; border-color: #f97316; color: #ea580c;">
+                                                Sin Guardar
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                </MudTd>
+                                <MudTd>
                                     <MudChip T="string" 
                                              Color="@(context.Asistio ? Color.Success : Color.Error)" 
                                              Variant="@(context.Asistio ? Variant.Filled : Variant.Outlined)" 
@@ -604,14 +767,14 @@
                                                value="@(context.Asistio ? context.HoraEntrada : "--:--")" 
                                                disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioEntradaCambiado(context, e.Value?.ToString()))" 
-                                               style="@($"width: 48px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               style="@($"width: 48px; border: {(context.TieneConflictoHorario ? "2px solid #ef4444" : (context.Asistio ? "1px solid #ced4da" : "1px dashed #cbd5e1"))}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.TieneConflictoHorario ? "#fee2e2" : (context.Asistio ? "white" : "#f8fafc"))}; color: {(context.TieneConflictoHorario ? "#b91c1c; font-weight: bold;" : (context.Asistio ? "inherit" : "#94a3b8"))};")" 
                                                title="@(context.Asistio ? "Hora Entrada (ej. 06:00)" : "Ausente")" />
                                         <span>-</span>
                                         <input type="text" 
                                                value="@(context.Asistio ? context.HoraSalida : "--:--")" 
                                                disabled="@(!context.Asistio)"
                                                @onchange="@((ChangeEventArgs e) => OnHorarioSalidaCambiado(context, e.Value?.ToString()))" 
-                                               style="@($"width: 48px; border: 1px {(context.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.Asistio ? "white" : "#f8fafc")}; color: {(context.Asistio ? "inherit" : "#94a3b8")};")" 
+                                               style="@($"width: 48px; border: {(context.TieneConflictoHorario ? "2px solid #ef4444" : (context.Asistio ? "1px solid #ced4da" : "1px dashed #cbd5e1"))}; border-radius: 4px; padding: 2px; text-align: center; background: {(context.TieneConflictoHorario ? "#fee2e2" : (context.Asistio ? "white" : "#f8fafc"))}; color: {(context.TieneConflictoHorario ? "#b91c1c; font-weight: bold;" : (context.Asistio ? "inherit" : "#94a3b8"))};")" 
                                                title="@(context.Asistio ? "Hora Salida (ej. 14:00)" : "Ausente")" />
                                     </div>
                                 </MudTd>
@@ -656,6 +819,54 @@
                                     }
                                 </MudTd>
                                 <MudTd>
+                                    <div class="d-flex align-center gap-1 flex-wrap">
+                                        @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Movimiento en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketRedmineId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Mov #@context.TicketRedmineId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Viáticos en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketViaticoId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Viat #@context.TicketViaticoId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Bono en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketBonoId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Bono #@context.TicketBonoId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Ausencia en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Aus #@context.TicketAusenciaId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
+                                        {
+                                            <span class="text-muted font-monospace" style="font-size: 0.70rem;">—</span>
+                                        }
+                                    </div>
+                                </MudTd>
+                                <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                    Color="Color.Error" 
                                                    Size="Size.Small" 
@@ -683,6 +894,40 @@
                                             </MudChip>
                                         }
                                     </div>
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.TieneConflictoHorario)
+                                    {
+                                        <MudTooltip Text="@context.DetalleConflictoHorario" Arrow="true">
+                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ErrorOutline" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                CRUCE
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.GuardadoEnBd)
+                                    {
+                                        <MudTooltip Text="@($"Guardado en BD con ID #{context.Id}")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Style="height: 22px; font-size: 0.68rem; font-weight: 600;">
+                                                En BD #@context.Id
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.Id > 0 && context.Modificado)
+                                    {
+                                        <MudTooltip Text="@($"Registro #{context.Id} modificado (pendiente de guardar)")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                Modificado
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Colaborador nuevo aún sin guardar en BD" Arrow="true">
+                                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FiberNew" Style="height: 22px; font-size: 0.68rem; font-weight: 700; border-color: #f97316; color: #ea580c;">
+                                                Sin Guardar
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <MudChip T="string" 
@@ -792,6 +1037,40 @@
                                             </MudChip>
                                         }
                                     </div>
+                                </MudTd>
+                                <MudTd>
+                                    @if (context.TieneConflictoHorario)
+                                    {
+                                        <MudTooltip Text="@context.DetalleConflictoHorario" Arrow="true">
+                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ErrorOutline" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                CRUCE
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.GuardadoEnBd)
+                                    {
+                                        <MudTooltip Text="@($"Guardado en BD con ID #{context.Id}")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Style="height: 22px; font-size: 0.68rem; font-weight: 600;">
+                                                En BD #@context.Id
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else if (context.Id > 0 && context.Modificado)
+                                    {
+                                        <MudTooltip Text="@($"Registro #{context.Id} modificado (pendiente de guardar)")" Arrow="true">
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                                Modificado
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Colaborador nuevo aún sin guardar en BD" Arrow="true">
+                                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FiberNew" Style="height: 22px; font-size: 0.68rem; font-weight: 700; border-color: #f97316; color: #ea580c;">
+                                                Sin Guardar
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
                                 </MudTd>
                                 <MudTd>
                                     <MudChip T="string" 
@@ -928,6 +1207,54 @@
                                                            OnClick="@(() => AbrirEditorViaticoIndividual(context))" />
                                         </MudTooltip>
                                     }
+                                </MudTd>
+                                <MudTd>
+                                    <div class="d-flex align-center gap-1 flex-wrap">
+                                        @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Movimiento en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketRedmineId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Mov #@context.TicketRedmineId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Viáticos en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketViaticoId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Viat #@context.TicketViaticoId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Bono en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketBonoId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Bono #@context.TicketBonoId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
+                                        {
+                                            <MudTooltip Text="Ver Ausencia en Helpdesk" Arrow="true">
+                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank" Underline="Underline.None">
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
+                                                        Aus #@context.TicketAusenciaId
+                                                    </MudChip>
+                                                </MudLink>
+                                            </MudTooltip>
+                                        }
+                                        @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
+                                        {
+                                            <span class="text-muted font-monospace" style="font-size: 0.70rem;">—</span>
+                                        }
+                                    </div>
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
