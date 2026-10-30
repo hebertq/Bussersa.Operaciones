@@ -69,10 +69,22 @@ async function onFetch(event) {
         } catch (err) { }
 
         // Último recurso para navegación: devolver index.html de cualquier caché existente
-        const anyIndex = await caches.match('index.html');
-        if (anyIndex) return anyIndex;
+        try {
+            const anyIndex = await caches.match('index.html') || await caches.match('/index.html');
+            if (anyIndex) return anyIndex;
+        } catch (err) { }
 
-        return fetch(event.request);
+        try {
+            return await fetch(event.request);
+        } catch (err) {
+            // Si la red falló completamente durante una navegación, intentar servir index.html de caché
+            const fallbackIndex = await caches.match('index.html');
+            if (fallbackIndex) return fallbackIndex;
+            return new Response('<html><body><h2>Modo sin conexión</h2><p>Por favor reconecte a internet y recargue.</p></body></html>', {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+            });
+        }
     }
 
     // 2. Manejo para ACTIVOS ESTÁTICOS (dll, wasm, css, js, json, fuentes, imágenes)

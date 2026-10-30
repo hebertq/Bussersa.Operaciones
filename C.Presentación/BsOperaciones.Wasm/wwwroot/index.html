@@ -62,12 +62,9 @@
                 reg.update();
             }).catch(err => console.warn('Error al registrar Service Worker:', err));
 
-            let refreshing = false;
+            // Notificar actualización sin recargar forzosamente la página (para no perder datos de formularios no guardados)
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
-                    window.location.reload();
-                }
+                console.info('Service Worker Busser Tablet actualizado en segundo plano. La nueva versión se aplicará en la próxima navegación o recarga manual.');
             });
         }
 
