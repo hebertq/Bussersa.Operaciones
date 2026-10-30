@@ -1534,7 +1534,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     "#", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
                     "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
                     "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
-                    "Observaciones", "Estado", "Ticket Redmine", "Ticket Viático", "Supervisor"
+                    "Tipo Ausencia", "Días Ausencia", "Observaciones", "Estado",
+                    "Ticket Movimiento", "Ticket Viático", "Ticket Bono", "Ticket Ausencia", "Supervisor"
                 };
 
                 var headerRow = sheet.CreateRow(0);
@@ -1578,11 +1579,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     cTotal.SetCellValue((double)(emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc));
                     cTotal.CellStyle = currencyStyle;
 
-                    row.CreateCell(16).SetCellValue(emp.Observaciones);
-                    row.CreateCell(17).SetCellValue(emp.Estado);
-                    row.CreateCell(18).SetCellValue(emp.TicketRedmineId.HasValue ? emp.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(19).SetCellValue(emp.TicketViaticoId.HasValue ? emp.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(20).SetCellValue(currentUserName);
+                    row.CreateCell(16).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
+                    row.CreateCell(17).SetCellValue(!emp.Asistio ? (double)emp.DiasAusencia : 0);
+                    row.CreateCell(18).SetCellValue(emp.Observaciones);
+                    row.CreateCell(19).SetCellValue(emp.Estado);
+                    row.CreateCell(20).SetCellValue(emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0 ? emp.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(21).SetCellValue(emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0 ? emp.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(22).SetCellValue(emp.TicketBonoId.HasValue && emp.TicketBonoId > 0 ? emp.TicketBonoId.Value.ToString() : "");
+                    row.CreateCell(23).SetCellValue(emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0 ? emp.TicketAusenciaId.Value.ToString() : "");
+                    row.CreateCell(24).SetCellValue(currentUserName);
 
                     rowIdx++;
                 }
@@ -1632,11 +1637,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     22, // 13: Viático Alimentación (C$)
                     18, // 14: Bono BNC (C$)
                     20, // 15: Total Viáticos (C$)
-                    32, // 16: Observaciones
-                    14, // 17: Estado
-                    16, // 18: Ticket Redmine
-                    16, // 19: Ticket Viático
-                    26  // 20: Supervisor
+                    24, // 16: Tipo Ausencia
+                    14, // 17: Días Ausencia
+                    32, // 18: Observaciones
+                    14, // 19: Estado
+                    18, // 20: Ticket Movimiento
+                    18, // 21: Ticket Viático
+                    18, // 22: Ticket Bono
+                    18, // 23: Ticket Ausencia
+                    26  // 24: Supervisor
                 };
 
                 for (int i = 0; i < headers.Length; i++)
