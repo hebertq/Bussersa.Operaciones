@@ -1,4 +1,4 @@
-@page "/operaciones/registro-movimientos-supervisor"
+﻿@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -466,9 +466,10 @@
                                                 var totViaticos = emp.VtcoTrasp + emp.VtcoAlim;
                                                 var totNomina = emp.BonoBnc;
                                                 var totEfectivo = emp.TotalViaticosEfectivo;
+                                                var totBeneficios = emp.TotalBeneficios;
                                             }
                                             <div class="d-flex align-center gap-1">
-                                                if (totViaticos > 0 || totNomina > 0)
+                                                @if (totBeneficios > 0)
                                                 {
                                                     <MudChip T="string" 
                                                              Color="@(totNomina > 0 ? Color.Success : Color.Info)"
@@ -478,7 +479,7 @@
                                                              Style="height: 22px; font-size: 0.70rem; white-space: nowrap;" 
                                                              OnClick="@(() => AbrirEditorViaticoIndividual(emp, false))"
                                                              Title="@($"Viaticos Cliente: C$ {totViaticos:N0} (Trasp: C$ {emp.VtcoTrasp:N0}, Alim: C$ {emp.VtcoAlim:N0}) | Nomina: C$ {totNomina:N0} | Efectivo: C$ {totEfectivo:N0}")">
-                                                        @($"C$ {totViaticos:N0}")
+                                                        @($"C$ {totBeneficios:N0}")
                                                     </MudChip>
                                                 }
                                                 else
@@ -767,7 +768,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalVOp = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
+                                        var totalVOp = context.TotalBeneficios;
                                     }
                                     @if (totalVOp > 0)
                                     {
@@ -778,7 +779,7 @@
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
                                                  OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
-                                                 Title="@($"Total Viáticos & Bono: C$ {totalVOp:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}, Bono BNC: C$ {context.BonoBnc:N0})")">
+                                                 Title="@($"Viáticos Cliente: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
                                             @($"C$ {totalVOp:N0}")
                                         </MudChip>
                                     }
@@ -1095,7 +1096,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalV = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
+                                        var totalV = context.TotalBeneficios;
                                     }
                                     @if (totalV > 0)
                                     {
@@ -1106,7 +1107,7 @@
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
                                                  OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
-                                                 Title="@($"Total Viáticos & Bono: C$ {totalV:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}, Bono BNC: C$ {context.BonoBnc:N0})")">
+                                                 Title="@($"Viáticos Cliente: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
                                             @($"C$ {totalV:N0}")
                                         </MudChip>
                                     }
@@ -3244,7 +3245,7 @@
                                         </div>
                                         @* Viáticos Base *@
                                         @{
-                                            var totalVTarj = item.VtcoTraspDefault + item.VtcoAlimDefault + item.BonoBncDefault;
+                                            var totalVTarj = item.VtcoTraspDefault + item.VtcoAlimDefault + Math.Max(0, item.BonoBncDefault - (item.VtcoTraspDefault + item.VtcoAlimDefault));
                                         }
                                         <div class="d-flex align-center justify-space-between mt-2 pt-1 border-top">
                                             <span class="text-secondary" style="font-size: 0.72rem;">Viáticos Base:</span>
@@ -3379,7 +3380,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalVOp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
+                                        var totalVOp = context.VtcoTraspDefault + context.VtcoAlimDefault + Math.Max(0, context.BonoBncDefault - (context.VtcoTraspDefault + context.VtcoAlimDefault));
                                     }
                                     @if (totalVOp > 0)
                                     {
@@ -3650,7 +3651,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalVComp = context.VtcoTraspDefault + context.VtcoAlimDefault + context.BonoBncDefault;
+                                        var totalVComp = context.VtcoTraspDefault + context.VtcoAlimDefault + Math.Max(0, context.BonoBncDefault - (context.VtcoTraspDefault + context.VtcoAlimDefault));
                                     }
                                     @if (totalVComp > 0)
                                     {

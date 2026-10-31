@@ -48,6 +48,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal TotalViaticos => VtcoTrasp + VtcoAlim;
         public decimal TotalViaticosNomina => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
         public decimal TotalViaticosEfectivo => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
+        public decimal BonoExtra => Math.Max(0, BonoBnc - TotalViaticosNomina);
+        public decimal TotalBeneficios => TotalViaticos + BonoExtra;
         public string Bnc
         {
             get => BonoBnc > 0 ? BonoBnc.ToString("N2", CultureInfo.InvariantCulture) : string.Empty;
@@ -339,7 +341,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected decimal TotalViaticosCliente => TotalViaticosTrasp + TotalViaticosAlim;
         protected decimal TotalViaticosBnc => empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoBnc);
         protected decimal TotalViaticosEfectivo => empleadosJornada.Where(x => x.Asistio).Sum(x => (x.TraspAplicaNomina ? 0 : x.VtcoTrasp) + (x.AlimAplicaNomina ? 0 : x.VtcoAlim));
-        protected decimal TotalViaticosGlobal => TotalViaticosCliente;
+        protected decimal TotalViaticosGlobal => TotalViaticosCliente + empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoExtra);
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
         protected int TotalGuardadosEnBd => empleadosJornada.Count(x => x.Id > 0 && !x.Modificado);
@@ -1961,7 +1963,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     cBnc.CellStyle = currencyStyle;
 
                     var cTotal = row.CreateCell(16);
-                    cTotal.SetCellValue((double)(emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc));
+                    cTotal.SetCellValue((double)emp.TotalBeneficios);
                     cTotal.CellStyle = currencyStyle;
 
                     row.CreateCell(17).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
