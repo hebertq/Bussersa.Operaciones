@@ -291,6 +291,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string nuevaAreaNombre = string.Empty;
         protected int? nuevoClienteAreaOpId = null;
 
+        // Caché de Reglas de Viáticos por Horario (Cargado en memoria para evaluación instantánea)
+        protected List<ReglaViaticoDto> cacheReglasViaticos = new();
+        protected bool cargandoReglasViaticos = false;
+
         protected IEnumerable<ClienteAreaDto> CatalogoAreasFiltrado
         {
             get
@@ -428,6 +432,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 await CargarCatalogoClienteAreas();
                 await CargarMisClientesAsignados();
                 await RecuperarOperacionPrevia();
+                await CargarCacheReglasViaticos();
                 await CargarMiPlantilla();
                 await CargarTiposAusencias();
                 await CargarJornadaActual();
@@ -1052,6 +1057,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         DiasAusencia = 1.0m,
                         Modificado = true
                     });
+                    var nuevoEmp = empleadosJornada.Last();
+                    if (nuevoEmp.VtcoTrasp == 0 && nuevoEmp.VtcoAlim == 0 && nuevoEmp.BonoBnc == 0)
+                    {
+                        AplicarReglasViaticosEnMemoria(nuevoEmp);
+                    }
                     agregados++;
                 }
             }
@@ -1508,6 +1518,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     emp.VtcoTrasp = data.VtcoTrasp;
                     emp.VtcoAlim = data.VtcoAlim;
                     emp.BonoBnc = data.BonoBnc;
+                    if (data.VtcoTrasp == 0 && data.VtcoAlim == 0 && data.BonoBnc == 0)
+                    {
+                        AplicarReglasViaticosEnMemoria(emp);
+                    }
                     emp.Asistio = true;
                     emp.Modificado = true;
                     emp.Seleccionado = false;
@@ -1659,6 +1673,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
                 }
 
+                if (nuevo.VtcoTrasp == 0 && nuevo.VtcoAlim == 0 && nuevo.BonoBnc == 0)
+                {
+                    AplicarReglasViaticosEnMemoria(nuevo);
+                }
                 nuevo.Modificado = true;
                 empleadosJornada.Insert(0, nuevo);
                 ValidarConflictosHorarios(out var msgConflicto);
@@ -2240,6 +2258,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (string.IsNullOrWhiteSpace(nuevaEntrada)) nuevaEntrada = "06:00";
             item.HoraEntrada = NormalizarFormatoHora(nuevaEntrada);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
+            AplicarReglasViaticosEnMemoria(item);
             item.Modificado = true;
             ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
@@ -2251,6 +2270,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (string.IsNullOrWhiteSpace(nuevaSalida)) nuevaSalida = "14:00";
             item.HoraSalida = NormalizarFormatoHora(nuevaSalida);
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(item.HoraEntrada, item.HoraSalida);
+            AplicarReglasViaticosEnMemoria(item);
             item.Modificado = true;
             ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
@@ -2261,6 +2281,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             item.HoraEntrada = entrada;
             item.HoraSalida = salida;
             item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(entrada, salida);
+            AplicarReglasViaticosEnMemoria(item);
             item.Modificado = true;
             ValidarConflictosHorarios(out _);
             ActualizarGruposConsolidados();
@@ -2311,6 +2332,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.HoraEntrada = "06:00";
                 item.HoraSalida = "14:00";
             }
+            AplicarReglasViaticosEnMemoria(item);
             item.Modificado = true;
             ActualizarGruposConsolidados();
         }
@@ -2331,6 +2353,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 else if (item.VtcoAlim == 70) item.VtcoAlim = 100;
                 else item.VtcoAlim = 0;
             }
+            AplicarReglasViaticosEnMemoria(item);
             item.Modificado = true;
             ActualizarGruposConsolidados();
         }
@@ -2368,6 +2391,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.TurnoNombre = data.TurnoNombre;
                 item.HoraEntrada = data.HoraEntrada;
                 item.HoraSalida = data.HoraSalida;
+                AplicarReglasViaticosEnMemoria(item);
                 item.Modificado = true;
 
                 if (data.AplicarASeleccionados && seleccionados.Any())
@@ -2377,6 +2401,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         s.TurnoNombre = data.TurnoNombre;
                         s.HoraEntrada = data.HoraEntrada;
                         s.HoraSalida = data.HoraSalida;
+                        AplicarReglasViaticosEnMemoria(s);
                         s.Modificado = true;
                     }
                 }
@@ -2856,6 +2881,25 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             catch { }
         }
 
+        protected void OnClienteFilaCambiado(EmpleadoJornadaItem item)
+        {
+            item.Modificado = true;
+            var areasNuevas = GetAreasParaCliente(item.Cliente);
+            if (!areasNuevas.Contains(item.Area, StringComparer.OrdinalIgnoreCase))
+            {
+                item.Area = areasNuevas.FirstOrDefault() ?? "Operaciones";
+            }
+            AplicarReglasViaticosEnMemoria(item);
+            ActualizarGruposConsolidados();
+        }
+
+        protected void OnAreaFilaCambiado(EmpleadoJornadaItem item)
+        {
+            item.Modificado = true;
+            AplicarReglasViaticosEnMemoria(item);
+            ActualizarGruposConsolidados();
+        }
+
         // --- CATÁLOGO DE ÁREAS POR CLIENTE ---
         public List<string> GetAreasParaCliente(string? cliente)
         {
@@ -2875,6 +2919,104 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             return new List<string> { "Operaciones" };
         }
+
+        #region Reglas de Viáticos en Memoria (Evaluación Automática por Horario)
+        protected async Task CargarCacheReglasViaticos()
+        {
+            try
+            {
+                cargandoReglasViaticos = true;
+                var resp = await _odooService.GetAllReglasViaticos();
+                if (resp?.Model != null)
+                {
+                    cacheReglasViaticos = resp.Model.Where(r => r.Activo).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando cache de reglas de viaticos: {ex.Message}");
+            }
+            finally
+            {
+                cargandoReglasViaticos = false;
+            }
+        }
+
+        protected void AplicarReglasViaticosEnMemoria(EmpleadoJornadaItem item, bool notificar = false)
+        {
+            if (!item.Asistio || cacheReglasViaticos == null || !cacheReglasViaticos.Any()) return;
+
+            string cliente = !string.IsNullOrWhiteSpace(item.Cliente)
+                ? item.Cliente
+                : (selectedOperacionId.HasValue ? operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "" : "");
+
+            var evaluacion = BsOperaciones.Application.Common.ReglaViaticoEvaluator.Evaluar(
+                cliente,
+                item.Area,
+                item.HoraEntrada,
+                item.HoraSalida,
+                cacheReglasViaticos);
+
+            if (evaluacion.AplicaRegla)
+            {
+                if (evaluacion.PagaEnNomina)
+                {
+                    item.BonoBnc = evaluacion.BonoBnc;
+                    item.VtcoTrasp = 0;
+                    item.VtcoAlim = 0;
+                }
+                else
+                {
+                    item.VtcoTrasp = evaluacion.MontoTransporte;
+                    item.VtcoAlim = evaluacion.MontoAlimentacion;
+                    item.BonoBnc = 0;
+                }
+                item.Modificado = true;
+
+                if (notificar)
+                {
+                    _snackbar.Add($"Regla aplicada a {item.NombreEmpleado}: {evaluacion.Resumen}", Severity.Info);
+                }
+            }
+            else if (evaluacion.TieneReglasCliente)
+            {
+                // Si el cliente tiene reglas configuradas en el sistema pero el horario actual no cumple las condiciones, se limpian los viáticos
+                item.BonoBnc = 0;
+                item.VtcoTrasp = 0;
+                item.VtcoAlim = 0;
+                item.Modificado = true;
+            }
+        }
+
+        protected void ReevaluarReglasViaticosTodos(bool soloSeleccionados = false)
+        {
+            if (cacheReglasViaticos == null || !cacheReglasViaticos.Any())
+            {
+                _snackbar.Add("No hay reglas de viáticos configuradas o activas en el sistema.", Severity.Warning);
+                return;
+            }
+
+            var targets = soloSeleccionados
+                ? empleadosJornada.Where(x => x.Seleccionado && x.Asistio).ToList()
+                : empleadosJornada.Where(x => x.Asistio).ToList();
+
+            if (!targets.Any())
+            {
+                _snackbar.Add("No hay colaboradores asistentes para evaluar.", Severity.Info);
+                return;
+            }
+
+            int procesados = 0;
+            foreach (var emp in targets)
+            {
+                AplicarReglasViaticosEnMemoria(emp);
+                procesados++;
+            }
+
+            ActualizarGruposConsolidados();
+            _snackbar.Add($"Reglas de viáticos evaluadas para {procesados} colaboradores.", Severity.Success);
+        }
+        #endregion
 
         protected async Task CargarCatalogoClienteAreas()
         {

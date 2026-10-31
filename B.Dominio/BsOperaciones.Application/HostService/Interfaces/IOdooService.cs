@@ -221,6 +221,11 @@ namespace HostService.Interfaces
         Task<IListResponse<Combos>> GetTiposAusencias();
         Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAusenciasDto>> CrearAusenciasPersonalMasivo(Modelo.ClasesGenericas.CrearAusenciasPersonalRequestDto request);
         Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionBonosDto>> CrearBonosPersonalMasivo(Modelo.ClasesGenericas.CrearBonosPersonalRequestDto request);
+
+        // --- REGLAS DE VIATICOS POR CLIENTE Y AREA (SUPERVISION / ADMINISTRACION) ---
+        Task<IListResponse<Modelo.ClasesGenericas.ReglaViaticoDto>> GetAllReglasViaticos(string cliente = "", string area = "");
+        Task<IResponse> GuardarReglaViatico(Modelo.ClasesGenericas.ReglaViaticoDto request);
+        Task<IResponse> EliminarReglaViatico(int id);
     }
 }
 

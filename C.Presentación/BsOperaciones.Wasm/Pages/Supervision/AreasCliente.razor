@@ -23,7 +23,11 @@
                 Administra las áreas operativas asociadas a cada cliente para la asignación de turnos, asistencias y personal.
             </MudText>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Payments" 
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/reglas-viaticos"))">
+                Reglas de Viáticos
+            </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Badge" 
                        OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/personal-cliente"))">
                 Ir a Personal por Cliente

@@ -48,6 +48,8 @@ namespace BsOperaciones.Application.Extensions
             _Iuser.SetMenu(menu);
 
             var _Pagina = LstMenus.Where(x => x.id == menu).FirstOrDefault();
+            if (_Pagina == null && menu == 65 && LstMenus.Any(x => x.id == 61 || x.id == 22))
+                return true;
             if (_Pagina == null)
                 return false;
             else
@@ -61,7 +63,11 @@ namespace BsOperaciones.Application.Extensions
 
             var _profileID = LstMenus.Where(x => x.id == menu).FirstOrDefault();
             if (_profileID == null)
+            {
+                if (menu == 65 && LstMenus.Any(x => x.id == 61 || x.id == 22))
+                    return true;
                 return false;
+            }
 
             return !string.IsNullOrEmpty(_profileID.nombre);
         }

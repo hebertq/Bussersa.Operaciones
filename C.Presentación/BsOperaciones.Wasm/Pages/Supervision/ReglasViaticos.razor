@@ -1,0 +1,519 @@
+@page "/admon/supervision/reglas-viaticos"
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@attribute [Authorize]
+@inject IOdooService _odooService
+@inject ISnackbar _snackbar
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+
+<PageTitle>Reglas de Viáticos y Nómina - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-6">
+    <div class="d-flex align-center justify-space-between mb-3">
+        <div>
+            <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
+            <MudText Typo="Typo.h5" Class="fw-bold text-primary">
+                <MudIcon Icon="@Icons.Material.Filled.Payments" Class="mr-2" />
+                Reglas de Viáticos y Bonos por Cliente y Horario
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Administra las reglas automáticas de pago para Transporte, Alimentación y Nómina (BNC) según la hora de entrada y salida del personal.
+            </MudText>
+        </div>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Domain"
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))">
+                Áreas por Cliente
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Badge"
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/personal-cliente"))">
+                Personal por Cliente
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="AbrirDialogoNuevaRegla">
+                Nueva Regla
+            </MudButton>
+        </div>
+    </div>
+
+    @* Métricas / Resumen *@
+    <MudGrid Class="mb-3" Spacing="2">
+        <MudItem xs="12" sm="3">
+            <MudPaper Class="pa-3 rounded-lg" Elevation="2" Style="border-left: 4px solid #1976d2;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Total Reglas</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold text-primary">@todasReglas.Count</MudText>
+                <MudText Typo="Typo.caption">@todasReglas.Count(r => r.Activo) activas</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudPaper Class="pa-3 rounded-lg" Elevation="2" Style="border-left: 4px solid #2e7d32;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Pago en Nómina (Bono BNC)</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold text-success">@todasReglas.Count(r => r.PagaEnNomina && r.Activo)</MudText>
+                <MudText Typo="Typo.caption">Suma a Bono BNC</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudPaper Class="pa-3 rounded-lg" Elevation="2" Style="border-left: 4px solid #0288d1;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Pago Directo (Caja / Viático)</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold text-info">@todasReglas.Count(r => !r.PagaEnNomina && r.Activo)</MudText>
+                <MudText Typo="Typo.caption">Transporte y Alimentación</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudPaper Class="pa-3 rounded-lg" Elevation="2" Style="border-left: 4px solid #ed6c02;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Clientes con Reglas</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold text-warning">@todasReglas.Select(r => r.ClienteNombre).Distinct().Count()</MudText>
+                <MudText Typo="Typo.caption">Clientes configurados</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* Filtros y Tabla *@
+    <MudPaper Class="pa-4 rounded-lg" Elevation="2">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudItem xs="12" sm="4" md="3">
+                <MudSelect T="string" Label="Filtrar por Cliente" @bind-Value="filtroCliente" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="string" Value="@((string?)null)">-- Todos los Clientes --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="string" Value="@op.nombre">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="3">
+                <MudSelect T="string" Label="Filtrar por Destino" @bind-Value="filtroDestino" Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("Todos")">Todos los Tipos</MudSelectItem>
+                    <MudSelectItem Value="@("Nomina")">Solo Nómina (Bono BNC)</MudSelectItem>
+                    <MudSelectItem Value="@("Directo")">Solo Directo (Transporte/Alim.)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="4">
+                <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar por nombre, área u observaciones..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Immediate="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="12" md="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="CargarDatos" Disabled="cargando">
+                    Recargar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (cargando)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Class="ml-3" Typo="Typo.body1">Cargando catálogo de reglas de viáticos...</MudText>
+            </div>
+        }
+        else if (!ReglasFiltradas.Any())
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-4">
+                No se encontraron reglas de viáticos registradas con los filtros seleccionados.
+                Haga clic en <b>Nueva Regla</b> para configurar el pago automático de transporte y alimentación para sus clientes.
+            </MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@ReglasFiltradas" Hover="true" Striped="true" Dense="true" Elevation="0" Bordered="false">
+                <HeaderContent>
+                    <MudTh Style="font-weight: 700;">ID</MudTh>
+                    <MudTh Style="font-weight: 700;">Cliente / Operación</MudTh>
+                    <MudTh Style="font-weight: 700;">Área</MudTh>
+                    <MudTh Style="font-weight: 700;">Nombre de la Regla</MudTh>
+                    <MudTh Style="font-weight: 700;">Condición Horario</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: right;">Transporte</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: right;">Alimentación</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: center;">Destino</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: right;">Total</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: center;">Estado</MudTh>
+                    <MudTh Style="font-weight: 700; text-align: center;">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID">
+                        <MudText Typo="Typo.caption" Class="fw-bold text-muted">#@context.Id</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Cliente">
+                        <MudText Typo="Typo.body2" Class="fw-bold text-primary">@context.ClienteNombre</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Área">
+                        @if (string.IsNullOrWhiteSpace(context.Area) || context.Area == "*")
+                        {
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">
+                                * Todas las Áreas
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
+                                @context.Area
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Nombre">
+                        <div>
+                            <MudText Typo="Typo.body2" Class="fw-bold">@context.NombreRegla</MudText>
+                            @if (!string.IsNullOrWhiteSpace(context.Observaciones))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Observaciones</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="Condición">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.caption" Class="fw-bold">
+                                @FormatearModoHorario(context.ModoCriterioHorario)
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @FormatearRangoHorario(context)
+                            </MudText>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Transporte" Style="text-align: right;">
+                        <MudText Typo="Typo.body2">C$ @context.MontoTransporte.ToString("N2")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Alimentación" Style="text-align: right;">
+                        <MudText Typo="Typo.body2">C$ @context.MontoAlimentacion.ToString("N2")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Destino" Style="text-align: center;">
+                        @if (context.PagaEnNomina)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.AccountBalance">
+                                Nómina (BNC)
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Payments" Variant="Variant.Outlined">
+                                Directo (Caja)
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Total" Style="text-align: right;">
+                        <MudText Typo="Typo.body2" Class="fw-bold" Color="@(context.PagaEnNomina ? Color.Success : Color.Primary)">
+                            C$ @((context.MontoTransporte + context.MontoAlimentacion).ToString("N2"))
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Estado" Style="text-align: center;">
+                        <MudSwitch T="bool" Value="@context.Activo" ValueChanged="@((bool val) => CambiarEstadoRegla(context, val))"
+                                   Color="Color.Success" Size="Size.Small" />
+                    </MudTd>
+                    <MudTd DataLabel="Acciones" Style="text-align: center;">
+                        <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                           OnClick="@(() => AbrirDialogoEditarRegla(context))" title="Editar regla" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Default" Size="Size.Small"
+                                           OnClick="@(() => DuplicarRegla(context))" title="Duplicar regla" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@(() => EliminarRegla(context))" title="Eliminar regla" />
+                        </MudButtonGroup>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Filas por página:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<BreadcrumbItem> _breadcrumbItems = new()
+    {
+        new BreadcrumbItem("Inicio", href: "/index"),
+        new BreadcrumbItem("Administración", href: null, disabled: true),
+        new BreadcrumbItem("Supervisión", href: null, disabled: true),
+        new BreadcrumbItem("Reglas de Viáticos", href: null, disabled: true)
+    };
+
+    private List<ReglaViaticoDto> todasReglas = new();
+    private List<Combos> operacionesList = new();
+    private List<ClienteAreaDto> catalogoClienteAreas = new();
+
+    private string? filtroCliente = null;
+    private string filtroDestino = "Todos";
+    private string filtroTexto = string.Empty;
+    private bool cargando = false;
+    private string usuarioActual = "Admin";
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await authenticationStateTask;
+            usuarioActual = authState.User.Identity?.Name ?? "Admin";
+        }
+        catch { }
+
+        await CargarOperaciones();
+        await CargarAreas();
+        await CargarDatos();
+    }
+
+    private async Task CargarOperaciones()
+    {
+        try
+        {
+            var resp = await _odooService.GetAllCombosHost("Operaciones");
+            if (resp?.Model != null)
+            {
+                operacionesList = resp.Model.OrderBy(o => o.nombre).ToList();
+            }
+        }
+        catch { }
+    }
+
+    private async Task CargarAreas()
+    {
+        try
+        {
+            var resp = await _odooService.GetAllClienteAreas();
+            if (resp?.Model != null)
+            {
+                catalogoClienteAreas = resp.Model.ToList();
+            }
+        }
+        catch { }
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            var resp = await _odooService.GetAllReglasViaticos();
+            if (resp?.Model != null)
+            {
+                todasReglas = resp.Model.ToList();
+            }
+            else
+            {
+                todasReglas = new List<ReglaViaticoDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar reglas: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private IEnumerable<ReglaViaticoDto> ReglasFiltradas
+    {
+        get
+        {
+            var query = todasReglas.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroCliente))
+            {
+                query = query.Where(r => string.Equals(r.ClienteNombre?.Trim(), filtroCliente.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (filtroDestino == "Nomina")
+            {
+                query = query.Where(r => r.PagaEnNomina);
+            }
+            else if (filtroDestino == "Directo")
+            {
+                query = query.Where(r => !r.PagaEnNomina);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            {
+                string txt = filtroTexto.Trim().ToLowerInvariant();
+                query = query.Where(r =>
+                    (r.NombreRegla != null && r.NombreRegla.ToLowerInvariant().Contains(txt)) ||
+                    (r.ClienteNombre != null && r.ClienteNombre.ToLowerInvariant().Contains(txt)) ||
+                    (r.Area != null && r.Area.ToLowerInvariant().Contains(txt)) ||
+                    (r.Observaciones != null && r.Observaciones.ToLowerInvariant().Contains(txt)));
+            }
+
+            return query.OrderBy(r => r.ClienteNombre).ThenBy(r => r.Area).ThenBy(r => r.NombreRegla);
+        }
+    }
+
+    private string FormatearModoHorario(string? modo)
+    {
+        return (modo ?? "EntradaYSalida") switch
+        {
+            "SoloEntrada" => "Solo Entrada",
+            "SoloSalida" => "Solo Salida",
+            "EntradaYSalida" => "Entrada Y Salida",
+            "EntradaOSalida" => "Entrada O Salida",
+            "Siempre" => "Cualquier Horario",
+            _ => modo ?? ""
+        };
+    }
+
+    private string FormatearRangoHorario(ReglaViaticoDto r)
+    {
+        if (r.ModoCriterioHorario == "Siempre")
+            return "Siempre aplica";
+
+        var partes = new List<string>();
+
+        if (r.ModoCriterioHorario != "SoloSalida")
+        {
+            if (!string.IsNullOrWhiteSpace(r.HoraEntradaDesde) && !string.IsNullOrWhiteSpace(r.HoraEntradaHasta))
+                partes.Add($"In: {r.HoraEntradaDesde} - {r.HoraEntradaHasta}");
+            else if (!string.IsNullOrWhiteSpace(r.HoraEntradaHasta))
+                partes.Add($"In ≤ {r.HoraEntradaHasta}");
+            else if (!string.IsNullOrWhiteSpace(r.HoraEntradaDesde))
+                partes.Add($"In ≥ {r.HoraEntradaDesde}");
+        }
+
+        if (r.ModoCriterioHorario != "SoloEntrada")
+        {
+            if (!string.IsNullOrWhiteSpace(r.HoraSalidaDesde) && !string.IsNullOrWhiteSpace(r.HoraSalidaHasta))
+                partes.Add($"Out: {r.HoraSalidaDesde} - {r.HoraSalidaHasta}");
+            else if (!string.IsNullOrWhiteSpace(r.HoraSalidaDesde))
+                partes.Add($"Out ≥ {r.HoraSalidaDesde}");
+            else if (!string.IsNullOrWhiteSpace(r.HoraSalidaHasta))
+                partes.Add($"Out ≤ {r.HoraSalidaHasta}");
+        }
+
+        return partes.Any() ? string.Join(" | ", partes) : "Sin límites de hora";
+    }
+
+    private async Task AbrirDialogoNuevaRegla()
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = null,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["CatalogoClienteAreas"] = catalogoClienteAreas,
+            ["UsuarioActual"] = usuarioActual
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarReglaViatico>("Nueva Regla de Viáticos", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is ReglaViaticoDto nuevo)
+        {
+            await GuardarReglaEnServidor(nuevo);
+        }
+    }
+
+    private async Task AbrirDialogoEditarRegla(ReglaViaticoDto regla)
+    {
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = regla,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["CatalogoClienteAreas"] = catalogoClienteAreas,
+            ["UsuarioActual"] = usuarioActual
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarReglaViatico>($"Editar Regla #{regla.Id}", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is ReglaViaticoDto editado)
+        {
+            await GuardarReglaEnServidor(editado);
+        }
+    }
+
+    private async Task DuplicarRegla(ReglaViaticoDto regla)
+    {
+        var copia = new ReglaViaticoDto
+        {
+            Id = 0,
+            OperacionId = regla.OperacionId,
+            ClienteNombre = regla.ClienteNombre,
+            Area = regla.Area,
+            NombreRegla = $"{regla.NombreRegla} (Copia)",
+            ModoCriterioHorario = regla.ModoCriterioHorario,
+            HoraEntradaDesde = regla.HoraEntradaDesde,
+            HoraEntradaHasta = regla.HoraEntradaHasta,
+            HoraSalidaDesde = regla.HoraSalidaDesde,
+            HoraSalidaHasta = regla.HoraSalidaHasta,
+            MontoTransporte = regla.MontoTransporte,
+            MontoAlimentacion = regla.MontoAlimentacion,
+            PagaEnNomina = regla.PagaEnNomina,
+            Activo = true,
+            Observaciones = regla.Observaciones
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["ItemOriginal"] = copia,
+            ["OperacionesDisponibles"] = operacionesList,
+            ["CatalogoClienteAreas"] = catalogoClienteAreas,
+            ["UsuarioActual"] = usuarioActual
+        };
+
+        var dialog = await _dialogService.ShowAsync<DialogEditarReglaViatico>("Duplicar Regla de Viáticos", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is ReglaViaticoDto nuevo)
+        {
+            await GuardarReglaEnServidor(nuevo);
+        }
+    }
+
+    private async Task GuardarReglaEnServidor(ReglaViaticoDto regla)
+    {
+        try
+        {
+            var resp = await _odooService.GuardarReglaViatico(regla);
+            if (resp != null && !resp.Respuesta.ExisteError)
+            {
+                _snackbar.Add("Regla guardada exitosamente.", Severity.Success);
+                await CargarDatos();
+            }
+            else
+            {
+                _snackbar.Add($"Error al guardar regla: {resp?.Respuesta?.MensajeError}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task CambiarEstadoRegla(ReglaViaticoDto regla, bool nuevoEstado)
+    {
+        regla.Activo = nuevoEstado;
+        await GuardarReglaEnServidor(regla);
+    }
+
+    private async Task EliminarRegla(ReglaViaticoDto regla)
+    {
+        bool? confirmar = await _dialogService.ShowMessageBox(
+            "Eliminar Regla de Viáticos",
+            $"¿Está seguro de eliminar la regla '{regla.NombreRegla}' para {regla.ClienteNombre}?",
+            yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+        if (confirmar == true)
+        {
+            try
+            {
+                var resp = await _odooService.EliminarReglaViatico(regla.Id);
+                if (resp != null && !resp.Respuesta.ExisteError)
+                {
+                    _snackbar.Add("Regla eliminada exitosamente.", Severity.Success);
+                    await CargarDatos();
+                }
+                else
+                {
+                    _snackbar.Add($"Error al eliminar: {resp?.Respuesta?.MensajeError}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

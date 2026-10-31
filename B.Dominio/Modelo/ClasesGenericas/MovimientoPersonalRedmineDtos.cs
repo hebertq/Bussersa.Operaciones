@@ -355,4 +355,26 @@ namespace Modelo.ClasesGenericas
         public string UsuarioCreacion { get; set; } = string.Empty;
         public List<PlantillaClienteTurnoDto> Turnos { get; set; } = new();
     }
+
+    public class ReglaViaticoDto
+    {
+        public int Id { get; set; }
+        public int? OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string Area { get; set; } = "*";
+        public string NombreRegla { get; set; } = string.Empty;
+        public string ModoCriterioHorario { get; set; } = "EntradaYSalida"; // SoloEntrada, SoloSalida, EntradaYSalida, EntradaOSalida, Siempre
+        public string? HoraEntradaDesde { get; set; }
+        public string? HoraEntradaHasta { get; set; }
+        public string? HoraSalidaDesde { get; set; }
+        public string? HoraSalidaHasta { get; set; }
+        public decimal MontoTransporte { get; set; }
+        public decimal MontoAlimentacion { get; set; }
+        public bool PagaEnNomina { get; set; }
+        public bool Activo { get; set; } = true;
+        public string? Observaciones { get; set; }
+        public DateTime? FechaCreacion { get; set; }
+        public DateTime? FechaActualizacion { get; set; }
+        public string? UsuarioCreacion { get; set; }
+    }
 }

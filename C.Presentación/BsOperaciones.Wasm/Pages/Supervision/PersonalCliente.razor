@@ -82,6 +82,11 @@
             </div>
 
             <MudStack Row="true" Spacing="2" Class="align-self-end align-self-md-center flex-wrap">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Payments"
+                           OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/reglas-viaticos"))"
+                           Class="rounded-pill px-3 text-capitalize shadow-sm">
+                    Reglas de Viáticos
+                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.SupervisorAccount"
                            OnClick="@(() => AbrirDialogAsignarConSupervisor())"
                            Class="rounded-pill px-3 text-capitalize shadow-sm">
