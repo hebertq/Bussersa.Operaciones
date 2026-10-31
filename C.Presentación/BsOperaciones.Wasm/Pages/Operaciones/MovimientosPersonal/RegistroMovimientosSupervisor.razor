@@ -3265,7 +3265,7 @@
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
-                                   OnClick="@(() => AbrirDialogoAgregarColaborador())"
+                                   OnClick="@(() => AbrirDialogoAgregarColaborador(esDesdePlantilla: true))"
                                    Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600;">
                             + Colaborador
                         </MudButton>
@@ -3361,7 +3361,7 @@
                             <MudButton Variant="Variant.Outlined" 
                                        Color="Color.Secondary" 
                                        StartIcon="@Icons.Material.Filled.PersonAdd" 
-                                       OnClick="@(() => AbrirDialogoAgregarColaborador())"
+                                       OnClick="@(() => AbrirDialogoAgregarColaborador(esDesdePlantilla: true))"
                                        Style="text-transform: none; font-weight: 600;">
                                 + Agregar Colaborador Manual
                             </MudButton>

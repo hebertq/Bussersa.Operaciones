@@ -12,9 +12,9 @@
                 <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" />
             </MudAvatar>
             <div>
-                <MudText Typo="Typo.h6" Class="fw-bold">Agregar Colaborador a la Jornada</MudText>
+                <MudText Typo="Typo.h6" Class="fw-bold">@(EsModoPlantilla ? "Agregar a Mi Personal" : "Agregar Colaborador a la Jornada")</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Buscar en el catálogo de personal de Odoo o ingresar manualmente
+                    @(EsModoPlantilla ? "Registrar nuevo miembro en tu plantilla habitual de colaboradores" : "Buscar en el catálogo de personal de Odoo o ingresar manualmente")
                 </MudText>
             </div>
         </MudStack>
@@ -48,6 +48,33 @@
                 <MudItem xs="8">
                     <MudTextField @bind-Value="NombreEmpleado" Label="Nombre Completo" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
+
+                @* Alerta de Colaborador Duplicado *@
+                @if (EsModoPlantilla && YaExisteEnPlantilla)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="py-2 px-3" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Warning">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    ¡Este colaborador ya existe en tu personal!
+                                </MudText>
+                                <MudText Typo="Typo.caption">
+                                    #@CodigoEmpleado @NombreEmpleado ya forma parte de tu plantilla registrada. No se permiten registros duplicados. Para cambiar sus datos, selecciónalo en la lista y presiona Editar.
+                                </MudText>
+                            </div>
+                        </MudAlert>
+                    </MudItem>
+                }
+                else if (!EsModoPlantilla && YaExisteEnJornada)
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
+                            <MudText Typo="Typo.caption">
+                                <b>Aviso:</b> El colaborador <b>#@CodigoEmpleado @NombreEmpleado</b> ya cuenta con un registro en la asistencia de hoy.
+                            </MudText>
+                        </MudAlert>
+                    </MudItem>
+                }
 
                 @* Cliente y Área *@
                 <MudItem xs="12" md="6">
@@ -223,8 +250,12 @@
         <MudButton OnClick="Cancelar" Variant="Variant.Outlined" Color="Color.Default">
             Cancelar
         </MudButton>
-        <MudButton OnClick="Agregar" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd">
-            Agregar a la Jornada
+        <MudButton OnClick="Agregar" 
+                   Variant="Variant.Filled" 
+                   Color="@(EsModoPlantilla && YaExisteEnPlantilla ? Color.Error : Color.Primary)" 
+                   Disabled="@(EsModoPlantilla && YaExisteEnPlantilla)"
+                   StartIcon="@Icons.Material.Filled.PersonAdd">
+            @(EsModoPlantilla ? "Guardar en Mi Personal" : "Agregar a la Jornada")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -243,7 +274,19 @@
     [Parameter] public string AreaDefecto { get; set; } = string.Empty;
     [Parameter] public string TextoBusquedaInicial { get; set; } = string.Empty;
     [Parameter] public List<SupervisorPlantillaItemDto> PlantillaExistente { get; set; } = new();
+    [Parameter] public List<EmpleadoJornadaItem> JornadaExistente { get; set; } = new();
     [Parameter] public string TipoEmpleadoInicial { get; set; } = "Permanente";
+    [Parameter] public bool EsModoPlantilla { get; set; } = false;
+
+    private bool YaExisteEnPlantilla => PlantillaExistente.Any(p => 
+        (CodigoEmpleado > 0 && p.CodigoEmpleado == CodigoEmpleado) || 
+        (IdEmpleado > 0 && p.IdEmpleado == IdEmpleado) ||
+        (!string.IsNullOrWhiteSpace(NombreEmpleado) && string.Equals(p.NombreEmpleado.Trim(), NombreEmpleado.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+    private bool YaExisteEnJornada => JornadaExistente.Any(j => 
+        (CodigoEmpleado > 0 && j.CodigoEmpleado == CodigoEmpleado) || 
+        (IdEmpleado > 0 && j.IdEmpleado == IdEmpleado) ||
+        (!string.IsNullOrWhiteSpace(NombreEmpleado) && string.Equals(j.NombreEmpleado.Trim(), NombreEmpleado.Trim(), StringComparison.OrdinalIgnoreCase)));
 
     private int IdEmpleado;
     private int CodigoEmpleado;
@@ -442,6 +485,12 @@
         if (CodigoEmpleado <= 0)
         {
             _snackbar.Add("Ingrese un código o carnet válido para el colaborador.", Severity.Warning);
+            return;
+        }
+
+        if (EsModoPlantilla && YaExisteEnPlantilla)
+        {
+            _snackbar.Add($"⚠️ El colaborador #{CodigoEmpleado} {NombreEmpleado} ya se encuentra registrado en tu personal.", Severity.Error);
             return;
         }
 

@@ -772,7 +772,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             string.Equals(x.UsuarioSupervisor, currentUserName, StringComparison.OrdinalIgnoreCase)
                         ).ToList();
                     }
-                    miPlantillaPersonal = items;
+                    // Garantizar unicidad absoluta: ningún colaborador repetido en Mi Personal
+                    miPlantillaPersonal = items
+                        .GroupBy(x => x.CodigoEmpleado > 0 
+                            ? $"cod_{x.CodigoEmpleado}" 
+                            : (x.IdEmpleado > 0 ? $"id_{x.IdEmpleado}" : x.NombreEmpleado.Trim().ToLowerInvariant()))
+                        .Select(g => g.First())
+                        .ToList();
                 }
             }
             catch (Exception ex)
@@ -906,10 +912,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                 }
 
-                var existentes = miPlantillaPersonal.Select(x => x.CodigoEmpleado).ToHashSet();
+                var existentesCodigos = miPlantillaPersonal.Select(x => x.CodigoEmpleado).Where(c => c > 0).ToHashSet();
+                var existentesIds = miPlantillaPersonal.Select(x => x.IdEmpleado).Where(i => i > 0).ToHashSet();
+                var existentesNombres = miPlantillaPersonal.Select(x => x.NombreEmpleado.Trim().ToLowerInvariant()).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet();
+
                 var nuevosPorAgregar = baseMaestra
-                    .Where(p => !existentes.Contains(p.CodigoEmpleado))
-                    .GroupBy(p => p.CodigoEmpleado)
+                    .Where(p => !existentesCodigos.Contains(p.CodigoEmpleado) 
+                             && !existentesIds.Contains(p.IdEmpleado)
+                             && !existentesNombres.Contains(p.NombreEmpleado.Trim().ToLowerInvariant()))
+                    .GroupBy(p => p.CodigoEmpleado > 0 ? $"cod_{p.CodigoEmpleado}" : (p.IdEmpleado > 0 ? $"id_{p.IdEmpleado}" : p.NombreEmpleado.Trim().ToLowerInvariant()))
                     .Select(g => g.First())
                     .ToList();
 
@@ -1053,7 +1064,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaGuardando = true;
             try
             {
-                var items = empleadosJornada.Select(e => new SupervisorPlantillaItemDto
+                var items = empleadosJornada
+                    .GroupBy(e => e.CodigoEmpleado > 0 ? $"cod_{e.CodigoEmpleado}" : (e.IdEmpleado > 0 ? $"id_{e.IdEmpleado}" : e.NombreEmpleado.Trim().ToLowerInvariant()))
+                    .Select(g => g.First())
+                    .Select(e => new SupervisorPlantillaItemDto
                 {
                     UsuarioSupervisor = currentUserName,
                     IdEmpleado = e.IdEmpleado,
@@ -1489,7 +1503,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // --- AGREGAR COLABORADOR MANUAL O DESDE ODOO ---
-        protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "")
+        protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "", bool esDesdePlantilla = false)
         {
             // Determinar la operación por defecto dando prioridad a la selección actual o a los clientes asignados del supervisor
             string defaultOp = "";
@@ -1533,10 +1547,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["OperacionDefecto"] = defaultOp,
                 ["AreaDefecto"] = defaultAreas.FirstOrDefault() ?? "Operaciones",
                 ["TextoBusquedaInicial"] = textoInicial,
-                ["PlantillaExistente"] = miPlantillaPersonal
+                ["PlantillaExistente"] = miPlantillaPersonal,
+                ["JornadaExistente"] = empleadosJornada,
+                ["EsModoPlantilla"] = esDesdePlantilla
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogAgregarColaboradorJornada>("Agregar Colaborador a la Jornada", parameters);
+            string tituloDialogo = esDesdePlantilla ? "Agregar a Mi Personal" : "Agregar Colaborador a la Jornada";
+            var dialog = await _dialogService.ShowAsync<DialogAgregarColaboradorJornada>(tituloDialogo, parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is EmpleadoJornadaItem nuevo)
@@ -1545,6 +1562,74 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (string.Equals(nuevo.Cliente, "Administración", StringComparison.OrdinalIgnoreCase) && NombresMisClientes.Any())
                 {
                     nuevo.Cliente = NombresMisClientes.FirstOrDefault() ?? nuevo.Cliente;
+                }
+
+                // SI SE ABRIÓ DESDE "MI PERSONAL" (TAB 4):
+                if (esDesdePlantilla)
+                {
+                    bool yaExisteEnPlantilla = miPlantillaPersonal.Any(p => 
+                        (nuevo.CodigoEmpleado > 0 && p.CodigoEmpleado == nuevo.CodigoEmpleado) ||
+                        (nuevo.IdEmpleado > 0 && p.IdEmpleado == nuevo.IdEmpleado) ||
+                        (!string.IsNullOrWhiteSpace(nuevo.NombreEmpleado) && string.Equals(p.NombreEmpleado.Trim(), nuevo.NombreEmpleado.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+                    if (yaExisteEnPlantilla)
+                    {
+                        _snackbar.Add($"⚠️ El colaborador #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} ya existe en tu personal.", Severity.Warning);
+                        return;
+                    }
+
+                    var itemP = new SupervisorPlantillaItemDto
+                    {
+                        UsuarioSupervisor = currentUserName,
+                        IdEmpleado = nuevo.IdEmpleado,
+                        CodigoEmpleado = nuevo.CodigoEmpleado,
+                        NombreEmpleado = nuevo.NombreEmpleado,
+                        ClienteDefault = nuevo.Cliente,
+                        AreaDefault = nuevo.Area,
+                        PuestoDefault = nuevo.Puesto,
+                        TurnoDefault = nuevo.TurnoNombre,
+                        HoraEntradaDefault = nuevo.HoraEntrada,
+                        HoraSalidaDefault = nuevo.HoraSalida,
+                        TiempoComidaDefault = nuevo.TiempoComida,
+                        VtcoTraspDefault = nuevo.VtcoTrasp,
+                        VtcoAlimDefault = nuevo.VtcoAlim,
+                        BonoBncDefault = nuevo.BonoBnc,
+                        TipoEmpleado = nuevo.TipoEmpleado,
+                        Activo = true
+                    };
+                    await _odooService.SaveSupervisorPlantillaItem(itemP);
+                    miPlantillaPersonal.Add(itemP);
+
+                    if (string.Equals(nuevo.TipoEmpleado, "Permanente", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int opId = operacionesList.FirstOrDefault(o => o.nombre.Equals(nuevo.Cliente, StringComparison.OrdinalIgnoreCase))?.id ?? (selectedOperacionId ?? 0);
+                        var itemBase = new PersonalClienteItemDto
+                        {
+                            OperacionId = opId,
+                            ClienteNombre = nuevo.Cliente,
+                            UsuarioSupervisor = currentUserName,
+                            IdEmpleado = nuevo.IdEmpleado,
+                            CodigoEmpleado = nuevo.CodigoEmpleado,
+                            NombreEmpleado = nuevo.NombreEmpleado,
+                            AreaDefault = nuevo.Area,
+                            PuestoDefault = nuevo.Puesto,
+                            TurnoDefault = nuevo.TurnoNombre,
+                            HoraEntradaDefault = nuevo.HoraEntrada,
+                            HoraSalidaDefault = nuevo.HoraSalida,
+                            TiempoComidaDefault = nuevo.TiempoComida,
+                            VtcoTraspDefault = nuevo.VtcoTrasp,
+                            VtcoAlimDefault = nuevo.VtcoAlim,
+                            BonoBncDefault = nuevo.BonoBnc,
+                            TipoEmpleado = "Permanente",
+                            Activo = true,
+                            UsuarioCreacion = currentUserName
+                        };
+                        await _odooService.SavePersonalClienteItem(itemBase);
+                    }
+
+                    _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} guardado exitosamente en Mi Personal.", Severity.Success);
+                    StateHasChanged();
+                    return;
                 }
 
                 var existente = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == nuevo.CodigoEmpleado);
@@ -1566,11 +1651,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 ActualizarGruposConsolidados();
 
-                // Guardar también en la plantilla del supervisor si aún no estaba o actualizar datos
-                var itemP = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == nuevo.CodigoEmpleado);
-                if (itemP == null)
+                // Guardar también en la plantilla del supervisor si aún no estaba o actualizar datos (garantizando unicidad)
+                var itemPlantilla = miPlantillaPersonal.FirstOrDefault(p => 
+                    (nuevo.CodigoEmpleado > 0 && p.CodigoEmpleado == nuevo.CodigoEmpleado) ||
+                    (nuevo.IdEmpleado > 0 && p.IdEmpleado == nuevo.IdEmpleado) ||
+                    (!string.IsNullOrWhiteSpace(nuevo.NombreEmpleado) && string.Equals(p.NombreEmpleado.Trim(), nuevo.NombreEmpleado.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+                if (itemPlantilla == null && !string.Equals(nuevo.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
                 {
-                    itemP = new SupervisorPlantillaItemDto
+                    itemPlantilla = new SupervisorPlantillaItemDto
                     {
                         UsuarioSupervisor = currentUserName,
                         IdEmpleado = nuevo.IdEmpleado,
@@ -1589,23 +1678,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TipoEmpleado = nuevo.TipoEmpleado,
                         Activo = true
                     };
-                    await _odooService.SaveSupervisorPlantillaItem(itemP);
-                    miPlantillaPersonal.Add(itemP);
+                    await _odooService.SaveSupervisorPlantillaItem(itemPlantilla);
+                    miPlantillaPersonal.Add(itemPlantilla);
                 }
-                else
+                else if (itemPlantilla != null)
                 {
-                    itemP.ClienteDefault = nuevo.Cliente;
-                    itemP.AreaDefault = nuevo.Area;
-                    itemP.PuestoDefault = nuevo.Puesto;
-                    itemP.TurnoDefault = nuevo.TurnoNombre;
-                    itemP.HoraEntradaDefault = nuevo.HoraEntrada;
-                    itemP.HoraSalidaDefault = nuevo.HoraSalida;
-                    itemP.TiempoComidaDefault = nuevo.TiempoComida;
-                    itemP.VtcoTraspDefault = nuevo.VtcoTrasp;
-                    itemP.VtcoAlimDefault = nuevo.VtcoAlim;
-                    itemP.BonoBncDefault = nuevo.BonoBnc;
-                    itemP.TipoEmpleado = nuevo.TipoEmpleado;
-                    await _odooService.SaveSupervisorPlantillaItem(itemP);
+                    itemPlantilla.ClienteDefault = nuevo.Cliente;
+                    itemPlantilla.AreaDefault = nuevo.Area;
+                    itemPlantilla.PuestoDefault = nuevo.Puesto;
+                    itemPlantilla.TurnoDefault = nuevo.TurnoNombre;
+                    itemPlantilla.HoraEntradaDefault = nuevo.HoraEntrada;
+                    itemPlantilla.HoraSalidaDefault = nuevo.HoraSalida;
+                    itemPlantilla.TiempoComidaDefault = nuevo.TiempoComida;
+                    itemPlantilla.VtcoTraspDefault = nuevo.VtcoTrasp;
+                    itemPlantilla.VtcoAlimDefault = nuevo.VtcoAlim;
+                    itemPlantilla.BonoBncDefault = nuevo.BonoBnc;
+                    itemPlantilla.TipoEmpleado = nuevo.TipoEmpleado;
+                    await _odooService.SaveSupervisorPlantillaItem(itemPlantilla);
                 }
 
                 // SI ES PERMANENTE -> GUARDAR TAMBIÉN EN LA TABLA BASE DE PERSONAL_CLIENTE
