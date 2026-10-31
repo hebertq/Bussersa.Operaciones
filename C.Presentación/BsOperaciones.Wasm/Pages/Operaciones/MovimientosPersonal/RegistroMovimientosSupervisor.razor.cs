@@ -1644,14 +1644,32 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (!empleadosJornada.Any()) return;
 
+            // Verificar si hay registros guardados localmente o en la base de datos para esta fecha
             bool tieneRegistrosGuardados = empleadosJornada.Any(x => x.Id > 0);
+            List<int> idsEnBd = new();
+
+            if (fechaSeleccionada.HasValue)
+            {
+                try
+                {
+                    var respBd = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, 0, currentUserName);
+                    if (respBd?.Model != null && respBd.Model.Any())
+                    {
+                        idsEnBd = respBd.Model.Select(m => m.Id).Where(id => id > 0).Distinct().ToList();
+                        if (idsEnBd.Any()) tieneRegistrosGuardados = true;
+                    }
+                }
+                catch { }
+            }
+
             if (tieneRegistrosGuardados)
             {
+                int totalRegistrosBd = Math.Max(idsEnBd.Count, empleadosJornada.Count(x => x.Id > 0));
                 bool? confirm = await _dialogService.ShowMessageBox(
-                    "Limpiar Grilla Diaria",
-                    $"La grilla actual contiene {empleadosJornada.Count} colaboradores, incluyendo {TotalGuardadosEnBd + TotalModificadosSinGuardar} ya guardados en la base de datos para la fecha {fechaSeleccionada:dd/MM/yyyy}.\n\n" +
-                    "• 'Limpiar Pantalla': Quita los registros de la vista temporal (los datos se conservan guardados en la BD y en 'Mi Personal').\n" +
-                    "• 'Borrar de BD': Elimina permanentemente estos registros de la base de datos.",
+                    "Limpiar Asistencia Diaria",
+                    $"La jornada del día {fechaSeleccionada:dd/MM/yyyy} tiene {totalRegistrosBd} asistencia(s) registrada(s) en la base de datos.\n\n" +
+                    "• 'Limpiar Pantalla': Quita los registros de la vista temporal en tu pantalla sin borrarlos de la BD ni de 'Mi Personal'.\n" +
+                    "• 'Borrar de BD': Elimina y anula permanentemente las asistencias guardadas en la base de datos para esta fecha.",
                     yesText: "Limpiar Pantalla (Conservar en BD)",
                     noText: "Borrar de BD Permanentemente",
                     cancelText: "Cancelar");
@@ -1663,17 +1681,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     if (confirm == false) // El usuario eligió expresamente borrar de BD
                     {
-                        var idsGuardados = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToList();
-                        if (idsGuardados.Any())
+                        var idsParaBorrar = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToHashSet();
+                        foreach (var id in idsEnBd) idsParaBorrar.Add(id);
+
+                        if (idsParaBorrar.Any())
                         {
-                            var tasks = idsGuardados.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
+                            var tasks = idsParaBorrar.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
                             await Task.WhenAll(tasks);
                         }
-                        _snackbar.Add("Registros eliminados de la base de datos.", Severity.Warning);
+                        _snackbar.Add($"Se anularon y borraron {idsParaBorrar.Count} asistencias de la base de datos para el día {fechaSeleccionada:dd/MM/yyyy}.", Severity.Warning);
                     }
                     else
                     {
-                        _snackbar.Add("Grilla limpiada de la pantalla. Los datos siguen guardados en la BD y en 'Mi Personal'.", Severity.Info);
+                        _snackbar.Add("Grilla limpiada de la pantalla. Las asistencias siguen guardadas en la base de datos y en 'Mi Personal'.", Severity.Info);
                     }
 
                     empleadosJornada.Clear();
@@ -1682,7 +1702,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 catch (Exception ex)
                 {
-                    _snackbar.Add($"Error al limpiar grilla: {ex.Message}", Severity.Error);
+                    _snackbar.Add($"Error al procesar limpieza: {ex.Message}", Severity.Error);
                 }
                 finally
                 {

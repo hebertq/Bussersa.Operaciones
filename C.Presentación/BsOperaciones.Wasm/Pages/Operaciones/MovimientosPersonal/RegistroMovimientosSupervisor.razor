@@ -3302,18 +3302,38 @@
 
                                                                                                                         @* Control de Vistas Estilo Odoo para Mi Personal *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
-                            <button type="button" 
-                                    class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Tarjetas ? "active" : "")" 
-                                    @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Tarjetas)" 
-                                    title="Vista Tarjetas (Kanban)">
-                                <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
-                            </button>
-                            <button type="button" 
-                                    class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "active" : "")" 
-                                    @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Operativo)" 
-                                    title="Vista Operativa (Tabla)">
-                                <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" />
-                            </button>
+                            <MudTooltip Text="Vista Horarios, Comida & Viáticos Base" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Operativo)" 
+                                        title="Vista Horarios, Comida & Viáticos Base">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
+                            <MudTooltip Text="Vista Ubicación & Puesto (Cliente, Área, Cargo)" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Ubicacion ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Ubicacion)" 
+                                        title="Vista Ubicación & Puesto">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
+                            <MudTooltip Text="Vista Tabla Completa (Todas las columnas)" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Completo ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Completo)" 
+                                        title="Vista Tabla Completa">
+                                    <MudIcon Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
+                            <MudTooltip Text="Vista Tarjetas (Kanban estilo Odoo)" Arrow="true" Placement="Placement.Top">
+                                <button type="button" 
+                                        class="odoo-view-btn @(modoVistaPlantilla == ModoVistaGrilla.Tarjetas ? "active" : "")" 
+                                        @onclick="@(() => modoVistaPlantilla = ModoVistaGrilla.Tarjetas)" 
+                                        title="Vista Tarjetas (Kanban)">
+                                    <MudIcon Icon="@Icons.Material.Filled.GridView" Size="Size.Small" />
+                                </button>
+                            </MudTooltip>
                         </div>
                     </div>
                 </div>
