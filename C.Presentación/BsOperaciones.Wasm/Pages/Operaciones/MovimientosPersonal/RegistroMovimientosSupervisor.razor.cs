@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using HostService.Interfaces;
@@ -3478,17 +3479,38 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 var movimientosRedmine = gruposConViaticosPendientes.Select(g => 
                 {
-                    string formaLiquidacion = "";
-                    if (g.TraspAplicaNomina && g.AlimAplicaNomina)
-                        formaLiquidacion = "[LiquidaciÃ³n: 100% NÃ³mina (Bono BNC)]";
-                    else if (!g.TraspAplicaNomina && !g.AlimAplicaNomina)
-                        formaLiquidacion = "[LiquidaciÃ³n: 100% Efectivo]";
-                    else if (g.TraspAplicaNomina)
-                        formaLiquidacion = $"[LiquidaciÃ³n: Transporte C$ {g.VtcoTrasp:N2} en NÃ³mina (Bono BNC), AlimentaciÃ³n C$ {g.VtcoAlim:N2} en Efectivo]";
-                    else if (g.AlimAplicaNomina)
-                        formaLiquidacion = $"[LiquidaciÃ³n: AlimentaciÃ³n C$ {g.VtcoAlim:N2} en NÃ³mina (Bono BNC), Transporte C$ {g.VtcoTrasp:N2} en Efectivo]";
+                                        var empConViaticos = g.Empleados.Where(e => e.VtcoTrasp > 0 || e.VtcoAlim > 0).ToList();
+                    decimal totalViatNominaGrupo = empConViaticos.Sum(e => e.TotalViaticosNomina);
+                    decimal totalViatEfectivoGrupo = empConViaticos.Sum(e => e.TotalViaticosEfectivo);
+                    decimal totalViatClienteGrupo = empConViaticos.Sum(e => e.TotalViaticos);
 
-                    string obsConLiquidacion = string.Join(" | ", new[] { g.Observaciones, formaLiquidacion }
+                    var sbDetalle = new StringBuilder();
+                    sbDetalle.AppendLine("FORMA DE LIQUIDACIÓN DE VIÁTICOS:");
+                    sbDetalle.AppendLine($"• Total Viáticos Cliente: C$ {totalViatClienteGrupo:N2}");
+                    sbDetalle.AppendLine($"• Pago en Nómina (Bono BNC): C$ {totalViatNominaGrupo:N2}");
+                    sbDetalle.AppendLine($"• Pago en Efectivo (Caja Chica): C$ {totalViatEfectivoGrupo:N2}");
+                    sbDetalle.AppendLine();
+                    sbDetalle.AppendLine("Detalle por colaborador:");
+
+                    foreach (var emp in empConViaticos)
+                    {
+                        var partes = new List<string>();
+                        if (emp.VtcoTrasp > 0)
+                        {
+                            string via = emp.TraspAplicaNomina ? "NÓMINA (Bono BNC)" : "EFECTIVO (Caja Chica)";
+                            partes.Add($"Transporte: C$ {emp.VtcoTrasp:N2} -> {via}");
+                        }
+                        if (emp.VtcoAlim > 0)
+                        {
+                            string via = emp.AlimAplicaNomina ? "NÓMINA (Bono BNC)" : "EFECTIVO (Caja Chica)";
+                            partes.Add($"Alimentación: C$ {emp.VtcoAlim:N2} -> {via}");
+                        }
+
+                        string resumenEmp = $"Total: C$ {emp.TotalViaticos:N2} (Nómina: C$ {emp.TotalViaticosNomina:N2} / Efectivo: C$ {emp.TotalViaticosEfectivo:N2})";
+                        sbDetalle.AppendLine($"• #{emp.CodigoEmpleado} {emp.NombreEmpleado}: {string.Join(" | ", partes)} [{resumenEmp}]");
+                    }
+
+                    string obsConLiquidacion = string.Join("\n\n", new[] { g.Observaciones, sbDetalle.ToString().Trim() }
                         .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                     return new MovimientoPersonalItemDto
@@ -3610,19 +3632,27 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 var dtos = conBonoPendiente.Select((b, idx) => 
                 {
-                    string detalleViaticosEnNomina = "";
-                    if (b.TraspAplicaNomina && b.AlimAplicaNomina && b.VtcoTrasp > 0 && b.VtcoAlim > 0)
-                        detalleViaticosEnNomina = $"ViÃ¡ticos en NÃ³mina: Trasp C$ {b.VtcoTrasp:N2} + Alim C$ {b.VtcoAlim:N2}";
-                    else if (b.TraspAplicaNomina && b.VtcoTrasp > 0)
-                        detalleViaticosEnNomina = $"ViÃ¡tico en NÃ³mina: Trasp C$ {b.VtcoTrasp:N2}";
-                    else if (b.AlimAplicaNomina && b.VtcoAlim > 0)
-                        detalleViaticosEnNomina = $"ViÃ¡tico en NÃ³mina: Alim C$ {b.VtcoAlim:N2}";
+                                        decimal viatTraspNomina = b.TraspAplicaNomina ? b.VtcoTrasp : 0;
+                    decimal viatAlimNomina = b.AlimAplicaNomina ? b.VtcoAlim : 0;
+                    decimal bonoExtra = b.BonoExtra;
+
+                    var lineasDetalle = new List<string>();
+                    if (viatTraspNomina > 0)
+                        lineasDetalle.Add($"• Viático Transporte en Nómina: C$ {viatTraspNomina:N2}");
+                    if (viatAlimNomina > 0)
+                        lineasDetalle.Add($"• Viático Alimentación en Nómina: C$ {viatAlimNomina:N2}");
+                    if (bonoExtra > 0)
+                        lineasDetalle.Add($"• Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
+                    if (!lineasDetalle.Any())
+                        lineasDetalle.Add($"• Bono de Cumplimiento / Desempeño: C$ {b.BonoBnc:N2}");
+
+                    string detalleDesglose = "DESGLOSE DE LO DEPOSITADO (TOTAL C$ " + b.BonoBnc.ToString("N2") + "):\n" + string.Join("\n", lineasDetalle);
 
                     string relacionTicketViatico = (b.TicketViaticoId.HasValue && b.TicketViaticoId.Value > 0)
-                        ? $"(Relacionado a Ticket ViÃ¡ticos #{b.TicketViaticoId.Value})"
+                        ? $"Ticket de Viáticos Relacionada: #{b.TicketViaticoId.Value}"
                         : "";
 
-                    string obsFinalBono = string.Join(" | ", new[] { b.Observaciones, detalleViaticosEnNomina, relacionTicketViatico }
+                    string obsFinalBono = string.Join("\n\n", new[] { detalleDesglose, relacionTicketViatico, !string.IsNullOrWhiteSpace(b.Observaciones) ? $"Observaciones:\n{b.Observaciones.Trim()}" : "" }
                         .Where(s => !string.IsNullOrWhiteSpace(s)));
 
                     return new BonoPersonalItemDto
@@ -3636,7 +3666,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Puesto = b.Puesto,
                         Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
                         MontoBono = b.BonoBnc,
-                        Observaciones = obsFinalBono
+                        Observaciones = obsFinalBono,
+                        ViaticoTraspNomina = viatTraspNomina,
+                        ViaticoAlimNomina = viatAlimNomina,
+                        BonoAdicional = bonoExtra,
+                        TicketViaticoRelacionadoId = b.TicketViaticoId
                     };
                 }).ToList();
 
@@ -3722,6 +3756,29 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoBonos = true;
             try
             {
+                decimal viatTraspNomina = emp.TraspAplicaNomina ? emp.VtcoTrasp : 0;
+                decimal viatAlimNomina = emp.AlimAplicaNomina ? emp.VtcoAlim : 0;
+                decimal bonoExtra = emp.BonoExtra;
+
+                var lineasDetalle = new List<string>();
+                if (viatTraspNomina > 0)
+                    lineasDetalle.Add($"• Viático Transporte en Nómina: C$ {viatTraspNomina:N2}");
+                if (viatAlimNomina > 0)
+                    lineasDetalle.Add($"• Viático Alimentación en Nómina: C$ {viatAlimNomina:N2}");
+                if (bonoExtra > 0)
+                    lineasDetalle.Add($"• Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
+                if (!lineasDetalle.Any())
+                    lineasDetalle.Add($"• Bono de Cumplimiento / Desempeño: C$ {emp.BonoBnc:N2}");
+
+                string detalleDesglose = "DESGLOSE DE LO DEPOSITADO (TOTAL C$ " + emp.BonoBnc.ToString("N2") + "):\n" + string.Join("\n", lineasDetalle);
+
+                string relacionTicketViatico = (emp.TicketViaticoId.HasValue && emp.TicketViaticoId.Value > 0)
+                    ? $"Ticket de Viáticos Relacionada: #{emp.TicketViaticoId.Value}"
+                    : "";
+
+                string obsFinalBono = string.Join("\n\n", new[] { detalleDesglose, relacionTicketViatico, !string.IsNullOrWhiteSpace(emp.Observaciones) ? $"Observaciones:\n{emp.Observaciones.Trim()}" : "" }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+
                 var dto = new BonoPersonalItemDto
                 {
                     FilaIndex = 1,
@@ -3733,7 +3790,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     Puesto = emp.Puesto,
                     Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
                     MontoBono = emp.BonoBnc,
-                    Observaciones = emp.Observaciones
+                    Observaciones = obsFinalBono,
+                    ViaticoTraspNomina = viatTraspNomina,
+                    ViaticoAlimNomina = viatAlimNomina,
+                    BonoAdicional = bonoExtra,
+                    TicketViaticoRelacionadoId = emp.TicketViaticoId
                 };
 
                 var request = new CrearBonosPersonalRequestDto

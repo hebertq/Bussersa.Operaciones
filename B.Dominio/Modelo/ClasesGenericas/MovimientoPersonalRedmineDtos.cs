@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace Modelo.ClasesGenericas
@@ -179,6 +179,10 @@ namespace Modelo.ClasesGenericas
         public string Fecha { get; set; } = string.Empty; // yyyy-MM-dd
         public decimal MontoBono { get; set; }
         public string Observaciones { get; set; } = string.Empty;
+        public decimal ViaticoTraspNomina { get; set; }
+        public decimal ViaticoAlimNomina { get; set; }
+        public decimal BonoAdicional { get; set; }
+        public int? TicketViaticoRelacionadoId { get; set; }
     }
 
     public class ResultadoCreacionBonosDto
