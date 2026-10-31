@@ -2278,16 +2278,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
-        protected void AplicarPresetHorario(EmpleadoJornadaItem item, string entrada, string salida)
-        {
-            item.HoraEntrada = entrada;
-            item.HoraSalida = salida;
-            item.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(entrada, salida);
-            AplicarReglasViaticosEnMemoria(item);
-            item.Modificado = true;
-            ValidarConflictosHorarios(out _);
-            ActualizarGruposConsolidados();
-        }
+
 
         protected string NormalizarDecimalComida(string? valor)
         {
@@ -2308,36 +2299,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
-        protected void AlternarTurnoRapido(EmpleadoJornadaItem item)
-        {
-            if (item.TurnoNombre == "Diurno")
-            {
-                item.TurnoNombre = "DCC";
-                item.HoraEntrada = "06:00";
-                item.HoraSalida = "15:30";
-            }
-            else if (item.TurnoNombre == "DCC")
-            {
-                item.TurnoNombre = "Mixto";
-                item.HoraEntrada = "14:00";
-                item.HoraSalida = "22:00";
-            }
-            else if (item.TurnoNombre == "Mixto")
-            {
-                item.TurnoNombre = "Nocturno";
-                item.HoraEntrada = "22:00";
-                item.HoraSalida = "06:00";
-            }
-            else
-            {
-                item.TurnoNombre = "Diurno";
-                item.HoraEntrada = "06:00";
-                item.HoraSalida = "14:00";
-            }
-            AplicarReglasViaticosEnMemoria(item);
-            item.Modificado = true;
-            ActualizarGruposConsolidados();
-        }
+
 
         protected void AlternarViaticoRapido(EmpleadoJornadaItem item, string tipo)
         {
