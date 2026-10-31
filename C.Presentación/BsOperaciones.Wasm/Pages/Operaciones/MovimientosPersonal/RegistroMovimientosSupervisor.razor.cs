@@ -839,7 +839,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     .Select(g => g.First())
                     .ToList();
 
+                var temporalesYPrestamos = miPlantillaPersonal
+                    .Where(x => string.Equals(x.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(x.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
                 miPlantillaPersonal.Clear();
+                miPlantillaPersonal.AddRange(temporalesYPrestamos);
                 int guardados = 0;
 
                 foreach (var b in unicos)
