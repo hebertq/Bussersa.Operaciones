@@ -960,6 +960,7 @@
                                                    ActualizarGruposConsolidados(); 
                                                })">
                                         <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
@@ -1103,6 +1104,7 @@
                                                    ActualizarGruposConsolidados(); 
                                                })">
                                         <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
@@ -3375,7 +3377,7 @@
                         @foreach (var item in PlantillaFiltrada)
                         {
                             <MudItem xs="12" sm="6" md="4" lg="3">
-                                <MudCard Elevation="2" Style="@($"border-radius: 12px; border-left: 5px solid {(item.TipoEmpleado == "Prestamo" ? "#f59e0b" : "#2563eb")};")">
+                                <MudCard Elevation="2" Style="@($"border-radius: 12px; border-left: 5px solid {(item.TipoEmpleado == "Prestamo" ? "#f59e0b" : (item.TipoEmpleado == "Temporal" ? "#06b6d4" : "#2563eb"))};")">
                                     <MudCardHeader Class="pa-2 pb-1">
                                         <CardHeaderContent>
                                             <div class="d-flex align-center gap-1">
@@ -3475,10 +3477,10 @@
                                         <div class="d-flex align-center justify-space-between mt-1 pt-1 border-top">
                                             <span class="text-secondary" style="font-size: 0.72rem;">Tipo:</span>
                                             <MudChip T="string" Size="Size.Small" 
-                                                     Color="@(item.TipoEmpleado == "Prestamo" ? Color.Warning : Color.Success)" 
-                                                     Variant="@(item.TipoEmpleado == "Prestamo" ? Variant.Filled : Variant.Outlined)" 
+                                                     Color="@(item.TipoEmpleado == "Prestamo" ? Color.Warning : (item.TipoEmpleado == "Temporal" ? Color.Info : Color.Success))" 
+                                                     Variant="@(item.TipoEmpleado != "Permanente" ? Variant.Filled : Variant.Outlined)" 
                                                      Style="height: 20px; font-size: 0.7rem; font-weight: 600;">
-                                                @(item.TipoEmpleado == "Prestamo" ? (!string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? $"Préstamo ({item.ClienteOrigenNomina})" : "Préstamo") : "Permanente")
+                                                @(item.TipoEmpleado != "Permanente" ? (!string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? $"{item.TipoEmpleado} ({item.ClienteOrigenNomina})" : item.TipoEmpleado) : "Permanente")
                                             </MudChip>
                                         </div>
                                     </MudCardContent>
@@ -3615,6 +3617,7 @@
                                                    await GuardarItemPlantilla(context); 
                                                })">
                                         <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                     @if (context.TipoEmpleado == "Prestamo" && !string.IsNullOrWhiteSpace(context.ClienteOrigenNomina))
@@ -3722,6 +3725,7 @@
                                                    await GuardarItemPlantilla(context); 
                                                })">
                                         <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                     @if (context.TipoEmpleado == "Prestamo" && !string.IsNullOrWhiteSpace(context.ClienteOrigenNomina))
@@ -3884,6 +3888,7 @@
                                                    await GuardarItemPlantilla(context); 
                                                })">
                                         <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
+                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                     @if (context.TipoEmpleado == "Prestamo" && !string.IsNullOrWhiteSpace(context.ClienteOrigenNomina))

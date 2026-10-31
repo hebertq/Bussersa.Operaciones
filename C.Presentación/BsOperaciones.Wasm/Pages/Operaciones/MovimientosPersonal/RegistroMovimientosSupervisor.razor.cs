@@ -275,7 +275,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.CodigoEmpleado.ToString().Contains(textoBusquedaPlantilla) ||
                     x.ClienteDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
                     x.AreaDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
-                    x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase));
+                    x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(x.TipoEmpleado) && x.TipoEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(x.ClienteOrigenNomina) && x.ClienteOrigenNomina.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)));
 
         // Catálogo de Áreas por Cliente (Tab 5)
         protected List<ClienteAreaDto> catalogoClienteAreas = new();
@@ -767,13 +769,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             }
                         }
 
-                        // Filtrar asegurando no perder colaboradores propios del supervisor
-                        items = items.Where(x => 
-                            NombresMisClientes.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase) ||
-                            string.Equals(x.UsuarioSupervisor, currentUserName, StringComparison.OrdinalIgnoreCase)
-                        ).ToList();
                     }
-                    // Garantizar unicidad absoluta: ningún colaborador repetido en Mi Personal
+                    // Garantizar unicidad absoluta: el backend ya filtró por supervisor y clientes asignados
                     miPlantillaPersonal = items
                         .GroupBy(x => x.CodigoEmpleado > 0 
                             ? $"cod_{x.CodigoEmpleado}" 
@@ -1015,10 +1012,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
 
                     string obsPlantilla = string.Empty;
-                    if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(item.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
                     {
                         string orig = !string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? item.ClienteOrigenNomina : item.ClienteDefault;
-                        obsPlantilla = $"Préstamo (Nómina: {orig})";
+                        obsPlantilla = $"{item.TipoEmpleado} (Nómina: {orig})";
                     }
 
                     empleadosJornada.Add(new EmpleadoJornadaItem

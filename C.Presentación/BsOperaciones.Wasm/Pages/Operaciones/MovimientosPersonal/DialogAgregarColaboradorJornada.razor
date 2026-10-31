@@ -144,34 +144,27 @@
                     </MudSelect>
                 </MudItem>
 
-                @if (TipoEmpleado == "Temporal")
+                @if (TipoEmpleado == "Temporal" || TipoEmpleado == "Prestamo")
                 {
                     <MudItem xs="12">
-                        <MudAlert Severity="Severity.Info" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
+                        <MudAlert Severity="@(TipoEmpleado == "Prestamo" ? Severity.Warning : Severity.Info)" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
                             <MudText Typo="Typo.caption">
-                                <b>Colaborador Temporal:</b> Se guardará únicamente en tu plantilla de personal (no en la tabla base de clientes).
-                            </MudText>
-                        </MudAlert>
-                    </MudItem>
-                }
-                @if (TipoEmpleado == "Prestamo")
-                {
-                    <MudItem xs="12">
-                        <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
-                            <MudText Typo="Typo.caption">
-                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Trabajará en <b>@(string.IsNullOrWhiteSpace(Cliente) ? "este cliente" : Cliente)</b>, pero sus horas nómina se acreditarán a su cliente de origen.
+                                <b>Colaborador @(TipoEmpleado == "Prestamo" ? "en condición de Préstamo / Apoyo" : "Temporal"):</b> 
+                                Se mantendrá en tu personal habitual pero no se grabará en la administración base del cliente.
                             </MudText>
                         </MudAlert>
                     </MudItem>
                     <MudItem xs="12">
                         <MudSelect T="string" 
-                                   Label="Cliente de Nómina / Procedencia (¿De qué cliente proviene?)" 
+                                   Label="Cliente de Nómina / Procedencia" 
                                    @bind-Value="ClienteOrigenNomina" 
                                    Variant="Variant.Outlined" 
                                    Margin="Margin.Dense" 
                                    Dense="true"
                                    Adornment="Adornment.Start"
-                                   AdornmentIcon="@Icons.Material.Filled.AccountBalanceWallet">
+                                   AdornmentIcon="@Icons.Material.Filled.AccountBalanceWallet"
+                                   HelperText="Cliente al que pertenece legalmente la nómina del trabajador">
+                            <MudSelectItem Value="@("")">-- Seleccionar Cliente Origen (Opcional) --</MudSelectItem>
                             @foreach (var op in OperacionesDisponibles)
                             {
                                 <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
@@ -495,10 +488,17 @@
         }
 
         string obs = string.Empty;
-        if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
         {
-            string orig = !string.IsNullOrWhiteSpace(ClienteOrigenNomina) ? ClienteOrigenNomina : "Cliente de origen";
-            obs = $"Préstamo (Nómina: {orig})";
+            string orig = !string.IsNullOrWhiteSpace(ClienteOrigenNomina) ? ClienteOrigenNomina : "";
+            if (!string.IsNullOrWhiteSpace(orig))
+            {
+                obs = $"{TipoEmpleado} (Nómina: {orig})";
+            }
+            else if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+            {
+                obs = "Préstamo";
+            }
         }
 
         var item = new EmpleadoJornadaItem

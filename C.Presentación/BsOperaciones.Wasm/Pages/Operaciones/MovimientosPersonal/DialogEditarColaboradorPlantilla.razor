@@ -55,7 +55,7 @@
                     </MudSelect>
                 </MudItem>
 
-                @if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                @if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
                 {
                     <MudItem xs="12">
                         <MudAlert Severity="Severity.Info" Dense="true" Class="mb-1">
