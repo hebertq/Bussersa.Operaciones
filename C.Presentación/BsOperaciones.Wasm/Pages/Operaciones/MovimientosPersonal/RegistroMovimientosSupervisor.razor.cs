@@ -1512,10 +1512,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             var defaultAreas = GetAreasParaCliente(defaultOp);
 
-            // Filtrar operaciones disponibles: si el supervisor tiene clientes asignados, mostrar preferentemente los suyos
-            var opsDisponibles = (NombresMisClientes.Any())
-                ? operacionesList.Where(o => NombresMisClientes.Contains(o.nombre, StringComparer.OrdinalIgnoreCase)).ToList()
-                : operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).ToList();
+            // Operaciones disponibles: excluir Administración y ordenar poniendo al inicio los clientes asignados del supervisor
+            var opsDisponibles = operacionesList
+                .Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(o => NombresMisClientes.Contains(o.nombre, StringComparer.OrdinalIgnoreCase))
+                .ThenBy(o => o.nombre)
+                .ToList();
 
             if (!opsDisponibles.Any())
             {
@@ -2533,6 +2535,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         var enPlantilla = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == emp.CodigoEmpleado);
                         string clienteNomina = !string.IsNullOrWhiteSpace(enPlantilla?.ClienteDefault) ? enPlantilla.ClienteDefault : string.Empty;
+
+                        if (!string.IsNullOrWhiteSpace(emp.Observaciones) && emp.Observaciones.Contains("Nómina:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int idxNom = emp.Observaciones.IndexOf("Nómina:", StringComparison.OrdinalIgnoreCase);
+                            string resto = emp.Observaciones.Substring(idxNom + 7).Trim().TrimEnd(')').Trim();
+                            if (!string.IsNullOrWhiteSpace(resto))
+                            {
+                                clienteNomina = resto;
+                            }
+                        }
 
                         bool esPrestamo = string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase)
                             || (!string.IsNullOrWhiteSpace(clienteNomina) && !string.Equals(clienteNomina, g.Key.Cliente, StringComparison.OrdinalIgnoreCase));

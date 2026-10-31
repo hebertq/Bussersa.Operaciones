@@ -132,9 +132,24 @@
                     <MudItem xs="12">
                         <MudAlert Severity="Severity.Warning" Dense="true" Class="py-1 px-2" Variant="Variant.Outlined">
                             <MudText Typo="Typo.caption">
-                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Se registrará como apoyo temporal en tu personal y esta jornada.
+                                <b>Colaborador en condición de Préstamo / Apoyo:</b> Trabajará en <b>@(string.IsNullOrWhiteSpace(Cliente) ? "este cliente" : Cliente)</b>, pero sus horas nómina se acreditarán a su cliente de origen.
                             </MudText>
                         </MudAlert>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSelect T="string" 
+                                   Label="Cliente de Nómina / Procedencia (¿De qué cliente proviene?)" 
+                                   @bind-Value="ClienteOrigenNomina" 
+                                   Variant="Variant.Outlined" 
+                                   Margin="Margin.Dense" 
+                                   Dense="true"
+                                   Adornment="Adornment.Start"
+                                   AdornmentIcon="@Icons.Material.Filled.AccountBalanceWallet">
+                            @foreach (var op in OperacionesDisponibles)
+                            {
+                                <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                            }
+                        </MudSelect>
                     </MudItem>
                 }
 
@@ -244,6 +259,7 @@
     private decimal VtcoTrasp = 0;
     private decimal VtcoAlim = 0;
     private decimal BonoBnc = 0;
+    private string ClienteOrigenNomina = string.Empty;
 
     private List<string> areasActuales = new();
     private List<OdooEmployeeDto> catalogoOdooCompleto = new();
@@ -359,6 +375,14 @@
                 Puesto = cargoMatch ?? emp.JobTitle;
             }
 
+            if (!string.IsNullOrWhiteSpace(emp.DepartmentName))
+            {
+                var matchDept = OperacionesDisponibles.FirstOrDefault(o => 
+                    o.nombre.Contains(emp.DepartmentName, StringComparison.OrdinalIgnoreCase) || 
+                    emp.DepartmentName.Contains(o.nombre, StringComparison.OrdinalIgnoreCase));
+                ClienteOrigenNomina = matchDept?.nombre ?? emp.DepartmentName;
+            }
+
             // Si ya existe en la plantilla del supervisor, precargar su configuración previa
             var enPlantilla = PlantillaExistente.FirstOrDefault(p => 
                 (emp.CodigoEmpleado.HasValue && p.CodigoEmpleado == emp.CodigoEmpleado.Value) 
@@ -421,6 +445,13 @@
             return;
         }
 
+        string obs = string.Empty;
+        if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+        {
+            string orig = !string.IsNullOrWhiteSpace(ClienteOrigenNomina) ? ClienteOrigenNomina : "Cliente de origen";
+            obs = $"Préstamo (Nómina: {orig})";
+        }
+
         var item = new EmpleadoJornadaItem
         {
             Id = 0,
@@ -438,6 +469,7 @@
             VtcoAlim = VtcoAlim,
             BonoBnc = BonoBnc,
             TipoEmpleado = !string.IsNullOrWhiteSpace(TipoEmpleado) ? TipoEmpleado : "Permanente",
+            Observaciones = obs,
             Asistio = true,
             Estado = "BORRADOR",
             Modificado = true
