@@ -57,13 +57,36 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
             public decimal TotalHoras => HorasOrd + HorasExt;
         }
 
-        public ResultadoConciliacionDto ConciliarMovimientos(Stream fileStream, List<DiasTrabajadosAreas> movimientosBussersa, DateTime? fchaInicio, DateTime? fchaFin)
+        public ResultadoConciliacionDto ConciliarMovimientos(Stream fileStream, List<DiasTrabajadosAreas> movimientosBussersa, DateTime? fchaInicio, DateTime? fchaFin, bool excluirSupervisores = true, HashSet<int>? supervisoresIds = null)
         {
-            var bussersaInternos = (movimientosBussersa ?? new List<DiasTrabajadosAreas>()).Select(b =>
+            var supervisoresExcluidos = new List<RegistroSupervisorExcluidoDto>();
+            var bussersaInternos = new List<TurnoBussersaInterno>();
+            int noSup = 1;
+
+            foreach (var b in (movimientosBussersa ?? new List<DiasTrabajadosAreas>()))
             {
                 string area = !string.IsNullOrWhiteSpace(b.areamov) ? b.areamov : (!string.IsNullOrWhiteSpace(b.area) ? b.area : "General");
                 string puesto = !string.IsNullOrWhiteSpace(b.cargo) ? b.cargo : (!string.IsNullOrWhiteSpace(b.tipoempleado) ? b.tipoempleado : "OPERARIO");
-                return new TurnoBussersaInterno
+
+                // Regla de Exclusión de Supervisores (Bussersa asume sus horas)
+                if (excluirSupervisores && EsSupervisor(b, supervisoresIds))
+                {
+                    supervisoresExcluidos.Add(new RegistroSupervisorExcluidoDto
+                    {
+                        No = noSup++,
+                        IdEmpleado = b.id,
+                        NombreEmpleado = b.nombre ?? string.Empty,
+                        Fecha = b.fecha.Date,
+                        Area = area,
+                        Cargo = puesto,
+                        HorasOrd = b.horas,
+                        HorasExt = b.horasextras,
+                        MotivoExclusion = "Horas de supervisión asumidas por Bussersa (No facturable a cliente)"
+                    });
+                    continue; // No incluir al supervisor en la conciliación con el cliente
+                }
+
+                bussersaInternos.Add(new TurnoBussersaInterno
                 {
                     IdEmpleado = b.id,
                     NombreEmpleado = b.nombre ?? string.Empty,
@@ -76,19 +99,48 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                     HorasOrd = b.horas,
                     HorasExt = b.horasextras,
                     Turno = $"{b.entrada} - {b.salida}"
-                };
-            }).ToList();
+                });
+            }
 
-            return ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
+            var resultado = ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
+            resultado.ReglaExcluirSupervisoresAplicada = excluirSupervisores;
+            resultado.SupervisoresExcluidos = supervisoresExcluidos;
+            resultado.TotalTurnosSupervisoresExcluidos = supervisoresExcluidos.Count;
+            resultado.TotalHorasOrdSupervisoresExcluidas = Math.Round(supervisoresExcluidos.Sum(x => x.HorasOrd), 2);
+            resultado.TotalHorasExtSupervisoresExcluidas = Math.Round(supervisoresExcluidos.Sum(x => x.HorasExt), 2);
+
+            return resultado;
         }
 
-        public ResultadoConciliacionDto Conciliar(Stream fileStream, List<ReporteCierreMarcadasDetalle> marcadasBussersa, DateTime? fchaInicio, DateTime? fchaFin)
+        public ResultadoConciliacionDto Conciliar(Stream fileStream, List<ReporteCierreMarcadasDetalle> marcadasBussersa, DateTime? fchaInicio, DateTime? fchaFin, bool excluirSupervisores = true, HashSet<int>? supervisoresIds = null)
         {
-            var bussersaInternos = (marcadasBussersa ?? new List<ReporteCierreMarcadasDetalle>()).Select(b =>
+            var supervisoresExcluidos = new List<RegistroSupervisorExcluidoDto>();
+            var bussersaInternos = new List<TurnoBussersaInterno>();
+            int noSup = 1;
+
+            foreach (var b in (marcadasBussersa ?? new List<ReporteCierreMarcadasDetalle>()))
             {
                 string area = !string.IsNullOrWhiteSpace(b.area_nombre) ? b.area_nombre : "General";
                 string puesto = !string.IsNullOrWhiteSpace(b.cargo) ? b.cargo : "OPERARIO";
-                return new TurnoBussersaInterno
+
+                if (excluirSupervisores && EsSupervisor(b, supervisoresIds))
+                {
+                    supervisoresExcluidos.Add(new RegistroSupervisorExcluidoDto
+                    {
+                        No = noSup++,
+                        IdEmpleado = b.id_empleado,
+                        NombreEmpleado = b.nombre_empleado ?? string.Empty,
+                        Fecha = b.fecha_asistencia.Date,
+                        Area = area,
+                        Cargo = puesto,
+                        HorasOrd = b.HorasNormalesCobrables,
+                        HorasExt = b.HorasExtrasCobrables,
+                        MotivoExclusion = "Horas de supervisión asumidas por Bussersa (No facturable a cliente)"
+                    });
+                    continue;
+                }
+
+                bussersaInternos.Add(new TurnoBussersaInterno
                 {
                     IdEmpleado = b.id_empleado,
                     NombreEmpleado = b.nombre_empleado ?? string.Empty,
@@ -101,10 +153,17 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                     HorasOrd = b.HorasNormalesCobrables,
                     HorasExt = b.HorasExtrasCobrables,
                     Turno = b.Turno ?? string.Empty
-                };
-            }).ToList();
+                });
+            }
 
-            return ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
+            var resultado = ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
+            resultado.ReglaExcluirSupervisoresAplicada = excluirSupervisores;
+            resultado.SupervisoresExcluidos = supervisoresExcluidos;
+            resultado.TotalTurnosSupervisoresExcluidos = supervisoresExcluidos.Count;
+            resultado.TotalHorasOrdSupervisoresExcluidas = Math.Round(supervisoresExcluidos.Sum(x => x.HorasOrd), 2);
+            resultado.TotalHorasExtSupervisoresExcluidas = Math.Round(supervisoresExcluidos.Sum(x => x.HorasExt), 2);
+
+            return resultado;
         }
 
         private ResultadoConciliacionDto ProcesarConciliacion(Stream fileStream, List<TurnoBussersaInterno> bussersaList, DateTime? fchaInicio, DateTime? fchaFin)
@@ -425,6 +484,64 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
             }
 
             return resultado;
+        }
+
+        public static bool EsSupervisor(DiasTrabajadosAreas b, HashSet<int>? ids = null)
+        {
+            if (b == null) return false;
+            if (ids != null && ids.Contains(b.id)) return true;
+
+            string cargo = b.cargo ?? "";
+            string tipo = b.tipoempleado ?? "";
+            string nombre = b.nombre ?? "";
+            string area = !string.IsNullOrWhiteSpace(b.areamov) ? b.areamov : (b.area ?? "");
+
+            if (cargo.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (tipo.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                tipo.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (nombre.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                nombre.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (area.IndexOf("SUPERVISION", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                area.IndexOf("SUPERVISIÓN", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            return false;
+        }
+
+        public static bool EsSupervisor(ReporteCierreMarcadasDetalle b, HashSet<int>? ids = null)
+        {
+            if (b == null) return false;
+            if (ids != null && ids.Contains(b.id_empleado)) return true;
+
+            string cargo = b.cargo ?? "";
+            string tipo = b.tipo_empleado ?? "";
+            string nombre = b.nombre_empleado ?? "";
+            string area = b.area_nombre ?? "";
+
+            if (cargo.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (tipo.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                tipo.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (nombre.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                nombre.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (area.IndexOf("SUPERVISION", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                area.IndexOf("SUPERVISIÓN", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            return false;
         }
 
         public static string NormalizarClave(string? input)

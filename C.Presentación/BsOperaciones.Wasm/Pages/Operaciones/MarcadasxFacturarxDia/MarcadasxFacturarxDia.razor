@@ -36,6 +36,27 @@
             </MudButton>
         </MudItem>
     </MudGrid>
+
+    @* Barra de Regla de Exclusión de Supervisores *@
+    <div class="d-flex align-center justify-between flex-wrap gap-2 mt-3 pt-2" style="border-top: 1px solid #e2e8f0;">
+        <div class="d-flex align-center gap-3 flex-wrap">
+            <MudCheckBox T="bool" Value="excluirSupervisores" ValueChanged="OnToggleExcluirSupervisores" Color="Color.Error" Dense="true">
+                <span class="fw-bold text-dark" style="font-size: 13px;">🛡️ Excluir Supervisores (Horas Asumidas por Bussersa)</span>
+            </MudCheckBox>
+
+            @if (excluirSupervisores && CantidadSupervisoresExcluidos > 0)
+            {
+                <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" Class="fw-semibold">
+                    🛡️ @CantidadSupervisoresExcluidos marcación(es) excluida(s) (@TotalHorasSupervisoresExcluidas.ToString("N2")h asumidas)
+                </MudChip>
+            }
+        </div>
+
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                   OnClick="AbrirModalSupervisores" Class="rounded-pill">
+            Supervisores (@supervisoresIds.Count configurados)
+        </MudButton>
+    </div>
 </MudPaper>
 
 @* --- BANNER O PANEL DE CONCILIACIÓN CON CLIENTE --- *@
@@ -81,6 +102,12 @@
                     {
                         <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold" Icon="@Icons.Material.Filled.Warning">
                             @resultadoConciliacion.AreasConDiferencia Área(s) con Diferencia
+                        </MudChip>
+                    }
+                    @if (resultadoConciliacion.TotalTurnosSupervisoresExcluidos > 0)
+                    {
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Shield">
+                            🛡️ @resultadoConciliacion.TotalTurnosSupervisoresExcluidos sup. excluidos (@resultadoConciliacion.TotalHorasSupervisoresExcluidas.ToString("N2")h)
                         </MudChip>
                     }
                 </div>
@@ -143,7 +170,7 @@
 @* --- CUERPO PRINCIPAL --- *@
 @if (!TieneConciliacion)
 {
-    <TablaMarcadasxFacturar PayLoadList="@PayLoadList"
+    <TablaMarcadasxFacturar PayLoadList="@PayLoadListFiltrada"
                             OperacionName="@nombreOperacion"
                             OperacionId="@operacion"
                             OnValidationChanged="HandleValidationChange" 
@@ -444,16 +471,129 @@ else
                         <PagerContent><MudDataGridPager T="DiferenciaDiaComunDto" /></PagerContent>
                     </MudDataGrid>
                 </MudTabPanel>
+
+                @* SUB-TAB 3: SUPERVISORES EXCLUIDOS (HORAS ASUMIDAS POR BUSSERSA) *@
+                @if (resultadoConciliacion.SupervisoresExcluidos != null && resultadoConciliacion.SupervisoresExcluidos.Any())
+                {
+                    <MudTabPanel Text="@($"Supervisores Excluidos ({resultadoConciliacion.SupervisoresExcluidos.Count})")" Icon="@Icons.Material.Filled.Shield">
+                        <MudDataGrid Items="@resultadoConciliacion.SupervisoresExcluidos" Dense="true" Hover="true" Striped="true"
+                                     RowsPerPage="10" QuickFilter="@_filterSupervisorExcluido">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark">
+                                    🛡️ Turnos de Supervisores Excluidos de Facturación (Horas Asumidas por Bussersa)
+                                </MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchSupervisorExcluido" Placeholder="Buscar supervisor..." Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" Margin="Margin.Dense" Variant="Variant.Outlined" Immediate="true" />
+                            </ToolBarContent>
+                            <Columns>
+                                <PropertyColumn Property="x => x.No" Title="#" HeaderStyle="width: 40px;" />
+                                <PropertyColumn Property="x => x.IdEmpleado" Title="ID" HeaderStyle="width: 70px;" />
+                                <PropertyColumn Property="x => x.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                                <PropertyColumn Property="x => x.NombreEmpleado" Title="Supervisor" />
+                                <PropertyColumn Property="x => x.Area" Title="Área" />
+                                <PropertyColumn Property="x => x.Cargo" Title="Puesto / Cargo" />
+                                <TemplateColumn Title="H. Ord" HeaderStyle="text-align: right;" CellStyle="text-align: right;">
+                                    <CellTemplate><span class="fw-bold text-primary">@context.Item.HorasOrd.ToString("N2")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="H. Ext" HeaderStyle="text-align: right;" CellStyle="text-align: right;">
+                                    <CellTemplate><span class="fw-bold text-success">@context.Item.HorasExt.ToString("N2")</span></CellTemplate>
+                                </TemplateColumn>
+                                <TemplateColumn Title="Total Horas" HeaderStyle="text-align: right;" CellStyle="text-align: right;">
+                                    <CellTemplate><span class="badge bg-secondary text-white fw-bold px-2 py-1">@context.Item.TotalHoras.ToString("N2")h</span></CellTemplate>
+                                </TemplateColumn>
+                                <PropertyColumn Property="x => x.MotivoExclusion" Title="Motivo" />
+                            </Columns>
+                            <PagerContent><MudDataGridPager T="RegistroSupervisorExcluidoDto" /></PagerContent>
+                        </MudDataGrid>
+                    </MudTabPanel>
+                }
             </MudTabs>
         </MudTabPanel>
 
         @* PESTAÑA 2: MARCADAS POR FACTURAR (ORIGINAL) *@
-        <MudTabPanel Text="@($"MARCADAS POR FACTURAR ({PayLoadList.Count})")" Icon="@Icons.Material.Filled.ListAlt">
-            <TablaMarcadasxFacturar PayLoadList="@PayLoadList"
+        <MudTabPanel Text="@($"MARCADAS POR FACTURAR ({PayLoadListFiltrada.Count})")" Icon="@Icons.Material.Filled.ListAlt">
+            <TablaMarcadasxFacturar PayLoadList="@PayLoadListFiltrada"
                                     OperacionName="@nombreOperacion"
                                     OperacionId="@operacion"
                                     OnValidationChanged="HandleValidationChange" 
                                     OnRefreshData="GetAllMarcadasFacturar" />
         </MudTabPanel>
     </MudTabs>
+}
+
+@* --- MODAL DE GESTIÓN DE SUPERVISORES --- *@
+@if (mostrarModalSupervisores)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 99999;">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-person-badge-fill fs-4"></i>
+                        Gestión de Supervisores (Exclusión de Facturación)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalSupervisores = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2 small fw-semibold mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                        <span>Los colaboradores marcados como <strong>Supervisor</strong> se excluirán automáticamente de la facturación y de la conciliación con el cliente. Las horas de supervisión son asumidas por Bussersa.</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="input-group input-group-sm" style="max-width: 340px;">
+                            <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
+                            <input type="text" class="form-control border" placeholder="Buscar por colaborador, ID o puesto..." @bind="_searchSupervisor" @bind:event="oninput" />
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-danger btn-sm me-2 fw-semibold" @onclick="DesmarcarTodosSupervisores">Desmarcar Todos</button>
+                            <button class="btn btn-outline-primary btn-sm fw-semibold" @onclick="MarcarTodosSupervisores">Marcar Visibles</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light text-secondary small fw-bold text-uppercase sticky-top" style="z-index: 10;">
+                                <tr>
+                                    <th class="text-center" style="width: 90px;">Supervisor</th>
+                                    <th style="width: 90px;">ID</th>
+                                    <th>Colaborador</th>
+                                    <th>Área / Puesto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FilteredSupervisoresList)
+                                {
+                                    <tr class="@(item.EsSupervisor ? "table-warning" : "")">
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" @bind="item.EsSupervisor" style="width: 20px; height: 20px; cursor: pointer;" />
+                                        </td>
+                                        <td class="fw-bold text-secondary">#@item.IdEmpleado</td>
+                                        <td class="fw-bold text-dark">
+                                            @item.Nombre
+                                            @if (item.EsSupervisor)
+                                            {
+                                                <span class="badge bg-danger ms-2" style="font-size: 10px;">HORAS ASUMIDAS</span>
+                                            }
+                                        </td>
+                                        <td class="text-secondary small">@item.Area - @item.TipoEmpleado</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light d-flex justify-content-between">
+                    <span class="small text-secondary fw-semibold">
+                        Supervisores seleccionados: <strong>@ListaEmpleadosSupervisores.Count(x => x.EsSupervisor)</strong> de @ListaEmpleadosSupervisores.Count colaboradores
+                    </span>
+                    <div>
+                        <button type="button" class="btn btn-secondary btn-sm rounded-pill fw-bold px-4 me-2" @onclick="() => mostrarModalSupervisores = false">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-4 shadow-sm" @onclick="GuardarSupervisoresConfig">Guardar Configuración</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 }

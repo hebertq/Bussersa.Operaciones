@@ -29,6 +29,14 @@ namespace Modelo.Report
         public decimal DiferenciaHorasExtGlobal => Math.Round(TotalHorasExtBussersa - TotalHorasExtClienteTotal, 2);
         public decimal DiferenciaTotalHorasGlobal => Math.Round(TotalHorasBussersa - TotalHorasClienteTotal, 2);
 
+        // --- REGLA: EXCLUSIÓN DE SUPERVISORES (HORAS ASUMIDAS POR BUSSERSA) ---
+        public bool ReglaExcluirSupervisoresAplicada { get; set; } = true;
+        public int TotalTurnosSupervisoresExcluidos { get; set; }
+        public decimal TotalHorasOrdSupervisoresExcluidas { get; set; }
+        public decimal TotalHorasExtSupervisoresExcluidas { get; set; }
+        public decimal TotalHorasSupervisoresExcluidas => TotalHorasOrdSupervisoresExcluidas + TotalHorasExtSupervisoresExcluidas;
+        public List<RegistroSupervisorExcluidoDto> SupervisoresExcluidos { get; set; } = new();
+
         // --- CONSOLIDADO POR ÁREA Y PUESTO (EJE PRINCIPAL DE CONCILIACIÓN) ---
         public List<ConsolidadoAreaPuestoDto> ConsolidadoAreaPuesto { get; set; } = new();
         public List<ConsolidadoSoloAreaDto> ConsolidadoSoloArea { get; set; } = new();
@@ -44,6 +52,20 @@ namespace Modelo.Report
         public List<ResumenColaboradorFaltanteDto> ResumenColaboradores { get; set; } = new();
 
         public bool TieneDiferencias => DiferenciasDiasComunes.Any() || TurnosFaltantes.Any() || RegistrosSoloCliente.Any() || AreasConDiferencia > 0;
+    }
+
+    public class RegistroSupervisorExcluidoDto
+    {
+        public int No { get; set; }
+        public int IdEmpleado { get; set; }
+        public string NombreEmpleado { get; set; } = string.Empty;
+        public DateTime Fecha { get; set; }
+        public string Area { get; set; } = string.Empty;
+        public string Cargo { get; set; } = string.Empty;
+        public decimal HorasOrd { get; set; }
+        public decimal HorasExt { get; set; }
+        public decimal TotalHoras => HorasOrd + HorasExt;
+        public string MotivoExclusion { get; set; } = "Horas asumidas por Bussersa (No facturable a cliente)";
     }
 
     public class ConsolidadoAreaPuestoDto

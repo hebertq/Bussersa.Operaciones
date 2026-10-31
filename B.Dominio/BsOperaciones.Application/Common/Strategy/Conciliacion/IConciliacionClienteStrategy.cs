@@ -12,7 +12,7 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
         string NombreCliente { get; }
         string NombreFormatoArchivo { get; }
         bool SoportaOperacion(int operacionId, string? nombreOperacion);
-        ResultadoConciliacionDto ConciliarMovimientos(Stream fileStream, List<DiasTrabajadosAreas> movimientosBussersa, DateTime? fchaInicio, DateTime? fchaFin);
-        ResultadoConciliacionDto Conciliar(Stream fileStream, List<ReporteCierreMarcadasDetalle> marcadasBussersa, DateTime? fchaInicio, DateTime? fchaFin);
+        ResultadoConciliacionDto ConciliarMovimientos(Stream fileStream, List<DiasTrabajadosAreas> movimientosBussersa, DateTime? fchaInicio, DateTime? fchaFin, bool excluirSupervisores = true, HashSet<int>? supervisoresIds = null);
+        ResultadoConciliacionDto Conciliar(Stream fileStream, List<ReporteCierreMarcadasDetalle> marcadasBussersa, DateTime? fchaInicio, DateTime? fchaFin, bool excluirSupervisores = true, HashSet<int>? supervisoresIds = null);
     }
 }

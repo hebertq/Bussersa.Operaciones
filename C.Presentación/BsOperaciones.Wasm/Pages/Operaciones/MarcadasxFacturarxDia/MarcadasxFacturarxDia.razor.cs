@@ -50,6 +50,150 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
         protected string _searchFaltante = "";
         protected string _searchSoloCliente = "";
         protected string _searchDiferencia = "";
+        protected string _searchSupervisorExcluido = "";
+
+        // --- GESTIÓN Y EXCLUSIÓN DE SUPERVISORES (REGLA BUSSERSA) ---
+        protected bool excluirSupervisores = true;
+        protected bool mostrarModalSupervisores = false;
+        protected HashSet<int> supervisoresIds = new();
+        protected string _searchSupervisor = "";
+        protected List<EmpleadoSupervisorItem> ListaEmpleadosSupervisores = new();
+
+        public class EmpleadoSupervisorItem
+        {
+            public int IdEmpleado { get; set; }
+            public string Nombre { get; set; } = string.Empty;
+            public string Area { get; set; } = string.Empty;
+            public string TipoEmpleado { get; set; } = string.Empty;
+            public bool EsSupervisor { get; set; }
+        }
+
+        protected IEnumerable<EmpleadoSupervisorItem> FilteredSupervisoresList =>
+            string.IsNullOrWhiteSpace(_searchSupervisor)
+                ? ListaEmpleadosSupervisores
+                : ListaEmpleadosSupervisores.Where(x =>
+                    (x.Nombre ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase) ||
+                    x.IdEmpleado.ToString().Contains(_searchSupervisor) ||
+                    (x.Area ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase) ||
+                    (x.TipoEmpleado ?? "").Contains(_searchSupervisor, StringComparison.OrdinalIgnoreCase));
+
+        public bool EsSupervisor(DiasTrabajadosAreas item)
+        {
+            if (item == null) return false;
+            return ConciliacionSinsaStrategy.EsSupervisor(item, supervisoresIds);
+        }
+
+        public List<DiasTrabajadosAreas> PayLoadListFiltrada =>
+            excluirSupervisores ? PayLoadList.Where(x => !EsSupervisor(x)).ToList() : PayLoadList;
+
+        public int CantidadSupervisoresExcluidos => PayLoadList.Count(EsSupervisor);
+
+        public decimal TotalHorasSupervisoresExcluidas =>
+            Math.Round(PayLoadList.Where(EsSupervisor).Sum(x => x.horas + x.horasextras), 2);
+
+        protected async Task OnToggleExcluirSupervisores(bool value)
+        {
+            excluirSupervisores = value;
+            if (archivoConciliacionBytes != null)
+            {
+                EjecutarConciliacion();
+            }
+        }
+
+        protected async Task CargarSupervisoresConfig()
+        {
+            try
+            {
+                string? json = await JS.InvokeAsync<string>("localStorage.getItem", "catalogo_supervisores_ids");
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var ids = System.Text.Json.JsonSerializer.Deserialize<List<int>>(json);
+                    supervisoresIds = ids != null ? new HashSet<int>(ids) : new HashSet<int>();
+                }
+                else
+                {
+                    supervisoresIds = new HashSet<int>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al cargar catalogo_supervisores_ids: {ex.Message}");
+                supervisoresIds = new HashSet<int>();
+            }
+        }
+
+        protected async Task AbrirModalSupervisores()
+        {
+            isloaddata = true;
+            StateHasChanged();
+            try
+            {
+                await CargarSupervisoresConfig();
+                var items = new List<EmpleadoSupervisorItem>();
+
+                if (PayLoadList != null && PayLoadList.Any())
+                {
+                    foreach (var grp in PayLoadList.GroupBy(x => x.id))
+                    {
+                        var first = grp.First();
+                        bool isSelected = supervisoresIds.Contains(first.id) || ConciliacionSinsaStrategy.EsSupervisor(first, supervisoresIds);
+
+                        items.Add(new EmpleadoSupervisorItem
+                        {
+                            IdEmpleado = first.id,
+                            Nombre = first.nombre ?? $"Empleado #{first.id}",
+                            Area = !string.IsNullOrWhiteSpace(first.areamov) ? first.areamov : (!string.IsNullOrWhiteSpace(first.area) ? first.area : "N/A"),
+                            TipoEmpleado = !string.IsNullOrWhiteSpace(first.cargo) ? first.cargo : (!string.IsNullOrWhiteSpace(first.tipoempleado) ? first.tipoempleado : "N/A"),
+                            EsSupervisor = isSelected
+                        });
+                    }
+                }
+
+                ListaEmpleadosSupervisores = items.OrderByDescending(x => x.EsSupervisor).ThenBy(x => x.Nombre).ToList();
+                _searchSupervisor = "";
+                mostrarModalSupervisores = true;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al abrir catálogo de supervisores: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isloaddata = false;
+                StateHasChanged();
+            }
+        }
+
+        protected void MarcarTodosSupervisores()
+        {
+            foreach (var item in FilteredSupervisoresList) item.EsSupervisor = true;
+        }
+
+        protected void DesmarcarTodosSupervisores()
+        {
+            foreach (var item in FilteredSupervisoresList) item.EsSupervisor = false;
+        }
+
+        protected async Task GuardarSupervisoresConfig()
+        {
+            try
+            {
+                supervisoresIds = new HashSet<int>(ListaEmpleadosSupervisores.Where(x => x.EsSupervisor).Select(x => x.IdEmpleado));
+                string json = System.Text.Json.JsonSerializer.Serialize(supervisoresIds.ToList());
+                await JS.InvokeVoidAsync("localStorage.setItem", "catalogo_supervisores_ids", json);
+                Snackbar.Add("Catálogo de supervisores guardado exitosamente.", Severity.Success);
+                mostrarModalSupervisores = false;
+                if (archivoConciliacionBytes != null)
+                {
+                    EjecutarConciliacion();
+                }
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error al guardar supervisores: " + ex.Message, Severity.Error);
+            }
+        }
 
         protected Func<ConsolidadoAreaPuestoDto, bool> _filterConsolidadoAreaPuesto => x =>
             string.IsNullOrWhiteSpace(_searchConsolidado) ||
@@ -80,8 +224,16 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
             (x.BodegaCliente != null && x.BodegaCliente.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase)) ||
             (x.Cargo != null && x.Cargo.Contains(_searchDiferencia, StringComparison.OrdinalIgnoreCase));
 
+        protected Func<RegistroSupervisorExcluidoDto, bool> _filterSupervisorExcluido => x =>
+            string.IsNullOrWhiteSpace(_searchSupervisorExcluido) ||
+            (x.NombreEmpleado != null && x.NombreEmpleado.Contains(_searchSupervisorExcluido, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Area != null && x.Area.Contains(_searchSupervisorExcluido, StringComparison.OrdinalIgnoreCase)) ||
+            (x.Cargo != null && x.Cargo.Contains(_searchSupervisorExcluido, StringComparison.OrdinalIgnoreCase)) ||
+            x.IdEmpleado.ToString().Contains(_searchSupervisorExcluido);
+
         protected override async Task OnInitializedAsync()
         {
+            await CargarSupervisoresConfig();
             var regop = await _mediator.Send(new GetAllCombosQuery("Operaciones"));
             PayLoadOper = regop.Model ?? new();
         }
@@ -212,7 +364,7 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
                 }
 
                 using var ms = new MemoryStream(archivoConciliacionBytes);
-                resultadoConciliacion = estrategia.ConciliarMovimientos(ms, PayLoadList, FchaDesde, FchaHasta);
+                resultadoConciliacion = estrategia.ConciliarMovimientos(ms, PayLoadList, FchaDesde, FchaHasta, excluirSupervisores, supervisoresIds);
                 resultadoConciliacion.NombreArchivo = nombreArchivoConciliacion;
             }
             catch (Exception ex)
@@ -348,6 +500,31 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
                     }
                 };
 
+                // Hoja 6: Supervisores Excluidos (Horas Asumidas por Bussersa)
+                if (resultadoConciliacion.SupervisoresExcluidos != null && resultadoConciliacion.SupervisoresExcluidos.Any())
+                {
+                    var supervisoresExport = resultadoConciliacion.SupervisoresExcluidos.Select(x => new
+                    {
+                        No = x.No,
+                        ID_Empleado = x.IdEmpleado,
+                        Colaborador = x.NombreEmpleado,
+                        Fecha = x.Fecha.ToString("yyyy-MM-dd"),
+                        Area = x.Area,
+                        Cargo = x.Cargo,
+                        Horas_Ord = x.HorasOrd,
+                        Horas_Ext = x.HorasExt,
+                        Total_Horas = x.TotalHoras,
+                        Motivo = x.MotivoExclusion
+                    }).ToList();
+
+                    request.Hojas.Add(new ExcelRequest
+                    {
+                        Hoja = "Supervisores Excluidos",
+                        Datos = Modelo.Validaciones.Util.ToDictionaryList(supervisoresExport),
+                        IncludeHeader = true
+                    });
+                }
+
                 var response = await OdooService.GenerateExcel(request);
                 if (!response.Respuesta.ExisteError && response.Model != null)
                 {
@@ -375,7 +552,15 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
 
         protected async Task ConfirmarCierre()
         {
-            string mensajeAlerta = $"¿Desea cerrar {PayLoadList.Count} registros?";
+            var listaCierre = PayLoadListFiltrada;
+            int totalExcluidos = excluirSupervisores ? CantidadSupervisoresExcluidos : 0;
+            decimal horasExcluidas = excluirSupervisores ? TotalHorasSupervisoresExcluidas : 0;
+
+            string mensajeAlerta = $"¿Desea cerrar {listaCierre.Count} registros facturables?";
+            if (totalExcluidos > 0)
+            {
+                mensajeAlerta += $"\n\n🛡️ REGLA SUPERVISORES: Se excluyen {totalExcluidos} marcaciones ({horasExcluidas:N2}h asumidas por Bussersa).";
+            }
             if (TieneConciliacion)
             {
                 if (resultadoConciliacion.ConsolidadoCoincideTotalmente)
@@ -389,18 +574,19 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
             }
 
             bool? result = await DialogService.ShowMessageBox("Confirmar Cierre de Marcadas", mensajeAlerta, yesText: "Confirmar Cierre", cancelText: "Cancelar");
-            if (result == true) await EjecutarCierreMarcadas();
+            if (result == true) await EjecutarCierreMarcadas(listaCierre);
         }
 
-        protected async Task EjecutarCierreMarcadas()
+        protected async Task EjecutarCierreMarcadas(List<DiasTrabajadosAreas>? listaACerrar = null)
         {
             isloaddata = true;
             try
             {
-                var response = await _mediator.Send(new AddCierreMarcadasCommand(PayLoadList, operacion));
+                var items = listaACerrar ?? PayLoadListFiltrada;
+                var response = await _mediator.Send(new AddCierreMarcadasCommand(items, operacion));
                 if (!response.Respuesta.ExisteError)
                 {
-                    Snackbar.Add("Cierre exitoso.", Severity.Success);
+                    Snackbar.Add($"Cierre exitoso ({items.Count} registros cerrados).", Severity.Success);
                     PayLoadList.Clear();
                     LimpiarConciliacionSilencioso();
                     BotonEnabled = true;
