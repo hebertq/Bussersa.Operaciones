@@ -3486,9 +3486,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     var sbDetalle = new StringBuilder();
                     sbDetalle.AppendLine("FORMA DE LIQUIDACIÓN DE VIÁTICOS:");
-                    sbDetalle.AppendLine($"• Total Viáticos Cliente: C$ {totalViatClienteGrupo:N2}");
-                    sbDetalle.AppendLine($"• Pago en Nómina (Bono BNC): C$ {totalViatNominaGrupo:N2}");
-                    sbDetalle.AppendLine($"• Pago en Efectivo (Caja Chica): C$ {totalViatEfectivoGrupo:N2}");
+                                        sbDetalle.AppendLine($"• Pago en Nómina: C$ {totalViatNominaGrupo:N2}");
+                    sbDetalle.AppendLine($"• Pago en Efectivo: C$ {totalViatEfectivoGrupo:N2}");
                     sbDetalle.AppendLine();
                     sbDetalle.AppendLine("Detalle por colaborador:");
 
@@ -3497,12 +3496,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         var partes = new List<string>();
                         if (emp.VtcoTrasp > 0)
                         {
-                            string via = emp.TraspAplicaNomina ? "NÓMINA (Bono BNC)" : "EFECTIVO (Caja Chica)";
+                            string via = emp.TraspAplicaNomina ? "NÓMINA" : "EFECTIVO";
                             partes.Add($"Transporte: C$ {emp.VtcoTrasp:N2} -> {via}");
                         }
                         if (emp.VtcoAlim > 0)
                         {
-                            string via = emp.AlimAplicaNomina ? "NÓMINA (Bono BNC)" : "EFECTIVO (Caja Chica)";
+                            string via = emp.AlimAplicaNomina ? "NÓMINA" : "EFECTIVO";
                             partes.Add($"Alimentación: C$ {emp.VtcoAlim:N2} -> {via}");
                         }
 

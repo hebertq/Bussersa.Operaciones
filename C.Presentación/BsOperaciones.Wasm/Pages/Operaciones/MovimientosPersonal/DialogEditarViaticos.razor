@@ -17,14 +17,33 @@
     </TitleContent>
     <DialogContent>
         <MudContainer Class="pa-0">
-            @* Resumen Total en Card *@
-            <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px;">
-                <div class="d-flex justify-space-between align-center mb-2">
-                    <div>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold">Total Viáticos Cliente (Cobro)</MudText>
-                        <MudText Typo="Typo.h5" Color="Color.Primary" Class="fw-bold">
-                            C$ @((VtcoTrasp + VtcoAlim).ToString("N2"))
-                        </MudText>
+            @* Resumen en Nómina y en Efectivo *@
+            <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px;">
+                <div class="d-flex justify-space-between align-center">
+                    <div class="d-flex align-center gap-4">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold" Style="font-size: 0.72rem;">En Nómina</MudText>
+                                <MudText Typo="Typo.h6" Color="Color.Success" Class="fw-bold" Style="line-height: 1.1;">
+                                    C$ @BonoBncCalculado.ToString("N2")
+                                </MudText>
+                            </div>
+                        </div>
+                        <MudDivider Vertical="true" FlexItem="true" />
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold" Style="font-size: 0.72rem;">En Efectivo</MudText>
+                                <MudText Typo="Typo.h6" Color="Color.Warning" Class="fw-bold" Style="line-height: 1.1;">
+                                    C$ @TotalEfectivo.ToString("N2")
+                                </MudText>
+                            </div>
+                        </div>
                     </div>
                     @if (VtcoTrasp > 0 || VtcoAlim > 0 || BonoExtra > 0)
                     {
@@ -36,19 +55,6 @@
                             Limpiar
                         </MudButton>
                     }
-                </div>
-                <MudDivider Class="my-1" />
-                <div class="d-flex justify-space-between flex-wrap gap-2 pt-1" style="font-size: 0.80rem;">
-                    <div class="d-flex align-center gap-1">
-                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" Color="Color.Success" />
-                        <span class="text-secondary">Pagar en Nómina (Bono BNC):</span>
-                        <b class="text-success">C$ @BonoBncCalculado.ToString("N2")</b>
-                    </div>
-                    <div class="d-flex align-center gap-1">
-                        <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" Color="Color.Warning" />
-                        <span class="text-secondary">Pagar en Efectivo:</span>
-                        <b class="text-warning">C$ @TotalEfectivo.ToString("N2")</b>
-                    </div>
                 </div>
             </MudPaper>
 
@@ -83,7 +89,7 @@
                 <div class="d-flex align-center justify-space-between pa-2 rounded" style="@($"background: {(TraspAplicaNomina ? "#eff6ff" : "#fffbeb")}; border: 1px dashed {(TraspAplicaNomina ? "#93c5fd" : "#fcd34d")};")">
                     <MudCheckBox @bind-Value="TraspAplicaNomina" Color="Color.Primary" Dense="true" Class="ma-0 pa-0">
                         <MudText Typo="Typo.body2" Class="fw-bold">
-                            Aplicar en nómina (Bono BNC)
+                            Aplicar en nómina
                         </MudText>
                     </MudCheckBox>
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(TraspAplicaNomina ? Color.Primary : Color.Warning)" Style="height: 20px; font-size: 0.68rem; font-weight: 700;">
@@ -123,7 +129,7 @@
                 <div class="d-flex align-center justify-space-between pa-2 rounded" style="@($"background: {(AlimAplicaNomina ? "#eff6ff" : "#fffbeb")}; border: 1px dashed {(AlimAplicaNomina ? "#93c5fd" : "#fcd34d")};")">
                     <MudCheckBox @bind-Value="AlimAplicaNomina" Color="Color.Primary" Dense="true" Class="ma-0 pa-0">
                         <MudText Typo="Typo.body2" Class="fw-bold">
-                            Aplicar en nómina (Bono BNC)
+                            Aplicar en nómina
                         </MudText>
                     </MudCheckBox>
                     <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(AlimAplicaNomina ? Color.Primary : Color.Warning)" Style="height: 20px; font-size: 0.68rem; font-weight: 700;">

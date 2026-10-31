@@ -129,16 +129,13 @@
                 <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Fastfood">
                     Alim: <b>C$ @TotalViaticosAlim.ToString("N0")</b>
                 </MudChip>
-                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.AccountBalanceWallet" Title="Viaticos y bonos en nomina (BNC)">
-                    Nomina (BNC): <b>C$ @TotalViaticosBnc.ToString("N0")</b>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.AccountBalanceWallet" Title="Viáticos y bonos en nómina">
+                    Nómina: <b>C$ @TotalViaticosBnc.ToString("N0")</b>
                 </MudChip>
                 <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Payments" Title="Viaticos pagados en efectivo">
                     Efectivo: <b>C$ @TotalViaticosEfectivo.ToString("N0")</b>
                 </MudChip>
-                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ReceiptLong" Title="Total viaticos facturados al cliente">
-                    Total Cliente: <b>C$ @TotalViaticosCliente.ToString("N0")</b>
-                </MudChip>
-            </MudStack>
+                </MudStack>
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
                     Supervisor: <b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
@@ -779,7 +776,7 @@
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
                                                  OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
-                                                 Title="@($"Viáticos Cliente: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
+                                                 Title="@($"Viáticos: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
                                             @($"C$ {totalVOp:N0}")
                                         </MudChip>
                                     }
@@ -1107,7 +1104,7 @@
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
                                                  OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
-                                                 Title="@($"Viáticos Cliente: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
+                                                 Title="@($"Viáticos: C$ {context.TotalViaticos:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}) | Nómina: C$ {context.BonoBnc:N0} | Efectivo: C$ {context.TotalViaticosEfectivo:N0}")">
                                             @($"C$ {totalV:N0}")
                                         </MudChip>
                                     }
@@ -2228,7 +2225,7 @@
                 }
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     La solicitud de <b>Bono Diario (Tracker 11 - Aplicar bono del dia)</b> se genera en el proyecto <b>RRHH</b> 
-                    de forma individual para registrar formalmente el pago de bono de cumplimiento o BNC a los colaboradores autorizados en la jornada.
+                    de forma individual para registrar formalmente el pago de bono de cumplimiento o en nómina a los colaboradores autorizados en la jornada.
                 </MudAlert>
                 @* Cards de Resumen de Bonos *@
                 <MudGrid Spacing="2" Class="mb-3">
@@ -2363,7 +2360,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Large" Color="Color.Secondary" Class="mb-1" />
                         <MudText Typo="Typo.subtitle1" Class="fw-bold">No hay colaboradores con bono asignado</MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-                            Puedes asignar montos de bono BNC en la grilla de Asistencias o directamente en esta tabla.
+                            Puedes asignar montos de bono en la grilla de Asistencias o directamente en esta tabla.
                         </MudText>
                     </MudPaper>
                 }
