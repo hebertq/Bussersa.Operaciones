@@ -215,6 +215,7 @@ namespace Modelo.ClasesGenericas
         public decimal VtcoAlimDefault { get; set; }
         public decimal BonoBncDefault { get; set; }
         public string TipoEmpleado { get; set; } = "Permanente"; // "Permanente" o "Prestamo"
+        public string ClienteOrigenNomina { get; set; } = string.Empty;
         public bool Activo { get; set; } = true;
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }

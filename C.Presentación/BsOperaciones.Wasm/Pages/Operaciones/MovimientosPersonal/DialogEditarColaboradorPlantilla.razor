@@ -55,6 +55,28 @@
                     </MudSelect>
                 </MudItem>
 
+                @if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-1">
+                            Este colaborador está en condición de <b>Préstamo</b>. Se mantendrá en tu lista de personal pero no se grabará en la administración base del cliente.
+                        </MudAlert>
+                        <MudSelect T="string" 
+                                   Label="Cliente de Origen / Nómina (Préstamo)" 
+                                   @bind-Value="ClienteOrigenNomina" 
+                                   Variant="Variant.Outlined" 
+                                   Margin="Margin.Dense" 
+                                   Dense="true"
+                                   HelperText="Cliente al que pertenece legalmente la nómina del trabajador">
+                            <MudSelectItem Value="@("")">-- Seleccionar Cliente Origen --</MudSelectItem>
+                            @foreach (var op in OperacionesDisponibles)
+                            {
+                                <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+
                 @* Horario y Comida *@
                 <MudItem xs="12">
                     <MudDivider Class="my-1" />
@@ -172,6 +194,7 @@
     private string Area = string.Empty;
     private string Puesto = string.Empty;
     private string TipoEmpleado = "Permanente";
+    private string ClienteOrigenNomina = string.Empty;
     private string Turno = "Diurno";
     private string HoraEntrada = "06:00";
     private string HoraSalida = "14:00";
@@ -190,6 +213,7 @@
             Area = ItemOriginal.AreaDefault;
             Puesto = ItemOriginal.PuestoDefault;
             TipoEmpleado = string.IsNullOrWhiteSpace(ItemOriginal.TipoEmpleado) ? "Permanente" : ItemOriginal.TipoEmpleado;
+            ClienteOrigenNomina = ItemOriginal.ClienteOrigenNomina ?? string.Empty;
             Turno = string.IsNullOrWhiteSpace(ItemOriginal.TurnoDefault) ? "Diurno" : ItemOriginal.TurnoDefault;
             HoraEntrada = string.IsNullOrWhiteSpace(ItemOriginal.HoraEntradaDefault) ? "06:00" : ItemOriginal.HoraEntradaDefault;
             HoraSalida = string.IsNullOrWhiteSpace(ItemOriginal.HoraSalidaDefault) ? "14:00" : ItemOriginal.HoraSalidaDefault;
@@ -256,6 +280,7 @@
             VtcoAlimDefault = VtcoAlim,
             BonoBncDefault = BonoBnc,
             TipoEmpleado = TipoEmpleado,
+            ClienteOrigenNomina = ClienteOrigenNomina ?? string.Empty,
             Activo = true
         };
 

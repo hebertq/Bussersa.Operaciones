@@ -60,6 +60,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
         public string Observaciones { get; set; } = string.Empty;
         public string TipoEmpleado { get; set; } = "Permanente"; // "Permanente" o "Prestamo"
+        public string ClienteOrigenNomina { get; set; } = string.Empty;
         public bool Asistio { get; set; } = true;
         public string Estado { get; set; } = "GUARDADO";
         public int? TicketRedmineId { get; set; }
@@ -1013,6 +1014,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         ? item.ClienteDefault 
                         : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
 
+                    string obsPlantilla = string.Empty;
+                    if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string orig = !string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? item.ClienteOrigenNomina : item.ClienteDefault;
+                        obsPlantilla = $"Préstamo (Nómina: {orig})";
+                    }
+
                     empleadosJornada.Add(new EmpleadoJornadaItem
                     {
                         Id = 0,
@@ -1030,6 +1038,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoAlim = item.VtcoAlimDefault,
                         BonoBnc = item.BonoBncDefault,
                         TipoEmpleado = !string.IsNullOrWhiteSpace(item.TipoEmpleado) ? item.TipoEmpleado : "Permanente",
+                        ClienteOrigenNomina = item.ClienteOrigenNomina ?? string.Empty,
+                        Observaciones = obsPlantilla,
                         Asistio = true,
                         Estado = "BORRADOR",
                         FechaInicioAusencia = fechaSeleccionada ?? DateTime.Today,
@@ -1184,6 +1194,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.VtcoAlimDefault = modificado.VtcoAlimDefault;
                 item.BonoBncDefault = modificado.BonoBncDefault;
                 item.TipoEmpleado = modificado.TipoEmpleado;
+                item.ClienteOrigenNomina = modificado.ClienteOrigenNomina;
 
                 await GuardarItemPlantilla(item);
                 StateHasChanged();
@@ -1595,6 +1606,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoAlimDefault = nuevo.VtcoAlim,
                         BonoBncDefault = nuevo.BonoBnc,
                         TipoEmpleado = nuevo.TipoEmpleado,
+                        ClienteOrigenNomina = nuevo.ClienteOrigenNomina,
                         Activo = true
                     };
                     await _odooService.SaveSupervisorPlantillaItem(itemP);
@@ -1657,7 +1669,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     (nuevo.IdEmpleado > 0 && p.IdEmpleado == nuevo.IdEmpleado) ||
                     (!string.IsNullOrWhiteSpace(nuevo.NombreEmpleado) && string.Equals(p.NombreEmpleado.Trim(), nuevo.NombreEmpleado.Trim(), StringComparison.OrdinalIgnoreCase)));
 
-                if (itemPlantilla == null && !string.Equals(nuevo.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
+                if (itemPlantilla == null)
                 {
                     itemPlantilla = new SupervisorPlantillaItemDto
                     {
@@ -1676,12 +1688,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoAlimDefault = nuevo.VtcoAlim,
                         BonoBncDefault = nuevo.BonoBnc,
                         TipoEmpleado = nuevo.TipoEmpleado,
+                        ClienteOrigenNomina = nuevo.ClienteOrigenNomina,
                         Activo = true
                     };
                     await _odooService.SaveSupervisorPlantillaItem(itemPlantilla);
                     miPlantillaPersonal.Add(itemPlantilla);
                 }
-                else if (itemPlantilla != null)
+                else
                 {
                     itemPlantilla.ClienteDefault = nuevo.Cliente;
                     itemPlantilla.AreaDefault = nuevo.Area;
@@ -1694,6 +1707,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     itemPlantilla.VtcoAlimDefault = nuevo.VtcoAlim;
                     itemPlantilla.BonoBncDefault = nuevo.BonoBnc;
                     itemPlantilla.TipoEmpleado = nuevo.TipoEmpleado;
+                    itemPlantilla.ClienteOrigenNomina = nuevo.ClienteOrigenNomina;
                     await _odooService.SaveSupervisorPlantillaItem(itemPlantilla);
                 }
 
