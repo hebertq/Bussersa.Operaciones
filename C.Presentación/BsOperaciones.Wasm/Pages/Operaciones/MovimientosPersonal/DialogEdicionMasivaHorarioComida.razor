@@ -1,0 +1,316 @@
+@using MudBlazor
+@using System.Globalization
+@using Modelo.ClasesGenericas
+@using BsOperaciones.Pages.Operaciones.MovimientosPersonal
+
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Edición Masiva de Horario y Comida</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Aplica hora de inicio, fin y tiempo de comida por Cliente, Área y Puesto
+                </MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Class="pa-0">
+            @* 1. Filtros de Destinatarios *@
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.FilterAlt" Size="Size.Small" Class="mr-1 align-text-bottom" />
+                1. Seleccionar a quiénes se aplicará:
+            </MudText>
+
+            <MudGrid Spacing="1" Class="mb-2">
+                <MudItem xs="12">
+                    <MudSelect T="string" 
+                               Label="Cliente / Operación" 
+                               Value="@ClienteSeleccionado" 
+                               ValueChanged="@OnClienteChanged" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true">
+                        <MudSelectItem Value="@("(Todos)")">(Todos los Clientes)</MudSelectItem>
+                        @foreach (var c in ClientesDisponibles)
+                        {
+                            <MudSelectItem Value="@c">@c</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" 
+                               Label="Área" 
+                               Value="@AreaSeleccionada" 
+                               ValueChanged="@OnAreaChanged" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true">
+                        <MudSelectItem Value="@("(Todas)")">(Todas las Áreas)</MudSelectItem>
+                        @foreach (var a in AreasDisponibles)
+                        {
+                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" 
+                               Label="Puesto / Cargo" 
+                               Value="@PuestoSeleccionado" 
+                               ValueChanged="@OnPuestoChanged" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true">
+                        <MudSelectItem Value="@("(Todos)")">(Todos los Puestos)</MudSelectItem>
+                        @foreach (var p in PuestosDisponibles)
+                        {
+                            <MudSelectItem Value="@p">@p</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudCheckBox @bind-Value="SoloPresentes" Color="Color.Primary" Dense="true" Class="mb-2">
+                <MudText Typo="Typo.body2">
+                    Aplicar solo a colaboradores con asistencia <b>PRESENTE</b>
+                </MudText>
+            </MudCheckBox>
+
+            @* Alerta con contador dinámico de coincidentes *@
+            <MudAlert Severity="@(TotalCoincidentes > 0 ? Severity.Info : Severity.Warning)" 
+                      Dense="true" 
+                      Variant="Variant.Outlined" 
+                      Class="mb-3 py-1">
+                <div class="d-flex align-center justify-space-between flex-wrap gap-1">
+                    <span>
+                        Colaboradores a actualizar: <b>@TotalCoincidentes</b>
+                    </span>
+                    @if (TotalCoincidentes > 0)
+                    {
+                        <span class="text-secondary" style="font-size: 0.75rem;">
+                            (@string.Join(", ", EmpleadosCoincidentes.Take(3).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado.Split(' ').FirstOrDefault()}"))@(TotalCoincidentes > 3 ? $" y {TotalCoincidentes - 3} más" : ""))
+                        </span>
+                    }
+                </div>
+            </MudAlert>
+
+            <MudDivider Class="my-2" />
+
+            @* 2. Turnos y Horarios Predefinidos *@
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1 align-text-bottom" />
+                2. Nuevo Horario y Tiempo de Comida:
+            </MudText>
+
+            <MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "06:00" && HoraSalida == "14:00" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("06:00", "14:00", "1.00"))">06:00 - 14:00</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "07:00" && HoraSalida == "16:00" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("07:00", "16:00", "1.00"))">07:00 - 16:00</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "08:00" && HoraSalida == "17:00" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("08:00", "17:00", "1.00"))">08:00 - 17:00</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "15:00" && HoraSalida == "21:00" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("15:00", "21:00", "1.00"))">15:00 - 21:00</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "17:00" && HoraSalida == "20:30" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("17:00", "20:30", "1.00"))">17:00 - 20:30</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(HoraEntrada == "21:00" && HoraSalida == "02:00" ? Variant.Filled : Variant.Outlined)" Color="Color.Primary" OnClick="@(() => SetHorario("21:00", "02:00", "1.00"))">21:00 - 02:00</MudChip>
+            </MudStack>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" 
+                                  Label="Hora Inicio (Entrada)" 
+                                  @bind-Value="HoraEntrada" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Placeholder="06:00"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Login" />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" 
+                                  Label="Hora Fin (Salida)" 
+                                  @bind-Value="HoraSalida" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Placeholder="14:00"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Logout" />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" 
+                                  Label="Tiempo Comida (hrs)" 
+                                  @bind-Value="TiempoComida" 
+                                  Variant="Variant.Outlined" 
+                                  Margin="Margin.Dense" 
+                                  Placeholder="1.00"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Fastfood" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex align-center gap-1 mt-2">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos Comida:</MudText>
+                <MudChip T="string" Size="Size.Small" Variant="@(TiempoComida == "0.00" ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => TiempoComida = "0.00")">0.00h</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(TiempoComida == "0.50" ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => TiempoComida = "0.50")">0.50h</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(TiempoComida == "1.00" ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => TiempoComida = "1.00")">1.00h</MudChip>
+                <MudChip T="string" Size="Size.Small" Variant="@(TiempoComida == "1.50" ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => TiempoComida = "1.50")">1.50h</MudChip>
+            </div>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Success" 
+                   StartIcon="@Icons.Material.Filled.CheckCircle" 
+                   OnClick="Confirmar" 
+                   Disabled="@(TotalCoincidentes == 0 || string.IsNullOrWhiteSpace(HoraEntrada) || string.IsNullOrWhiteSpace(HoraSalida))">
+            Aplicar a (@TotalCoincidentes) Colaboradores
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<EmpleadoJornadaItem> ListaEmpleados { get; set; } = new();
+
+    public string ClienteSeleccionado { get; set; } = "(Todos)";
+    public string AreaSeleccionada { get; set; } = "(Todas)";
+    public string PuestoSeleccionado { get; set; } = "(Todos)";
+    public bool SoloPresentes { get; set; } = true;
+
+    public string HoraEntrada { get; set; } = "06:00";
+    public string HoraSalida { get; set; } = "14:00";
+    public string TiempoComida { get; set; } = "1.00";
+
+    public List<string> ClientesDisponibles => ListaEmpleados
+        .Select(x => x.Cliente)
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => c)
+        .ToList();
+
+    public List<string> AreasDisponibles => ListaEmpleados
+        .Where(x => string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase))
+        .Select(x => x.Area)
+        .Where(a => !string.IsNullOrWhiteSpace(a))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(a => a)
+        .ToList();
+
+    public List<string> PuestosDisponibles => ListaEmpleados
+        .Where(x => (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.Area.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+        .Select(x => x.Puesto)
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(p => p)
+        .ToList();
+
+    public List<EmpleadoJornadaItem> EmpleadosCoincidentes => ListaEmpleados
+        .Where(x => (!SoloPresentes || x.Asistio) &&
+                    (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.Area.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(PuestoSeleccionado) || PuestoSeleccionado == "(Todos)" || x.Puesto.Equals(PuestoSeleccionado, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+
+    public int TotalCoincidentes => EmpleadosCoincidentes.Count;
+
+    protected override void OnInitialized()
+    {
+        // Pre-seleccionar si solo hay 1 cliente en la lista
+        var clientes = ClientesDisponibles;
+        if (clientes.Count == 1)
+        {
+            ClienteSeleccionado = clientes.First();
+        }
+
+        var areas = AreasDisponibles;
+        if (areas.Count == 1)
+        {
+            AreaSeleccionada = areas.First();
+        }
+
+        var puestos = PuestosDisponibles;
+        if (puestos.Count == 1)
+        {
+            PuestoSeleccionado = puestos.First();
+        }
+
+        // Si hay colaboradores coincidentes, tomar como horario inicial el del primero
+        var primer = EmpleadosCoincidentes.FirstOrDefault(x => x.Asistio);
+        if (primer != null)
+        {
+            HoraEntrada = primer.HoraEntrada;
+            HoraSalida = primer.HoraSalida;
+            TiempoComida = primer.TiempoComida;
+        }
+    }
+
+    private void OnClienteChanged(string nuevoCliente)
+    {
+        ClienteSeleccionado = nuevoCliente;
+        AreaSeleccionada = "(Todas)";
+        PuestoSeleccionado = "(Todos)";
+
+        var areas = AreasDisponibles;
+        if (areas.Count == 1)
+        {
+            AreaSeleccionada = areas.First();
+        }
+    }
+
+    private void OnAreaChanged(string nuevaArea)
+    {
+        AreaSeleccionada = nuevaArea;
+        PuestoSeleccionado = "(Todos)";
+
+        var puestos = PuestosDisponibles;
+        if (puestos.Count == 1)
+        {
+            PuestoSeleccionado = puestos.First();
+        }
+    }
+
+    private void OnPuestoChanged(string nuevoPuesto)
+    {
+        PuestoSeleccionado = nuevoPuesto;
+    }
+
+    private void SetHorario(string entrada, string salida, string comida)
+    {
+        HoraEntrada = entrada;
+        HoraSalida = salida;
+        TiempoComida = comida;
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private void Confirmar()
+    {
+        MudDialog.Close(DialogResult.Ok(new ResultadoEdicionMasivaHorario
+        {
+            Cliente = ClienteSeleccionado,
+            Area = AreaSeleccionada,
+            Puesto = PuestoSeleccionado,
+            HoraEntrada = this.HoraEntrada,
+            HoraSalida = this.HoraSalida,
+            TiempoComida = this.TiempoComida,
+            SoloPresentes = this.SoloPresentes
+        }));
+    }
+
+    public class ResultadoEdicionMasivaHorario
+    {
+        public string Cliente { get; set; } = string.Empty;
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+        public string HoraEntrada { get; set; } = string.Empty;
+        public string HoraSalida { get; set; } = string.Empty;
+        public string TiempoComida { get; set; } = string.Empty;
+        public bool SoloPresentes { get; set; } = true;
+    }
+}
