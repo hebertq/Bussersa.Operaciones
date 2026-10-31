@@ -1933,11 +1933,11 @@
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
                                        StartIcon="@Icons.Material.Filled.Payments"
-                                       Disabled="@(estaEnviandoViaticos || TotalConViaticosTransporteAlim == 0 || HayCambiosSinGuardar)"
+                                       Disabled="@(estaEnviandoViaticos || TotalGruposViaticosPendientes == 0 || HayCambiosSinGuardar)"
                                        OnClick="@EnviarViaticosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
-                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los viáticos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Operaciones" : "Generar solicitudes de Viáticos (Tracker 27) en Operaciones Helpdesk")">
-                                @(estaEnviandoViaticos ? "Enviando a Operaciones..." : $"Enviar Viáticos ({GruposViaticos.Count})")
+                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los viáticos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Operaciones" : (TotalGruposViaticosPendientes == 0 ? "Todas las solicitudes de viáticos ya fueron enviadas a Helpdesk" : "Generar solicitudes de Viáticos (Tracker 27) en Operaciones Helpdesk"))">
+                                @(estaEnviandoViaticos ? "Enviando a Operaciones..." : (TotalGruposViaticosPendientes == 0 ? "Viáticos Sincronizados" : $"Enviar Viáticos ({TotalGruposViaticosPendientes})"))
                             </MudButton>
                         </MudStack>
                     </MudItem>
@@ -2511,11 +2511,11 @@
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
                                        StartIcon="@Icons.Material.Filled.Send"
-                                       Disabled="@(estaEnviandoBonos || TotalConBono == 0 || HayCambiosSinGuardar)"
+                                       Disabled="@(estaEnviandoBonos || TotalBonosPendientes == 0 || HayCambiosSinGuardar)"
                                        OnClick="@EnviarBonosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
-                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los bonos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a RRHH" : "Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)")">
-                                @(estaEnviandoBonos ? "Enviando a RRHH..." : $"Enviar Bonos a RRHH ({TotalConBono})")
+                                       Title="@(HayCambiosSinGuardar ? "Debe guardar los bonos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a RRHH" : (TotalBonosPendientes == 0 ? "Todas las solicitudes de bono ya fueron enviadas a Helpdesk" : "Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)"))">
+                                @(estaEnviandoBonos ? "Enviando a RRHH..." : (TotalBonosPendientes == 0 ? "Bonos Sincronizados" : $"Enviar Bonos a RRHH ({TotalBonosPendientes})"))
                             </MudButton>
                         </MudStack>
                     </MudItem>
@@ -2769,11 +2769,11 @@
                                    Color="Color.Primary" 
                                    Size="Size.Large" 
                                    StartIcon="@Icons.Material.Filled.RocketLaunch"
-                                   Disabled="@(estaEnviandoHelpdesk || !gruposConsolidados.Any() || HayCambiosSinGuardar)"
+                                   Disabled="@(estaEnviandoHelpdesk || TotalGruposMovimientosPendientes == 0 || HayCambiosSinGuardar)"
                                    OnClick="@EnviarAHelpdeskMasivo"
                                    Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;"
-                                   Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Helpdesk" : "Sincronizar y generar tickets de Movimientos en Helpdesk")">
-                            @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : "ENVIAR JORNADA A HELPDESK")
+                                   Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Helpdesk" : (TotalGruposMovimientosPendientes == 0 ? "Todos los grupos de movimiento ya están sincronizados con Helpdesk" : "Sincronizar y generar tickets de Movimientos en Helpdesk"))">
+                            @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : (TotalGruposMovimientosPendientes == 0 ? "JORNADA SINCRONIZADA" : $"ENVIAR JORNADA A HELPDESK ({TotalGruposMovimientosPendientes})"))
                         </MudButton>
                     </div>
                 </MudStack>

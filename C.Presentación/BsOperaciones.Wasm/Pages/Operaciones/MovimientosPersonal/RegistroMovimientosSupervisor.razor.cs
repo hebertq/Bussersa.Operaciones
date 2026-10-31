@@ -209,6 +209,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalConViaticosTransporteAlim => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
         protected int TotalViaticosSincronizados => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && x.TicketViaticoId.HasValue && x.TicketViaticoId > 0);
         protected int TotalViaticosPendientes => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && (!x.TicketViaticoId.HasValue || x.TicketViaticoId <= 0));
+        protected int TotalGruposViaticosPendientes => GruposViaticos.Count(g => !g.Sincronizado);
+        protected int TotalGruposMovimientosPendientes => gruposConsolidados.Count(g => !g.Sincronizado);
 
         protected IEnumerable<EmpleadoJornadaItem> EmpleadosBonosFiltrados
         {
@@ -2729,8 +2731,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
-            int totalGrupos = gruposConsolidados.Count;
-            int totalEmpleados = TotalPresentes;
+            // Filtrar únicamente los grupos que NO están ya sincronizados con Helpdesk
+            var gruposPendientes = gruposConsolidados.Where(g => !g.Sincronizado).ToList();
+            if (!gruposPendientes.Any())
+            {
+                _snackbar.Add("Todos los grupos de movimiento ya están sincronizados con Helpdesk.", Severity.Info);
+                return;
+            }
+
+            int totalGrupos = gruposPendientes.Count;
+            int totalEmpleados = gruposPendientes.Sum(g => g.Cantidad);
 
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Confirmar Envío a Helpdesk",
@@ -2742,7 +2752,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoHelpdesk = true;
             try
             {
-                var movimientosRedmine = gruposConsolidados.Select(g => new MovimientoPersonalItemDto
+                var movimientosRedmine = gruposPendientes.Select(g => new MovimientoPersonalItemDto
                 {
                     FilaIndex = g.GrupoIndex,
                     Cliente = g.Cliente,
@@ -2757,15 +2767,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
                     Observaciones = g.Observaciones,
                     Bonos = "0.00",
-                    VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
-                    VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
+                    VtcoTrasp = "0",
+                    VtcoAlim = "0"
                 }).ToList();
 
                 var request = new CrearMovimientosPersonalRequestDto
                 {
                     OperacionId = selectedOperacionId ?? 0,
                     ClienteRedmine = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones",
-                    ModoGeneracion = "Ambos",
+                    ModoGeneracion = "SoloMovimientos",
                     UsuarioRedmine = _userInfo.RedmineUser ?? currentUserName,
                     Movimientos = movimientosRedmine
                 };
@@ -2799,8 +2809,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                                 foreach (var emp in grupo.Empleados)
                                 {
-                                    emp.TicketRedmineId = det.RedmineIssueId;
-                                    emp.TicketViaticoId = det.RedmineViaticosIssueId;
+                                    if (det.RedmineIssueId.HasValue) emp.TicketRedmineId = det.RedmineIssueId;
+                                    if (det.RedmineViaticosIssueId.HasValue) emp.TicketViaticoId = det.RedmineViaticosIssueId;
                                     emp.Estado = "SINCRONIZADO";
                                     emp.Modificado = false;
                                 }
@@ -3296,10 +3306,25 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
-            decimal totalViat = TotalViaticosTrasp + TotalViaticosAlim;
+            ActualizarGruposConsolidados();
+            var gruposConViaticosPendientes = gruposConsolidados
+                .Where(g => (g.VtcoTrasp > 0 || g.VtcoAlim > 0) && (!g.TicketViaticoId.HasValue || g.TicketViaticoId <= 0))
+                .ToList();
+
+            if (!gruposConViaticosPendientes.Any())
+            {
+                _snackbar.Add("Todas las solicitudes de viáticos ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
+                return;
+            }
+
+            int cantPendiente = gruposConViaticosPendientes.Sum(g => g.Cantidad);
+            decimal totalViatPendiente = gruposConViaticosPendientes.Sum(g => (g.VtcoTrasp + g.VtcoAlim) * g.Cantidad);
+            decimal traspPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoTrasp * g.Cantidad);
+            decimal alimPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoAlim * g.Cantidad);
+
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Solicitud de Viáticos (Operaciones - Tracker 27)",
-                $"¿Deseas enviar la solicitud de viáticos para {conViaticos.Count} colaboradores por un total de C$ {totalViat:N2} (Transporte: C$ {TotalViaticosTrasp:N2}, Alimentación: C$ {TotalViaticosAlim:N2})?",
+                $"¿Deseas enviar {gruposConViaticosPendientes.Count} solicitud(es) de viáticos para {cantPendiente} colaboradores por un total de C$ {totalViatPendiente:N2} (Transporte: C$ {traspPendiente:N2}, Alimentación: C$ {alimPendiente:N2})?",
                 yesText: "Sí, Enviar a Operaciones", cancelText: "Cancelar");
 
             if (confirm != true) return;
@@ -3307,10 +3332,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoViaticos = true;
             try
             {
-                ActualizarGruposConsolidados();
-                var gruposConViaticos = gruposConsolidados.Where(g => g.VtcoTrasp > 0 || g.VtcoAlim > 0).ToList();
-
-                var movimientosRedmine = gruposConViaticos.Select(g => new MovimientoPersonalItemDto
+                var movimientosRedmine = gruposConViaticosPendientes.Select(g => new MovimientoPersonalItemDto
                 {
                     FilaIndex = g.GrupoIndex,
                     Cliente = g.Cliente,
@@ -3322,7 +3344,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     TiempoComida = g.TiempoComida,
                     CantidadEmpleados = g.Cantidad,
                     IdsEmpleados = g.IdsEmpleadosTexto,
-                    Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"SOLICITUD DE VIATICOS - {g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"SOLICITUD DE VIATICOS - {g.Area} - {g.Puesto}".Trim(),
+                    Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
                     Observaciones = g.Observaciones,
                     Bonos = "0.00",
                     VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
@@ -3346,7 +3368,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         foreach (var det in res.Detalles)
                         {
-                            var grupo = gruposConViaticos.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
+                            var grupo = gruposConsolidados.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
                             if (grupo != null && det.RedmineViaticosIssueId.HasValue)
                             {
                                 var idsDb = grupo.Empleados.Where(e => e.Id > 0).Select(e => e.Id).ToList();
@@ -3407,9 +3429,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
+            // Filtrar únicamente los colaboradores con bono que NO han sido sincronizados
+            var conBonoPendiente = conBono.Where(x => !x.TicketBonoId.HasValue || x.TicketBonoId <= 0).ToList();
+            if (!conBonoPendiente.Any())
+            {
+                _snackbar.Add("Todas las solicitudes de Bono del Día ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
+                return;
+            }
+
+            decimal totalBncPendiente = conBonoPendiente.Sum(x => x.BonoBnc);
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Solicitud de Bono Diario (RRHH - Tracker 11)",
-                $"¿Deseas enviar las solicitudes individuales de Bono del Día a RRHH para {conBono.Count} colaboradores por un total de C$ {TotalViaticosBnc:N2}?",
+                $"¿Deseas enviar las solicitudes individuales de Bono del Día a RRHH para {conBonoPendiente.Count} colaboradores por un total de C$ {totalBncPendiente:N2}?",
                 yesText: "Sí, Enviar a RRHH", cancelText: "Cancelar");
 
             if (confirm != true) return;
@@ -3417,7 +3448,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoBonos = true;
             try
             {
-                var dtos = conBono.Select((b, idx) => new BonoPersonalItemDto
+                var dtos = conBonoPendiente.Select((b, idx) => new BonoPersonalItemDto
                 {
                     FilaIndex = idx + 1,
                     MovimientoId = b.Id,
