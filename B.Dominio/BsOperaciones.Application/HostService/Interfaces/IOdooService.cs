@@ -188,6 +188,7 @@ namespace HostService.Interfaces
 
         // --- MOVIMIENTOS DE PERSONAL DIARIO (TABLET) ---
         Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId = 0, string usuario = "");
+        Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> ConsultarMovimientosAuditoria(DateTime fechaDesde, DateTime fechaHasta, string? cliente = null, string? area = null, string? usuario = null);
         Task<IResponse> SaveMovimientosPersonalDiario(Modelo.ClasesGenericas.GuardarMovimientosPersonalDiarioRequest request);
         Task<IResponse> DeleteMovimientoPersonalDiario(int id);
         Task<IResponse> ClonarMovimientosDiaAnterior(Modelo.ClasesGenericas.ClonarMovimientosDiaAnteriorRequest request);

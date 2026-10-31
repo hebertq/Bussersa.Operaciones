@@ -1,0 +1,487 @@
+@page "/operaciones/consulta-asistencia"
+@page "/operaciones/consulta-movimientos"
+@using MudBlazor
+@using Modelo.ClasesGenericas
+
+<MudOverlay Visible="estaCargando" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        <MudText Typo="Typo.h6" Color="Color.Surface" Class="mt-3">Consultando auditoría de asistencia...</MudText>
+    </div>
+</MudOverlay>
+
+<div class="pa-4 audit-page-container">
+    @* --- ENCABEZADO PRINCIPAL DE LA PÁGINA --- *@
+    <div class="d-flex flex-wrap align-center justify-space-between mb-4 gap-3">
+        <div class="d-flex align-center gap-3">
+            <MudAvatar Color="Color.Primary" Size="Size.Large" Variant="Variant.Filled">
+                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Medium" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+                    Auditoría y Consulta de Asistencia
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Histórico consolidado de movimientos, horas efectivas, viáticos y tickets Helpdesk por cliente, área y fecha
+                </MudText>
+            </div>
+        </div>
+
+        <div class="d-flex align-center gap-2">
+            <MudButton Variant="Variant.Outlined" 
+                       Color="Color.Secondary" 
+                       StartIcon="@Icons.Material.Filled.TabletAndroid"
+                       Href="/operaciones/registro-movimientos-supervisor"
+                       Size="Size.Medium">
+                Registro Tablet
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Success" 
+                       StartIcon="@Icons.Custom.FileFormats.FileExcel" 
+                       OnClick="ExportarAExcel"
+                       Disabled="@(!movimientosFiltrados.Any() || estaCargando)"
+                       Size="Size.Medium">
+                Exportar Excel (@movimientosFiltrados.Count)
+            </MudButton>
+        </div>
+    </div>
+
+    @* --- PANEL DE FILTROS AVANZADOS --- *@
+    <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 14px; border: 1px solid #e2e8f0;">
+        <MudGrid Spacing="2" Class="align-center">
+            @* Rango de Fechas *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker Label="Fecha Desde" 
+                               @bind-Date="fechaDesde" 
+                               DateFormat="dd/MM/yyyy" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true" 
+                               IconSize="Size.Small" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker Label="Fecha Hasta" 
+                               @bind-Date="fechaHasta" 
+                               DateFormat="dd/MM/yyyy" 
+                               Variant="Variant.Outlined" 
+                               Margin="Margin.Dense" 
+                               Dense="true" 
+                               IconSize="Size.Small" />
+            </MudItem>
+
+            @* Selector de Cliente *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Cliente / Operación" 
+                           Value="@clienteSeleccionado" 
+                           ValueChanged="OnClienteChanged"
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense" 
+                           Dense="true">
+                    <MudSelectItem Value="@("TODOS")">(Todos los Clientes)</MudSelectItem>
+                    @foreach (var c in listaClientes)
+                    {
+                        <MudSelectItem Value="@c">@c</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Selector de Área *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Área Operativa" 
+                           @bind-Value="areaSeleccionada"
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense" 
+                           Dense="true">
+                    <MudSelectItem Value="@("TODAS")">(Todas las Áreas)</MudSelectItem>
+                    @foreach (var a in listaAreas)
+                    {
+                        <MudSelectItem Value="@a">@a</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Selector de Supervisor (Registrado por) *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Registrado Por (Supervisor)" 
+                           @bind-Value="supervisorSeleccionado"
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense" 
+                           Dense="true">
+                    <MudSelectItem Value="@("TODOS")">(Todos los Supervisores)</MudSelectItem>
+                    @foreach (var s in listaSupervisores)
+                    {
+                        <MudSelectItem Value="@s">@s</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Condición de Asistencia *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Condición de Asistencia" 
+                           @bind-Value="filtroAsistencia"
+                           Variant="Variant.Outlined" 
+                           Margin="Margin.Dense" 
+                           Dense="true">
+                    <MudSelectItem Value="@("TODOS")">Todos los Registros</MudSelectItem>
+                    <MudSelectItem Value="@("PRESENTES")">Solo Presentes (Asistieron)</MudSelectItem>
+                    <MudSelectItem Value="@("AUSENCIAS")">Solo Ausencias (Faltas/Vac.)</MudSelectItem>
+                    <MudSelectItem Value="@("CON_TICKETS")">Con Tickets Helpdesk</MudSelectItem>
+                    <MudSelectItem Value="@("SIN_TICKETS")">Sin Tickets Helpdesk</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            @* Buscador de Texto Rápido *@
+            <MudItem xs="12" sm="12" md="4">
+                <MudTextField T="string" 
+                              @bind-Value="textoBusqueda" 
+                              Placeholder="Buscar por código, nombre colaborador o ticket #..." 
+                              Variant="Variant.Outlined" 
+                              Margin="Margin.Dense" 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Clearable="true" 
+                              Immediate="true" />
+            </MudItem>
+
+            @* Botones de Acción *@
+            <MudItem xs="12" sm="12" md="2" Class="d-flex align-center gap-2">
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Search" 
+                           OnClick="ConsultarMovimientos" 
+                           Disabled="estaCargando"
+                           FullWidth="true" 
+                           Size="Size.Medium">
+                    Buscar
+                </MudButton>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" 
+                               Variant="Variant.Outlined" 
+                               Color="Color.Default" 
+                               OnClick="LimpiarFiltros" 
+                               Title="Restablecer filtros" />
+            </MudItem>
+        </MudGrid>
+
+        @* Atajos Rápidos de Fecha *@
+        <div class="d-flex flex-wrap align-center gap-1 mt-3 pt-2" style="border-top: 1px dashed #cbd5e1;">
+            <MudText Typo="Typo.caption" Class="fw-bold mr-2 text-secondary">Rango Rápido:</MudText>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("HOY"))">Hoy</MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("AYER"))">Ayer</MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("SEMANA"))">Esta Semana</MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("QUINCENA"))">Esta Quincena</MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("MES"))">Este Mes</MudChip>
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="@(() => SetRangoRapido("MES_ANTERIOR"))">Mes Anterior</MudChip>
+        </div>
+    </MudPaper>
+
+    @* --- TARJETAS DE INDICADORES / METRICAS AUDITORÍA (KPIS) --- *@
+    <MudGrid Spacing="2" Class="mb-4">
+        @* KPI 1: Total Registros *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #e2e8f0; border-radius: 12px; background: white;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">REGISTROS</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">@movimientosFiltrados.Count</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #64748b;">@TotalColaboradoresUnicos colaboradores</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* KPI 2: Asistencias *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #dcfce7; border-radius: 12px; background: #f0fdf4;">
+                <MudText Typo="Typo.caption" Style="color: #166534; font-weight: 700;">ASISTENCIAS</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #15803d;">@TotalAsistieron</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #166534;">@(PorcentajeAsistencia.ToString("0.0"))% Efectividad</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* KPI 3: Ausencias *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #fee2e2; border-radius: 12px; background: #fef2f2;">
+                <MudText Typo="Typo.caption" Style="color: #991b1b; font-weight: 700;">AUSENCIAS</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #b91c1c;">@TotalAusencias</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #991b1b;">Faltas, Permisos, Vac.</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* KPI 4: Horas Efectivas *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #e0e7ff; border-radius: 12px; background: #eef2ff;">
+                <MudText Typo="Typo.caption" Style="color: #3730a3; font-weight: 700;">HORAS EFECTIVAS</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #4338ca;">@(TotalHorasEfectivas.ToString("N1"))</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #4338ca;">Descontando comida</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* KPI 5: Viáticos y Bonos *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #fef3c7; border-radius: 12px; background: #fffbeb;">
+                <MudText Typo="Typo.caption" Style="color: #92400e; font-weight: 700;">VIÁTICOS / BONOS</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #b45309;">C$ @(TotalViaticosGlobal.ToString("N0"))</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #92400e;">Trasp: @TotalViaticosTrasp.ToString("N0") | Alim: @TotalViaticosAlim.ToString("N0")</MudText>
+            </MudPaper>
+        </MudItem>
+
+        @* KPI 6: Tickets Helpdesk *@
+        <MudItem xs="6" sm="4" md="2">
+            <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #e2e8f0; border-radius: 12px; background: white;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">TICKETS HELPDESK</MudText>
+                <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Dark">@TotalTicketsCreados</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #64748b;">Mov / Vtc / Aus / Bono</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* --- TABLA PRINCIPAL DE AUDITORÍA --- *@
+    <MudTable Items="@movimientosFiltrados" 
+              Dense="true" 
+              Hover="true" 
+              Striped="true" 
+              Elevation="1" 
+              FixedHeader="true" 
+              Height="600px" 
+              Class="rounded-lg border">
+        <ToolBarContent>
+            <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                Movimientos Auditados (@movimientosFiltrados.Count de @todosMovimientos.Count registros)
+            </MudText>
+            <MudSpacer />
+            @if (movimientosFiltrados.Count < todosMovimientos.Count)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Class="mr-2">
+                    Filtro activo
+                </MudChip>
+            }
+        </ToolBarContent>
+
+        <HeaderContent>
+            <MudTh Style="width: 50px;">#</MudTh>
+            <MudTh Style="min-width: 90px;">ID BD</MudTh>
+            <MudTh Style="min-width: 100px;">Fecha</MudTh>
+            <MudTh Style="min-width: 130px;">Cliente</MudTh>
+            <MudTh Style="min-width: 150px;">Área</MudTh>
+            <MudTh Style="min-width: 220px;">Colaborador</MudTh>
+            <MudTh Style="min-width: 130px;">Puesto</MudTh>
+            <MudTh Style="min-width: 90px;">Turno</MudTh>
+            <MudTh Style="min-width: 130px;">Horario</MudTh>
+            <MudTh Style="min-width: 70px;">Comida</MudTh>
+            <MudTh Style="min-width: 70px;">Horas</MudTh>
+            <MudTh Style="min-width: 100px;">V. Trasp</MudTh>
+            <MudTh Style="min-width: 100px;">V. Alim</MudTh>
+            <MudTh Style="min-width: 80px;">BNC</MudTh>
+            <MudTh Style="min-width: 110px;">Asistencia</MudTh>
+            <MudTh Style="min-width: 200px;">Tickets Helpdesk</MudTh>
+            <MudTh Style="min-width: 140px;">Registrado Por</MudTh>
+            <MudTh Style="min-width: 140px;">Fecha Registro</MudTh>
+            <MudTh Style="min-width: 180px;">Observaciones</MudTh>
+        </HeaderContent>
+
+        <RowTemplate>
+            <MudTd DataLabel="#">@(movimientosFiltrados.IndexOf(context) + 1)</MudTd>
+
+            @* ID BD y Estado *@
+            <MudTd DataLabel="ID BD">
+                <MudChip T="string" 
+                         Size="Size.Small" 
+                         Variant="Variant.Filled" 
+                         Color="@(context.Id > 0 ? Color.Success : Color.Warning)"
+                         Style="height: 20px; font-size: 0.7rem; font-weight: 700;">
+                    @(context.Id > 0 ? $"#{context.Id}" : "Borrador")
+                </MudChip>
+            </MudTd>
+
+            @* Fecha *@
+            <MudTd DataLabel="Fecha">
+                <span class="fw-bold">@context.Fecha.ToString("dd/MM/yyyy")</span>
+            </MudTd>
+
+            @* Cliente *@
+            <MudTd DataLabel="Cliente">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Style="height: 20px; font-size: 0.72rem;">
+                    @context.Cliente
+                </MudChip>
+            </MudTd>
+
+            @* Área *@
+            <MudTd DataLabel="Área">
+                <span style="font-size: 0.8rem;">@context.Area</span>
+            </MudTd>
+
+            @* Colaborador *@
+            <MudTd DataLabel="Colaborador">
+                <div class="d-flex flex-column">
+                    <span class="fw-bold text-dark" style="font-size: 0.82rem;">@context.NombreEmpleado</span>
+                    <span class="text-secondary" style="font-size: 0.7rem;">Carnet: #@context.CodigoEmpleado</span>
+                </div>
+            </MudTd>
+
+            @* Puesto *@
+            <MudTd DataLabel="Puesto">
+                <span style="font-size: 0.78rem;">@context.Puesto</span>
+            </MudTd>
+
+            @* Turno *@
+            <MudTd DataLabel="Turno">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Style="font-size: 0.7rem;">
+                    @context.TurnoNombre
+                </MudChip>
+            </MudTd>
+
+            @* Horario Entrada - Salida *@
+            <MudTd DataLabel="Horario">
+                @if (context.Asistio)
+                {
+                    <span class="fw-bold" style="font-family: monospace; font-size: 0.82rem;">
+                        @context.HoraEntrada - @context.HoraSalida
+                    </span>
+                }
+                else
+                {
+                    <span class="text-secondary" style="font-size: 0.75rem;">--:--</span>
+                }
+            </MudTd>
+
+            @* Tiempo Comida *@
+            <MudTd DataLabel="Comida">
+                @(context.Asistio ? $"{context.TiempoComida}h" : "-")
+            </MudTd>
+
+            @* Horas Efectivas *@
+            <MudTd DataLabel="Horas">
+                @if (context.Asistio)
+                {
+                    <span class="fw-bold" style="color: #4338ca;">
+                        @CalcularHorasEfectivas(context.HoraEntrada, context.HoraSalida, context.TiempoComida).ToString("0.0")h
+                    </span>
+                }
+                else
+                {
+                    <span>0h</span>
+                }
+            </MudTd>
+
+            @* Viático Trasp *@
+            <MudTd DataLabel="V. Trasp">
+                @(context.VtcoTrasp > 0 ? $"C$ {context.VtcoTrasp:N2}" : "-")
+            </MudTd>
+
+            @* Viático Alim *@
+            <MudTd DataLabel="V. Alim">
+                @(context.VtcoAlim > 0 ? $"C$ {context.VtcoAlim:N2}" : "-")
+            </MudTd>
+
+            @* BNC *@
+            <MudTd DataLabel="BNC">
+                @(string.IsNullOrWhiteSpace(context.Bnc) ? "-" : context.Bnc)
+            </MudTd>
+
+            @* Asistencia *@
+            <MudTd DataLabel="Asistencia">
+                @if (context.Asistio)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Style="height: 20px; font-size: 0.7rem;">
+                        Presente
+                    </MudChip>
+                }
+                else
+                {
+                    <div class="d-flex flex-column">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Style="height: 20px; font-size: 0.7rem;">
+                            Ausente
+                        </MudChip>
+                        <span class="text-muted" style="font-size: 0.65rem;">@context.TipoAusencia</span>
+                    </div>
+                }
+            </MudTd>
+
+            @* Tickets Helpdesk *@
+            <MudTd DataLabel="Tickets Helpdesk">
+                <div class="d-flex flex-wrap gap-1 align-center">
+                    @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
+                    {
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketRedmineId" target="_blank" style="text-decoration:none;">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
+                                📋 #@context.TicketRedmineId
+                            </MudChip>
+                        </a>
+                    }
+                    @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
+                    {
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketViaticoId" target="_blank" style="text-decoration:none;">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
+                                💵 #@context.TicketViaticoId
+                            </MudChip>
+                        </a>
+                    }
+                    @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
+                    {
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketBonoId" target="_blank" style="text-decoration:none;">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
+                                🎁 #@context.TicketBonoId
+                            </MudChip>
+                        </a>
+                    }
+                    @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
+                    {
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketAusenciaId" target="_blank" style="text-decoration:none;">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
+                                ⚠️ #@context.TicketAusenciaId
+                            </MudChip>
+                        </a>
+                    }
+                    @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
+                    {
+                        <span class="text-secondary" style="font-size: 0.72rem;">Sin tickets</span>
+                    }
+                </div>
+            </MudTd>
+
+            @* Registrado Por (Supervisor) *@
+            <MudTd DataLabel="Supervisor">
+                <div class="d-flex align-center gap-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Secondary" Style="font-size: 0.9rem;" />
+                    <span class="fw-bold text-dark" style="font-size: 0.78rem;">
+                        @(string.IsNullOrWhiteSpace(context.UsuarioRegistro) ? "Sistema" : context.UsuarioRegistro)
+                    </span>
+                </div>
+            </MudTd>
+
+            @* Fecha Registro *@
+            <MudTd DataLabel="Fecha Registro">
+                <span class="text-secondary" style="font-size: 0.72rem;">
+                    @(context.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")
+                </span>
+            </MudTd>
+
+            @* Observaciones *@
+            <MudTd DataLabel="Observaciones">
+                <span class="text-muted" style="font-size: 0.75rem;">@context.Observaciones</span>
+            </MudTd>
+        </RowTemplate>
+
+        <NoRecordsContent>
+            <div class="text-center pa-6">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.subtitle1" Class="text-secondary fw-bold">No se encontraron movimientos registrados</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Ajuste el rango de fechas, cliente o filtros superiores para visualizar la información de asistencia.
+                </MudText>
+            </div>
+        </NoRecordsContent>
+
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100, 200 }" 
+                           RowsPerPageString="Registros por página:" 
+                           InfoFormat="{first_item}-{last_item} de {all_items}" />
+        </PagerContent>
+    </MudTable>
+</div>
+
+<style>
+    .audit-page-container {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .text-dark { color: #0f172a; }
+</style>

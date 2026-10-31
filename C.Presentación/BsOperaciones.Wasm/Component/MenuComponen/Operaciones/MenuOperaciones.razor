@@ -1,4 +1,4 @@
-﻿@using BsOperaciones.Application.Extensions
+@using BsOperaciones.Application.Extensions
 
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
@@ -7,6 +7,7 @@
             <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
             <MenuItem MenuId="55" Name="Movimientos (Tablet)" Url="/operaciones/registro-movimientos-supervisor" IconName="@Icons.Material.Filled.TabletAndroid" />
             <MenuItem MenuId="56" Name="Cargar Movimientos" Url="/operaciones/movimientos-personal-excel" IconName="@Icons.Material.Filled.PostAdd" />
+            <MenuItem MenuId="64" Name="Consultar Asistencia" Url="/operaciones/consulta-asistencia" IconName="@Icons.Material.Filled.FactCheck" />
             <AuthorizeView Policy="@Policies.IsMenu" Resource="53" Context="produccionContext">
                 <Authorized>
                     <MudNavGroup Title="Producción" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
