@@ -746,10 +746,31 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (resp?.Model != null)
                 {
                     var items = resp.Model.ToList();
-                    // Filtrar estrictamente por los clientes configurados del usuario supervisor
+
+                    // Si el supervisor tiene clientes asignados (ej. Sinsa)
                     if (NombresMisClientes.Any())
                     {
-                        items = items.Where(x => NombresMisClientes.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase)).ToList();
+                        // Auto-corregir si algún colaborador del supervisor quedó con cliente "Administración", "General" o vacío
+                        if (NombresMisClientes.Count == 1)
+                        {
+                            var clienteUnico = NombresMisClientes[0];
+                            foreach (var it in items)
+                            {
+                                if (string.IsNullOrWhiteSpace(it.ClienteDefault) || 
+                                    string.Equals(it.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(it.ClienteDefault, "General", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    it.ClienteDefault = clienteUnico;
+                                    _ = _odooService.SaveSupervisorPlantillaItem(it);
+                                }
+                            }
+                        }
+
+                        // Filtrar asegurando no perder colaboradores propios del supervisor
+                        items = items.Where(x => 
+                            NombresMisClientes.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase) ||
+                            string.Equals(x.UsuarioSupervisor, currentUserName, StringComparison.OrdinalIgnoreCase)
+                        ).ToList();
                     }
                     miPlantillaPersonal = items;
                 }
@@ -977,9 +998,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 if (!existentes.Contains(item.CodigoEmpleado))
                 {
-                    string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) 
+                    string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase)
                         ? item.ClienteDefault 
-                        : (operacionesList.FirstOrDefault()?.nombre ?? "General");
+                        : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
 
                     empleadosJornada.Add(new EmpleadoJornadaItem
                     {
@@ -1470,14 +1491,40 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- AGREGAR COLABORADOR MANUAL O DESDE ODOO ---
         protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "")
         {
-            string defaultOp = selectedOperacionId.HasValue 
-                ? (operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "") 
-                : (operacionesList.FirstOrDefault()?.nombre ?? "WalMart");
+            // Determinar la operación por defecto dando prioridad a la selección actual o a los clientes asignados del supervisor
+            string defaultOp = "";
+            if (selectedOperacionId.HasValue && selectedOperacionId.Value > 0)
+            {
+                defaultOp = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "";
+            }
+
+            if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "Administración", StringComparison.OrdinalIgnoreCase))
+            {
+                if (NombresMisClientes.Any())
+                {
+                    defaultOp = NombresMisClientes.FirstOrDefault() ?? "";
+                }
+                else
+                {
+                    defaultOp = operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "Sinsa";
+                }
+            }
+
             var defaultAreas = GetAreasParaCliente(defaultOp);
+
+            // Filtrar operaciones disponibles: si el supervisor tiene clientes asignados, mostrar preferentemente los suyos
+            var opsDisponibles = (NombresMisClientes.Any())
+                ? operacionesList.Where(o => NombresMisClientes.Contains(o.nombre, StringComparer.OrdinalIgnoreCase)).ToList()
+                : operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (!opsDisponibles.Any())
+            {
+                opsDisponibles = operacionesList;
+            }
 
             var parameters = new DialogParameters
             {
-                ["OperacionesDisponibles"] = operacionesList,
+                ["OperacionesDisponibles"] = opsDisponibles,
                 ["AreasDisponibles"] = defaultAreas,
                 ["AreasPorCliente"] = areasPorCliente,
                 ["CargosDisponibles"] = cargosDisponibles,
@@ -1492,6 +1539,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (!result.Canceled && result.Data is EmpleadoJornadaItem nuevo)
             {
+                // Asegurar que si el cliente sigue como "Administración" y el supervisor tiene cliente asignado, se asigne a su cliente
+                if (string.Equals(nuevo.Cliente, "Administración", StringComparison.OrdinalIgnoreCase) && NombresMisClientes.Any())
+                {
+                    nuevo.Cliente = NombresMisClientes.FirstOrDefault() ?? nuevo.Cliente;
+                }
+
                 var existente = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == nuevo.CodigoEmpleado);
                 if (existente != null)
                 {
@@ -1592,34 +1645,40 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (!empleadosJornada.Any()) return;
 
             bool tieneRegistrosGuardados = empleadosJornada.Any(x => x.Id > 0);
-            string mensaje = tieneRegistrosGuardados
-                ? $"¿Deseas limpiar la grilla y eliminar de la base de datos los {empleadosJornada.Count} registros guardados para el día {fechaSeleccionada:dd/MM/yyyy}?"
-                : $"¿Deseas limpiar los {empleadosJornada.Count} colaboradores de la grilla?";
-
-            string yesBtn = tieneRegistrosGuardados ? "Sí, Limpiar y Borrar de BD" : "Sí, Limpiar Grilla";
-
-            bool? confirm = await _dialogService.ShowMessageBox(
-                "Limpiar Grilla Diaria",
-                mensaje,
-                yesText: yesBtn, 
-                cancelText: "Cancelar");
-
-            if (confirm == true)
+            if (tieneRegistrosGuardados)
             {
+                bool? confirm = await _dialogService.ShowMessageBox(
+                    "Limpiar Grilla Diaria",
+                    $"La grilla actual contiene {empleadosJornada.Count} colaboradores, incluyendo {TotalGuardadosEnBd + TotalModificadosSinGuardar} ya guardados en la base de datos para la fecha {fechaSeleccionada:dd/MM/yyyy}.\n\n" +
+                    "• 'Limpiar Pantalla': Quita los registros de la vista temporal (los datos se conservan guardados en la BD y en 'Mi Personal').\n" +
+                    "• 'Borrar de BD': Elimina permanentemente estos registros de la base de datos.",
+                    yesText: "Limpiar Pantalla (Conservar en BD)",
+                    noText: "Borrar de BD Permanentemente",
+                    cancelText: "Cancelar");
+
+                if (confirm == null) return;
+
                 estaCargando = true;
                 try
                 {
-                    var idsGuardados = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToList();
-                    if (idsGuardados.Any())
+                    if (confirm == false) // El usuario eligió expresamente borrar de BD
                     {
-                        var tasks = idsGuardados.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
-                        await Task.WhenAll(tasks);
+                        var idsGuardados = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToList();
+                        if (idsGuardados.Any())
+                        {
+                            var tasks = idsGuardados.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
+                            await Task.WhenAll(tasks);
+                        }
+                        _snackbar.Add("Registros eliminados de la base de datos.", Severity.Warning);
+                    }
+                    else
+                    {
+                        _snackbar.Add("Grilla limpiada de la pantalla. Los datos siguen guardados en la BD y en 'Mi Personal'.", Severity.Info);
                     }
 
                     empleadosJornada.Clear();
                     await LimpiarBorradorLocal();
                     ActualizarGruposConsolidados();
-                    _snackbar.Add("Grilla limpiada exitosamente.", Severity.Info);
                 }
                 catch (Exception ex)
                 {
@@ -1628,6 +1687,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 finally
                 {
                     estaCargando = false;
+                }
+            }
+            else
+            {
+                bool? confirm = await _dialogService.ShowMessageBox(
+                    "Limpiar Grilla Diaria",
+                    $"¿Deseas limpiar los {empleadosJornada.Count} colaboradores de la grilla? (Tu plantilla 'Mi Personal' permanece intacta).",
+                    yesText: "Sí, Limpiar Pantalla",
+                    cancelText: "Cancelar");
+
+                if (confirm == true)
+                {
+                    empleadosJornada.Clear();
+                    await LimpiarBorradorLocal();
+                    ActualizarGruposConsolidados();
+                    _snackbar.Add("Grilla limpiada exitosamente.", Severity.Info);
                 }
             }
         }

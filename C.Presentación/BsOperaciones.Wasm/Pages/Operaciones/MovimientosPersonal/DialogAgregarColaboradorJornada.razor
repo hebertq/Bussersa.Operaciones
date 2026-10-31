@@ -256,7 +256,11 @@
             TipoEmpleado = TipoEmpleadoInicial;
         }
 
-        Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) ? OperacionDefecto : (OperacionesDisponibles.FirstOrDefault()?.nombre ?? "WalMart");
+        Cliente = !string.IsNullOrWhiteSpace(OperacionDefecto) 
+            ? OperacionDefecto 
+            : (OperacionesDisponibles.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre 
+               ?? OperacionesDisponibles.FirstOrDefault()?.nombre 
+               ?? "WalMart");
         ActualizarAreasParaCliente(Cliente);
         Area = !string.IsNullOrWhiteSpace(AreaDefecto) && areasActuales.Contains(AreaDefecto, StringComparer.OrdinalIgnoreCase)
             ? AreaDefecto
@@ -367,7 +371,7 @@
                 {
                     TipoEmpleado = enPlantilla.TipoEmpleado;
                 }
-                if (!string.IsNullOrWhiteSpace(enPlantilla.ClienteDefault))
+                if (!string.IsNullOrWhiteSpace(enPlantilla.ClienteDefault) && !string.Equals(enPlantilla.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase))
                 {
                     Cliente = enPlantilla.ClienteDefault;
                     ActualizarAreasParaCliente(Cliente);

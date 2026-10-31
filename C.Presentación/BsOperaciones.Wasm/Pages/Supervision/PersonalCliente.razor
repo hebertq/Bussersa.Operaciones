@@ -1522,7 +1522,7 @@
             // Si el combo de cliente está vacío, pre-seleccionar el primero para que no quede huérfano
             if (string.IsNullOrWhiteSpace(filtroCliente))
             {
-                filtroCliente = operacionesList.FirstOrDefault()?.nombre ?? "WalMart";
+                filtroCliente = operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "WalMart";
                 _snackbar.Add($"Se asignó el cliente '{filtroCliente}' del combo. Puedes cambiarlo si lo deseas.", Severity.Info);
             }
 
