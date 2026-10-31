@@ -257,40 +257,19 @@
         </ToolBarContent>
 
         <HeaderContent>
-            <MudTh Style="width: 50px;">#</MudTh>
-            <MudTh Style="min-width: 90px;">ID BD</MudTh>
-            <MudTh Style="min-width: 100px;">Fecha</MudTh>
-            <MudTh Style="min-width: 130px;">Cliente</MudTh>
-            <MudTh Style="min-width: 150px;">Área</MudTh>
+            <MudTh Style="width: 50px; text-align: center;">#</MudTh>
+            <MudTh Style="min-width: 95px;">Fecha</MudTh>
+            <MudTh Style="min-width: 120px;">Cliente</MudTh>
+            <MudTh Style="min-width: 120px;">Área</MudTh>
             <MudTh Style="min-width: 220px;">Colaborador</MudTh>
-            <MudTh Style="min-width: 130px;">Puesto</MudTh>
-            <MudTh Style="min-width: 90px;">Turno</MudTh>
-            <MudTh Style="min-width: 130px;">Horario</MudTh>
-            <MudTh Style="min-width: 70px;">Comida</MudTh>
-            <MudTh Style="min-width: 70px;">Horas</MudTh>
-            <MudTh Style="min-width: 100px;">V. Trasp</MudTh>
-            <MudTh Style="min-width: 100px;">V. Alim</MudTh>
-            <MudTh Style="min-width: 80px;">BNC</MudTh>
-            <MudTh Style="min-width: 110px;">Asistencia</MudTh>
-            <MudTh Style="min-width: 200px;">Tickets Helpdesk</MudTh>
-            <MudTh Style="min-width: 140px;">Registrado Por</MudTh>
-            <MudTh Style="min-width: 140px;">Fecha Registro</MudTh>
-            <MudTh Style="min-width: 180px;">Observaciones</MudTh>
+            <MudTh Style="min-width: 140px;">Horario & Horas</MudTh>
+            <MudTh Style="min-width: 100px;">Asistencia</MudTh>
+            <MudTh Style="min-width: 110px;">Viáticos / Bonos</MudTh>
+            <MudTh Style="min-width: 160px;">Tickets Helpdesk</MudTh>
         </HeaderContent>
 
         <RowTemplate>
-            <MudTd DataLabel="#">@(movimientosFiltrados.IndexOf(context) + 1)</MudTd>
-
-            @* ID BD y Estado *@
-            <MudTd DataLabel="ID BD">
-                <MudChip T="string" 
-                         Size="Size.Small" 
-                         Variant="Variant.Filled" 
-                         Color="@(context.Id > 0 ? Color.Success : Color.Warning)"
-                         Style="height: 20px; font-size: 0.7rem; font-weight: 700;">
-                    @(context.Id > 0 ? $"#{context.Id}" : "Borrador")
-                </MudChip>
-            </MudTd>
+            <MudTd DataLabel="#" Style="text-align: center;">@(movimientosFiltrados.IndexOf(context) + 1)</MudTd>
 
             @* Fecha *@
             <MudTd DataLabel="Fecha">
@@ -309,72 +288,47 @@
                 <span style="font-size: 0.8rem;">@context.Area</span>
             </MudTd>
 
-            @* Colaborador *@
+            @* Colaborador (Nombre, Carnet y Puesto) *@
             <MudTd DataLabel="Colaborador">
                 <div class="d-flex flex-column">
                     <span class="fw-bold text-dark" style="font-size: 0.82rem;">@context.NombreEmpleado</span>
-                    <span class="text-secondary" style="font-size: 0.7rem;">Carnet: #@context.CodigoEmpleado</span>
+                    <div class="d-flex align-center gap-1 text-secondary" style="font-size: 0.70rem;">
+                        <span>#@context.CodigoEmpleado</span>
+                        @if (!string.IsNullOrWhiteSpace(context.Puesto))
+                        {
+                            <span>• @context.Puesto</span>
+                        }
+                    </div>
                 </div>
             </MudTd>
 
-            @* Puesto *@
-            <MudTd DataLabel="Puesto">
-                <span style="font-size: 0.78rem;">@context.Puesto</span>
-            </MudTd>
-
-            @* Turno *@
-            <MudTd DataLabel="Turno">
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Style="font-size: 0.7rem;">
-                    @context.TurnoNombre
-                </MudChip>
-            </MudTd>
-
-            @* Horario Entrada - Salida *@
+            @* Horario Entrada - Salida & Horas Efectivas *@
             <MudTd DataLabel="Horario">
                 @if (context.Asistio)
                 {
-                    <span class="fw-bold" style="font-family: monospace; font-size: 0.82rem;">
-                        @context.HoraEntrada - @context.HoraSalida
-                    </span>
+                    <div class="d-flex flex-column">
+                        <span class="fw-bold font-monospace" style="font-size: 0.80rem;">
+                            @context.HoraEntrada - @context.HoraSalida
+                        </span>
+                        <div class="d-flex align-center gap-1" style="font-size: 0.70rem;">
+                            <span class="fw-bold" style="color: #4338ca;">
+                                @CalcularHorasEfectivas(context.HoraEntrada, context.HoraSalida, context.TiempoComida).ToString("0.0")h
+                            </span>
+                            @if (context.TiempoComida != "0" && !string.IsNullOrWhiteSpace(context.TiempoComida))
+                            {
+                                <span class="text-secondary">(Com: @(context.TiempoComida)h)</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(context.TurnoNombre))
+                            {
+                                <span class="text-muted">• @context.TurnoNombre</span>
+                            }
+                        </div>
+                    </div>
                 }
                 else
                 {
                     <span class="text-secondary" style="font-size: 0.75rem;">--:--</span>
                 }
-            </MudTd>
-
-            @* Tiempo Comida *@
-            <MudTd DataLabel="Comida">
-                @(context.Asistio ? $"{context.TiempoComida}h" : "-")
-            </MudTd>
-
-            @* Horas Efectivas *@
-            <MudTd DataLabel="Horas">
-                @if (context.Asistio)
-                {
-                    <span class="fw-bold" style="color: #4338ca;">
-                        @CalcularHorasEfectivas(context.HoraEntrada, context.HoraSalida, context.TiempoComida).ToString("0.0")h
-                    </span>
-                }
-                else
-                {
-                    <span>0h</span>
-                }
-            </MudTd>
-
-            @* Viático Trasp *@
-            <MudTd DataLabel="V. Trasp">
-                @(context.VtcoTrasp > 0 ? $"C$ {context.VtcoTrasp:N2}" : "-")
-            </MudTd>
-
-            @* Viático Alim *@
-            <MudTd DataLabel="V. Alim">
-                @(context.VtcoAlim > 0 ? $"C$ {context.VtcoAlim:N2}" : "-")
-            </MudTd>
-
-            @* BNC *@
-            <MudTd DataLabel="BNC">
-                @(string.IsNullOrWhiteSpace(context.Bnc) ? "-" : context.Bnc)
             </MudTd>
 
             @* Asistencia *@
@@ -396,12 +350,35 @@
                 }
             </MudTd>
 
+            @* Viáticos / Bonos *@
+            <MudTd DataLabel="Viáticos">
+                @{
+                    decimal bonoVal = decimal.TryParse(context.Bnc, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var bv) ? bv : 0;
+                    decimal totBeneficios = context.VtcoTrasp + context.VtcoAlim + bonoVal;
+                }
+                @if (totBeneficios > 0)
+                {
+                    <MudChip T="string" 
+                             Size="Size.Small" 
+                             Variant="Variant.Outlined" 
+                             Color="Color.Primary" 
+                             Style="height: 22px; font-size: 0.75rem; font-weight: 600;"
+                             Title="@($"Trasp: C$ {context.VtcoTrasp:N2} | Alim: C$ {context.VtcoAlim:N2} | Bono: C$ {bonoVal:N2}")">
+                        C$ @totBeneficios.ToString("N0")
+                    </MudChip>
+                }
+                else
+                {
+                    <span class="text-secondary" style="font-size: 0.75rem;">-</span>
+                }
+            </MudTd>
+
             @* Tickets Helpdesk *@
             <MudTd DataLabel="Tickets Helpdesk">
                 <div class="d-flex flex-wrap gap-1 align-center">
                     @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
                     {
-                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketRedmineId" target="_blank" style="text-decoration:none;">
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketRedmineId" target="_blank" style="text-decoration:none;" title="Ticket Movimiento">
                             <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
                                 📋 #@context.TicketRedmineId
                             </MudChip>
@@ -409,7 +386,7 @@
                     }
                     @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
                     {
-                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketViaticoId" target="_blank" style="text-decoration:none;">
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketViaticoId" target="_blank" style="text-decoration:none;" title="Ticket Viático">
                             <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
                                 💵 #@context.TicketViaticoId
                             </MudChip>
@@ -417,7 +394,7 @@
                     }
                     @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
                     {
-                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketBonoId" target="_blank" style="text-decoration:none;">
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketBonoId" target="_blank" style="text-decoration:none;" title="Ticket Bono">
                             <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
                                 🎁 #@context.TicketBonoId
                             </MudChip>
@@ -425,7 +402,7 @@
                     }
                     @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
                     {
-                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketAusenciaId" target="_blank" style="text-decoration:none;">
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketAusenciaId" target="_blank" style="text-decoration:none;" title="Ticket Ausencia">
                             <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.68rem; padding: 0 5px;">
                                 ⚠️ #@context.TicketAusenciaId
                             </MudChip>
@@ -433,31 +410,15 @@
                     }
                     @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
                     {
-                        <span class="text-secondary" style="font-size: 0.72rem;">Sin tickets</span>
+                        <span class="text-secondary" style="font-size: 0.70rem;">Sin tickets</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(context.Observaciones))
+                    {
+                        <MudTooltip Text="@context.Observaciones" Arrow="true" Placement="Placement.Top">
+                            <MudIcon Icon="@Icons.Material.Filled.Notes" Size="Size.Small" Style="font-size: 0.95rem; vertical-align: middle;" Color="Color.Info" Class="ml-1 cursor-pointer" />
+                        </MudTooltip>
                     }
                 </div>
-            </MudTd>
-
-            @* Registrado Por (Supervisor) *@
-            <MudTd DataLabel="Supervisor">
-                <div class="d-flex align-center gap-1">
-                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Secondary" Style="font-size: 0.9rem;" />
-                    <span class="fw-bold text-dark" style="font-size: 0.78rem;">
-                        @(string.IsNullOrWhiteSpace(context.UsuarioRegistro) ? "Sistema" : context.UsuarioRegistro)
-                    </span>
-                </div>
-            </MudTd>
-
-            @* Fecha Registro *@
-            <MudTd DataLabel="Fecha Registro">
-                <span class="text-secondary" style="font-size: 0.72rem;">
-                    @(context.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")
-                </span>
-            </MudTd>
-
-            @* Observaciones *@
-            <MudTd DataLabel="Observaciones">
-                <span class="text-muted" style="font-size: 0.75rem;">@context.Observaciones</span>
             </MudTd>
         </RowTemplate>
 
@@ -484,4 +445,7 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     .text-dark { color: #0f172a; }
+    .mud-table-container {
+        overflow-x: auto !important;
+    }
 </style>

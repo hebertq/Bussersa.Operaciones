@@ -374,12 +374,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var rowMeta = sheet.CreateRow(1);
                 rowMeta.CreateCell(0).SetCellValue($"Rango: {fechaDesde:dd/MM/yyyy} al {fechaHasta:dd/MM/yyyy} | Cliente: {clienteSeleccionado} | Área: {areaSeleccionada} | Supervisor: {supervisorSeleccionado} | Generado el: {DateTime.Now:dd/MM/yyyy HH:mm}");
 
-                // 3. Fila de Encabezados
+                // 3. Fila de Encabezados (Sin ID BD a petición del usuario, incluye todas las columnas operativas)
                 string[] headers = new[]
                 {
-                    "#", "ID BD", "Fecha", "Cliente", "Área", "Carnet / Código", "Nombre del Colaborador",
+                    "#", "Fecha", "Cliente", "Área", "Carnet / Código", "Nombre del Colaborador",
                     "Puesto", "Turno", "Asistió", "Entrada", "Salida", "Comida (hrs)", "Horas Efectivas",
-                    "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
+                    "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono / Nómina (C$)", "Total Viáticos / Bonos (C$)",
                     "Tipo Ausencia", "Días Ausencia", "Ticket Movimiento", "Ticket Viático", "Ticket Bono",
                     "Ticket Ausencia", "Estado", "Registrado Por (Supervisor)", "Fecha Creación", "Observaciones"
                 };
@@ -399,78 +399,77 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     var row = sheet.CreateRow(rowIdx);
                     row.CreateCell(0).SetCellValue(rowIdx - 3);
-                    row.CreateCell(1).SetCellValue(m.Id > 0 ? m.Id.ToString() : "Borrador");
-                    row.CreateCell(2).SetCellValue(m.Fecha.ToString("yyyy-MM-dd"));
-                    row.CreateCell(3).SetCellValue(m.Cliente);
-                    row.CreateCell(4).SetCellValue(m.Area);
-                    row.CreateCell(5).SetCellValue(m.CodigoEmpleado);
-                    row.CreateCell(6).SetCellValue(m.NombreEmpleado);
-                    row.CreateCell(7).SetCellValue(m.Puesto);
-                    row.CreateCell(8).SetCellValue(m.TurnoNombre);
-                    row.CreateCell(9).SetCellValue(m.Asistio ? "PRESENTE" : "AUSENTE");
-                    row.CreateCell(10).SetCellValue(m.Asistio ? m.HoraEntrada : "--:--");
-                    row.CreateCell(11).SetCellValue(m.Asistio ? m.HoraSalida : "--:--");
-                    row.CreateCell(12).SetCellValue(m.Asistio ? m.TiempoComida : "0");
+                    row.CreateCell(1).SetCellValue(m.Fecha.ToString("yyyy-MM-dd"));
+                    row.CreateCell(2).SetCellValue(m.Cliente);
+                    row.CreateCell(3).SetCellValue(m.Area);
+                    row.CreateCell(4).SetCellValue(m.CodigoEmpleado);
+                    row.CreateCell(5).SetCellValue(m.NombreEmpleado);
+                    row.CreateCell(6).SetCellValue(m.Puesto);
+                    row.CreateCell(7).SetCellValue(m.TurnoNombre);
+                    row.CreateCell(8).SetCellValue(m.Asistio ? "PRESENTE" : "AUSENTE");
+                    row.CreateCell(9).SetCellValue(m.Asistio ? m.HoraEntrada : "--:--");
+                    row.CreateCell(10).SetCellValue(m.Asistio ? m.HoraSalida : "--:--");
+                    row.CreateCell(11).SetCellValue(m.Asistio ? m.TiempoComida : "0");
 
                     double horas = m.Asistio ? CalcularHorasEfectivas(m.HoraEntrada, m.HoraSalida, m.TiempoComida) : 0;
-                    var cHoras = row.CreateCell(13);
+                    var cHoras = row.CreateCell(12);
                     cHoras.SetCellValue(horas);
                     cHoras.CellStyle = numberStyle;
 
-                    var cTrasp = row.CreateCell(14);
+                    var cTrasp = row.CreateCell(13);
                     cTrasp.SetCellValue((double)m.VtcoTrasp);
                     cTrasp.CellStyle = currencyStyle;
 
-                    var cAlim = row.CreateCell(15);
+                    var cAlim = row.CreateCell(14);
                     cAlim.SetCellValue((double)m.VtcoAlim);
                     cAlim.CellStyle = currencyStyle;
 
                     double bnc = double.TryParse(m.Bnc, out var bVal) ? bVal : 0;
-                    var cBnc = row.CreateCell(16);
+                    var cBnc = row.CreateCell(15);
                     cBnc.SetCellValue(bnc);
                     cBnc.CellStyle = currencyStyle;
 
-                    var cTotV = row.CreateCell(17);
+                    var cTotV = row.CreateCell(16);
                     cTotV.SetCellValue((double)m.VtcoTrasp + (double)m.VtcoAlim + bnc);
                     cTotV.CellStyle = currencyStyle;
 
-                    row.CreateCell(18).SetCellValue(!m.Asistio ? m.TipoAusencia : "");
-                    row.CreateCell(19).SetCellValue(!m.Asistio ? (double)(m.DiasAusencia ?? 1.0m) : 0);
-                    row.CreateCell(20).SetCellValue(m.TicketRedmineId.HasValue && m.TicketRedmineId > 0 ? m.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(21).SetCellValue(m.TicketViaticoId.HasValue && m.TicketViaticoId > 0 ? m.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(22).SetCellValue(m.TicketBonoId.HasValue && m.TicketBonoId > 0 ? m.TicketBonoId.Value.ToString() : "");
-                    row.CreateCell(23).SetCellValue(m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0 ? m.TicketAusenciaId.Value.ToString() : "");
-                    row.CreateCell(24).SetCellValue(m.Estado);
-                    row.CreateCell(25).SetCellValue(m.UsuarioRegistro ?? "");
-                    row.CreateCell(26).SetCellValue(m.FechaCreacion?.ToString("yyyy-MM-dd HH:mm") ?? "");
-                    row.CreateCell(27).SetCellValue(m.Observaciones ?? "");
+                    row.CreateCell(17).SetCellValue(!m.Asistio ? m.TipoAusencia : "");
+                    row.CreateCell(18).SetCellValue(!m.Asistio ? (double)(m.DiasAusencia ?? 1.0m) : 0);
+                    row.CreateCell(19).SetCellValue(m.TicketRedmineId.HasValue && m.TicketRedmineId > 0 ? m.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(20).SetCellValue(m.TicketViaticoId.HasValue && m.TicketViaticoId > 0 ? m.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(21).SetCellValue(m.TicketBonoId.HasValue && m.TicketBonoId > 0 ? m.TicketBonoId.Value.ToString() : "");
+                    row.CreateCell(22).SetCellValue(m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0 ? m.TicketAusenciaId.Value.ToString() : "");
+                    row.CreateCell(23).SetCellValue(m.Estado);
+                    row.CreateCell(24).SetCellValue(m.UsuarioRegistro ?? "");
+                    row.CreateCell(25).SetCellValue(m.FechaCreacion?.ToString("yyyy-MM-dd HH:mm") ?? "");
+                    row.CreateCell(26).SetCellValue(m.Observaciones ?? "");
 
                     rowIdx++;
                 }
 
                 // 5. Fila de Totales
                 var totalRow = sheet.CreateRow(rowIdx);
-                var totalLbl = totalRow.CreateCell(6);
+                var totalLbl = totalRow.CreateCell(5);
                 totalLbl.SetCellValue("TOTALES ACUMULADOS:");
                 totalLbl.CellStyle = totalStyle;
 
-                var totalHorasCell = totalRow.CreateCell(13);
+                var totalHorasCell = totalRow.CreateCell(12);
                 totalHorasCell.SetCellValue((double)TotalHorasEfectivas);
                 totalHorasCell.CellStyle = numberStyle;
 
-                var totalTraspCell = totalRow.CreateCell(14);
+                var totalTraspCell = totalRow.CreateCell(13);
                 totalTraspCell.SetCellValue((double)TotalViaticosTrasp);
                 totalTraspCell.CellStyle = totalCurrencyStyle;
 
-                var totalAlimCell = totalRow.CreateCell(15);
+                var totalAlimCell = totalRow.CreateCell(14);
                 totalAlimCell.SetCellValue((double)TotalViaticosAlim);
                 totalAlimCell.CellStyle = totalCurrencyStyle;
 
-                var totalBncCell = totalRow.CreateCell(16);
+                var totalBncCell = totalRow.CreateCell(15);
                 totalBncCell.SetCellValue((double)TotalViaticosBnc);
                 totalBncCell.CellStyle = totalCurrencyStyle;
 
-                var totalGlobalCell = totalRow.CreateCell(17);
+                var totalGlobalCell = totalRow.CreateCell(16);
                 totalGlobalCell.SetCellValue((double)TotalViaticosGlobal);
                 totalGlobalCell.CellStyle = totalCurrencyStyle;
 
@@ -478,33 +477,32 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 int[] colWidths = new[]
                 {
                     6,  // 0: #
-                    10, // 1: ID BD
-                    13, // 2: Fecha
-                    18, // 3: Cliente
-                    22, // 4: Área
-                    15, // 5: Carnet / Código
-                    32, // 6: Nombre del Colaborador
-                    22, // 7: Puesto
-                    12, // 8: Turno
-                    12, // 9: Asistió
-                    10, // 10: Entrada
-                    10, // 11: Salida
-                    12, // 12: Comida (hrs)
-                    14, // 13: Horas Efectivas
-                    20, // 14: Viático Transporte (C$)
-                    20, // 15: Viático Alimentación (C$)
-                    16, // 16: Bono BNC (C$)
-                    20, // 17: Total Viáticos (C$)
-                    22, // 18: Tipo Ausencia
-                    14, // 19: Días Ausencia
-                    18, // 20: Ticket Movimiento
-                    18, // 21: Ticket Viático
-                    18, // 22: Ticket Bono
-                    18, // 23: Ticket Ausencia
-                    14, // 24: Estado
-                    26, // 25: Registrado Por
-                    18, // 26: Fecha Creación
-                    30  // 27: Observaciones
+                    13, // 1: Fecha
+                    18, // 2: Cliente
+                    22, // 3: Área
+                    15, // 4: Carnet / Código
+                    32, // 5: Nombre del Colaborador
+                    22, // 6: Puesto
+                    12, // 7: Turno
+                    12, // 8: Asistió
+                    10, // 9: Entrada
+                    10, // 10: Salida
+                    12, // 11: Comida (hrs)
+                    14, // 12: Horas Efectivas
+                    20, // 13: Viático Transporte (C$)
+                    20, // 14: Viático Alimentación (C$)
+                    16, // 15: Bono / Nómina (C$)
+                    20, // 16: Total Viáticos / Bonos (C$)
+                    22, // 17: Tipo Ausencia
+                    14, // 18: Días Ausencia
+                    18, // 19: Ticket Movimiento
+                    18, // 20: Ticket Viático
+                    18, // 21: Ticket Bono
+                    18, // 22: Ticket Ausencia
+                    14, // 23: Estado
+                    26, // 24: Registrado Por
+                    18, // 25: Fecha Creación
+                    30  // 26: Observaciones
                 };
 
                 for (int i = 0; i < headers.Length; i++)
