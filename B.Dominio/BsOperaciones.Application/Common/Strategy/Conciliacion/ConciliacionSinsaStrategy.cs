@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using ExcelDataReader;
+using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Report;
 
 namespace BsOperaciones.Application.Common.Strategy.Conciliacion
@@ -25,22 +26,88 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
             return false;
         }
 
-        private class SinsaItem
+        private class TurnoBussersaInterno
+        {
+            public int IdEmpleado { get; set; }
+            public string NombreEmpleado { get; set; } = string.Empty;
+            public string NombreNorm { get; set; } = string.Empty;
+            public DateTime Fecha { get; set; }
+            public string AreaOriginal { get; set; } = string.Empty;
+            public string AreaCanonica { get; set; } = string.Empty;
+            public string PuestoOriginal { get; set; } = string.Empty;
+            public string PuestoCanonico { get; set; } = string.Empty;
+            public decimal HorasOrd { get; set; }
+            public decimal HorasExt { get; set; }
+            public decimal TotalHoras => HorasOrd + HorasExt;
+            public string Turno { get; set; } = string.Empty;
+        }
+
+        private class TurnoSinsaInterno
         {
             public DateTime Fecha { get; set; }
             public string Empleado { get; set; } = string.Empty;
             public string EmpleadoNorm { get; set; } = string.Empty;
-            public string Puesto { get; set; } = string.Empty;
-            public string Bodega { get; set; } = string.Empty;
+            public string Codigo { get; set; } = string.Empty;
+            public string BodegaOriginal { get; set; } = string.Empty;
+            public string AreaCanonica { get; set; } = string.Empty;
+            public string PuestoOriginal { get; set; } = string.Empty;
+            public string PuestoCanonico { get; set; } = string.Empty;
             public decimal HorasOrd { get; set; }
             public decimal HorasExt { get; set; }
             public decimal TotalHoras => HorasOrd + HorasExt;
-            public string EstadoPago { get; set; } = "PAGADO";
-            public string NoFactura { get; set; } = string.Empty;
-            public string NoControl { get; set; } = string.Empty;
+        }
+
+        public ResultadoConciliacionDto ConciliarMovimientos(Stream fileStream, List<DiasTrabajadosAreas> movimientosBussersa, DateTime? fchaInicio, DateTime? fchaFin)
+        {
+            var bussersaInternos = (movimientosBussersa ?? new List<DiasTrabajadosAreas>()).Select(b =>
+            {
+                string area = !string.IsNullOrWhiteSpace(b.areamov) ? b.areamov : (!string.IsNullOrWhiteSpace(b.area) ? b.area : "General");
+                string puesto = !string.IsNullOrWhiteSpace(b.cargo) ? b.cargo : (!string.IsNullOrWhiteSpace(b.tipoempleado) ? b.tipoempleado : "OPERARIO");
+                return new TurnoBussersaInterno
+                {
+                    IdEmpleado = b.id,
+                    NombreEmpleado = b.nombre ?? string.Empty,
+                    NombreNorm = NormalizarNombre(b.nombre),
+                    Fecha = b.fecha.Date,
+                    AreaOriginal = area,
+                    AreaCanonica = ObtenerAreaCanonica(area),
+                    PuestoOriginal = puesto,
+                    PuestoCanonico = ObtenerPuestoCanonico(puesto),
+                    HorasOrd = b.horas,
+                    HorasExt = b.horasextras,
+                    Turno = $"{b.entrada} - {b.salida}"
+                };
+            }).ToList();
+
+            return ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
         }
 
         public ResultadoConciliacionDto Conciliar(Stream fileStream, List<ReporteCierreMarcadasDetalle> marcadasBussersa, DateTime? fchaInicio, DateTime? fchaFin)
+        {
+            var bussersaInternos = (marcadasBussersa ?? new List<ReporteCierreMarcadasDetalle>()).Select(b =>
+            {
+                string area = !string.IsNullOrWhiteSpace(b.area_nombre) ? b.area_nombre : "General";
+                string puesto = !string.IsNullOrWhiteSpace(b.cargo) ? b.cargo : "OPERARIO";
+                return new TurnoBussersaInterno
+                {
+                    IdEmpleado = b.id_empleado,
+                    NombreEmpleado = b.nombre_empleado ?? string.Empty,
+                    NombreNorm = NormalizarNombre(b.nombre_empleado),
+                    Fecha = b.fecha_asistencia.Date,
+                    AreaOriginal = area,
+                    AreaCanonica = ObtenerAreaCanonica(area),
+                    PuestoOriginal = puesto,
+                    PuestoCanonico = ObtenerPuestoCanonico(puesto),
+                    HorasOrd = b.HorasNormalesCobrables,
+                    HorasExt = b.HorasExtrasCobrables,
+                    Turno = b.Turno ?? string.Empty
+                };
+            }).ToList();
+
+            return ProcesarConciliacion(fileStream, bussersaInternos, fchaInicio, fchaFin);
+        }
+
+        private ResultadoConciliacionDto ProcesarConciliacion(Stream fileStream, List<TurnoBussersaInterno> bussersaList, DateTime? fchaInicio, DateTime? fchaFin)
         {
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
@@ -75,26 +142,23 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                 return resultado;
             }
 
-            // Identificar índices de columnas dinámicamente o por posición estándar
-            int colFecha = 4, colEmpleado = 7, colPuesto = 8, colBodega = 1;
-            int colHorasOrd = 12, colHorasExt = 13, colEstadoPago = 20, colFactura = 22, colControl = 19;
+            // Identificar índices de columnas dinámicamente
+            int colFecha = 4, colEmpleado = 7, colPuesto = 9, colBodega = 1;
+            int colHorasOrd = 14, colHorasExt = 15;
 
             var r0 = table.Rows[0];
             for (int c = 0; c < table.Columns.Count; c++)
             {
                 string h = r0[c]?.ToString()?.Trim()?.ToLowerInvariant() ?? "";
                 if (h.Contains("empleado") || h.Contains("colaborador") || h.Contains("trabajador")) colEmpleado = c;
-                else if (h.Contains("fecha") && !h.Contains("pago")) colFecha = c;
-                else if (h.Contains("puesto") || h.Contains("cargo")) colPuesto = c;
-                else if (h.Contains("bodega") || h.Contains("zona")) colBodega = c;
+                else if (h.Contains("fecha") && !h.Contains("pago") && !h.Contains("salida")) colFecha = c;
+                else if ((h.Contains("puesto") || h.Contains("cargo")) && !h.Contains("presupuesto")) colPuesto = c;
+                else if (h.Contains("bodega")) colBodega = c;
                 else if ((h.Contains("ordinaria") || h.Contains("normal")) && !h.Contains("costo") && !h.Contains("tarifa") && !h.Contains("valor") && !h.Contains("monto")) colHorasOrd = c;
                 else if (h.Contains("extra") && !h.Contains("costo") && !h.Contains("tarifa") && !h.Contains("valor") && !h.Contains("monto")) colHorasExt = c;
-                else if (h.Contains("estado")) colEstadoPago = c;
-                else if (h.Contains("factura")) colFactura = c;
-                else if (h.Contains("control")) colControl = c;
             }
 
-            var sinsaItems = new List<SinsaItem>();
+            var sinsaItems = new List<TurnoSinsaInterno>();
             for (int r = 1; r < table.Rows.Count; r++)
             {
                 var row = table.Rows[r];
@@ -114,172 +178,206 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                 decimal.TryParse(sOrd, NumberStyles.Any, CultureInfo.InvariantCulture, out ord);
                 decimal.TryParse(sExt, NumberStyles.Any, CultureInfo.InvariantCulture, out ext);
 
-                string estado = row[colEstadoPago]?.ToString()?.Trim()?.ToUpperInvariant() ?? "PAGADO";
-                string fac = row[colFactura]?.ToString()?.Trim() ?? "";
-                string ctl = row[colControl]?.ToString()?.Trim() ?? "";
                 string puesto = row[colPuesto]?.ToString()?.Trim() ?? "";
                 string bodega = row[colBodega]?.ToString()?.Trim() ?? "";
 
-                sinsaItems.Add(new SinsaItem
+                sinsaItems.Add(new TurnoSinsaInterno
                 {
                     Fecha = f.Date,
                     Empleado = emp,
                     EmpleadoNorm = NormalizarNombre(emp),
-                    Puesto = puesto,
-                    Bodega = bodega,
+                    BodegaOriginal = bodega,
+                    AreaCanonica = ObtenerAreaCanonica(bodega),
+                    PuestoOriginal = puesto,
+                    PuestoCanonico = ObtenerPuestoCanonico(puesto),
                     HorasOrd = ord,
-                    HorasExt = ext,
-                    EstadoPago = estado.Contains("PENDIENTE") ? "PENDIENTE" : "PAGADO",
-                    NoFactura = fac,
-                    NoControl = ctl
+                    HorasExt = ext
                 });
             }
 
-            // 2. Resumen General de Bussersa
-            var bussersaFiltradas = marcadasBussersa ?? new List<ReporteCierreMarcadasDetalle>();
-            resultado.TotalTurnosBussersa = bussersaFiltradas.Count;
-            resultado.TotalHorasOrdBussersa = Math.Round(bussersaFiltradas.Sum(x => x.HorasNormalesCobrables), 2);
-            resultado.TotalHorasExtBussersa = Math.Round(bussersaFiltradas.Sum(x => x.HorasExtrasCobrables), 2);
-            resultado.TotalHorasBussersa = resultado.TotalHorasOrdBussersa + resultado.TotalHorasExtBussersa;
+            // Filtrar Bussersa por fechas si aplica
+            var bussersaFiltrados = bussersaList;
+            if (fchaInicio.HasValue) bussersaFiltrados = bussersaFiltrados.Where(x => x.Fecha >= fchaInicio.Value.Date).ToList();
+            if (fchaFin.HasValue) bussersaFiltrados = bussersaFiltrados.Where(x => x.Fecha <= fchaFin.Value.Date).ToList();
 
-            // 3. Resumen General del Cliente (Sinsa)
-            var pagados = sinsaItems.Where(x => x.EstadoPago == "PAGADO").ToList();
-            var pendientes = sinsaItems.Where(x => x.EstadoPago == "PENDIENTE").ToList();
+            // 2. Totales Generales Bussersa
+            resultado.TotalTurnosBussersa = bussersaFiltrados.Count;
+            resultado.TotalHorasOrdBussersa = Math.Round(bussersaFiltrados.Sum(x => x.HorasOrd), 2);
+            resultado.TotalHorasExtBussersa = Math.Round(bussersaFiltrados.Sum(x => x.HorasExt), 2);
+            resultado.TotalHorasBussersa = Math.Round(resultado.TotalHorasOrdBussersa + resultado.TotalHorasExtBussersa, 2);
 
-            resultado.TotalTurnosClientePagado = pagados.Count;
-            resultado.TotalHorasOrdClientePagado = Math.Round(pagados.Sum(x => x.HorasOrd), 2);
-            resultado.TotalHorasExtClientePagado = Math.Round(pagados.Sum(x => x.HorasExt), 2);
-            resultado.TotalHorasClientePagado = resultado.TotalHorasOrdClientePagado + resultado.TotalHorasExtClientePagado;
-
-            resultado.TotalTurnosClientePendiente = pendientes.Count;
-            resultado.TotalHorasOrdClientePendiente = Math.Round(pendientes.Sum(x => x.HorasOrd), 2);
-            resultado.TotalHorasExtClientePendiente = Math.Round(pendientes.Sum(x => x.HorasExt), 2);
-            resultado.TotalHorasClientePendiente = resultado.TotalHorasOrdClientePendiente + resultado.TotalHorasExtClientePendiente;
-
+            // 3. Totales Generales Cliente (Sinsa)
             resultado.TotalTurnosClienteTotal = sinsaItems.Count;
             resultado.TotalHorasOrdClienteTotal = Math.Round(sinsaItems.Sum(x => x.HorasOrd), 2);
             resultado.TotalHorasExtClienteTotal = Math.Round(sinsaItems.Sum(x => x.HorasExt), 2);
-            resultado.TotalHorasClienteTotal = resultado.TotalHorasOrdClienteTotal + resultado.TotalHorasExtClienteTotal;
+            resultado.TotalHorasClienteTotal = Math.Round(resultado.TotalHorasOrdClienteTotal + resultado.TotalHorasExtClienteTotal, 2);
 
-            // 4. Comparativas y Brechas
-            resultado.DiferenciaTurnosGlobal = resultado.TotalTurnosBussersa - resultado.TotalTurnosClienteTotal;
-            resultado.DiferenciaHorasOrdGlobal = Math.Round(resultado.TotalHorasOrdBussersa - resultado.TotalHorasOrdClienteTotal, 2);
-            resultado.DiferenciaHorasExtGlobal = Math.Round(resultado.TotalHorasExtBussersa - resultado.TotalHorasExtClienteTotal, 2);
-            resultado.DiferenciaTotalHorasGlobal = Math.Round(resultado.TotalHorasBussersa - resultado.TotalHorasClienteTotal, 2);
-
-            resultado.BrechaPagadoTurnos = resultado.TotalTurnosBussersa - resultado.TotalTurnosClientePagado;
-            resultado.BrechaPagadoHorasOrd = Math.Round(resultado.TotalHorasOrdBussersa - resultado.TotalHorasOrdClientePagado, 2);
-            resultado.BrechaPagadoHorasExt = Math.Round(resultado.TotalHorasExtBussersa - resultado.TotalHorasExtClientePagado, 2);
-            resultado.BrechaPagadoTotalHoras = Math.Round(resultado.TotalHorasBussersa - resultado.TotalHorasClientePagado, 2);
-
-            // 5. Cruce de Datos Detallado
-            var empNormCache = new Dictionary<string, string>();
-            string GetNorm(string n)
-            {
-                if (!empNormCache.TryGetValue(n, out var val))
+            // 4. CONSOLIDADO POR ÁREA Y PUESTO (EJE PRINCIPAL DE CONCILIACIÓN)
+            var grupoBussersa = bussersaFiltrados
+                .GroupBy(x => new { Area = x.AreaCanonica, Puesto = x.PuestoCanonico })
+                .ToDictionary(g => g.Key, g => new
                 {
-                    val = NormalizarNombre(n);
-                    empNormCache[n] = val;
-                }
-                return val;
+                    Turnos = g.Count(),
+                    Ord = Math.Round(g.Sum(x => x.HorasOrd), 2),
+                    Ext = Math.Round(g.Sum(x => x.HorasExt), 2)
+                });
+
+            var grupoSinsa = sinsaItems
+                .GroupBy(x => new { Area = x.AreaCanonica, Puesto = x.PuestoCanonico })
+                .ToDictionary(g => g.Key, g => new
+                {
+                    Turnos = g.Count(),
+                    Ord = Math.Round(g.Sum(x => x.HorasOrd), 2),
+                    Ext = Math.Round(g.Sum(x => x.HorasExt), 2)
+                });
+
+            var todasLasLlavesAreaPuesto = grupoBussersa.Keys.Union(grupoSinsa.Keys)
+                .OrderBy(k => k.Area).ThenBy(k => k.Puesto)
+                .ToList();
+
+            int noAP = 1;
+            foreach (var key in todasLasLlavesAreaPuesto)
+            {
+                grupoBussersa.TryGetValue(key, out var bData);
+                grupoSinsa.TryGetValue(key, out var sData);
+
+                int turnosB = bData?.Turnos ?? 0;
+                int turnosS = sData?.Turnos ?? 0;
+                decimal ordB = bData?.Ord ?? 0m;
+                decimal ordS = sData?.Ord ?? 0m;
+                decimal extB = bData?.Ext ?? 0m;
+                decimal extS = sData?.Ext ?? 0m;
+
+                resultado.ConsolidadoAreaPuesto.Add(new ConsolidadoAreaPuestoDto
+                {
+                    No = noAP++,
+                    Area = key.Area,
+                    Puesto = key.Puesto,
+                    TurnosBussersa = turnosB,
+                    TurnosCliente = turnosS,
+                    HorasOrdBussersa = ordB,
+                    HorasOrdCliente = ordS,
+                    HorasExtBussersa = extB,
+                    HorasExtCliente = extS
+                });
             }
 
+            // 5. CONSOLIDADO SOLO POR ÁREA
+            var grupoBussersaArea = bussersaFiltrados
+                .GroupBy(x => x.AreaCanonica)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    Turnos = g.Count(),
+                    Ord = Math.Round(g.Sum(x => x.HorasOrd), 2),
+                    Ext = Math.Round(g.Sum(x => x.HorasExt), 2)
+                });
+
+            var grupoSinsaArea = sinsaItems
+                .GroupBy(x => x.AreaCanonica)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    Turnos = g.Count(),
+                    Ord = Math.Round(g.Sum(x => x.HorasOrd), 2),
+                    Ext = Math.Round(g.Sum(x => x.HorasExt), 2)
+                });
+
+            var todasLasLlavesSoloArea = grupoBussersaArea.Keys.Union(grupoSinsaArea.Keys)
+                .OrderBy(k => k)
+                .ToList();
+
+            int noA = 1;
+            foreach (var areaKey in todasLasLlavesSoloArea)
+            {
+                grupoBussersaArea.TryGetValue(areaKey, out var bData);
+                grupoSinsaArea.TryGetValue(areaKey, out var sData);
+
+                int turnosB = bData?.Turnos ?? 0;
+                int turnosS = sData?.Turnos ?? 0;
+                decimal ordB = bData?.Ord ?? 0m;
+                decimal ordS = sData?.Ord ?? 0m;
+                decimal extB = bData?.Ext ?? 0m;
+                decimal extS = sData?.Ext ?? 0m;
+
+                resultado.ConsolidadoSoloArea.Add(new ConsolidadoSoloAreaDto
+                {
+                    No = noA++,
+                    Area = areaKey,
+                    TurnosBussersa = turnosB,
+                    TurnosCliente = turnosS,
+                    HorasOrdBussersa = ordB,
+                    HorasOrdCliente = ordS,
+                    HorasExtBussersa = extB,
+                    HorasExtCliente = extS
+                });
+            }
+
+            // 6. DETALLE POR COLABORADOR: Cruce Colaborador-Fecha
+            var sinsaItemsUsados = new HashSet<TurnoSinsaInterno>();
             int numFaltante = 1;
             int numDiferencia = 1;
 
-            var matchBussersaUsado = new HashSet<int>();
-            var sinsaItemsUsados = new HashSet<SinsaItem>();
-
-            foreach (var b in bussersaFiltradas)
+            foreach (var b in bussersaFiltrados)
             {
-                var bNorm = GetNorm(b.nombre_empleado);
-                var fDate = b.fecha_asistencia.Date;
-
-                // Buscar todos los registros de Sinsa para este colaborador y fecha
                 var matchesSinsa = sinsaItems
-                    .Where(s => s.Fecha == fDate && CoincideNombre(bNorm, s.EmpleadoNorm))
+                    .Where(s => s.Fecha == b.Fecha && CoincideNombre(b.NombreNorm, s.EmpleadoNorm))
                     .ToList();
 
                 if (!matchesSinsa.Any())
                 {
-                    // Turno omitido al 100% por Sinsa
-                    string diaSemana = fDate.ToString("dddd", new CultureInfo("es-NI"));
+                    string diaSemana = b.Fecha.ToString("dddd", new CultureInfo("es-NI"));
                     diaSemana = char.ToUpper(diaSemana[0]) + diaSemana.Substring(1);
 
                     resultado.TurnosFaltantes.Add(new TurnoFaltanteClienteDto
                     {
                         No = numFaltante++,
-                        IdEmpleado = b.id_empleado,
-                        NombreEmpleado = b.nombre_empleado,
-                        Fecha = fDate,
+                        IdEmpleado = b.IdEmpleado,
+                        NombreEmpleado = b.NombreEmpleado,
+                        Fecha = b.Fecha,
                         DiaSemana = diaSemana,
-                        Area = b.area_nombre,
-                        Cargo = b.cargo ?? "Operador",
+                        Area = b.AreaCanonica,
+                        Cargo = b.PuestoCanonico,
                         Turno = b.Turno,
-                        HorasOrdCobrables = b.HorasNormalesCobrables,
-                        HorasExtCobrables = b.HorasExtrasCobrables,
-                        CategoriaFaltante = DeterminarCategoriaFaltante(b.area_nombre, fDate),
-                        MotivoJustificacion = $"Turno laborado con biométrico activo en Bussersa ({b.area_nombre}). Omitido en la facturación de Sinsa."
+                        HorasOrdCobrables = b.HorasOrd,
+                        HorasExtCobrables = b.HorasExt,
+                        CategoriaFaltante = DeterminarCategoriaFaltante(b.AreaCanonica, b.Fecha),
+                        MotivoJustificacion = $"Turno registrado en Bussersa en el área {b.AreaCanonica} pero no figura en el archivo de Sinsa."
                     });
                 }
                 else
                 {
                     foreach (var m in matchesSinsa) sinsaItemsUsados.Add(m);
 
-                    decimal bTotal = b.HorasNormalesCobrables + b.HorasExtrasCobrables;
                     decimal sOrd = matchesSinsa.Sum(x => x.HorasOrd);
                     decimal sExt = matchesSinsa.Sum(x => x.HorasExt);
-                    decimal sTotal = sOrd + sExt;
 
-                    if (Math.Abs(bTotal - sTotal) >= 0.01m || Math.Abs(b.HorasExtrasCobrables - sExt) >= 0.01m)
+                    if (Math.Abs(b.HorasOrd - sOrd) >= 0.01m || Math.Abs(b.HorasExt - sExt) >= 0.01m)
                     {
                         var primaryMatch = matchesSinsa.First();
                         resultado.DiferenciasDiasComunes.Add(new DiferenciaDiaComunDto
                         {
                             No = numDiferencia++,
-                            Fecha = fDate,
-                            NombreEmpleado = b.nombre_empleado,
-                            Area = b.area_nombre,
-                            Cargo = b.cargo ?? primaryMatch.Puesto,
-                            HorasOrdBussersa = b.HorasNormalesCobrables,
-                            HorasExtBussersa = b.HorasExtrasCobrables,
+                            Fecha = b.Fecha,
+                            NombreEmpleado = b.NombreEmpleado,
+                            AreaBussersa = b.AreaCanonica,
+                            BodegaCliente = primaryMatch.AreaCanonica,
+                            Cargo = b.PuestoCanonico,
+                            HorasOrdBussersa = b.HorasOrd,
+                            HorasExtBussersa = b.HorasExt,
                             HorasOrdCliente = sOrd,
                             HorasExtCliente = sExt,
-                            NoFacturaCliente = string.Join(", ", matchesSinsa.Select(x => x.NoFactura).Where(x => !string.IsNullOrEmpty(x)).Distinct()),
-                            EstadoCliente = primaryMatch.EstadoPago,
-                            DetalleDiferencia = $"Bussersa (Ord: {b.HorasNormalesCobrables:N2}h, Ext: {b.HorasExtrasCobrables:N2}h) vs Sinsa (Ord: {sOrd:N2}h, Ext: {sExt:N2}h)"
+                            DetalleDiferencia = $"Bussersa (Ord: {b.HorasOrd:N2}h, Ext: {b.HorasExt:N2}h) vs Sinsa (Ord: {sOrd:N2}h, Ext: {sExt:N2}h)"
                         });
                     }
                 }
             }
 
-            // 6. Facturas en Estado PENDIENTE
-            int numPendiente = 1;
-            foreach (var p in pendientes)
-            {
-                resultado.FacturasPendientes.Add(new RegistroPendienteClienteDto
-                {
-                    No = numPendiente++,
-                    Fecha = p.Fecha,
-                    NombreEmpleado = p.Empleado,
-                    Puesto = p.Puesto,
-                    Bodega = p.Bodega,
-                    HorasOrd = p.HorasOrd,
-                    HorasExt = p.HorasExt,
-                    NoFactura = p.NoFactura,
-                    EstadoPago = p.EstadoPago,
-                    Observacion = "Registrado por Sinsa pero retenido en estado PENDIENTE de pago."
-                });
-            }
-
-            // 7. Registros Solo en Sinsa (no encontrados en Bussersa)
+            // Registros solo en Sinsa (no encontrados en Bussersa para esa fecha)
             int numSoloCliente = 1;
             foreach (var s in sinsaItems)
             {
                 if (!sinsaItemsUsados.Contains(s))
                 {
-                    // Verificar si existe en Bussersa para esa fecha
-                    bool exists = bussersaFiltradas.Any(b => b.fecha_asistencia.Date == s.Fecha && CoincideNombre(GetNorm(b.nombre_empleado), s.EmpleadoNorm));
+                    bool exists = bussersaFiltrados.Any(b => b.Fecha == s.Fecha && CoincideNombre(b.NombreNorm, s.EmpleadoNorm));
                     if (!exists)
                     {
                         resultado.RegistrosSoloCliente.Add(new RegistroSoloClienteDto
@@ -287,19 +385,17 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
                             No = numSoloCliente++,
                             Fecha = s.Fecha,
                             NombreEmpleado = s.Empleado,
-                            Puesto = s.Puesto,
-                            Bodega = s.Bodega,
+                            Puesto = s.PuestoCanonico,
+                            Bodega = s.AreaCanonica,
                             HorasOrd = s.HorasOrd,
                             HorasExt = s.HorasExt,
-                            NoFactura = s.NoFactura,
-                            EstadoPago = s.EstadoPago,
-                            Diagnostico = "Registro presente en Sinsa que no figura en el cierre de marcadas de Bussersa para Sinsa."
+                            Diagnostico = $"Registro presente en Sinsa ({s.AreaCanonica}) que no figura en los movimientos de Bussersa."
                         });
                     }
                 }
             }
 
-            // 8. Resumen Consolidado por Colaborador
+            // Resumen de faltantes por colaborador
             int numRes = 1;
             var grupoColaboradores = resultado.TurnosFaltantes
                 .GroupBy(x => x.IdEmpleado > 0 ? x.IdEmpleado.ToString() : x.NombreEmpleado)
@@ -331,6 +427,52 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
             return resultado;
         }
 
+        public static string NormalizarClave(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            var s = input.Trim().ToUpperInvariant();
+            s = s.Replace("Á", "A").Replace("É", "E").Replace("Í", "I").Replace("Ó", "O").Replace("Ú", "U").Replace("Ü", "U");
+            s = Regex.Replace(s, @"\s+", " ");
+            return s;
+        }
+
+        public static string ObtenerAreaCanonica(string area)
+        {
+            var norm = NormalizarClave(area);
+            if (string.IsNullOrEmpty(norm)) return "General";
+
+            if (norm.Contains("ALTA TENSION")) return "Bodegon Alta tension";
+            if (norm.Contains("CERAMIC")) return "Ceramica";
+            if (norm.Contains("CONSTRUC")) return "Construcciones";
+            if (norm.Contains("ENVIOS")) return "Despacho envios";
+            if (norm.Contains("DESPACHO")) return "Despacho operaciones";
+            if (norm.Contains("FERRETERIA") || norm.Contains("ALMACEN C")) return "Ferreteria Almacen C";
+            if (norm.Contains("MEDICION") || norm.Contains("DESEMPE") || norm.Contains("CALIDAD")) return "Medición y Desempeño";
+            if (norm.Contains("GYPSUM") || norm.Contains("PVC")) return "PVC y Gypsum";
+            if (norm.Contains("PROYECT")) return "Proyectos";
+            if (norm.Contains("RECEPCION") || norm.Contains("MERCADERIA")) return "Recepcion mercaderia";
+            if (norm.Contains("TRANSPORTE") || norm.Contains("DISTRIBUCION")) return "Transporte y Distribucion";
+            if (norm.Contains("TRASLADO")) return "Traslados";
+
+            return area.Trim();
+        }
+
+        public static string ObtenerPuestoCanonico(string puesto)
+        {
+            var norm = NormalizarClave(puesto);
+            if (string.IsNullOrEmpty(norm)) return "OPERARIO";
+
+            if (norm.Contains("PICKING")) return "OPERARIO PICKING";
+            if (norm.Contains("CARGA") || norm.Contains("MONTACARGA") || norm.Contains("EQUIPO")) return "OPERADOR DE EQUIPO DE CARGA";
+            if (norm.Contains("DESPACHADOR")) return "DESPACHADOR";
+            if (norm.Contains("AUXILIAR")) return "AUXILIAR DE OPERACIONES";
+            if (norm.Contains("INGRESO")) return "OPERADOR DE INGRESOS";
+            if (norm.Contains("CHOFER") || norm.Contains("CONDUCTOR")) return "CHOFER DE CAMION";
+            if (norm.Contains("AYUDANTE")) return "AYUDANTE GENERAL DE OPERACIONES";
+
+            return puesto.Trim().ToUpperInvariant();
+        }
+
         private static string NormalizarNombre(string? nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre)) return string.Empty;
@@ -356,24 +498,25 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
 
         private static string DeterminarCategoriaFaltante(string area, DateTime fecha)
         {
-            if (area.IndexOf("calidad", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "Control de Calidad Omitido";
+            if (area.IndexOf("calidad", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                area.IndexOf("desempeño", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Control de Calidad / Medición Omitido";
             if (area.IndexOf("logistica", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                area.IndexOf("logística", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "Logística / Despacho Omitido";
-            if (area.IndexOf("ceramica", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                area.IndexOf("cerámica", StringComparison.OrdinalIgnoreCase) >= 0)
+                area.IndexOf("despacho", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Despacho / Operaciones Omitido";
+            if (area.IndexOf("ceramica", StringComparison.OrdinalIgnoreCase) >= 0)
                 return "Cerámica Omitido";
             return "Turno Regular Omitido";
         }
 
         private static string ObtenerCausaRaiz(string area, int diasOmitidos)
         {
-            if (area.IndexOf("calidad", StringComparison.OrdinalIgnoreCase) >= 0)
-                return "Sinsa registra esta área como 'Medición y Desempeño' pero omitió cargar gran parte del mes.";
+            if (area.IndexOf("calidad", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                area.IndexOf("desempeño", StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Sinsa registra esta área como 'Medición y Desempeño' pero omitió cargar fechas del periodo.";
             if (diasOmitidos >= 10)
-                return "Colaborador regular con quincena o mes omitido en la consolidación de facturación de Sinsa.";
-            return "Día marcado en biométrico de Bussersa pero no reportado en la base de facturación de Sinsa.";
+                return "Colaborador regular con periodo omitido en la planilla de Sinsa.";
+            return "Día laborado en Bussersa pero no reportado en la base de Sinsa.";
         }
     }
 }

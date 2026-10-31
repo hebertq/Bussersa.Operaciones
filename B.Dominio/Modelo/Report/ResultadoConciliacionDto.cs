@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Modelo.Report
 {
@@ -10,49 +11,102 @@ namespace Modelo.Report
         public DateTime? FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
 
-        // --- CUADRO COMPARATIVO GENERAL ---
-        // Bussersa (Cierre Real de Marcadas Cobrables)
+        // --- RESUMEN GENERAL BUSSERSA ---
         public int TotalTurnosBussersa { get; set; }
         public decimal TotalHorasOrdBussersa { get; set; }
         public decimal TotalHorasExtBussersa { get; set; }
         public decimal TotalHorasBussersa { get; set; }
 
-        // Cliente - Facturado y Pagado
-        public int TotalTurnosClientePagado { get; set; }
-        public decimal TotalHorasOrdClientePagado { get; set; }
-        public decimal TotalHorasExtClientePagado { get; set; }
-        public decimal TotalHorasClientePagado { get; set; }
-
-        // Cliente - Facturas en Estado PENDIENTE
-        public int TotalTurnosClientePendiente { get; set; }
-        public decimal TotalHorasOrdClientePendiente { get; set; }
-        public decimal TotalHorasExtClientePendiente { get; set; }
-        public decimal TotalHorasClientePendiente { get; set; }
-
-        // Cliente - Total Registrado en su archivo
+        // --- RESUMEN GENERAL CLIENTE (SINSA) ---
         public int TotalTurnosClienteTotal { get; set; }
         public decimal TotalHorasOrdClienteTotal { get; set; }
         public decimal TotalHorasExtClienteTotal { get; set; }
         public decimal TotalHorasClienteTotal { get; set; }
 
-        // Diferencia Neta Global (Bussersa - Cliente Total)
-        public int DiferenciaTurnosGlobal { get; set; }
-        public decimal DiferenciaHorasOrdGlobal { get; set; }
-        public decimal DiferenciaHorasExtGlobal { get; set; }
-        public decimal DiferenciaTotalHorasGlobal { get; set; }
+        // --- DIFERENCIAS GLOBALES (BUSSERSA - CLIENTE) ---
+        public int DiferenciaTurnosGlobal => TotalTurnosBussersa - TotalTurnosClienteTotal;
+        public decimal DiferenciaHorasOrdGlobal => Math.Round(TotalHorasOrdBussersa - TotalHorasOrdClienteTotal, 2);
+        public decimal DiferenciaHorasExtGlobal => Math.Round(TotalHorasExtBussersa - TotalHorasExtClienteTotal, 2);
+        public decimal DiferenciaTotalHorasGlobal => Math.Round(TotalHorasBussersa - TotalHorasClienteTotal, 2);
 
-        // Brecha Directa vs lo Efectivamente Pagado (Bussersa - Cliente Pagado)
-        public int BrechaPagadoTurnos { get; set; }
-        public decimal BrechaPagadoHorasOrd { get; set; }
-        public decimal BrechaPagadoHorasExt { get; set; }
-        public decimal BrechaPagadoTotalHoras { get; set; }
+        // --- CONSOLIDADO POR ÁREA Y PUESTO (EJE PRINCIPAL DE CONCILIACIÓN) ---
+        public List<ConsolidadoAreaPuestoDto> ConsolidadoAreaPuesto { get; set; } = new();
+        public List<ConsolidadoSoloAreaDto> ConsolidadoSoloArea { get; set; } = new();
 
-        // --- DETALLES ---
+        public int AreasConDiferencia => ConsolidadoAreaPuesto.Count(x => !x.Coincide);
+        public int AreasCoincidentes => ConsolidadoAreaPuesto.Count(x => x.Coincide);
+        public bool ConsolidadoCoincideTotalmente => ConsolidadoAreaPuesto.Any() && ConsolidadoAreaPuesto.All(x => x.Coincide);
+
+        // --- DETALLE POR COLABORADOR ---
         public List<TurnoFaltanteClienteDto> TurnosFaltantes { get; set; } = new();
-        public List<RegistroPendienteClienteDto> FacturasPendientes { get; set; } = new();
+        public List<RegistroSoloClienteDto> RegistrosSoloCliente { get; set; } = new();
         public List<DiferenciaDiaComunDto> DiferenciasDiasComunes { get; set; } = new();
         public List<ResumenColaboradorFaltanteDto> ResumenColaboradores { get; set; } = new();
-        public List<RegistroSoloClienteDto> RegistrosSoloCliente { get; set; } = new();
+
+        public bool TieneDiferencias => DiferenciasDiasComunes.Any() || TurnosFaltantes.Any() || RegistrosSoloCliente.Any() || AreasConDiferencia > 0;
+    }
+
+    public class ConsolidadoAreaPuestoDto
+    {
+        public int No { get; set; }
+        public string Area { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+
+        // Turnos
+        public int TurnosBussersa { get; set; }
+        public int TurnosCliente { get; set; }
+        public int DiferenciaTurnos => TurnosBussersa - TurnosCliente;
+
+        // Horas Ordinarias
+        public decimal HorasOrdBussersa { get; set; }
+        public decimal HorasOrdCliente { get; set; }
+        public decimal DiferenciaHorasOrd => Math.Round(HorasOrdBussersa - HorasOrdCliente, 2);
+
+        // Horas Extras
+        public decimal HorasExtBussersa { get; set; }
+        public decimal HorasExtCliente { get; set; }
+        public decimal DiferenciaHorasExt => Math.Round(HorasExtBussersa - HorasExtCliente, 2);
+
+        // Total Horas
+        public decimal TotalHorasBussersa => Math.Round(HorasOrdBussersa + HorasExtBussersa, 2);
+        public decimal TotalHorasCliente => Math.Round(HorasOrdCliente + HorasExtCliente, 2);
+        public decimal DiferenciaTotalHoras => Math.Round(TotalHorasBussersa - TotalHorasCliente, 2);
+
+        // Estado
+        public bool Coincide => Math.Abs(DiferenciaTotalHoras) < 0.01m &&
+                                Math.Abs(DiferenciaHorasOrd) < 0.01m &&
+                                Math.Abs(DiferenciaHorasExt) < 0.01m;
+    }
+
+    public class ConsolidadoSoloAreaDto
+    {
+        public int No { get; set; }
+        public string Area { get; set; } = string.Empty;
+
+        // Turnos
+        public int TurnosBussersa { get; set; }
+        public int TurnosCliente { get; set; }
+        public int DiferenciaTurnos => TurnosBussersa - TurnosCliente;
+
+        // Horas Ordinarias
+        public decimal HorasOrdBussersa { get; set; }
+        public decimal HorasOrdCliente { get; set; }
+        public decimal DiferenciaHorasOrd => Math.Round(HorasOrdBussersa - HorasOrdCliente, 2);
+
+        // Horas Extras
+        public decimal HorasExtBussersa { get; set; }
+        public decimal HorasExtCliente { get; set; }
+        public decimal DiferenciaHorasExt => Math.Round(HorasExtBussersa - HorasExtCliente, 2);
+
+        // Total Horas
+        public decimal TotalHorasBussersa => Math.Round(HorasOrdBussersa + HorasExtBussersa, 2);
+        public decimal TotalHorasCliente => Math.Round(HorasOrdCliente + HorasExtCliente, 2);
+        public decimal DiferenciaTotalHoras => Math.Round(TotalHorasBussersa - TotalHorasCliente, 2);
+
+        // Estado
+        public bool Coincide => Math.Abs(DiferenciaTotalHoras) < 0.01m &&
+                                Math.Abs(DiferenciaHorasOrd) < 0.01m &&
+                                Math.Abs(DiferenciaHorasExt) < 0.01m;
     }
 
     public class TurnoFaltanteClienteDto
@@ -72,7 +126,7 @@ namespace Modelo.Report
         public string MotivoJustificacion { get; set; } = string.Empty;
     }
 
-    public class RegistroPendienteClienteDto
+    public class RegistroSoloClienteDto
     {
         public int No { get; set; }
         public DateTime Fecha { get; set; }
@@ -82,9 +136,7 @@ namespace Modelo.Report
         public decimal HorasOrd { get; set; }
         public decimal HorasExt { get; set; }
         public decimal TotalHoras => HorasOrd + HorasExt;
-        public string NoFactura { get; set; } = string.Empty;
-        public string EstadoPago { get; set; } = "PENDIENTE";
-        public string Observacion { get; set; } = string.Empty;
+        public string Diagnostico { get; set; } = string.Empty;
     }
 
     public class DiferenciaDiaComunDto
@@ -92,7 +144,8 @@ namespace Modelo.Report
         public int No { get; set; }
         public DateTime Fecha { get; set; }
         public string NombreEmpleado { get; set; } = string.Empty;
-        public string Area { get; set; } = string.Empty;
+        public string AreaBussersa { get; set; } = string.Empty;
+        public string BodegaCliente { get; set; } = string.Empty;
         public string Cargo { get; set; } = string.Empty;
         public decimal HorasOrdBussersa { get; set; }
         public decimal HorasExtBussersa { get; set; }
@@ -100,9 +153,9 @@ namespace Modelo.Report
         public decimal HorasOrdCliente { get; set; }
         public decimal HorasExtCliente { get; set; }
         public decimal HorasCliente => HorasOrdCliente + HorasExtCliente;
-        public decimal DiferenciaHoras => HorasBussersa - HorasCliente;
-        public string NoFacturaCliente { get; set; } = string.Empty;
-        public string EstadoCliente { get; set; } = string.Empty;
+        public decimal DiferenciaHorasOrd => Math.Round(HorasOrdBussersa - HorasOrdCliente, 2);
+        public decimal DiferenciaHorasExt => Math.Round(HorasExtBussersa - HorasExtCliente, 2);
+        public decimal DiferenciaHoras => Math.Round(HorasBussersa - HorasCliente, 2);
         public string DetalleDiferencia { get; set; } = string.Empty;
     }
 
@@ -120,20 +173,5 @@ namespace Modelo.Report
         public string CategoriaFaltante { get; set; } = string.Empty;
         public string CausaRaiz { get; set; } = string.Empty;
         public string FechasOmitidas { get; set; } = string.Empty;
-    }
-
-    public class RegistroSoloClienteDto
-    {
-        public int No { get; set; }
-        public DateTime Fecha { get; set; }
-        public string NombreEmpleado { get; set; } = string.Empty;
-        public string Puesto { get; set; } = string.Empty;
-        public string Bodega { get; set; } = string.Empty;
-        public decimal HorasOrd { get; set; }
-        public decimal HorasExt { get; set; }
-        public decimal TotalHoras => HorasOrd + HorasExt;
-        public string NoFactura { get; set; } = string.Empty;
-        public string EstadoPago { get; set; } = string.Empty;
-        public string Diagnostico { get; set; } = string.Empty;
     }
 }
