@@ -142,7 +142,7 @@
                     BNC: <b>C$ @TotalViaticosBnc.ToString("N0")</b>
                 </MudChip>
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Payments">
-                    Total Viát: <b>C$ @TotalViaticosGlobal.ToString("N0")</b>
+                    Total Viát & Bono: <b>C$ @TotalViaticosGlobal.ToString("N0")</b>
                 </MudChip>
             </MudStack>
 
@@ -477,12 +477,12 @@
                                                 </MudChip>
                                             </div>
 
-                                            @* Viáticos Resumen *@
+                                            @* Viáticos & Bono Resumen *@
                                             @{
-                                                var totViatico = emp.VtcoTrasp + emp.VtcoAlim;
+                                                var totBeneficios = emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc;
                                             }
                                             <div class="d-flex align-center gap-1">
-                                                @if (totViatico > 0)
+                                                @if (totBeneficios > 0)
                                                 {
                                                     <MudChip T="string" 
                                                              Color="Color.Info" 
@@ -491,25 +491,13 @@
                                                              Class="cursor-pointer font-monospace fw-bold" 
                                                              Style="height: 22px; font-size: 0.70rem; white-space: nowrap;" 
                                                              OnClick="@(() => AbrirEditorViaticoIndividual(emp, false))"
-                                                             Title="Configurar viáticos (Transporte & Alimentación)">
-                                                        @($"Viat: C$ {totViatico:N0}")
+                                                             Title="@($"Total Viáticos & Bono: C$ {totBeneficios:N0} (Trasp: C$ {emp.VtcoTrasp:N0}, Alim: C$ {emp.VtcoAlim:N0}, Bono BNC: C$ {emp.BonoBnc:N0})")">
+                                                        @($"C$ {totBeneficios:N0}")
                                                     </MudChip>
                                                 }
-                                                @if (emp.BonoBnc > 0)
+                                                else
                                                 {
-                                                    <MudChip T="string" 
-                                                             Color="Color.Secondary" 
-                                                             Variant="Variant.Filled" 
-                                                             Size="Size.Small" 
-                                                             Class="cursor-pointer font-monospace fw-bold" 
-                                                             Style="height: 22px; font-size: 0.70rem; white-space: nowrap;" 
-                                                             Title="Bono BNC (RRHH Tracker 11)">
-                                                        @($"Bono: C$ {emp.BonoBnc:N0}")
-                                                    </MudChip>
-                                                }
-                                                @if (totViatico == 0 && emp.BonoBnc == 0)
-                                                {
-                                                    <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                                    <MudTooltip Text="Agregar viáticos / bono" Arrow="true">
                                                         <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
                                                                        Variant="Variant.Outlined" 
                                                                        Color="Color.Default" 
@@ -800,7 +788,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalVOp = context.VtcoTrasp + context.VtcoAlim;
+                                        var totalVOp = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
                                     }
                                     @if (totalVOp > 0)
                                     {
@@ -810,20 +798,20 @@
                                                  Size="Size.Small" 
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
-                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context, true))"
-                                                 Title="Editar viáticos (Transporte & Alimentación)">
+                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
+                                                 Title="@($"Total Viáticos & Bono: C$ {totalVOp:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}, Bono BNC: C$ {context.BonoBnc:N0})")">
                                             @($"C$ {totalVOp:N0}")
                                         </MudChip>
                                     }
                                     else
                                     {
-                                        <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                        <MudTooltip Text="Agregar viáticos / bono" Arrow="true">
                                             <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
                                                            Variant="Variant.Outlined" 
                                                            Color="Color.Default" 
                                                            Size="Size.Small" 
                                                            Style="height: 28px; width: 28px; border-radius: 6px;" 
-                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context))" />
+                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context, false))" />
                                         </MudTooltip>
                                     }
                                 </MudTd>
@@ -1192,7 +1180,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totalV = context.VtcoTrasp + context.VtcoAlim;
+                                        var totalV = context.VtcoTrasp + context.VtcoAlim + context.BonoBnc;
                                     }
                                     @if (totalV > 0)
                                     {
@@ -1202,20 +1190,20 @@
                                                  Size="Size.Small" 
                                                  Class="cursor-pointer font-monospace fw-bold" 
                                                  Style="height: 24px; font-size: 0.75rem; white-space: nowrap;" 
-                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context, true))"
-                                                 Title="Editar viáticos (Transporte & Alimentación)">
+                                                 OnClick="@(() => AbrirEditorViaticoIndividual(context, false))"
+                                                 Title="@($"Total Viáticos & Bono: C$ {totalV:N0} (Trasp: C$ {context.VtcoTrasp:N0}, Alim: C$ {context.VtcoAlim:N0}, Bono BNC: C$ {context.BonoBnc:N0})")">
                                             @($"C$ {totalV:N0}")
                                         </MudChip>
                                     }
                                     else
                                     {
-                                        <MudTooltip Text="Agregar viáticos" Arrow="true">
+                                        <MudTooltip Text="Agregar viáticos / bono" Arrow="true">
                                             <MudIconButton Icon="@Icons.Material.Filled.AttachMoney" 
                                                            Variant="Variant.Outlined" 
                                                            Color="Color.Default" 
                                                            Size="Size.Small" 
                                                            Style="height: 28px; width: 28px; border-radius: 6px;" 
-                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context))" />
+                                                           OnClick="@(() => AbrirEditorViaticoIndividual(context, false))" />
                                         </MudTooltip>
                                     }
                                 </MudTd>
@@ -2922,6 +2910,12 @@
                                                     Alim: C$ @grupo.VtcoAlim.ToString("N0") c/u
                                                 </MudChip>
                                             }
+                                            @if (grupo.VtcoBnc > 0)
+                                            {
+                                                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Outlined" Size="Size.Small">
+                                                    BNC: C$ @grupo.VtcoBnc.ToString("N0") c/u
+                                                </MudChip>
+                                            }
                                         </MudStack>
 
                                         @* Trazabilidad Helpdesk si ya fue enviado *@
@@ -3017,7 +3011,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totV = context.VtcoTrasp + context.VtcoAlim;
+                                        var totV = context.VtcoTrasp + context.VtcoAlim + context.VtcoBnc;
                                     }
                                     @if (totV > 0)
                                     {
@@ -3163,7 +3157,7 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var totComp = context.VtcoTrasp + context.VtcoAlim;
+                                        var totComp = context.VtcoTrasp + context.VtcoAlim + context.VtcoBnc;
                                     }
                                     @if (totComp > 0)
                                     {

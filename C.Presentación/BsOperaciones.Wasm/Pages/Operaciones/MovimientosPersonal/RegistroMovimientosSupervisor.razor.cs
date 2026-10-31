@@ -316,7 +316,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected decimal TotalViaticosTrasp => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoTrasp);
         protected decimal TotalViaticosAlim => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoAlim);
         protected decimal TotalViaticosBnc => empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoBnc);
-        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim;
+        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim + TotalViaticosBnc;
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
         protected int TotalGuardadosEnBd => empleadosJornada.Count(x => x.Id > 0 && !x.Modificado);
@@ -2629,7 +2629,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.TurnoNombre,
                     TiempoComida = string.IsNullOrWhiteSpace(x.TiempoComida) ? "1.00" : x.TiempoComida,
                     x.VtcoTrasp,
-                    x.VtcoAlim
+                    x.VtcoAlim,
+                    x.BonoBnc
                 })
                 .Select((g, idx) =>
                 {
@@ -2699,7 +2700,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TiempoComida = g.Key.TiempoComida,
                         VtcoTrasp = g.Key.VtcoTrasp,
                         VtcoAlim = g.Key.VtcoAlim,
-                        VtcoBnc = 0m,
+                        VtcoBnc = g.Key.BonoBnc,
                         Empleados = empleadosGrupo,
                         Observaciones = obsFinal,
                         NotaPrestamos = notaAutomatica
