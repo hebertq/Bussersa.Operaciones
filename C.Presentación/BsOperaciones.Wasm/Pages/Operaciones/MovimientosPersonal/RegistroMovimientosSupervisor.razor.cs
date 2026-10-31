@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -2361,7 +2361,81 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             };
         }
 
-                protected async Task AbrirEdicionMasivaHorarioComida()
+                        protected async Task AbrirEdicionMasivaHorarioComidaPlantilla()
+        {
+            if (!miPlantillaPersonal.Any())
+            {
+                _snackbar.Add("No hay colaboradores en tu plantilla personal.", Severity.Warning);
+                return;
+            }
+
+            var parameters = new DialogParameters
+            {
+                ["ListaPlantilla"] = miPlantillaPersonal,
+                ["EsModoPlantilla"] = true
+            };
+
+            var options = new DialogOptions
+            {
+                CloseButton = true,
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            };
+
+            var dialog = await _dialogService.ShowAsync<DialogEdicionMasivaHorarioComida>("Edición Masiva de Horario y Comida (Mi Personal)", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is DialogEdicionMasivaHorarioComida.ResultadoEdicionMasivaHorario data)
+            {
+                var coinciden = miPlantillaPersonal.Where(x =>
+                    (string.IsNullOrWhiteSpace(data.Cliente) || data.Cliente == "(Todos)" || x.ClienteDefault.Equals(data.Cliente, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(data.Area) || data.Area == "(Todas)" || x.AreaDefault.Equals(data.Area, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(data.Puesto) || data.Puesto == "(Todos)" || x.PuestoDefault.Equals(data.Puesto, StringComparison.OrdinalIgnoreCase))
+                ).ToList();
+
+                if (!coinciden.Any())
+                {
+                    _snackbar.Add("No se encontraron colaboradores en tu personal que coincidan con la selección de Cliente/Área/Puesto.", Severity.Warning);
+                    return;
+                }
+
+                string normEntrada = NormalizarFormatoHora(data.HoraEntrada);
+                string normSalida = NormalizarFormatoHora(data.HoraSalida);
+                string normComida = NormalizarDecimalComida(data.TiempoComida);
+                string nuevoTurno = DeterminarTurnoSegunLeyNicaragua(normEntrada, normSalida);
+
+                estaCargando = true;
+                StateHasChanged();
+
+                try
+                {
+                    int guardados = 0;
+                    foreach (var item in coinciden)
+                    {
+                        item.HoraEntradaDefault = normEntrada;
+                        item.HoraSalidaDefault = normSalida;
+                        item.TiempoComidaDefault = normComida;
+                        item.TurnoDefault = nuevoTurno;
+
+                        await GuardarItemPlantilla(item);
+                        guardados++;
+                    }
+
+                    _snackbar.Add($"✅ Horario ({normEntrada} - {normSalida}) y comida ({normComida}h) actualizados y guardados en base de datos para {guardados} colaborador(es) de Mi Personal.", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al actualizar en BD: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
+        }
+
+        protected async Task AbrirEdicionMasivaHorarioComida()
         {
             if (!empleadosJornada.Any())
             {

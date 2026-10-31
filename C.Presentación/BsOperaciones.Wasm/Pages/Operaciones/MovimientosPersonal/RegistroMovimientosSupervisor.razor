@@ -1,4 +1,4 @@
-﻿@page "/operaciones/registro-movimientos-supervisor"
+@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -3126,6 +3126,15 @@
                                    Title="Compara y agrega nuevos registros de tus clientes desde la tabla maestra de administración">
                             Actualizar
                         </MudButton>
+                        <MudButton Variant="Variant.Outlined" 
+                                   Color="Color.Primary" 
+                                   Size="Size.Small" 
+                                   StartIcon="@Icons.Material.Filled.EditCalendar"
+                                   OnClick="@AbrirEdicionMasivaHorarioComidaPlantilla"
+                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600; background-color: #eff6ff;"
+                                   Title="EdiciÃ³n rÃ¡pida masiva de horario y comida en mi personal (guarda en BD)">
+                            Horario Masivo
+                        </MudButton>
                         <span class="text-secondary fw-bold ml-1" style="font-size: 0.8rem; white-space: nowrap;">
                             @PlantillaFiltrada.Count() colaboradores
                         </span>
@@ -3324,7 +3333,19 @@
                             @if (modoVistaPlantilla == ModoVistaGrilla.Operativo)
                             {
                                 <MudTh>Colaborador & Ubicación Asignada</MudTh>
-                                <MudTh Style="width: 140px;">Horario</MudTh>
+                                <MudTh Style="width: 155px;">
+                                    <div class="d-flex align-center justify-space-between gap-1">
+                                        <span>Horario</span>
+                                        <MudTooltip Text="EdiciÃ³n rÃ¡pida masiva de horario y comida por Cliente/Ãrea/Puesto (guarda en BD)" Arrow="true" Placement="Placement.Top">
+                                            <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" 
+                                                           Color="Color.Primary" 
+                                                           Size="Size.Small" 
+                                                           Class="pa-1"
+                                                           Style="background-color: #eff6ff; border-radius: 4px;"
+                                                           OnClick="AbrirEdicionMasivaHorarioComidaPlantilla" />
+                                        </MudTooltip>
+                                    </div>
+                                </MudTh>
                                 <MudTh Style="width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos Base</MudTh>
                                 <MudTh Style="width: 110px;">Tipo</MudTh>
@@ -3346,7 +3367,19 @@
                                 <MudTh Style="width: 160px;">Cliente Asignado</MudTh>
                                 <MudTh Style="min-width: 160px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 160px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 130px;">Horario</MudTh>
+                                <MudTh Style="width: 155px;">
+                                    <div class="d-flex align-center justify-space-between gap-1">
+                                        <span>Horario</span>
+                                        <MudTooltip Text="EdiciÃ³n rÃ¡pida masiva de horario y comida por Cliente/Ãrea/Puesto (guarda en BD)" Arrow="true" Placement="Placement.Top">
+                                            <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" 
+                                                           Color="Color.Primary" 
+                                                           Size="Size.Small" 
+                                                           Class="pa-1"
+                                                           Style="background-color: #eff6ff; border-radius: 4px;"
+                                                           OnClick="AbrirEdicionMasivaHorarioComidaPlantilla" />
+                                        </MudTooltip>
+                                    </div>
+                                </MudTh>
                                 <MudTh Style="width: 70px;">Comida</MudTh>
                                 <MudTh Style="width: 100px;">Viáticos Base</MudTh>
                                 <MudTh Style="width: 110px;">Tipo</MudTh>

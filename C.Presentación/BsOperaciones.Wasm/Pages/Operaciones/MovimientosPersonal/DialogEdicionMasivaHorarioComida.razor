@@ -10,9 +10,13 @@
                 <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small" />
             </MudAvatar>
             <div>
-                <MudText Typo="Typo.h6" Class="fw-bold">Edición Masiva de Horario y Comida</MudText>
+                <MudText Typo="Typo.h6" Class="fw-bold">
+                    @(EsModoPlantilla ? "Edición Masiva de Horario y Comida (Mi Personal)" : "Edición Masiva de Horario y Comida")
+                </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Aplica hora de inicio, fin y tiempo de comida por Cliente, Área y Puesto
+                    @(EsModoPlantilla 
+                        ? "Actualiza horas por defecto y tiempo de comida en la base de datos de tu personal" 
+                        : "Aplica hora de inicio, fin y tiempo de comida por Cliente, Área y Puesto")
                 </MudText>
             </div>
         </MudStack>
@@ -75,11 +79,14 @@
                 </MudItem>
             </MudGrid>
 
-            <MudCheckBox @bind-Value="SoloPresentes" Color="Color.Primary" Dense="true" Class="mb-2">
-                <MudText Typo="Typo.body2">
-                    Aplicar solo a colaboradores con asistencia <b>PRESENTE</b>
-                </MudText>
-            </MudCheckBox>
+            @if (!EsModoPlantilla)
+            {
+                <MudCheckBox @bind-Value="SoloPresentes" Color="Color.Primary" Dense="true" Class="mb-2">
+                    <MudText Typo="Typo.body2">
+                        Aplicar solo a colaboradores con asistencia <b>PRESENTE</b>
+                    </MudText>
+                </MudCheckBox>
+            }
 
             @* Alerta con contador dinámico de coincidentes *@
             <MudAlert Severity="@(TotalCoincidentes > 0 ? Severity.Info : Severity.Warning)" 
@@ -92,8 +99,11 @@
                     </span>
                     @if (TotalCoincidentes > 0)
                     {
+                        var nombres = EsModoPlantilla
+                            ? PlantillaCoincidente.Take(3).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado.Split(' ').FirstOrDefault()}")
+                            : EmpleadosCoincidentes.Take(3).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado.Split(' ').FirstOrDefault()}");
                         <span class="text-secondary" style="font-size: 0.75rem;">
-                            (@string.Join(", ", EmpleadosCoincidentes.Take(3).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado.Split(' ').FirstOrDefault()}"))@(TotalCoincidentes > 3 ? $" y {TotalCoincidentes - 3} más" : ""))
+                            (@string.Join(", ", nombres)@(TotalCoincidentes > 3 ? $" y {TotalCoincidentes - 3} más" : ""))
                         </span>
                     }
                 </div>
@@ -176,6 +186,8 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public List<EmpleadoJornadaItem> ListaEmpleados { get; set; } = new();
+    [Parameter] public List<SupervisorPlantillaItemDto> ListaPlantilla { get; set; } = new();
+    [Parameter] public bool EsModoPlantilla { get; set; } = false;
 
     public string ClienteSeleccionado { get; set; } = "(Todos)";
     public string AreaSeleccionada { get; set; } = "(Todas)";
@@ -186,28 +198,58 @@
     public string HoraSalida { get; set; } = "14:00";
     public string TiempoComida { get; set; } = "1.00";
 
-    public List<string> ClientesDisponibles => ListaEmpleados
-        .Select(x => x.Cliente)
-        .Where(c => !string.IsNullOrWhiteSpace(c))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(c => c)
-        .ToList();
+    public List<string> ClientesDisponibles => EsModoPlantilla
+        ? ListaPlantilla
+            .Select(x => x.ClienteDefault)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c)
+            .ToList()
+        : ListaEmpleados
+            .Select(x => x.Cliente)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c)
+            .ToList();
 
-    public List<string> AreasDisponibles => ListaEmpleados
-        .Where(x => string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase))
-        .Select(x => x.Area)
-        .Where(a => !string.IsNullOrWhiteSpace(a))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(a => a)
-        .ToList();
+    public List<string> AreasDisponibles => EsModoPlantilla
+        ? ListaPlantilla
+            .Where(x => string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.ClienteDefault.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.AreaDefault)
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(a => a)
+            .ToList()
+        : ListaEmpleados
+            .Where(x => string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Area)
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(a => a)
+            .ToList();
 
-    public List<string> PuestosDisponibles => ListaEmpleados
-        .Where(x => (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
-                    (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.Area.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)))
-        .Select(x => x.Puesto)
-        .Where(p => !string.IsNullOrWhiteSpace(p))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(p => p)
+    public List<string> PuestosDisponibles => EsModoPlantilla
+        ? ListaPlantilla
+            .Where(x => (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.ClienteDefault.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
+                        (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.AreaDefault.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+            .Select(x => x.PuestoDefault)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p)
+            .ToList()
+        : ListaEmpleados
+            .Where(x => (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.Cliente.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
+                        (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.Area.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+            .Select(x => x.Puesto)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p)
+            .ToList();
+
+    public List<SupervisorPlantillaItemDto> PlantillaCoincidente => ListaPlantilla
+        .Where(x => (string.IsNullOrWhiteSpace(ClienteSeleccionado) || ClienteSeleccionado == "(Todos)" || x.ClienteDefault.Equals(ClienteSeleccionado, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(AreaSeleccionada) || AreaSeleccionada == "(Todas)" || x.AreaDefault.Equals(AreaSeleccionada, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(PuestoSeleccionado) || PuestoSeleccionado == "(Todos)" || x.PuestoDefault.Equals(PuestoSeleccionado, StringComparison.OrdinalIgnoreCase)))
         .ToList();
 
     public List<EmpleadoJornadaItem> EmpleadosCoincidentes => ListaEmpleados
@@ -217,7 +259,7 @@
                     (string.IsNullOrWhiteSpace(PuestoSeleccionado) || PuestoSeleccionado == "(Todos)" || x.Puesto.Equals(PuestoSeleccionado, StringComparison.OrdinalIgnoreCase)))
         .ToList();
 
-    public int TotalCoincidentes => EmpleadosCoincidentes.Count;
+    public int TotalCoincidentes => EsModoPlantilla ? PlantillaCoincidente.Count : EmpleadosCoincidentes.Count;
 
     protected override void OnInitialized()
     {
@@ -241,12 +283,25 @@
         }
 
         // Si hay colaboradores coincidentes, tomar como horario inicial el del primero
-        var primer = EmpleadosCoincidentes.FirstOrDefault(x => x.Asistio);
-        if (primer != null)
+        if (EsModoPlantilla)
         {
-            HoraEntrada = primer.HoraEntrada;
-            HoraSalida = primer.HoraSalida;
-            TiempoComida = primer.TiempoComida;
+            var primer = PlantillaCoincidente.FirstOrDefault();
+            if (primer != null)
+            {
+                if (!string.IsNullOrWhiteSpace(primer.HoraEntradaDefault)) HoraEntrada = primer.HoraEntradaDefault;
+                if (!string.IsNullOrWhiteSpace(primer.HoraSalidaDefault)) HoraSalida = primer.HoraSalidaDefault;
+                if (!string.IsNullOrWhiteSpace(primer.TiempoComidaDefault)) TiempoComida = primer.TiempoComidaDefault;
+            }
+        }
+        else
+        {
+            var primer = EmpleadosCoincidentes.FirstOrDefault(x => x.Asistio);
+            if (primer != null)
+            {
+                HoraEntrada = primer.HoraEntrada;
+                HoraSalida = primer.HoraSalida;
+                TiempoComida = primer.TiempoComida;
+            }
         }
     }
 
