@@ -808,7 +808,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         .GroupBy(x => x.CodigoEmpleado > 0 
                             ? $"cod_{x.CodigoEmpleado}" 
                             : (x.IdEmpleado > 0 ? $"id_{x.IdEmpleado}" : x.NombreEmpleado.Trim().ToLowerInvariant()))
-                        .Select(g => g.First())
+                        .Select(g => { var p = g.First(); p.ClienteOrigenNomina = LimpiarTextoOdoo(p.ClienteOrigenNomina); return p; })
                         .ToList();
                 }
             }
@@ -1074,7 +1074,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoAlim = item.VtcoAlimDefault,
                         BonoBnc = item.BonoBncDefault,
                         TipoEmpleado = !string.IsNullOrWhiteSpace(item.TipoEmpleado) ? item.TipoEmpleado : "Permanente",
-                        ClienteOrigenNomina = item.ClienteOrigenNomina ?? string.Empty,
+                        ClienteOrigenNomina = LimpiarTextoOdoo(item.ClienteOrigenNomina),
                         Observaciones = obsPlantilla,
                         Asistio = true,
                         Estado = "BORRADOR",
@@ -1114,7 +1114,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 var items = empleadosJornada
                     .GroupBy(e => e.CodigoEmpleado > 0 ? $"cod_{e.CodigoEmpleado}" : (e.IdEmpleado > 0 ? $"id_{e.IdEmpleado}" : e.NombreEmpleado.Trim().ToLowerInvariant()))
-                    .Select(g => g.First())
+                    .Select(g => { var p = g.First(); p.ClienteOrigenNomina = LimpiarTextoOdoo(p.ClienteOrigenNomina); return p; })
                     .Select(e => new SupervisorPlantillaItemDto
                 {
                     UsuarioSupervisor = currentUserName,
@@ -1232,7 +1232,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.VtcoAlimDefault = modificado.VtcoAlimDefault;
                 item.BonoBncDefault = modificado.BonoBncDefault;
                 item.TipoEmpleado = modificado.TipoEmpleado;
-                item.ClienteOrigenNomina = modificado.ClienteOrigenNomina;
+                item.ClienteOrigenNomina = LimpiarTextoOdoo(modificado.ClienteOrigenNomina);
 
                 await GuardarItemPlantilla(item);
                 StateHasChanged();
@@ -1602,6 +1602,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             var parameters = new DialogParameters
             {
                 ["OperacionesDisponibles"] = opsDisponibles,
+                ["TodasOperaciones"] = operacionesList,
                 ["AreasDisponibles"] = defaultAreas,
                 ["AreasPorCliente"] = areasPorCliente,
                 ["CargosDisponibles"] = cargosDisponibles,
@@ -1619,6 +1620,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (!result.Canceled && result.Data is EmpleadoJornadaItem nuevo)
             {
+                nuevo.ClienteOrigenNomina = LimpiarTextoOdoo(nuevo.ClienteOrigenNomina);
                 // Asegurar que si el cliente sigue como "Administración" y el supervisor tiene cliente asignado, se asigne a su cliente
                 if (string.Equals(nuevo.Cliente, "Administración", StringComparison.OrdinalIgnoreCase) && NombresMisClientes.Any())
                 {
@@ -2419,7 +2421,37 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-protected async Task AbrirEditorHorario(EmpleadoJornadaItem item)
+        public static string LimpiarTextoOdoo(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+            var trimmed = raw.Trim();
+            if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                    var root = doc.RootElement;
+                    if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    {
+                        string[] preferredKeys = { "es_419", "es_NI", "es_ES", "es_MX", "en_US" };
+                        foreach (var k in preferredKeys)
+                        {
+                            if (root.TryGetProperty(k, out var elem) && !string.IsNullOrWhiteSpace(elem.GetString()))
+                                return elem.GetString()!.Trim();
+                        }
+                        foreach (var prop in root.EnumerateObject())
+                        {
+                            var val = prop.Value.GetString();
+                            if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
+                        }
+                    }
+                }
+                catch { }
+            }
+            return trimmed;
+        }
+
+        protected async Task AbrirEditorHorario(EmpleadoJornadaItem item)
         {
             var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
             var parameters = new DialogParameters

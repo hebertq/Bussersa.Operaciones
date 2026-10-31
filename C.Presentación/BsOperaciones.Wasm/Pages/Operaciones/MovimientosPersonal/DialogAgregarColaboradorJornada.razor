@@ -165,9 +165,9 @@
                                    AdornmentIcon="@Icons.Material.Filled.AccountBalanceWallet"
                                    HelperText="Cliente al que pertenece legalmente la nómina del trabajador">
                             <MudSelectItem Value="@("")">-- Seleccionar Cliente Origen (Opcional) --</MudSelectItem>
-                            @foreach (var op in OperacionesDisponibles)
+                            @foreach (var cNom in ObtenerClientesNomina())
                             {
-                                <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                                <MudSelectItem Value="@cNom">@cNom</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -260,6 +260,7 @@
     [Inject] private ISnackbar _snackbar { get; set; } = null!;
 
     [Parameter] public List<Combos> OperacionesDisponibles { get; set; } = new();
+    [Parameter] public List<Combos> TodasOperaciones { get; set; } = new();
     [Parameter] public List<string> AreasDisponibles { get; set; } = new();
     [Parameter] public Dictionary<string, List<string>> AreasPorCliente { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     [Parameter] public List<string> CargosDisponibles { get; set; } = new();
@@ -324,6 +325,10 @@
             if (resp?.Model != null)
             {
                 catalogoOdooCompleto = resp.Model.ToList();
+                foreach (var emp in catalogoOdooCompleto)
+                {
+                    emp.DepartmentName = LimpiarTextoOdoo(emp.DepartmentName);
+                }
             }
         }
         catch { }
@@ -413,10 +418,13 @@
 
             if (!string.IsNullOrWhiteSpace(emp.DepartmentName))
             {
-                var matchDept = OperacionesDisponibles.FirstOrDefault(o => 
-                    o.nombre.Contains(emp.DepartmentName, StringComparison.OrdinalIgnoreCase) || 
-                    emp.DepartmentName.Contains(o.nombre, StringComparison.OrdinalIgnoreCase));
-                ClienteOrigenNomina = matchDept?.nombre ?? emp.DepartmentName;
+                var deptoLimpio = LimpiarTextoOdoo(emp.DepartmentName);
+                var listaNomina = ObtenerClientesNomina();
+                var matchDept = listaNomina.FirstOrDefault(o => 
+                    o.Equals(deptoLimpio, StringComparison.OrdinalIgnoreCase) || 
+                    o.Contains(deptoLimpio, StringComparison.OrdinalIgnoreCase) ||
+                    deptoLimpio.Contains(o, StringComparison.OrdinalIgnoreCase));
+                ClienteOrigenNomina = matchDept ?? deptoLimpio;
             }
 
             // Si ya existe en la plantilla del supervisor, precargar su configuración previa
@@ -444,6 +452,10 @@
                 {
                     Puesto = enPlantilla.PuestoDefault;
                 }
+                if (!string.IsNullOrWhiteSpace(enPlantilla.ClienteOrigenNomina))
+                {
+                    ClienteOrigenNomina = LimpiarTextoOdoo(enPlantilla.ClienteOrigenNomina);
+                }
                 if (!string.IsNullOrWhiteSpace(enPlantilla.HoraEntradaDefault)) HoraEntrada = enPlantilla.HoraEntradaDefault;
                 if (!string.IsNullOrWhiteSpace(enPlantilla.HoraSalidaDefault)) HoraSalida = enPlantilla.HoraSalidaDefault;
                 if (decimal.TryParse(enPlantilla.TiempoComidaDefault, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal tc))
@@ -463,6 +475,85 @@
             return Task.FromResult<IEnumerable<string>>(areasActuales);
 
         return Task.FromResult(areasActuales.Where(x => x.Contains(valor, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static string LimpiarTextoOdoo(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    string[] preferredKeys = { "es_419", "es_NI", "es_ES", "es_MX", "en_US" };
+                    foreach (var k in preferredKeys)
+                    {
+                        if (root.TryGetProperty(k, out var elem) && !string.IsNullOrWhiteSpace(elem.GetString()))
+                            return elem.GetString()!.Trim();
+                    }
+                    foreach (var prop in root.EnumerateObject())
+                    {
+                        var val = prop.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
+                    }
+                }
+            }
+            catch { }
+        }
+        return trimmed;
+    }
+
+    private List<string> ObtenerClientesNomina()
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Administración siempre es una opción válida para la nómina de procedencia
+        set.Add("Administración");
+
+        var origen = (TodasOperaciones != null && TodasOperaciones.Any()) 
+            ? TodasOperaciones 
+            : OperacionesDisponibles;
+
+        if (origen != null)
+        {
+            foreach (var op in origen)
+            {
+                var nombreLimpio = LimpiarTextoOdoo(op?.nombre);
+                if (!string.IsNullOrWhiteSpace(nombreLimpio))
+                {
+                    set.Add(nombreLimpio);
+                }
+            }
+        }
+
+        if (OperacionesDisponibles != null)
+        {
+            foreach (var op in OperacionesDisponibles)
+            {
+                var nombreLimpio = LimpiarTextoOdoo(op?.nombre);
+                if (!string.IsNullOrWhiteSpace(nombreLimpio))
+                {
+                    set.Add(nombreLimpio);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(ClienteOrigenNomina))
+        {
+            var limpio = LimpiarTextoOdoo(ClienteOrigenNomina);
+            if (!string.IsNullOrWhiteSpace(limpio))
+            {
+                set.Add(limpio);
+            }
+        }
+
+        return set.OrderBy(x => string.Equals(x, "Administración", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                  .ThenBy(x => x)
+                  .ToList();
     }
 
     private void Cancelar() => MudDialog.Cancel();
@@ -486,6 +577,8 @@
             _snackbar.Add($"⚠️ El colaborador #{CodigoEmpleado} {NombreEmpleado} ya se encuentra registrado en tu personal.", Severity.Error);
             return;
         }
+
+        ClienteOrigenNomina = LimpiarTextoOdoo(ClienteOrigenNomina);
 
         string obs = string.Empty;
         if (string.Equals(TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))

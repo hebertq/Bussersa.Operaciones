@@ -69,9 +69,9 @@
                                    Dense="true"
                                    HelperText="Cliente al que pertenece legalmente la nómina del trabajador">
                             <MudSelectItem Value="@("")">-- Seleccionar Cliente Origen --</MudSelectItem>
-                            @foreach (var op in OperacionesDisponibles)
+                            @foreach (var cNom in ObtenerClientesNomina())
                             {
-                                <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
+                                <MudSelectItem Value="@cNom">@cNom</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -213,7 +213,7 @@
             Area = ItemOriginal.AreaDefault;
             Puesto = ItemOriginal.PuestoDefault;
             TipoEmpleado = string.IsNullOrWhiteSpace(ItemOriginal.TipoEmpleado) ? "Permanente" : ItemOriginal.TipoEmpleado;
-            ClienteOrigenNomina = ItemOriginal.ClienteOrigenNomina ?? string.Empty;
+            ClienteOrigenNomina = LimpiarTextoOdoo(ItemOriginal.ClienteOrigenNomina);
             Turno = string.IsNullOrWhiteSpace(ItemOriginal.TurnoDefault) ? "Diurno" : ItemOriginal.TurnoDefault;
             HoraEntrada = string.IsNullOrWhiteSpace(ItemOriginal.HoraEntradaDefault) ? "06:00" : ItemOriginal.HoraEntradaDefault;
             HoraSalida = string.IsNullOrWhiteSpace(ItemOriginal.HoraSalidaDefault) ? "14:00" : ItemOriginal.HoraSalidaDefault;
@@ -258,6 +258,67 @@
         }
     }
 
+    private static string LimpiarTextoOdoo(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith("{") && trimmed.EndsWith("}"))
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    string[] preferredKeys = { "es_419", "es_NI", "es_ES", "es_MX", "en_US" };
+                    foreach (var k in preferredKeys)
+                    {
+                        if (root.TryGetProperty(k, out var elem) && !string.IsNullOrWhiteSpace(elem.GetString()))
+                            return elem.GetString()!.Trim();
+                    }
+                    foreach (var prop in root.EnumerateObject())
+                    {
+                        var val = prop.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(val)) return val.Trim();
+                    }
+                }
+            }
+            catch { }
+        }
+        return trimmed;
+    }
+
+    private List<string> ObtenerClientesNomina()
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        set.Add("Administración");
+
+        if (OperacionesDisponibles != null)
+        {
+            foreach (var op in OperacionesDisponibles)
+            {
+                var nombreLimpio = LimpiarTextoOdoo(op?.nombre);
+                if (!string.IsNullOrWhiteSpace(nombreLimpio))
+                {
+                    set.Add(nombreLimpio);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(ClienteOrigenNomina))
+        {
+            var limpio = LimpiarTextoOdoo(ClienteOrigenNomina);
+            if (!string.IsNullOrWhiteSpace(limpio))
+            {
+                set.Add(limpio);
+            }
+        }
+
+        return set.OrderBy(x => string.Equals(x, "Administración", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                  .ThenBy(x => x)
+                  .ToList();
+    }
+
     private void Cancelar() => MudDialog.Cancel();
 
     private void Guardar()
@@ -280,7 +341,7 @@
             VtcoAlimDefault = VtcoAlim,
             BonoBncDefault = BonoBnc,
             TipoEmpleado = TipoEmpleado,
-            ClienteOrigenNomina = ClienteOrigenNomina ?? string.Empty,
+            ClienteOrigenNomina = LimpiarTextoOdoo(ClienteOrigenNomina),
             Activo = true
         };
 
