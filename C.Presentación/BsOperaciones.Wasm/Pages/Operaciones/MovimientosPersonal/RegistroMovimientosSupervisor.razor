@@ -639,7 +639,6 @@
                                 <MudTh Style="width: 140px;">Horario</MudTh>
                                 <MudTh Style="width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
-                                <MudTh Style="width: 145px;">Tickets Helpdesk</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else if (modoVistaGrilla == ModoVistaGrilla.Ubicacion)
@@ -678,7 +677,6 @@
                                 <MudTh Style="width: 140px;">Horario</MudTh>
                                 <MudTh Style="width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
-                                <MudTh Style="width: 145px;">Tickets Helpdesk</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                         </HeaderContent>
@@ -814,54 +812,6 @@
                                                            OnClick="@(() => AbrirEditorViaticoIndividual(context, false))" />
                                         </MudTooltip>
                                     }
-                                </MudTd>
-                                <MudTd>
-                                    <div class="d-flex align-center gap-1 flex-wrap">
-                                        @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Movimiento en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketRedmineId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Mov #@context.TicketRedmineId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Viáticos en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketViaticoId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Viat #@context.TicketViaticoId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Bono en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketBonoId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Bono #@context.TicketBonoId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Ausencia en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Aus #@context.TicketAusenciaId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
-                                        {
-                                            <span class="text-muted font-monospace" style="font-size: 0.70rem;">—</span>
-                                        }
-                                    </div>
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
@@ -1206,54 +1156,6 @@
                                                            OnClick="@(() => AbrirEditorViaticoIndividual(context, false))" />
                                         </MudTooltip>
                                     }
-                                </MudTd>
-                                <MudTd>
-                                    <div class="d-flex align-center gap-1 flex-wrap">
-                                        @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Movimiento en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketRedmineId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Mov #@context.TicketRedmineId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Viáticos en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketViaticoId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Viat #@context.TicketViaticoId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Bono en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketBonoId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Bono #@context.TicketBonoId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
-                                        {
-                                            <MudTooltip Text="Ver Ausencia en Helpdesk" Arrow="true">
-                                                <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{context.TicketAusenciaId}")" Target="_blank" Underline="Underline.None">
-                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Style="height: 20px; font-size: 0.66rem; font-weight: 700; padding: 0 4px;">
-                                                        Aus #@context.TicketAusenciaId
-                                                    </MudChip>
-                                                </MudLink>
-                                            </MudTooltip>
-                                        }
-                                        @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
-                                        {
-                                            <span class="text-muted font-monospace" style="font-size: 0.70rem;">—</span>
-                                        }
-                                    </div>
                                 </MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
