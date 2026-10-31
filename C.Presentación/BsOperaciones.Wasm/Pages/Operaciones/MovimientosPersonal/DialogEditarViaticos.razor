@@ -8,7 +8,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" />
             </MudAvatar>
             <div>
-                <MudText Typo="Typo.h6" Class="fw-bold">@(OcultarBono ? "Viáticos (Operaciones)" : "Viáticos & Bono")</MudText>
+                <MudText Typo="Typo.h6" Class="fw-bold">Viáticos & Pago en Nómina</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     <b>#@CodigoEmpleado</b> - @NombreEmpleado
                 </MudText>
@@ -18,32 +18,47 @@
     <DialogContent>
         <MudContainer Class="pa-0">
             @* Resumen Total en Card *@
-            <MudPaper Class="pa-3 mb-3 d-flex justify-space-between align-center" Elevation="0" Style="background-color: var(--mud-palette-background-grey); border-radius: 8px;">
-                <div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold">Total Asignado</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Success" Class="fw-bold">
-                        C$ @((VtcoTrasp + VtcoAlim + (OcultarBono ? 0 : BonoBnc)).ToString("N2"))
-                    </MudText>
+            <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px;">
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase fw-bold">Total Viáticos Cliente (Cobro)</MudText>
+                        <MudText Typo="Typo.h5" Color="Color.Primary" Class="fw-bold">
+                            C$ @((VtcoTrasp + VtcoAlim).ToString("N2"))
+                        </MudText>
+                    </div>
+                    @if (VtcoTrasp > 0 || VtcoAlim > 0 || BonoExtra > 0)
+                    {
+                        <MudButton Variant="Variant.Text" 
+                                   Color="Color.Error" 
+                                   Size="Size.Small" 
+                                   StartIcon="@Icons.Material.Filled.Clear"
+                                   OnClick="LimpiarTodos">
+                            Limpiar
+                        </MudButton>
+                    }
                 </div>
-                @if (VtcoTrasp > 0 || VtcoAlim > 0 || (!OcultarBono && BonoBnc > 0))
-                {
-                    <MudButton Variant="Variant.Text" 
-                               Color="Color.Error" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.Clear"
-                               OnClick="LimpiarTodos">
-                        Limpiar a C$ 0
-                    </MudButton>
-                }
+                <MudDivider Class="my-1" />
+                <div class="d-flex justify-space-between flex-wrap gap-2 pt-1" style="font-size: 0.80rem;">
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Size="Size.Small" Color="Color.Success" />
+                        <span class="text-secondary">Pagar en Nómina (Bono BNC):</span>
+                        <b class="text-success">C$ @BonoBncCalculado.ToString("N2")</b>
+                    </div>
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Small" Color="Color.Warning" />
+                        <span class="text-secondary">Pagar en Efectivo:</span>
+                        <b class="text-warning">C$ @TotalEfectivo.ToString("N2")</b>
+                    </div>
+                </div>
             </MudPaper>
 
-            @* 1. Viático Transporte *@
-            <MudCard Outlined="true" Class="mb-3 pa-2">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold">
-                        <MudIcon Icon="@Icons.Material.Filled.DirectionsBus" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Info" />
-                        Viático Transporte:
-                    </MudText>
+            @* 1. Viático Transporte Encerrado en Grupo con Checkbox Nómina *@
+            <MudCard Outlined="true" Class="mb-3 pa-3" Style="@($"border-radius: 10px; border-left: 4px solid {(TraspAplicaNomina ? "#2563eb" : "#f59e0b")};")">
+                <div class="d-flex justify-space-between align-center mb-1">
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.DirectionsBus" Size="Size.Small" Color="Color.Info" />
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Viático Transporte</MudText>
+                    </div>
                     <MudNumericField T="decimal" 
                                      @bind-Value="VtcoTrasp" 
                                      Variant="Variant.Outlined" 
@@ -53,9 +68,10 @@
                                      Format="N2"
                                      Adornment="Adornment.Start"
                                      AdornmentText="C$"
-                                     Style="width: 140px; text-align: right;" />
-                </MudStack>
-                <MudStack Row="true" Spacing="1" Class="mt-2" AlignItems="AlignItems.Center">
+                                     Style="width: 130px; text-align: right;" />
+                </div>
+                
+                <MudStack Row="true" Spacing="1" Class="my-2" AlignItems="AlignItems.Center">
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos:</MudText>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoTrasp = 0)">C$ 0</MudChip>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 35 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 35)">C$ 35</MudChip>
@@ -63,15 +79,26 @@
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 70 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 70)">C$ 70</MudChip>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 100)">C$ 100</MudChip>
                 </MudStack>
+
+                <div class="d-flex align-center justify-space-between pa-2 rounded" style="@($"background: {(TraspAplicaNomina ? "#eff6ff" : "#fffbeb")}; border: 1px dashed {(TraspAplicaNomina ? "#93c5fd" : "#fcd34d")};")">
+                    <MudCheckBox @bind-Value="TraspAplicaNomina" Color="Color.Primary" Dense="true" Class="ma-0 pa-0">
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            Aplicar en nómina (Bono BNC)
+                        </MudText>
+                    </MudCheckBox>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(TraspAplicaNomina ? Color.Primary : Color.Warning)" Style="height: 20px; font-size: 0.68rem; font-weight: 700;">
+                        @(TraspAplicaNomina ? "PAGAR EN NÓMINA" : "PAGAR EN EFECTIVO")
+                    </MudChip>
+                </div>
             </MudCard>
 
-            @* 2. Viático Alimentación *@
-            <MudCard Outlined="true" Class="mb-3 pa-2">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold">
-                        <MudIcon Icon="@Icons.Material.Filled.Fastfood" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Warning" />
-                        Viático Alimentación:
-                    </MudText>
+            @* 2. Viático Alimentación Encerrado en Grupo con Checkbox Nómina *@
+            <MudCard Outlined="true" Class="mb-3 pa-3" Style="@($"border-radius: 10px; border-left: 4px solid {(AlimAplicaNomina ? "#2563eb" : "#f59e0b")};")">
+                <div class="d-flex justify-space-between align-center mb-1">
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Fastfood" Size="Size.Small" Color="Color.Warning" />
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Viático Alimentación</MudText>
+                    </div>
                     <MudNumericField T="decimal" 
                                      @bind-Value="VtcoAlim" 
                                      Variant="Variant.Outlined" 
@@ -81,9 +108,10 @@
                                      Format="N2"
                                      Adornment="Adornment.Start"
                                      AdornmentText="C$"
-                                     Style="width: 140px; text-align: right;" />
-                </MudStack>
-                <MudStack Row="true" Spacing="1" Class="mt-2" AlignItems="AlignItems.Center">
+                                     Style="width: 130px; text-align: right;" />
+                </div>
+
+                <MudStack Row="true" Spacing="1" Class="my-2" AlignItems="AlignItems.Center">
                     <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos:</MudText>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoAlim = 0)">C$ 0</MudChip>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 50 ? Variant.Filled : Variant.Outlined)" Color="Color.Warning" OnClick="@(() => VtcoAlim = 50)">C$ 50</MudChip>
@@ -91,19 +119,35 @@
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Warning" OnClick="@(() => VtcoAlim = 100)">C$ 100</MudChip>
                     <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 120 ? Variant.Filled : Variant.Outlined)" Color="Color.Warning" OnClick="@(() => VtcoAlim = 120)">C$ 120</MudChip>
                 </MudStack>
+
+                <div class="d-flex align-center justify-space-between pa-2 rounded" style="@($"background: {(AlimAplicaNomina ? "#eff6ff" : "#fffbeb")}; border: 1px dashed {(AlimAplicaNomina ? "#93c5fd" : "#fcd34d")};")">
+                    <MudCheckBox @bind-Value="AlimAplicaNomina" Color="Color.Primary" Dense="true" Class="ma-0 pa-0">
+                        <MudText Typo="Typo.body2" Class="fw-bold">
+                            Aplicar en nómina (Bono BNC)
+                        </MudText>
+                    </MudCheckBox>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(AlimAplicaNomina ? Color.Primary : Color.Warning)" Style="height: 20px; font-size: 0.68rem; font-weight: 700;">
+                        @(AlimAplicaNomina ? "PAGAR EN NÓMINA" : "PAGAR EN EFECTIVO")
+                    </MudChip>
+                </div>
             </MudCard>
 
-            @* 3. Bono BNC *@
+            @* 3. Bono Adicional Nómina (Opcional) *@
             @if (!OcultarBono)
             {
-                <MudCard Outlined="true" Class="mb-3 pa-2">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                        <MudText Typo="Typo.subtitle2" Class="fw-bold">
-                            <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Success" />
-                            Bono BNC:
-                        </MudText>
+                <MudCard Outlined="true" Class="mb-3 pa-3" Style="border-radius: 10px;">
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                                <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" Size="Size.Small" Class="mr-1 align-text-bottom" Color="Color.Success" />
+                                Bono Adicional Nómina (Opcional):
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Bono extra independiente de transporte y alimentación
+                            </MudText>
+                        </div>
                         <MudNumericField T="decimal" 
-                                         @bind-Value="BonoBnc" 
+                                         @bind-Value="BonoExtra" 
                                          Variant="Variant.Outlined" 
                                          Margin="Margin.Dense" 
                                          Min="0" 
@@ -111,15 +155,8 @@
                                          Format="N2"
                                          Adornment="Adornment.Start"
                                          AdornmentText="C$"
-                                         Style="width: 140px; text-align: right;" />
-                    </MudStack>
-                    <MudStack Row="true" Spacing="1" Class="mt-2" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Atajos:</MudText>
-                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => BonoBnc = 0)">C$ 0</MudChip>
-                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 100 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 100)">C$ 100</MudChip>
-                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 150 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 150)">C$ 150</MudChip>
-                        <MudChip T="string" Size="Size.Small" Variant="@(BonoBnc == 200 ? Variant.Filled : Variant.Outlined)" Color="Color.Success" OnClick="@(() => BonoBnc = 200)">C$ 200</MudChip>
-                    </MudStack>
+                                         Style="width: 130px; text-align: right;" />
+                    </div>
                 </MudCard>
             }
 
@@ -131,7 +168,7 @@
                              Dense="true" 
                              Class="mt-1">
                     <MudText Typo="Typo.body2">
-                        Aplicar estos mismos viáticos a los otros <b>@(CantidadSeleccionados - 1) colaboradores seleccionados</b>
+                        Aplicar estos mismos viáticos y formas de pago a los otros <b>@(CantidadSeleccionados - 1) colaboradores seleccionados</b>
                     </MudText>
                 </MudCheckBox>
             }
@@ -144,36 +181,64 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public int CodigoEmpleado { get; set; }
     [Parameter] public string NombreEmpleado { get; set; } = string.Empty;
     [Parameter] public decimal VtcoTraspInicial { get; set; } = 0;
     [Parameter] public decimal VtcoAlimInicial { get; set; } = 0;
     [Parameter] public decimal BonoBncInicial { get; set; } = 0;
+    [Parameter] public bool TraspAplicaNominaInicial { get; set; } = false;
+    [Parameter] public bool AlimAplicaNominaInicial { get; set; } = false;
     [Parameter] public int CantidadSeleccionados { get; set; } = 0;
     [Parameter] public bool OcultarBono { get; set; } = false;
 
     public decimal VtcoTrasp { get; set; } = 0;
     public decimal VtcoAlim { get; set; } = 0;
-    public decimal BonoBnc { get; set; } = 0;
+    public bool TraspAplicaNomina { get; set; } = false;
+    public bool AlimAplicaNomina { get; set; } = false;
+    public decimal BonoExtra { get; set; } = 0;
     public bool AplicarASeleccionados { get; set; } = false;
+
+    public decimal BonoBncCalculado => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0) + BonoExtra;
+    public decimal TotalEfectivo => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
 
     protected override void OnInitialized()
     {
         VtcoTrasp = VtcoTraspInicial;
         VtcoAlim = VtcoAlimInicial;
-        BonoBnc = BonoBncInicial;
+        TraspAplicaNomina = TraspAplicaNominaInicial;
+        AlimAplicaNomina = AlimAplicaNominaInicial;
+
+        // Auto-detección de checkboxes si vienen de datos anteriores con BonoBnc > 0 y flags en false
+        if (!TraspAplicaNomina && !AlimAplicaNomina && BonoBncInicial > 0)
+        {
+            if (VtcoTrasp > 0 && VtcoAlim > 0 && BonoBncInicial >= (VtcoTrasp + VtcoAlim))
+            {
+                TraspAplicaNomina = true;
+                AlimAplicaNomina = true;
+            }
+            else if (VtcoTrasp > 0 && BonoBncInicial >= VtcoTrasp)
+            {
+                TraspAplicaNomina = true;
+            }
+            else if (VtcoAlim > 0 && BonoBncInicial >= VtcoAlim)
+            {
+                AlimAplicaNomina = true;
+            }
+        }
+
+        decimal baseViaticosNomina = (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
+        BonoExtra = Math.Max(0, BonoBncInicial - baseViaticosNomina);
     }
 
     private void LimpiarTodos()
     {
         VtcoTrasp = 0;
         VtcoAlim = 0;
-        if (!OcultarBono)
-        {
-            BonoBnc = 0;
-        }
+        TraspAplicaNomina = false;
+        AlimAplicaNomina = false;
+        BonoExtra = 0;
     }
 
     private void Cancelar() => MudDialog.Cancel();
@@ -184,7 +249,9 @@
         {
             VtcoTrasp = this.VtcoTrasp,
             VtcoAlim = this.VtcoAlim,
-            BonoBnc = OcultarBono ? this.BonoBncInicial : this.BonoBnc,
+            TraspAplicaNomina = this.TraspAplicaNomina,
+            AlimAplicaNomina = this.AlimAplicaNomina,
+            BonoBnc = this.BonoBncCalculado,
             AplicarASeleccionados = this.AplicarASeleccionados
         }));
     }
@@ -193,6 +260,8 @@
     {
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public decimal BonoBnc { get; set; }
         public bool AplicarASeleccionados { get; set; }
     }

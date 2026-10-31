@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -14,6 +14,8 @@ namespace BsOperaciones.Application.Common
         public decimal MontoAlimentacion { get; set; }
         public decimal BonoBnc { get; set; }
         public bool PagaEnNomina { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public List<string> ReglasAplicadas { get; set; } = new();
         public string Resumen { get; set; } = string.Empty;
     }
@@ -100,29 +102,30 @@ namespace BsOperaciones.Application.Common
                 string etiqueta = !string.IsNullOrWhiteSpace(r.NombreRegla) ? r.NombreRegla : $"Regla #{r.Id}";
                 resultado.ReglasAplicadas.Add(etiqueta);
 
+                // Montos de transporte y alimentacion siempre se asignan para cobro al cliente (Ticket de Viaticos)
+                resultado.MontoTransporte += r.MontoTransporte;
+                resultado.MontoAlimentacion += r.MontoAlimentacion;
+
                 if (r.PagaEnNomina)
                 {
-                    // Si se paga en nómina, el transporte y la alimentación se suman y van directo a Bono BNC
-                    resultado.BonoBnc += (r.MontoTransporte + r.MontoAlimentacion);
+                    if (r.MontoTransporte > 0) resultado.TraspAplicaNomina = true;
+                    if (r.MontoAlimentacion > 0) resultado.AlimAplicaNomina = true;
                     resultado.PagaEnNomina = true;
                 }
-                else
-                {
-                    // Si no se paga en nómina, se aplican a sus columnas respectivas
-                    resultado.MontoTransporte += r.MontoTransporte;
-                    resultado.MontoAlimentacion += r.MontoAlimentacion;
-                }
             }
+
+            // Bono BNC suma transporte y alimentacion siempre que esten marcados para aplicar en nomina
+            resultado.BonoBnc = (resultado.TraspAplicaNomina ? resultado.MontoTransporte : 0) +
+                                (resultado.AlimAplicaNomina ? resultado.MontoAlimentacion : 0);
 
             if (resultado.PagaEnNomina)
             {
-                resultado.Resumen = $"BNC C$ {resultado.BonoBnc:N2} ({string.Join(", ", resultado.ReglasAplicadas)})";
+                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> BNC Nomina C$ {resultado.BonoBnc:N2} ({string.Join(", ", resultado.ReglasAplicadas)})";
             }
             else
             {
-                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} ({string.Join(", ", resultado.ReglasAplicadas)})";
+                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> Efectivo ({string.Join(", ", resultado.ReglasAplicadas)})";
             }
-
             return resultado;
         }
 

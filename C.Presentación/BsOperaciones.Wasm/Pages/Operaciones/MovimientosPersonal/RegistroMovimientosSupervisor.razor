@@ -1,13 +1,11 @@
-﻿@page "/operaciones/registro-movimientos-supervisor"
+@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
 @using Modelo.ClasesGenericas
 @using System.Globalization
 @attribute [Authorize]
-
 <div class="px-2 py-1">
-
     @* --- BARRA SUPERIOR DE CONTROL DE JORNADA --- *@
     <MudPaper Elevation="2" Class="pa-3 mb-3 rounded-lg" Style="border-left: 6px solid #f97316;">
         <MudGrid Spacing="2" AlignItems="AlignItems.Center">
@@ -40,11 +38,9 @@
                     </MudButton>
                 </MudStack>
             </MudItem>
-
             @* Botones Principales de Acción Táctica *@
             <MudItem xs="12" sm="7" md="8">
                 <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
-
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Primary" 
                                Size="Size.Small" 
@@ -53,7 +49,6 @@
                                Title="Consultar y auditar histórico de asistencia por rango de fechas">
                         Auditoría
                     </MudButton>
-
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Success" 
                                Size="Size.Small" 
@@ -63,7 +58,6 @@
                                Title="Exportar la jornada del día a archivo Excel (.xlsx)">
                         Excel
                     </MudButton>
-
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Info" 
                                Size="Size.Small" 
@@ -72,7 +66,6 @@
                                Title="Agregar nuevo colaborador a la jornada">
                         + Colaborador
                     </MudButton>
-
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Error" 
                                Size="Size.Small" 
@@ -82,7 +75,6 @@
                                Title="Limpiar toda la grilla de la jornada">
                         Limpiar
                     </MudButton>
-
                     <MudButton Variant="Variant.Filled" 
                                Color="@(TotalConflictosHorarios > 0 ? Color.Error : (HayCambiosSinGuardar ? Color.Warning : Color.Success))" 
                                Size="Size.Small" 
@@ -94,7 +86,6 @@
                 </MudStack>
             </MudItem>
         </MudGrid>
-
         @* Cinta de Indicadores en Vivo *@
         <MudDivider Class="my-2" />
         <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap justify-space-between">
@@ -138,14 +129,16 @@
                 <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Fastfood">
                     Alim: <b>C$ @TotalViaticosAlim.ToString("N0")</b>
                 </MudChip>
-                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.CardGiftcard">
-                    BNC: <b>C$ @TotalViaticosBnc.ToString("N0")</b>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.AccountBalanceWallet" Title="Viaticos y bonos en nomina (BNC)">
+                    Nomina (BNC): <b>C$ @TotalViaticosBnc.ToString("N0")</b>
                 </MudChip>
-                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Payments">
-                    Total Viát & Bono: <b>C$ @TotalViaticosGlobal.ToString("N0")</b>
+                <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Payments" Title="Viaticos pagados en efectivo">
+                    Efectivo: <b>C$ @TotalViaticosEfectivo.ToString("N0")</b>
+                </MudChip>
+                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.ReceiptLong" Title="Total viaticos facturados al cliente">
+                    Total Cliente: <b>C$ @TotalViaticosCliente.ToString("N0")</b>
                 </MudChip>
             </MudStack>
-
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
                     Supervisor: <b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
@@ -170,7 +163,6 @@
                 }
             </MudStack>
         </MudStack>
-
         @if (TotalConflictosHorarios > 0)
         {
             <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mt-2 mb-1">
@@ -178,7 +170,6 @@
             </MudAlert>
         }
     </MudPaper>
-
     @* --- PESTAÑAS PRINCIPALES DE LA APLICACIÓN --- *@
     <MudTabs @bind-ActivePanelIndex="@activeTabIndex" 
              Elevation="2" 
@@ -188,7 +179,6 @@
              Color="Color.Surface" 
              SliderColor="Color.Secondary" 
              Class="tablet-tabs">
-
         @* ==========================================
            TAB 1: ASISTENCIAS
            ========================================== *@
@@ -218,7 +208,6 @@
                             + Colaborador
                         </MudButton>
                     </div>
-
                     @* Derecha: Filtros de Asistencia y Control de Vistas Estilo Odoo *@
                     <div class="d-flex flex-wrap align-center gap-2 justify-end" style="flex: 2 1 auto;">
                         @* Filtros de Asistencia y Selección Rápida *@
@@ -256,7 +245,6 @@
                                 Ninguno
                             </MudButton>
                         </div>
-
                                                                                                 @* Control de Vistas Estilo Odoo *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
                             <MudTooltip Text="Vista Horarios, Comida & Viáticos" Arrow="true" Placement="Placement.Top">
@@ -294,7 +282,6 @@
                         </div>
                     </div>
                 </div>
-
                 @* BARRA DE ACCIÓN FLOTANTE / MASIVA (Cuando hay seleccionados) *@
                 @if (CantidadSeleccionados > 0)
                 {
@@ -342,7 +329,6 @@
                         </MudStack>
                     </MudPaper>
                 }
-
                 @* ESTADO VACÍO CUANDO NO HAY EMPLEADOS *@
                 @if (!empleadosJornada.Any())
                 {
@@ -447,7 +433,6 @@
                                                            Title="Quitar de jornada" />
                                         </CardHeaderActions>
                                     </MudCardHeader>
-
                                     <MudCardContent Class="pa-2 pt-0 pb-1">
                                         @* Asistencia *@
                                         <div class="d-flex align-center justify-space-between mb-2">
@@ -476,23 +461,24 @@
                                                     @(string.Equals(emp.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) ? "Préstamo" : "Perm.")
                                                 </MudChip>
                                             </div>
-
                                             @* Viáticos & Bono Resumen *@
                                             @{
-                                                var totBeneficios = emp.VtcoTrasp + emp.VtcoAlim + emp.BonoBnc;
+                                                var totViaticos = emp.VtcoTrasp + emp.VtcoAlim;
+                                                var totNomina = emp.BonoBnc;
+                                                var totEfectivo = emp.TotalViaticosEfectivo;
                                             }
                                             <div class="d-flex align-center gap-1">
-                                                @if (totBeneficios > 0)
+                                                if (totViaticos > 0 || totNomina > 0)
                                                 {
                                                     <MudChip T="string" 
-                                                             Color="Color.Info" 
+                                                             Color="@(totNomina > 0 ? Color.Success : Color.Info)"
                                                              Variant="Variant.Filled" 
                                                              Size="Size.Small" 
                                                              Class="cursor-pointer font-monospace fw-bold" 
                                                              Style="height: 22px; font-size: 0.70rem; white-space: nowrap;" 
                                                              OnClick="@(() => AbrirEditorViaticoIndividual(emp, false))"
-                                                             Title="@($"Total Viáticos & Bono: C$ {totBeneficios:N0} (Trasp: C$ {emp.VtcoTrasp:N0}, Alim: C$ {emp.VtcoAlim:N0}, Bono BNC: C$ {emp.BonoBnc:N0})")">
-                                                        @($"C$ {totBeneficios:N0}")
+                                                             Title="@($"Viaticos Cliente: C$ {totViaticos:N0} (Trasp: C$ {emp.VtcoTrasp:N0}, Alim: C$ {emp.VtcoAlim:N0}) | Nomina: C$ {totNomina:N0} | Efectivo: C$ {totEfectivo:N0}")">
+                                                        @($"C$ {totViaticos:N0}")
                                                     </MudChip>
                                                 }
                                                 else
@@ -503,12 +489,11 @@
                                                                        Color="Color.Default" 
                                                                        Size="Size.Small" 
                                                                        Style="height: 24px; width: 24px; border-radius: 6px;" 
-                                                                       OnClick="@(() => AbrirEditorViaticoIndividual(emp, false))" />
+                                                                        OnClick="@(() => AbrirEditorViaticoIndividual(emp, false))" />
                                                     </MudTooltip>
                                                 }
                                             </div>
                                         </div>
-
                                         @* Ubicación: Cliente, Área, Cargo *@
                                         <div class="d-flex flex-column gap-1 mb-2 text-secondary" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1">
@@ -521,7 +506,6 @@
                                                 @emp.Puesto
                                             </div>
                                         </div>
-
                                         @if (emp.TieneConflictoHorario)
                                         {
                                             <div class="pa-1 mb-1 rounded d-flex align-center gap-1" style="background: #fee2e2; border: 1px solid #f87171; color: #991b1b; font-size: 0.70rem; line-height: 1.2;">
@@ -529,7 +513,6 @@
                                                 <span><b>Cruce de horario:</b> @emp.DetalleConflictoHorario</span>
                                             </div>
                                         }
-
                                         @* Horario y Tiempo de Comida *@
                                         <div class="d-flex align-center justify-space-between pt-1 border-top" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1 font-monospace">
@@ -548,7 +531,6 @@
                                                        style="@($"width: 44px; border: {(emp.TieneConflictoHorario ? "2px solid #ef4444" : (emp.Asistio ? "1px solid #ced4da" : "1px dashed #cbd5e1"))}; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center; background: {(emp.TieneConflictoHorario ? "#fee2e2" : (emp.Asistio ? "white" : "#f8fafc"))}; color: {(emp.TieneConflictoHorario ? "#b91c1c; font-weight: bold;" : (emp.Asistio ? "inherit" : "#94a3b8"))};")" 
                                                        title="@(emp.Asistio ? "Hora Salida" : "Ausente")" />
                                             </div>
-
                                             <input type="number" 
                                                    step="any" 
                                                    min="0" 
@@ -559,7 +541,6 @@
                                                    style="@($"width: 52px; font-size: 0.72rem; border: 1px {(emp.Asistio ? "solid #ced4da" : "dashed #cbd5e1")}; border-radius: 4px; padding: 1px 2px; text-align: center; background: {(emp.Asistio ? "white" : "#f8fafc")}; color: {(emp.Asistio ? "inherit" : "#94a3b8")};")" 
                                                    title="@(emp.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
                                         </div>
-
                                         @* Tickets de Helpdesk *@
                                         <div class="d-flex align-center gap-1 flex-wrap pt-1 border-top mt-1" style="font-size: 0.72rem;">
                                             <span class="text-muted fw-bold" style="font-size: 0.68rem;">Tickets:</span>
@@ -1171,9 +1152,6 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
-
-
         @* ==========================================
            TAB 2: VIÁTICOS
            ========================================== *@
@@ -1182,7 +1160,6 @@
            ========================================== *@
         <MudTabPanel Text="Ausencias" ToolTip="Ausencias del Personal" Icon="@Icons.Material.Filled.PersonOff" BadgeData="@TotalAusentes" BadgeColor="Color.Error">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
-
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -1197,7 +1174,6 @@
                         </div>
                     </MudAlert>
                 }
-
                 @* KPIs Resumen de Ausencias *@
                 <MudGrid Spacing="2" Class="mb-3">
                     <MudItem xs="12" sm="4">
@@ -1237,7 +1213,6 @@
                         </MudPaper>
                     </MudItem>
                 </MudGrid>
-
                 @* Barra de Filtros, Búsqueda, Acciones y Selector de Vistas Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-3">
                     @* Izquierda: Buscador *@
@@ -1252,7 +1227,6 @@
                                       Clearable="true" 
                                       Class="flex-grow-1" />
                     </div>
-
                     @* Derecha: Botón Envío Helpdesk + Selector de Vistas Odoo *@
                     <div class="d-flex align-center flex-wrap gap-2">
                         @if (TotalAusentes > 0)
@@ -1261,7 +1235,6 @@
                                 <MudButton OnClick="@(() => MarcarTodosAusentes(true))" Size="Size.Small">Todos</MudButton>
                                 <MudButton OnClick="@(() => MarcarTodosAusentes(false))" Size="Size.Small">Ninguno</MudButton>
                             </MudButtonGroup>
-
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Error" 
                                        Size="Size.Small" 
@@ -1281,7 +1254,6 @@
                                 }
                             </MudButton>
                         }
-
                         @* Selector de 2 Vistas (Tarjetas y Operativa) *@
                         <div class="odoo-view-switcher">
                             <button type="button" 
@@ -1299,7 +1271,6 @@
                         </div>
                     </div>
                 </div>
-
                 @* ESTADO VACÍO *@
                 @if (!AusentesFiltrados.Any())
                 {
@@ -1366,7 +1337,6 @@
                                                                OnClick="@(() => MarcarComoPresente(emp))" />
                                             </MudTooltip>
                                         </div>
-
                                         @* Nombre y Subtítulo *@
                                         <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark mb-0 text-truncate" Title="@emp.NombreEmpleado" Style="font-size: 0.95rem;">
                                             @emp.NombreEmpleado
@@ -1376,9 +1346,7 @@
                                             <span class="fw-bold text-dark">@emp.Cliente</span>
                                             <span>• @emp.Puesto</span>
                                         </div>
-
                                         <MudDivider Class="mb-3" />
-
                                         @* Tipo de Ausencia Odoo *@
                                         <div class="mb-2">
                                             <label class="text-caption fw-bold text-secondary d-block mb-1">Tipo de Permiso / Ausencia (Odoo):</label>
@@ -1395,7 +1363,6 @@
                                                 }
                                             </MudSelect>
                                         </div>
-
                                         @if (emp.TipoAusencia == "Vacaciones")
                                         {
                                             <div class="mb-2">
@@ -1412,7 +1379,6 @@
                                                 </MudSelect>
                                             </div>
                                         }
-
                                         @* Rango de Fechas & Días *@
                                         <div class="d-flex align-center gap-2 mb-2">
                                             <div class="flex-grow-1">
@@ -1447,7 +1413,6 @@
                                                                  Style="text-align: center;" />
                                             </div>
                                         </div>
-
                                         @* Motivo / Observaciones *@
                                         <div class="mb-2">
                                             <MudTextField @bind-Value="@emp.ObservacionesAusencia" 
@@ -1457,7 +1422,6 @@
                                                           Class="bg-white"
                                                           Lines="1" />
                                         </div>
-
                                         @* Footer de la Tarjeta *@
                                         <div class="d-flex align-center justify-space-between pt-2 border-t mt-2">
                                             @if (emp.SincronizadoAusencia)
@@ -1646,11 +1610,8 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
-
         <MudTabPanel Text="Viáticos" ToolTip="Viáticos (Operaciones - Tracker 27)" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticosTransporteAlim" BadgeColor="Color.Warning">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
-
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -1665,7 +1626,6 @@
                         </div>
                     </MudAlert>
                 }
-
                 @* Cards de Resumen de Viáticos *@
                 <MudGrid Spacing="2" Class="mb-3">
                     <MudItem xs="12" sm="6" md="3">
@@ -1721,7 +1681,6 @@
                         </MudCard>
                     </MudItem>
                 </MudGrid>
-
                 @* Filtros de Viáticos y Acciones *@
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
                     <MudItem xs="12" sm="6" md="3">
@@ -1749,7 +1708,6 @@
                                     Colaboradores (@TotalPresentes)
                                 </MudButton>
                             </MudButtonGroup>
-
                             @* Selector de 2 Formatos: Tarjetas vs Tabla *@
                             <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary">
                                 <MudButton Variant="@(modoVistaViaticosFormato == ModoVistaGrilla.Tarjetas ? Variant.Filled : Variant.Outlined)"
@@ -1828,7 +1786,6 @@
                         </MudStack>
                     </MudItem>
                 </MudGrid>
-
                 @* VISTA 1: SOLICITUDES DE VIÁTICOS (GRUPOS CON COLUMNA DE RECURSOS) *@
                 @if (modoVistaViaticos == "GRUPOS")
                 {
@@ -1887,7 +1844,6 @@
                                                 </div>
                                             </CardHeaderContent>
                                         </MudCardHeader>
-
                                         <MudCardContent Class="py-2 px-3">
                                             @* Puesto y Horario *@
                                             <div class="mb-2">
@@ -1897,7 +1853,6 @@
                                                     <span>@grupo.HoraInicio - @grupo.HoraFin (@grupo.TurnoNombre)</span>
                                                 </div>
                                             </div>
-
                                             @* Cuadro Destacado: Recursos y Montos *@
                                             <MudPaper Elevation="0" Class="pa-2 my-2 rounded" Style="background: #f1f5f9; border: 1px solid #e2e8f0;">
                                                 <div class="d-flex justify-space-between align-center mb-1">
@@ -1907,8 +1862,8 @@
                                                     </MudChip>
                                                 </div>
                                                 <div class="d-flex justify-space-between text-secondary" style="font-size: 0.78rem;">
-                                                    <span>Trasp: C$ @grupo.VtcoTrasp.ToString("N2")</span>
-                                                    <span>Alim: C$ @grupo.VtcoAlim.ToString("N2")</span>
+                                                    <span>Trasp: C$ @grupo.VtcoTrasp.ToString("N2") <b style="color: @(grupo.TraspAplicaNomina ? "#2563eb" : "#d97706");">@(grupo.TraspAplicaNomina ? "(NÃ³mina)" : "(Efectivo)")</b></span>
+                                                    <span>Alim: C$ @grupo.VtcoAlim.ToString("N2") <b style="color: @(grupo.AlimAplicaNomina ? "#2563eb" : "#d97706");">@(grupo.AlimAplicaNomina ? "(NÃ³mina)" : "(Efectivo)")</b></span>
                                                 </div>
                                                 <MudDivider Class="my-1" />
                                                 <div class="d-flex justify-space-between align-center">
@@ -1921,7 +1876,6 @@
                                                     (@grupo.Recursos × C$ @grupo.TotalPorPersona.ToString("N2"))
                                                 </div>
                                             </MudPaper>
-
                                             @* Colaboradores asignados (Chips) *@
                                             <div>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold mb-1 d-block">Colaboradores:</MudText>
@@ -1935,7 +1889,6 @@
                                                 </div>
                                             </div>
                                         </MudCardContent>
-
                                         <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
                                             <MudButton Variant="Variant.Outlined" 
                                                        Color="Color.Primary" 
@@ -2092,7 +2045,6 @@
                                                 </div>
                                             </CardHeaderContent>
                                         </MudCardHeader>
-
                                         <MudCardContent Class="py-2 px-3">
                                             <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1" Style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" Title="@emp.NombreEmpleado">
                                                 @emp.NombreEmpleado
@@ -2101,7 +2053,6 @@
                                                 <MudText Typo="Typo.caption" Class="fw-bold d-block">@emp.Area</MudText>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.Cliente</MudText>
                                             </div>
-
                                             <div class="d-flex gap-2">
                                                 <div class="flex-grow-1">
                                                     <MudNumericField T="decimal" 
@@ -2133,7 +2084,6 @@
                                                 </div>
                                             </div>
                                         </MudCardContent>
-
                                         <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
                                             <MudButton Variant="Variant.Text" 
                                                        Color="Color.Primary" 
@@ -2256,13 +2206,11 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
                 @* ==========================================
            TAB 4: BONO DIARIO (RRHH - TRACKER 11: APLICAR BONO DEL DIA)
            ========================================== *@
         <MudTabPanel Text="Bono Diario" ToolTip="Bono Diario (RRHH - Tracker 11)" Icon="@Icons.Material.Filled.MonetizationOn" BadgeData="@TotalConBono" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
-
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -2277,12 +2225,10 @@
                         </div>
                     </MudAlert>
                 }
-
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     La solicitud de <b>Bono Diario (Tracker 11 - Aplicar bono del dia)</b> se genera en el proyecto <b>RRHH</b> 
                     de forma individual para registrar formalmente el pago de bono de cumplimiento o BNC a los colaboradores autorizados en la jornada.
                 </MudAlert>
-
                 @* Cards de Resumen de Bonos *@
                 <MudGrid Spacing="2" Class="mb-3">
                     <MudItem xs="12" sm="6" md="3">
@@ -2338,7 +2284,6 @@
                         </MudCard>
                     </MudItem>
                 </MudGrid>
-
                 @* Filtros de Bonos y Acciones *@
                 <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
                     <MudItem xs="12" sm="6" md="3">
@@ -2406,12 +2351,10 @@
                         </MudStack>
                     </MudItem>
                 </MudGrid>
-
                 @if (estaEnviandoBonos)
                 {
                     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
                 }
-
                 @* Tabla Detallada de Bonos *@
                 @if (!EmpleadosBonosFiltrados.Any())
                 {
@@ -2458,13 +2401,23 @@
                                             </div>
                                         </CardHeaderContent>
                                     </MudCardHeader>
-
                                     <MudCardContent Class="py-2 px-3">
                                         <div class="mb-2">
                                             <MudText Typo="Typo.caption" Class="fw-bold d-block">@emp.Area</MudText>
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.Cliente</MudText>
                                         </div>
-
+                                        @if (emp.TraspAplicaNomina || emp.AlimAplicaNomina)
+                                        {
+                                            <div class="d-flex align-center gap-1 mb-2 pa-1 rounded" style="background: #eff6ff; font-size: 0.72rem; color: #1e40af; border: 1px dashed #93c5fd;">
+                                                <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Style="font-size: 0.85rem;" />
+                                                <span>
+                                                    ViÃ¡ticos en nÃ³mina: 
+                                                    @(emp.TraspAplicaNomina ? $"Trasp C$ {emp.VtcoTrasp:N0}" : "")
+                                                    @(emp.TraspAplicaNomina && emp.AlimAplicaNomina ? " + " : "")
+                                                    @(emp.AlimAplicaNomina ? $"Alim C$ {emp.VtcoAlim:N0}" : "")
+                                                </span>
+                                            </div>
+                                        }
                                         <MudNumericField T="decimal" 
                                                          Label="Monto Bono"
                                                          Value="@emp.BonoBnc" 
@@ -2478,7 +2431,6 @@
                                                          Class="mb-2"
                                                          Style="font-weight: 700; text-align: right;" 
                                                          ValueChanged="@((val) => { emp.BonoBnc = val; emp.Modificado = true; ActualizarGruposConsolidados(); })" />
-
                                         <MudTextField @bind-Value="@emp.Observaciones" 
                                                       Label="Observaciones / Motivo"
                                                       Variant="Variant.Outlined" 
@@ -2488,7 +2440,6 @@
                                                       Style="font-size: 0.8rem;"
                                                       OnBlur="@(() => emp.Modificado = true)" />
                                     </MudCardContent>
-
                                     <MudCardActions Class="px-3 pb-2 pt-0 d-flex justify-space-between align-center">
                                         @if (emp.BonoBnc > 0)
                                         {
@@ -2598,14 +2549,11 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
-
         @* ==========================================
            TAB 3: CONSOLIDADO & ENVÍO A HELPDESK
            ========================================== *@
         <MudTabPanel Text="Movimientos" ToolTip="Movimientos" Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
             <MudPaper Class="pa-3 mt-2" Elevation="0">
-
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -2620,12 +2568,10 @@
                         </div>
                     </MudAlert>
                 }
-
                 <MudAlert Severity="Severity.Info" Class="mb-3" Variant="Variant.Outlined">
                     Esta pestaña agrupa automáticamente la asistencia activa exactamente con la lógica de <b>OPM_Produccion_Diaria_Hrs</b> 
                     para generar y sincronizar los tickets de <b>Movimientos de Personal (Tracker 1)</b> y <b>Viáticos Operativos (Tracker 28)</b> en Helpdesk.
                 </MudAlert>
-
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3 flex-wrap gap-2">
                     <div>
                         <MudText Typo="Typo.h6" Class="fw-bold">Grupos Listos para Helpdesk (@gruposConsolidados.Count)</MudText>
@@ -2633,7 +2579,6 @@
                             Total de @TotalPresentes colaboradores distribuidos en @gruposConsolidados.Count asignaciones
                         </MudText>
                     </div>
-
                     <div class="d-flex align-center gap-2">
                         @* Selector de 2 Vistas (Tarjetas y Operativa) *@
                         <div class="odoo-view-switcher">
@@ -2650,7 +2595,6 @@
                                 <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" />
                             </button>
                         </div>
-
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    Size="Size.Large" 
@@ -2663,12 +2607,10 @@
                         </MudButton>
                     </div>
                 </MudStack>
-
                 @if (estaEnviandoHelpdesk)
                 {
                     <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
                 }
-
                 @if (!gruposConsolidados.Any())
                 {
                     <MudPaper Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
@@ -2728,7 +2670,6 @@
                                             }
                                         </CardHeaderActions>
                                     </MudCardHeader>
-
                                     <MudCardContent Class="pt-1 pb-2">
                                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
                                             <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Primary" />
@@ -2736,7 +2677,6 @@
                                                 @grupo.Cantidad colaboradores asignados
                                             </MudText>
                                         </MudStack>
-
                                         @* Lista de Códigos/Carnets con indicación si son préstamo *@
                                         <MudPaper Class="pa-2 mb-2 rounded" Style="background: rgba(0,0,0,0.03); max-height: 80px; overflow-y: auto;">
                                             <div class="d-flex flex-wrap gap-1">
@@ -2754,7 +2694,6 @@
                                                 }
                                             </div>
                                         </MudPaper>
-
                                         @* Alerta de Nómina de Préstamo si aplica *@
                                         @if (!string.IsNullOrWhiteSpace(grupo.NotaPrestamos))
                                         {
@@ -2767,7 +2706,6 @@
                                                 </div>
                                             </MudAlert>
                                         }
-
                                         @* Observaciones editables por el supervisor *@
                                         <div class="mt-2">
                                             <MudTextField T="string" 
@@ -2781,7 +2719,6 @@
                                                            Class="font-monospace" 
                                                            Style="font-size: 0.78rem;" />
                                         </div>
-
                                         @* Viáticos *@
                                         <MudStack Row="true" Spacing="1" Class="flex-wrap mt-2">
                                             @if (grupo.VtcoTrasp > 0)
@@ -2803,7 +2740,6 @@
                                                 </MudChip>
                                             }
                                         </MudStack>
-
                                         @* Trazabilidad Helpdesk si ya fue enviado *@
                                         @if (grupo.TicketRedmineId.HasValue && grupo.TicketRedmineId > 0)
                                         {
@@ -3104,7 +3040,6 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
         @* ==========================================
            TAB 4: MI PERSONAL (PLANTILLA PERMANENTE)
            ========================================== *@
@@ -3130,7 +3065,6 @@
                         }
                     </div>
                 </MudAlert>
-
                 @* BARRA DE HERRAMIENTAS Y VISTAS ESTILO ODOO *@
                 <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-3">
                     <div class="d-flex align-center gap-2 flex-grow-1" style="max-width: 520px;">
@@ -3143,7 +3077,6 @@
                                       Immediate="true" 
                                       Clearable="true"
                                       Class="flex-grow-1" />
-
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
@@ -3152,7 +3085,6 @@
                             + Colaborador
                         </MudButton>
                     </div>
-
                     <div class="d-flex align-center gap-2 flex-wrap">
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
@@ -3163,7 +3095,6 @@
                                    Title="Copia la lista de colaboradores maestros de tus clientes asignados desde la tabla de administración">
                             Cargar Datos Base
                         </MudButton>
-
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Info" 
                                    Size="Size.Small" 
@@ -3173,15 +3104,9 @@
                                    Title="Compara y agrega nuevos registros de tus clientes desde la tabla maestra de administración">
                             Actualizar
                         </MudButton>
-
-
-
-
-
                         <span class="text-secondary fw-bold ml-1" style="font-size: 0.8rem; white-space: nowrap;">
                             @PlantillaFiltrada.Count() colaboradores
                         </span>
-
                                                                                                                         @* Control de Vistas Estilo Odoo para Mi Personal *@
                         <div class="odoo-view-switcher" role="group" aria-label="Cambiar modo de vista">
                             <MudTooltip Text="Vista Horarios, Comida & Viáticos Base" Arrow="true" Placement="Placement.Top">
@@ -3219,7 +3144,6 @@
                         </div>
                     </div>
                 </div>
-
                 @if (!miPlantillaPersonal.Any())
                 {
                     <MudPaper Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
@@ -3282,7 +3206,6 @@
                                                            Title="Quitar de mi plantilla" />
                                         </CardHeaderActions>
                                     </MudCardHeader>
-
                                     <MudCardContent Class="pa-2 pt-0 pb-1">
                                         @* Ubicación: Cliente, Área, Cargo *@
                                         <div class="d-flex flex-column gap-1 mb-2 text-secondary" style="font-size: 0.75rem;">
@@ -3296,7 +3219,6 @@
                                                 @item.PuestoDefault
                                             </div>
                                         </div>
-
                                         @* Horario y Tiempo de Comida *@
                                         <div class="d-flex align-center justify-space-between pt-1 border-top" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1 font-monospace">
@@ -3311,7 +3233,6 @@
                                                        style="width: 44px; border: 1px solid #ced4da; border-radius: 4px; padding: 1px; font-size: 0.75rem; text-align: center;" 
                                                        title="Hora Salida" />
                                             </div>
-
                                             <input type="number" 
                                                    step="any" 
                                                    min="0" 
@@ -3321,7 +3242,6 @@
                                                    style="width: 52px; font-size: 0.72rem; border: 1px solid #ced4da; border-radius: 4px; padding: 1px 2px; text-align: center; background: white;" 
                                                    title="Tiempo de comida en horas" />
                                         </div>
-
                                         @* Viáticos Base *@
                                         @{
                                             var totalVTarj = item.VtcoTraspDefault + item.VtcoAlimDefault + item.BonoBncDefault;
@@ -3798,12 +3718,8 @@
                 }
             </MudPaper>
         </MudTabPanel>
-
-
-
             </MudTabs>
 </div>
-
 <style>
     .tablet-tabs .mud-tabs-tabbar {
         padding-bottom: 4px;
@@ -3824,7 +3740,6 @@
     .tablet-tabs .mud-tab-slider {
         height: 3px !important;
     }
-
     /* En resoluciones medianas y pequenas (tablets y telefonos, max 1080px):
        Ocultar el texto del tab para dejar solo el icono + badge y que nunca se corte ni desaparezca Configuracion */
     @@media (max-width: 1080px) {
@@ -3861,7 +3776,6 @@
             line-height: 14px !important;
         }
     }
-
     /* Control de Vistas Estilo Odoo (Top-Right Toolbar Switcher) */
     .odoo-view-switcher {
         display: inline-flex;
@@ -3905,7 +3819,6 @@
     .odoo-view-btn.active .mud-icon-root {
         fill: #ffffff !important;
     }
-
     /* Modal / Popover de Selección de Fecha */
     .mud-popover.mud-picker-popover-wide,
     .mud-picker-popover-wide,
@@ -3916,7 +3829,6 @@
         max-width: 340px !important;
         overflow: visible !important;
     }
-
     .mud-picker-popover-wide .mud-picker-container,
     .mud-picker-popover-wide .mud-picker-content,
     .mud-picker-popover-wide .mud-calendar,
@@ -3926,7 +3838,6 @@
         min-width: 295px !important;
         width: 100% !important;
     }
-
     .mud-picker-dialog .mud-dialog {
         max-width: 360px !important;
         width: 100% !important;

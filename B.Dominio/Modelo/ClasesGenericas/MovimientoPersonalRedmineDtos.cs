@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Modelo.ClasesGenericas
@@ -68,6 +68,8 @@ namespace Modelo.ClasesGenericas
         public string? Bnc { get; set; } = string.Empty;
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public string? TiempoComida { get; set; } = "1.00";
         public string? Observaciones { get; set; } = string.Empty;
         public bool Asistio { get; set; } = true;
@@ -325,6 +327,8 @@ namespace Modelo.ClasesGenericas
         public decimal BonoBnc { get; set; }
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public bool Activo { get; set; } = true;
         public DateTime? FechaCreacion { get; set; }
         public string? UsuarioCreacion { get; set; }
@@ -344,6 +348,8 @@ namespace Modelo.ClasesGenericas
         public decimal BonoBnc { get; set; }
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public bool Activo { get; set; } = true;
         public string UsuarioCreacion { get; set; } = string.Empty;
     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -43,6 +43,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
         public decimal BonoBnc { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
+        public decimal TotalViaticos => VtcoTrasp + VtcoAlim;
+        public decimal TotalViaticosNomina => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
+        public decimal TotalViaticosEfectivo => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
         public string Bnc
         {
             get => BonoBnc > 0 ? BonoBnc.ToString("N2", CultureInfo.InvariantCulture) : string.Empty;
@@ -96,6 +101,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
         public decimal VtcoBnc { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
+        public decimal TotalNominaPorPersona => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
+        public decimal TotalEfectivoPorPersona => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
         public int Cantidad => Empleados.Count;
         public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
@@ -120,8 +129,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public int Recursos => Empleados.Count; // Número de personas del viático
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
+        public bool TraspAplicaNomina { get; set; }
+        public bool AlimAplicaNomina { get; set; }
         public decimal TotalPorPersona => VtcoTrasp + VtcoAlim;
         public decimal TotalGrupo => Recursos * TotalPorPersona;
+        public decimal TotalNominaPorPersona => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
+        public decimal TotalEfectivoPorPersona => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
+        public decimal TotalNominaGrupo => Recursos * TotalNominaPorPersona;
+        public decimal TotalEfectivoGrupo => Recursos * TotalEfectivoPorPersona;
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
         public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
         public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
@@ -321,8 +336,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalAusentes => empleadosJornada.Count(x => !x.Asistio);
         protected decimal TotalViaticosTrasp => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoTrasp);
         protected decimal TotalViaticosAlim => empleadosJornada.Where(x => x.Asistio).Sum(x => x.VtcoAlim);
+        protected decimal TotalViaticosCliente => TotalViaticosTrasp + TotalViaticosAlim;
         protected decimal TotalViaticosBnc => empleadosJornada.Where(x => x.Asistio).Sum(x => x.BonoBnc);
-        protected decimal TotalViaticosGlobal => TotalViaticosTrasp + TotalViaticosAlim + TotalViaticosBnc;
+        protected decimal TotalViaticosEfectivo => empleadosJornada.Where(x => x.Asistio).Sum(x => (x.TraspAplicaNomina ? 0 : x.VtcoTrasp) + (x.AlimAplicaNomina ? 0 : x.VtcoAlim));
+        protected decimal TotalViaticosGlobal => TotalViaticosCliente;
         protected int CantidadSeleccionados => empleadosJornada.Count(x => x.Seleccionado);
         protected bool HayCambiosSinGuardar => empleadosJornada.Any(x => x.Modificado || x.Id == 0);
         protected int TotalGuardadosEnBd => empleadosJornada.Count(x => x.Id > 0 && !x.Modificado);
@@ -356,7 +373,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraFin = x.HoraSalida,
                         x.TurnoNombre,
                         x.VtcoTrasp,
-                        x.VtcoAlim
+                        x.VtcoAlim,
+                        x.TraspAplicaNomina,
+                        x.AlimAplicaNomina
                     })
                     .Select((g, idx) => new GrupoViaticoItem
                     {
@@ -369,6 +388,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TurnoNombre = g.Key.TurnoNombre,
                         VtcoTrasp = g.Key.VtcoTrasp,
                         VtcoAlim = g.Key.VtcoAlim,
+                        TraspAplicaNomina = g.Key.TraspAplicaNomina,
+                        AlimAplicaNomina = g.Key.AlimAplicaNomina,
                         Empleados = g.ToList()
                     })
                     .ToList();
@@ -633,6 +654,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Bnc = m.Bnc ?? string.Empty,
                             VtcoTrasp = m.VtcoTrasp,
                             VtcoAlim = m.VtcoAlim,
+                            TraspAplicaNomina = m.TraspAplicaNomina || (m.VtcoTrasp > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal1) && bVal1 >= m.VtcoTrasp),
+                            AlimAplicaNomina = m.AlimAplicaNomina || (m.VtcoAlim > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal2) && bVal2 >= m.VtcoAlim),
                             Observaciones = m.Observaciones ?? string.Empty,
                             TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
                             Asistio = m.Asistio,
@@ -1384,6 +1407,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Bnc = e.Bnc,
                         VtcoTrasp = e.VtcoTrasp,
                         VtcoAlim = e.VtcoAlim,
+                        TraspAplicaNomina = e.TraspAplicaNomina,
+                        AlimAplicaNomina = e.AlimAplicaNomina,
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
@@ -1519,6 +1544,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (!string.IsNullOrWhiteSpace(data.Cliente)) emp.Cliente = data.Cliente;
                     emp.VtcoTrasp = data.VtcoTrasp;
                     emp.VtcoAlim = data.VtcoAlim;
+
                     emp.BonoBnc = data.BonoBnc;
                     if (data.VtcoTrasp == 0 && data.VtcoAlim == 0 && data.BonoBnc == 0)
                     {
@@ -2278,8 +2304,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
-
-
         protected string NormalizarDecimalComida(string? valor)
         {
             if (string.IsNullOrWhiteSpace(valor)) return "0.00";
@@ -2298,8 +2322,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             item.Modificado = true;
             ActualizarGruposConsolidados();
         }
-
-
 
         protected void AlternarViaticoRapido(EmpleadoJornadaItem item, string tipo)
         {
@@ -2385,6 +2407,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["VtcoTraspInicial"] = item.VtcoTrasp,
                 ["VtcoAlimInicial"] = item.VtcoAlim,
                 ["BonoBncInicial"] = item.BonoBnc,
+                ["TraspAplicaNominaInicial"] = item.TraspAplicaNomina,
+                ["AlimAplicaNominaInicial"] = item.AlimAplicaNomina,
                 ["CantidadSeleccionados"] = seleccionados.Count,
                 ["OcultarBono"] = ocultarBono
             };
@@ -2396,6 +2420,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 item.VtcoTrasp = data.VtcoTrasp;
                 item.VtcoAlim = data.VtcoAlim;
+                item.TraspAplicaNomina = data.TraspAplicaNomina;
+                item.AlimAplicaNomina = data.AlimAplicaNomina;
                 if (!ocultarBono)
                 {
                     item.BonoBnc = data.BonoBnc;
@@ -2408,6 +2434,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         s.VtcoTrasp = data.VtcoTrasp;
                         s.VtcoAlim = data.VtcoAlim;
+                        s.TraspAplicaNomina = data.TraspAplicaNomina;
+                        s.AlimAplicaNomina = data.AlimAplicaNomina;
                         if (!ocultarBono)
                         {
                             s.BonoBnc = data.BonoBnc;
@@ -2417,8 +2445,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 ActualizarGruposConsolidados();
-                var total = data.VtcoTrasp + data.VtcoAlim + (ocultarBono ? 0 : data.BonoBnc);
-                _snackbar.Add($"Viáticos actualizados (Total C$ {total:N2})", Severity.Success);
+                var total = data.VtcoTrasp + data.VtcoAlim;
+                _snackbar.Add($"Viáticos actualizados (Total Cliente C$ {total:N2} | Nómina C$ {data.BonoBnc:N2})", Severity.Success);
             }
         }
 
@@ -2431,9 +2459,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["NombreEmpleado"] = $"{grupo.Recursos} recursos en {grupo.Area} ({grupo.HoraInicio}-{grupo.HoraFin})",
                 ["VtcoTraspInicial"] = grupo.VtcoTrasp,
                 ["VtcoAlimInicial"] = grupo.VtcoAlim,
-                ["BonoBncInicial"] = 0m,
+                ["BonoBncInicial"] = primer.BonoBnc,
+                ["TraspAplicaNominaInicial"] = primer.TraspAplicaNomina,
+                ["AlimAplicaNominaInicial"] = primer.AlimAplicaNomina,
                 ["CantidadSeleccionados"] = grupo.Recursos,
-                ["OcultarBono"] = true
+                ["OcultarBono"] = false
             };
 
             var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Editar Viáticos del Grupo", parameters);
@@ -2445,6 +2475,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     emp.VtcoTrasp = data.VtcoTrasp;
                     emp.VtcoAlim = data.VtcoAlim;
+                    emp.TraspAplicaNomina = data.TraspAplicaNomina;
+                    emp.AlimAplicaNomina = data.AlimAplicaNomina;
+                    emp.BonoBnc = data.BonoBnc;
                     emp.Modificado = true;
                 }
 
@@ -2470,9 +2503,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["NombreEmpleado"] = primer.NombreEmpleado,
                 ["VtcoTraspInicial"] = primer.VtcoTrasp,
                 ["VtcoAlimInicial"] = primer.VtcoAlim,
-                ["BonoBncInicial"] = 0m,
+                ["BonoBncInicial"] = primer.BonoBnc,
+                ["TraspAplicaNominaInicial"] = primer.TraspAplicaNomina,
+                ["AlimAplicaNominaInicial"] = primer.AlimAplicaNomina,
                 ["CantidadSeleccionados"] = seleccionados.Count,
-                ["OcultarBono"] = true
+                ["OcultarBono"] = false
             };
 
             var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Asignación Masiva de Viáticos", parameters);
@@ -2484,6 +2519,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     s.VtcoTrasp = data.VtcoTrasp;
                     s.VtcoAlim = data.VtcoAlim;
+                    s.TraspAplicaNomina = data.TraspAplicaNomina;
+                    s.AlimAplicaNomina = data.AlimAplicaNomina;
+                    s.BonoBnc = data.BonoBnc;
                     s.Modificado = true;
                 }
 
@@ -2504,10 +2542,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 foreach (var emp in empleadosJornada)
                 {
-                    if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0)
+                    if (emp.VtcoTrasp > 0 || emp.VtcoAlim > 0 || emp.BonoBnc > 0)
                     {
                         emp.VtcoTrasp = 0;
                         emp.VtcoAlim = 0;
+                        emp.TraspAplicaNomina = false;
+                        emp.AlimAplicaNomina = false;
+                        emp.BonoBnc = 0;
                         emp.Modificado = true;
                     }
                 }
@@ -2621,7 +2662,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     TiempoComida = string.IsNullOrWhiteSpace(x.TiempoComida) ? "1.00" : x.TiempoComida,
                     x.VtcoTrasp,
                     x.VtcoAlim,
-                    x.BonoBnc
+                    x.BonoBnc,
+                    x.TraspAplicaNomina,
+                    x.AlimAplicaNomina
                 })
                 .Select((g, idx) =>
                 {
@@ -2692,6 +2735,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         VtcoTrasp = g.Key.VtcoTrasp,
                         VtcoAlim = g.Key.VtcoAlim,
                         VtcoBnc = g.Key.BonoBnc,
+                        TraspAplicaNomina = g.Key.TraspAplicaNomina,
+                        AlimAplicaNomina = g.Key.AlimAplicaNomina,
                         Empleados = empleadosGrupo,
                         Observaciones = obsFinal,
                         NotaPrestamos = notaAutomatica
@@ -2824,8 +2869,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-
-
         // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE ---
         private async Task PurgarBorradoresLocales()
         {
@@ -2923,18 +2966,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (evaluacion.AplicaRegla)
             {
-                if (evaluacion.PagaEnNomina)
-                {
-                    item.BonoBnc = evaluacion.BonoBnc;
-                    item.VtcoTrasp = 0;
-                    item.VtcoAlim = 0;
-                }
-                else
-                {
-                    item.VtcoTrasp = evaluacion.MontoTransporte;
-                    item.VtcoAlim = evaluacion.MontoAlimentacion;
-                    item.BonoBnc = 0;
-                }
+                item.VtcoTrasp = evaluacion.MontoTransporte;
+                item.VtcoAlim = evaluacion.MontoAlimentacion;
+                item.TraspAplicaNomina = evaluacion.TraspAplicaNomina;
+                item.AlimAplicaNomina = evaluacion.AlimAplicaNomina;
+                item.BonoBnc = evaluacion.BonoBnc;
                 item.Modificado = true;
 
                 if (notificar)
@@ -2944,10 +2980,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             else if (evaluacion.TieneReglasCliente)
             {
-                // Si el cliente tiene reglas configuradas en el sistema pero el horario actual no cumple las condiciones, se limpian los viáticos
-                item.BonoBnc = 0;
                 item.VtcoTrasp = 0;
                 item.VtcoAlim = 0;
+                item.TraspAplicaNomina = false;
+                item.AlimAplicaNomina = false;
+                item.BonoBnc = 0;
                 item.Modificado = true;
             }
         }
@@ -3392,7 +3429,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-
         // --- ENVIAR SOLICITUD DE VIÁTICOS A HELPDESK (OPERACIONES - TRACKER 27) ---
         protected async Task EnviarViaticosMasivo()
         {
@@ -3438,23 +3474,39 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoViaticos = true;
             try
             {
-                var movimientosRedmine = gruposConViaticosPendientes.Select(g => new MovimientoPersonalItemDto
+                var movimientosRedmine = gruposConViaticosPendientes.Select(g => 
                 {
-                    FilaIndex = g.GrupoIndex,
-                    Cliente = g.Cliente,
-                    Area = g.Area,
-                    Cargo = g.Puesto,
-                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
-                    HoraInicio = g.HoraInicio,
-                    HoraFin = g.HoraFin,
-                    TiempoComida = g.TiempoComida,
-                    CantidadEmpleados = g.Cantidad,
-                    IdsEmpleados = g.IdsEmpleadosTexto,
-                    Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
-                    Observaciones = g.Observaciones,
-                    Bonos = "0.00",
-                    VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
-                    VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
+                    string formaLiquidacion = "";
+                    if (g.TraspAplicaNomina && g.AlimAplicaNomina)
+                        formaLiquidacion = "[LiquidaciÃ³n: 100% NÃ³mina (Bono BNC)]";
+                    else if (!g.TraspAplicaNomina && !g.AlimAplicaNomina)
+                        formaLiquidacion = "[LiquidaciÃ³n: 100% Efectivo]";
+                    else if (g.TraspAplicaNomina)
+                        formaLiquidacion = $"[LiquidaciÃ³n: Transporte C$ {g.VtcoTrasp:N2} en NÃ³mina (Bono BNC), AlimentaciÃ³n C$ {g.VtcoAlim:N2} en Efectivo]";
+                    else if (g.AlimAplicaNomina)
+                        formaLiquidacion = $"[LiquidaciÃ³n: AlimentaciÃ³n C$ {g.VtcoAlim:N2} en NÃ³mina (Bono BNC), Transporte C$ {g.VtcoTrasp:N2} en Efectivo]";
+
+                    string obsConLiquidacion = string.Join(" | ", new[] { g.Observaciones, formaLiquidacion }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+                    return new MovimientoPersonalItemDto
+                    {
+                        FilaIndex = g.GrupoIndex,
+                        Cliente = g.Cliente,
+                        Area = g.Area,
+                        Cargo = g.Puesto,
+                        Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                        HoraInicio = g.HoraInicio,
+                        HoraFin = g.HoraFin,
+                        TiempoComida = g.TiempoComida,
+                        CantidadEmpleados = g.Cantidad,
+                        IdsEmpleados = g.IdsEmpleadosTexto,
+                        Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
+                        Observaciones = obsConLiquidacion,
+                        Bonos = "0.00",
+                        VtcoTrasp = g.VtcoTrasp > 0 ? g.VtcoTrasp.ToString("N2", CultureInfo.InvariantCulture) : "0",
+                        VtcoAlim = g.VtcoAlim > 0 ? g.VtcoAlim.ToString("N2", CultureInfo.InvariantCulture) : "0"
+                    };
                 }).ToList();
 
                 var request = new CrearMovimientosPersonalRequestDto
@@ -3554,18 +3606,36 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaEnviandoBonos = true;
             try
             {
-                var dtos = conBonoPendiente.Select((b, idx) => new BonoPersonalItemDto
+                var dtos = conBonoPendiente.Select((b, idx) => 
                 {
-                    FilaIndex = idx + 1,
-                    MovimientoId = b.Id,
-                    CodigoEmpleado = b.CodigoEmpleado,
-                    NombreEmpleado = b.NombreEmpleado,
-                    Cliente = !string.IsNullOrWhiteSpace(b.Cliente) ? b.Cliente : (clienteRedmineIdentificador ?? string.Empty),
-                    Area = b.Area,
-                    Puesto = b.Puesto,
-                    Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
-                    MontoBono = b.BonoBnc,
-                    Observaciones = b.Observaciones
+                    string detalleViaticosEnNomina = "";
+                    if (b.TraspAplicaNomina && b.AlimAplicaNomina && b.VtcoTrasp > 0 && b.VtcoAlim > 0)
+                        detalleViaticosEnNomina = $"ViÃ¡ticos en NÃ³mina: Trasp C$ {b.VtcoTrasp:N2} + Alim C$ {b.VtcoAlim:N2}";
+                    else if (b.TraspAplicaNomina && b.VtcoTrasp > 0)
+                        detalleViaticosEnNomina = $"ViÃ¡tico en NÃ³mina: Trasp C$ {b.VtcoTrasp:N2}";
+                    else if (b.AlimAplicaNomina && b.VtcoAlim > 0)
+                        detalleViaticosEnNomina = $"ViÃ¡tico en NÃ³mina: Alim C$ {b.VtcoAlim:N2}";
+
+                    string relacionTicketViatico = (b.TicketViaticoId.HasValue && b.TicketViaticoId.Value > 0)
+                        ? $"(Relacionado a Ticket ViÃ¡ticos #{b.TicketViaticoId.Value})"
+                        : "";
+
+                    string obsFinalBono = string.Join(" | ", new[] { b.Observaciones, detalleViaticosEnNomina, relacionTicketViatico }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+                    return new BonoPersonalItemDto
+                    {
+                        FilaIndex = idx + 1,
+                        MovimientoId = b.Id,
+                        CodigoEmpleado = b.CodigoEmpleado,
+                        NombreEmpleado = b.NombreEmpleado,
+                        Cliente = !string.IsNullOrWhiteSpace(b.Cliente) ? b.Cliente : (clienteRedmineIdentificador ?? string.Empty),
+                        Area = b.Area,
+                        Puesto = b.Puesto,
+                        Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
+                        MontoBono = b.BonoBnc,
+                        Observaciones = obsFinalBono
+                    };
                 }).ToList();
 
                 var request = new CrearBonosPersonalRequestDto
