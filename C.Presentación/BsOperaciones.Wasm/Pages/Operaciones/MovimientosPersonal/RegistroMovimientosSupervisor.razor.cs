@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1058,10 +1058,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Modificado = true
                     });
                     var nuevoEmp = empleadosJornada.Last();
-                    if (nuevoEmp.VtcoTrasp == 0 && nuevoEmp.VtcoAlim == 0 && nuevoEmp.BonoBnc == 0)
-                    {
-                        AplicarReglasViaticosEnMemoria(nuevoEmp);
-                    }
+                    AplicarReglasViaticosEnMemoria(nuevoEmp);
                     agregados++;
                 }
             }
@@ -1302,6 +1299,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     _snackbar.Add($"Jornada copiada exitosamente de {fechaAyer:dd/MM}.", Severity.Success);
                     await CargarJornadaActual();
+                    foreach (var emp in empleadosJornada)
+                    {
+                        AplicarReglasViaticosEnMemoria(emp);
+                    }
+                    ActualizarGruposConsolidados();
                 }
                 else
                 {
