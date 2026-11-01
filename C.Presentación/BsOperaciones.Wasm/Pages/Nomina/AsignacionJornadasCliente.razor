@@ -2,267 +2,313 @@
 @page "/nomina/asignacion-jornadas"
 @inject IOdooService OdooService
 @inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 @using Modelo.Entidades.Nomina
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
 
-<div class="container-fluid p-4" style="background-color: #f8fafc; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom bg-white p-3 rounded-3 shadow-sm">
-        <div>
-            <h2 class="fw-bold mb-1" style="color: #0f172a;">
-                <i class="bi bi-building-gear text-primary me-2"></i>Configuración de Horarios y Reglas por Cliente, Área y Puesto
-            </h2>
-            <p class="text-secondary small mb-0 fw-semibold">
-                Jerarquía de aplicación: <strong>Puesto + Área</strong> &gt; <strong>Puesto</strong> &gt; <strong>Área</strong> &gt; <strong>Base General del Cliente</strong> (según catálogo de Personal Base).
-            </p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="/nomina/reglas-jornadas" class="btn btn-outline-secondary btn-sm px-3 rounded-pill fw-bold">
-                <i class="bi bi-journal-check me-1"></i>Catálogo de Reglas Atómicas
-            </a>
-            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill fw-bold" @onclick="PrepareCreate">
-                <i class="bi bi-plus-lg me-1"></i>+ NUEVA REGLA DE JORNADA
-            </button>
-        </div>
-    </div>
-
-    <!-- Stats summary badges -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
-                        <i class="bi bi-buildings-fill text-white"></i>
-                    </div>
-                    <div>
-                        <div class="text-white-50 small fw-bold">CLIENTES CONFIGURADOS</div>
-                        <div class="fs-2 fw-bold text-white">@ClientGroups.Count()</div>
-                    </div>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+    
+    @* --- ENCABEZADO PRINCIPAL --- *@
+    <MudPaper Elevation="0" Class="pa-6 mb-6 rounded-3 border" Style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff;">
+        <div class="d-flex flex-wrap justify-space-between align-center gap-4">
+            <div>
+                <div class="d-flex align-center gap-2 mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #ffffff;">
+                        Reglas de Horarios y Jornadas por Puesto
+                    </MudText>
                 </div>
+                <MudText Typo="Typo.body2" Style="color: #94a3b8;">
+                    Configure los horarios ordinarios (horas L-V y sábados), turnos especiales (12h, factor 1.5d, 48h sem) y cortes de nómina asignados a cada puesto y cliente.
+                </MudText>
+            </div>
+            <div class="d-flex gap-3 align-center">
+                <MudButton Variant="Variant.Outlined" 
+                           Color="Color.Info" 
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="LoadData" 
+                           Disabled="@loading">
+                    Refrescar
+                </MudButton>
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="PrepareCreate"
+                           Class="px-4 py-2 font-bold"
+                           Style="font-weight: 700; border-radius: 8px;">
+                    + NUEVA REGLA POR PUESTO
+                </MudButton>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
-                        <i class="bi bi-person-badge-fill text-white"></i>
-                    </div>
-                    <div>
-                        <div class="text-white-50 small fw-bold">REGLAS POR PUESTO O ÁREA</div>
-                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count(a => !string.IsNullOrEmpty(a.Puesto) || !string.IsNullOrEmpty(a.Area))</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm text-white rounded-3 p-3" style="background: linear-gradient(135deg, #475569 0%, #64748b 100%);">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-circle p-3 me-3 fs-3 d-flex align-items-center justify-content-center" style="background-color: rgba(255,255,255,0.2); width: 50px; height: 50px;">
-                        <i class="bi bi-clock-history text-white"></i>
-                    </div>
-                    <div>
-                        <div class="text-white-50 small fw-bold">TOTAL CONFIGURACIONES</div>
-                        <div class="fs-2 fw-bold text-white">@asignacionesList.Count</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </MudPaper>
 
-    <!-- Search bar -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-        <div class="card-body py-3 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0" style="color: #0f172a;">
-                <i class="bi bi-list-check me-2 text-primary"></i>Reglas Activas por Cliente, Área y Puesto
-            </h5>
-            <div class="input-group input-group-sm" style="max-width: 320px;">
-                <span class="input-group-text bg-white border"><i class="bi bi-search text-dark"></i></span>
-                <input type="text" class="form-control border" style="color: #000; font-weight: 500;" placeholder="Buscar cliente, área o puesto..." @bind="searchText" @bind:event="oninput" />
-            </div>
-        </div>
-    </div>
+    @* --- BARRA DE FILTROS Y RESUMEN --- *@
+    <MudPaper Elevation="1" Class="pa-4 mb-4 rounded-3 border">
+        <MudGrid Spacing="3" Class="align-center">
+            @* Filtro por Cliente *@
+            <MudItem xs="12" sm="4" md="3">
+                <MudSelect T="int?" Label="Filtrar por Cliente / Operación" 
+                           Value="@selectedOperacionFilter" 
+                           ValueChanged="OnFilterOperacionChanged"
+                           Variant="Variant.Outlined" 
+                           Dense="true" 
+                           Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">🌐 Todos los Clientes</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)op.id)">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
 
-    <!-- Clients list with nested area/puesto grid -->
-    @if (loading)
-    {
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="text-dark fw-semibold mt-2">Cargando asignaciones de clientes...</p>
-        </div>
-    }
-    else if (!ClientGroups.Any())
-    {
-        <div class="card border-0 shadow-sm p-5 text-center">
-            <i class="bi bi-inbox text-secondary display-4"></i>
-            <p class="text-secondary fw-semibold mt-2">No se encontraron configuraciones registradas.</p>
-        </div>
-    }
-    else
-    {
-        @foreach (var group in ClientGroups)
+            @* Buscador de texto *@
+            <MudItem xs="12" sm="5" md="5">
+                <MudTextField @bind-Value="searchString" 
+                              Placeholder="Buscar por puesto, área o cliente..." 
+                              Adornment="Adornment.Start" 
+                              AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Variant="Variant.Outlined" 
+                              Dense="true" 
+                              Immediate="true" 
+                              Clearable="true" />
+            </MudItem>
+
+            @* Badges de Resumen *@
+            <MudItem xs="12" sm="3" md="4" Class="d-flex justify-sm-end align-center gap-2">
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">
+                    Total Reglas: @FilteredAsignaciones.Count()
+                </MudChip>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">
+                    Clientes: @FilteredAsignaciones.Select(x => x.OperacionId).Distinct().Count()
+                </MudChip>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* --- GRILLA PRINCIPAL DE REGLAS POR PUESTO --- *@
+    <MudPaper Elevation="1" Class="rounded-3 border overflow-hidden">
+        @if (loading)
         {
-            var opId = group.Key;
-            var clientName = group.First().OperacionNombre ?? "🌐 GLOBAL (Todas las operaciones)";
-            var clientRules = group.OrderBy(a => GetSortOrder(a)).ToList();
-
-            <div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden">
-                <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center" style="background-color: #f1f5f9;">
-                    <div class="d-flex align-items-center gap-2">
-                        <span style="display: inline-block; padding: 6px 14px; border-radius: 8px; background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; font-weight: 700; font-size: 15px;">
-                            <i class="bi bi-building me-2"></i>@clientName
-                        </span>
-                        <span class="badge bg-secondary px-2 py-1" style="font-size: 12px;">
-                            @group.Count() regla(s) configurada(s)
-                        </span>
-                    </div>
-
-                    <button class="btn btn-outline-primary btn-sm px-3 rounded-pill fw-bold" @onclick="() => ManageClientModal(opId, clientName)">
-                        <i class="bi bi-plus-circle me-1"></i>Agregar Regla a este Cliente
-                    </button>
-                </div>
-
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="color: #0f172a; width: 100%;">
-                            <thead style="background-color: #f8fafc; color: #475569;" class="small fw-bold text-uppercase border-bottom">
-                                <tr>
-                                    <th style="width: 260px;" class="ps-3 py-2">Área / Puesto Destino</th>
-                                    <th style="width: 130px;" class="py-2">Prioridad</th>
-                                    <th style="width: 200px;" class="py-2">Jornada Semanal</th>
-                                    <th style="width: 120px;" class="py-2">Corte Nómina</th>
-                                    <th class="py-2">Reglas Atómicas Activas</th>
-                                    <th style="width: 100px;" class="text-end pe-3 py-2">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var rule in clientRules)
-                                {
-                                    bool isGeneral = string.IsNullOrWhiteSpace(rule.Area) && string.IsNullOrWhiteSpace(rule.Puesto);
-                                    bool hasPuesto = !string.IsNullOrWhiteSpace(rule.Puesto);
-                                    bool hasArea = !string.IsNullOrWhiteSpace(rule.Area);
-
-                                    <tr style="@(isGeneral ? "background-color: #f0fdf4; border-bottom: 1px solid #bbf7d0;" : "border-bottom: 1px solid #e2e8f0; background-color: #ffffff;")">
-                                        <td class="ps-3 py-3">
-                                            @if (isGeneral)
-                                            {
-                                                <span style="font-weight: 700; color: #166534; font-size: 13px;">
-                                                    🌐 Base General del Cliente (Todos los Puestos y Áreas)
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <div>
-                                                    @if (hasPuesto)
-                                                    {
-                                                        <div class="fw-bold" style="color: #0f172a; font-size: 13px;">
-                                                            <i class="bi bi-person-badge text-primary me-1"></i>Puesto: <span class="badge bg-primary px-2 py-1">@rule.Puesto</span>
-                                                        </div>
-                                                    }
-                                                    @if (hasArea)
-                                                    {
-                                                        <div class="small text-secondary mt-1">
-                                                            <i class="bi bi-diagram-2 me-1"></i>Área: <strong>@rule.Area</strong>
-                                                        </div>
-                                                    }
-                                                    @if (!hasPuesto && hasArea)
-                                                    {
-                                                        <div class="small text-muted fst-italic">Aplica a todos los puestos del área</div>
-                                                    }
-                                                </div>
-                                            }
-                                        </td>
-                                        <td class="py-3">
-                                            @if (hasPuesto && hasArea)
-                                            {
-                                                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: 700; font-size: 11px;">
-                                                    ⚡ ESPECÍFICA (Puesto + Área)
-                                                </span>
-                                            }
-                                            else if (hasPuesto)
-                                            {
-                                                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; font-weight: 700; font-size: 11px;">
-                                                    ⭐ POR PUESTO
-                                                </span>
-                                            }
-                                            else if (hasArea)
-                                            {
-                                                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; font-weight: 700; font-size: 11px;">
-                                                    🏢 POR ÁREA
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; font-weight: 700; font-size: 11px;">
-                                                    🌐 GENERAL CLIENTE
-                                                </span>
-                                            }
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="d-flex flex-column gap-1">
-                                                <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background-color: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 11px;">
-                                                    L-V: @(rule.HorasLunesViernes)h / día
-                                                </span>
-                                                <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; background-color: #f3e8ff; color: #6b21a8; font-weight: 700; font-size: 11px;">
-                                                    Sáb: @(rule.HorasSabado)h | Límite: @(rule.HorasSemanalesLimite)h sem
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td class="py-3">
-                                            <span style="display: inline-block; padding: 3px 8px; border-radius: 10px; background-color: #0284c7; color: #ffffff; font-weight: 700; font-size: 11px;">
-                                                @(rule.CorteNominaTipo == "CORTE_8_23" ? "Corte 8 y 23" : "Corte 13 y 28")
-                                            </span>
-                                        </td>
-                                        <td class="py-3">
-                                            @RenderRulesBadges(rule.ReglasActivas)
-                                        </td>
-                                        <td class="text-end pe-3 py-3">
-                                            <div style="display: flex; gap: 4px; justify-content: flex-end;">
-                                                <button type="button" class="btn btn-sm btn-outline-primary" style="padding: 4px 8px; font-size: 12px;" title="Editar Regla" @onclick="() => EditAsignacion(rule)">
-                                                    <i class="bi bi-pencil-fill"></i>
-                                                </button>
-                                                @if (!isGeneral)
-                                                {
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" style="padding: 4px 8px; font-size: 12px;" title="Eliminar Regla" @onclick="() => DeleteAsignacion(rule.Id)">
-                                                        <i class="bi bi-trash-fill"></i>
-                                                    </button>
-                                                }
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div class="d-flex flex-column align-center justify-center py-12">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.body1" Class="mt-3 text-secondary">Cargando reglas de jornada...</MudText>
             </div>
         }
-    }
-</div>
+        else if (!FilteredAsignaciones.Any())
+        {
+            <div class="text-center py-12">
+                <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Class="text-secondary mb-2" Style="font-size: 48px;" />
+                <MudText Typo="Typo.h6" Class="text-secondary fw-bold">No se encontraron reglas configuradas</MudText>
+                <MudText Typo="Typo.body2" Class="text-muted mt-1">Haga clic en "+ NUEVA REGLA POR PUESTO" para agregar una regla de horario.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@FilteredAsignaciones" 
+                      Hover="true" 
+                      Striped="true" 
+                      Dense="true" 
+                      Elevation="0"
+                      Breakpoint="Breakpoint.None"
+                      Class="align-middle">
+                <HeaderContent>
+                    <MudTh Style="font-weight: 700; width: 170px;">Cliente / Operación</MudTh>
+                    <MudTh Style="font-weight: 700; width: 220px;">Puesto Asignado</MudTh>
+                    <MudTh Style="font-weight: 700; width: 140px;">Área</MudTh>
+                    <MudTh Style="font-weight: 700; width: 180px;">Jornada Ordinaria</MudTh>
+                    <MudTh Style="font-weight: 700; width: 130px;">Corte Nómina</MudTh>
+                    <MudTh Style="font-weight: 700;">Reglas y Modo de Pago</MudTh>
+                    <MudTh Style="font-weight: 700; width: 110px; text-align: center;">Acciones</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @* Cliente *@
+                    <MudTd DataLabel="Cliente">
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.body2" Style="font-weight: 700; color: #1e293b;">
+                                @(string.IsNullOrEmpty(context.OperacionNombre) ? "🌐 GLOBAL" : context.OperacionNombre)
+                            </MudText>
+                        </div>
+                    </MudTd>
 
-<!-- Modal Form Asignación Modular de Reglas -->
+                    @* Puesto *@
+                    <MudTd DataLabel="Puesto">
+                        @if (!string.IsNullOrWhiteSpace(context.Puesto))
+                        {
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 700;">
+                                <MudIcon Icon="@GetPuestoIcon(context.Puesto)" Size="Size.Small" Class="mr-1" />
+                                @context.Puesto
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Style="font-weight: 600;">
+                                <MudIcon Icon="@Icons.Material.Filled.Public" Size="Size.Small" Class="mr-1" />
+                                🌐 Base General (Todos)
+                            </MudChip>
+                        }
+                    </MudTd>
+
+                    @* Área *@
+                    <MudTd DataLabel="Área">
+                        @if (!string.IsNullOrWhiteSpace(context.Area))
+                        {
+                            <span class="badge bg-light text-dark border px-2 py-1" style="font-size: 11px;">
+                                @context.Area
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">Todas las áreas</span>
+                        }
+                    </MudTd>
+
+                    @* Horas Ordinarias *@
+                    <MudTd DataLabel="Jornada Ordinaria">
+                        <div>
+                            <div class="fw-bold" style="color: #0f172a; font-size: 13px;">
+                                @if (context.HorasLunesViernes == 12.00m && context.HorasSabado == 12.00m)
+                                {
+                                    <span class="badge bg-info text-dark">Turno 12h (L-S)</span>
+                                }
+                                else if (context.HorasLunesViernes == 9.00m && context.HorasSabado == 3.00m)
+                                {
+                                    <span class="badge bg-primary">9h L-V | 3h Sáb</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@context.HorasLunesViernes.ToString("0.##")h L-V | @context.HorasSabado.ToString("0.##")h Sáb</span>
+                                }
+                            </div>
+                            <div class="text-muted" style="font-size: 11px;">
+                                Límite: <strong>@context.HorasSemanalesLimite.ToString("0.##")h</strong> sem
+                            </div>
+                        </div>
+                    </MudTd>
+
+                    @* Corte Nómina *@
+                    <MudTd DataLabel="Corte">
+                        @if (context.CorteNominaTipo == "CORTE_13_28")
+                        {
+                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Style="font-weight: 700; font-size: 11px;">
+                                📅 Corte 13 y 28
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Style="font-weight: 600; font-size: 11px;">
+                                📅 Corte 8 y 23
+                            </MudChip>
+                        }
+                    </MudTd>
+
+                    @* Reglas Especiales / Modo *@
+                    <MudTd DataLabel="Reglas">
+                        <div class="d-flex flex-wrap gap-1 align-center">
+                            @* Flag Conductor Sin Extras *@
+                            @if (IsConductorRule(context))
+                            {
+                                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 700; font-size: 11px;">
+                                    🚚 Conductor: Sin Extras
+                                </MudChip>
+                            }
+
+                            @* Flag Turno 12h *@
+                            @if (IsTurno12hRule(context))
+                            {
+                                <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: 700; font-size: 11px;">
+                                    ❄️ Turno 12h (Factor 1.5d)
+                                </MudChip>
+                            }
+
+                            @* Jornada 9h/3h *@
+                            @if (context.HorasLunesViernes == 9.00m && context.HorasSabado == 3.00m)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Style="font-size: 11px;">
+                                    ⚡ 48h Sem (9h/3h)
+                                </MudChip>
+                            }
+
+                            @* Domingo con Recargo *@
+                            @if (context.ReglasActivas != null && context.ReglasActivas.Contains("DOMINGO_DESCANSO_RECARGO_100"))
+                            {
+                                <MudChip T="string" Color="Color.Secondary" Variant="Variant.Outlined" Size="Size.Small" Style="font-size: 11px;">
+                                    🛡️ Domingo 100%
+                                </MudChip>
+                            }
+
+                            @* Nocturna *@
+                            @if (context.ReglasActivas != null && context.ReglasActivas.Contains("JORNADA_NOCTURNA_7H_X_8H"))
+                            {
+                                <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Style="font-size: 11px;">
+                                    🌙 Nocturna 7h=8h
+                                </MudChip>
+                            }
+                        </div>
+                    </MudTd>
+
+                    @* Acciones *@
+                    <MudTd DataLabel="Acciones" Class="text-center">
+                        <div class="d-flex justify-center gap-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                           Size="Size.Small" 
+                                           Color="Color.Primary" 
+                                           OnClick="@(() => EditAsignacion(context))"
+                                           Title="Editar Regla" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                           Size="Size.Small" 
+                                           Color="Color.Error" 
+                                           OnClick="@(() => DeleteAsignacion(context.Id))"
+                                           Title="Eliminar Regla" />
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager RowsPerPageString="Filas por página:" InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+
+</MudContainer>
+
+
+@* ========================================================================= *@
+@* MODAL MODERNO E INTUITIVO DE CONFIGURACIÓN DE PUESTO Y REGLAS            *@
+@* ========================================================================= *@
 @if (showModal)
 {
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6);" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold">
-                        <i class="bi bi-sliders me-2"></i>@(activeAsignacion.Id > 0 ? "Editar Configuración de Jornada" : "Nueva Configuración de Jornada")
-                    </h5>
+    <div class="modal fade show d-block" style="background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-24 rounded-3" style="overflow: hidden;">
+                
+                @* Modal Header *@
+                <div class="modal-header py-3 px-4" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white;">
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Medium" Class="text-white" />
+                        <h5 class="modal-title fw-bold mb-0 text-white" style="font-size: 18px;">
+                            @(activeAsignacion.Id > 0 ? "Editar Regla de Puesto y Horario" : "Nueva Regla de Puesto y Horario")
+                        </h5>
+                    </div>
                     <button type="button" class="btn-close btn-close-white" @onclick="() => showModal = false"></button>
                 </div>
-                <div class="modal-body p-4" style="background-color: #ffffff; color: #0f172a;">
+
+                @* Modal Body *@
+                <div class="modal-body p-4" style="background-color: #f8fafc; color: #0f172a;">
                     
-                    <!-- Section 1: Cliente, Área y Puesto -->
-                    <div class="card border p-3 mb-4 bg-light">
-                        <h6 class="fw-bold text-primary mb-3">
-                            <i class="bi bi-building me-2"></i>1. Alcance de la Regla (Cliente, Área y Puesto):
+                    @* --- PASO 1: ALCANCE DE LA REGLA --- *@
+                    <div class="card border-0 shadow-sm p-4 mb-4 rounded-3 bg-white">
+                        <h6 class="fw-bold text-primary mb-3 d-flex align-center gap-2" style="font-size: 15px;">
+                            <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Small" />
+                            1. ¿A qué Cliente y Puesto aplica esta Regla?
                         </h6>
+                        
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
-                                <select class="form-select fw-bold" style="color: #0f172a;" value="@activeAsignacion.OperacionId" @onchange="OnOperacionChanged">
+                            @* Cliente / Operación *@
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Cliente / Operación:</label>
+                                <select class="form-select fw-bold" style="color: #0f172a;" value="@activeAsignacion.OperacionId" @onchange="OnModalOperacionChanged">
                                     <option value="">🌐 GLOBAL (Todas las operaciones)</option>
                                     @foreach (var op in operacionesList)
                                     {
@@ -271,10 +317,51 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Área de la Operación</label>
-                                <input type="text" class="form-control" list="areasDatalist" placeholder="Dejar en blanco para todas las áreas..." @bind="activeAsignacion.Area" />
-                                <datalist id="areasDatalist">
+                            @* Corte de Nómina *@
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Corte de Nómina:</label>
+                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.CorteNominaTipo">
+                                    <option value="CORTE_13_28">Corte 13 y 28 (Quincena días 14 - 29)</option>
+                                    <option value="CORTE_8_23">Corte 8 y 23 (Quincena días 9 - 24)</option>
+                                </select>
+                            </div>
+
+                            @* Puesto del Empleado *@
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Puesto de Trabajo:</label>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control fw-bold" 
+                                           list="puestosDatalistModal" 
+                                           placeholder="Ej: Operador de almacen, Conductor..." 
+                                           @bind="activeAsignacion.Puesto" />
+                                    <datalist id="puestosDatalistModal">
+                                        @foreach (var p in GetPuestosSugeridos(activeAsignacion.OperacionId))
+                                        {
+                                            <option value="@p" />
+                                        }
+                                    </datalist>
+                                    @if (!string.IsNullOrWhiteSpace(activeAsignacion.Puesto))
+                                    {
+                                        <button class="btn btn-outline-secondary" type="button" @onclick="() => activeAsignacion.Puesto = null" title="Limpiar puesto (Base General)">
+                                            ✕
+                                        </button>
+                                    }
+                                </div>
+                                <div class="form-text small text-muted">
+                                    Deje <strong>en blanco</strong> para que aplique como <em>Base General</em> a todos los puestos del cliente.
+                                </div>
+                            </div>
+
+                            @* Área de la Operación *@
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small text-secondary">Área de la Operación (Opcional):</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       list="areasDatalistModal" 
+                                       placeholder="Dejar en blanco para todas las áreas..." 
+                                       @bind="activeAsignacion.Area" />
+                                <datalist id="areasDatalistModal">
                                     <option value="Descargue" />
                                     <option value="Operaciones" />
                                     <option value="Logistica" />
@@ -283,218 +370,211 @@
                                     <option value="Ceramica" />
                                     <option value="Alta y Baja tención" />
                                     <option value="Transporte" />
-                                    <option value="Control de calidad" />
                                     <option value="Construcción" />
                                     <option value="Despacho Operaciones" />
                                 </datalist>
-                                <div class="form-text small" style="color: #64748b;">
-                                    Opcional. Si se deja vacío, aplica a <strong>todas las áreas</strong> del cliente.
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Puesto del Empleado</label>
-                                <input type="text" class="form-control" list="puestosDatalist" placeholder="Dejar en blanco para todos los puestos..." @bind="activeAsignacion.Puesto" />
-                                <datalist id="puestosDatalist">
-                                    <option value="6-Operador de almacen" />
-                                    <option value="Operador de almacen" />
-                                    <option value="10-Operador de montacarga" />
-                                    <option value="Operador de montacarga" />
-                                    <option value="11-Conductor" />
-                                    <option value="Conductor" />
-                                    <option value="Supervisor" />
-                                </datalist>
-                                <div class="form-text small" style="color: #64748b;">
-                                    Toma el puesto del personal base registrado en el cliente.
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Corte de Nómina</label>
-                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.CorteNominaTipo">
-                                    <option value="CORTE_8_23">Corte 8 y 23 (Días 9 - 24)</option>
-                                    <option value="CORTE_13_28">Corte 13 y 28 (Días 14 - 29)</option>
-                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Section 2: Parámetros de Jornada (Horas L-V, Sábado, Límite) -->
-                    <div class="card border p-3 mb-4" style="background-color: #f8fafc;">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-primary mb-0">
-                                <i class="bi bi-clock-history me-2"></i>2. Horas Ordinarias Base de Jornada (Art. 51 CT):
+                    @* --- PASO 2: PLANTILLAS RÁPIDAS (1 CLIC) --- *@
+                    <div class="card border-0 shadow-sm p-4 mb-4 rounded-3 bg-white">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <h6 class="fw-bold text-primary mb-0 d-flex align-center gap-2" style="font-size: 15px;">
+                                <MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Small" />
+                                2. Plantillas Rápidas (Configurar en 1 Clic):
                             </h6>
-                            <div class="d-flex flex-wrap gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 fw-bold" style="font-size: 11px;" @onclick="ApplyPresetSinsa">
-                                    ⚡ Sinsa Operador (9h L-V, 3h Sáb)
+                            <span class="badge bg-secondary" style="font-size: 11px;">Relleno automático</span>
+                        </div>
+                        <p class="text-muted small mb-3">
+                            Haga clic en cualquiera de estos botones para pre-llenar los horarios y reglas automáticamente:
+                        </p>
+
+                        <div class="row g-2">
+                            <div class="col-sm-6 col-md-3">
+                                <button type="button" class="btn btn-outline-primary w-100 p-2 text-start rounded-3 h-100" @onclick="ApplyPresetSinsa">
+                                    <div class="fw-bold" style="font-size: 12px;">⚡ Sinsa Operador</div>
+                                    <div class="small text-muted" style="font-size: 11px;">9h L-V, 3h Sáb (48h sem)</div>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fw-bold text-dark" style="font-size: 11px;" @onclick="ApplyPresetGlacialMontacarga">
-                                    ❄️ Glacial Montacarga (12h, 48h Sem)
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <button type="button" class="btn btn-outline-info w-100 p-2 text-start rounded-3 h-100 text-dark" @onclick="ApplyPresetGlacialMontacarga">
+                                    <div class="fw-bold text-dark" style="font-size: 12px;">❄️ Glacial Montacarga</div>
+                                    <div class="small text-muted" style="font-size: 11px;">12h Turno (1.5d, 48h sem)</div>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1 fw-bold text-dark" style="font-size: 11px;" @onclick="ApplyPresetGlacialConductor">
-                                    🚚 Glacial Conductor (Sin Extras)
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <button type="button" class="btn btn-outline-warning w-100 p-2 text-start rounded-3 h-100 text-dark" @onclick="ApplyPresetGlacialConductor">
+                                    <div class="fw-bold text-dark" style="font-size: 12px;">🚚 Glacial Conductor</div>
+                                    <div class="small text-muted" style="font-size: 11px;">48h sem (Sin Extras)</div>
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 fw-bold" style="font-size: 11px;" @onclick="ApplyPresetEstandar">
-                                    ⏱️ Estándar 48h (8h L-S)
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <button type="button" class="btn btn-outline-secondary w-100 p-2 text-start rounded-3 h-100" @onclick="ApplyPresetEstandar">
+                                    <div class="fw-bold" style="font-size: 12px;">⏱️ Estándar 48h</div>
+                                    <div class="small text-muted" style="font-size: 11px;">8h Lunes a Sábado</div>
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    @* --- PASO 3: PARÁMETROS DE HORARIO ORDINARIO --- *@
+                    <div class="card border-0 shadow-sm p-4 mb-4 rounded-3 bg-white">
+                        <h6 class="fw-bold text-primary mb-3 d-flex align-center gap-2" style="font-size: 15px;">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" />
+                            3. Horas Ordinarias Base de Jornada:
+                        </h6>
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Horas Diarias Lunes a Viernes</label>
+                                <label class="form-label fw-bold small text-secondary">Horas Lunes a Viernes:</label>
                                 <div class="input-group">
-                                    <input type="number" step="0.25" min="1" max="14" class="form-control fw-bold" @bind="activeAsignacion.HorasLunesViernes" />
-                                    <span class="input-group-text">horas/día</span>
+                                    <input type="number" step="0.25" min="1" max="16" class="form-control fw-bold" @bind="activeAsignacion.HorasLunesViernes" />
+                                    <span class="input-group-text">h/día</span>
                                 </div>
-                                <div class="form-text small" style="color: #64748b;">Horas necesarias para computar 1 día trabajado de lunes a viernes.</div>
+                                <div class="form-text small text-muted">Ej: 9.0h (Sinsa) | 12.0h (Turno) | 8.0h</div>
                             </div>
+
                             <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Horas Diarias Sábado</label>
+                                <label class="form-label fw-bold small text-secondary">Horas Sábado:</label>
                                 <div class="input-group">
-                                    <input type="number" step="0.25" min="0" max="14" class="form-control fw-bold" @bind="activeAsignacion.HorasSabado" />
-                                    <span class="input-group-text">horas</span>
+                                    <input type="number" step="0.25" min="0" max="16" class="form-control fw-bold" @bind="activeAsignacion.HorasSabado" />
+                                    <span class="input-group-text">h/día</span>
                                 </div>
-                                <div class="form-text small" style="color: #64748b;">Horas necesarias para computar 1 día trabajado el sábado (ej: 3h para completar 48h).</div>
+                                <div class="form-text small text-muted">Ej: 3.0h (Sinsa) | 12.0h | 8.0h</div>
                             </div>
+
                             <div class="col-md-4">
-                                <label class="form-label fw-bold small" style="color: #334155;">Límite Semanal Ordinario</label>
+                                <label class="form-label fw-bold small text-secondary">Límite Horas Semanales:</label>
                                 <div class="input-group">
-                                    <input type="number" step="1" min="20" max="60" class="form-control fw-bold" @bind="activeAsignacion.HorasSemanalesLimite" />
-                                    <span class="input-group-text">horas/sem</span>
+                                    <input type="number" step="1" min="20" max="72" class="form-control fw-bold text-primary" @bind="activeAsignacion.HorasSemanalesLimite" />
+                                    <span class="input-group-text">h/sem</span>
                                 </div>
-                                <div class="form-text small" style="color: #64748b;">Límite legal semanal (Art. 51 CT: 48 horas diurnas).</div>
+                                <div class="form-text small text-muted">Generalmente 48.0 horas ordinarias</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Multi-select atomic rules checkboxes -->
-                    <h6 class="fw-bold mb-3" style="color: #0f172a;">
-                        <i class="bi bi-check2-square text-primary me-2"></i>3. Marque las Reglas Atómicas que Aplican a esta Configuración:
-                    </h6>
+                    @* --- PASO 4: REGLAS ESPECIALES DE PAGO --- *@
+                    <div class="card border-0 shadow-sm p-4 rounded-3 bg-white">
+                        <h6 class="fw-bold text-primary mb-3 d-flex align-center gap-2" style="font-size: 15px;">
+                            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" />
+                            4. Reglas Especiales de Pago y Cálculo:
+                        </h6>
 
-                    <div class="row g-3">
-                        <!-- Group 1: Capacidad de Jornadas Ley 185 -->
-                        <div class="col-12">
-                            <div class="card border rounded-3 p-3" style="background-color: #ecfdf5; border-color: #a7f3d0 !important;">
-                                <h6 class="fw-bold mb-2" style="color: #065f46;">
-                                    <i class="bi bi-clock me-1"></i>Capacidad de Jornadas y Conversión Nocturna (Art. 51 y 53 CT)
-                                </h6>
-                                <div class="row g-2">
-                                    @foreach (var r in atomicasList.Where(x => x.Categoria == "JORNADA"))
-                                    {
-                                        <div class="col-md-6">
-                                            <div class="form-check form-switch bg-white p-2 px-3 rounded border">
-                                                <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
-                                                       checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
-                                                       @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
-                                                    @r.NombreRegla
-                                                </label>
-                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
+                        <div class="d-flex flex-column gap-3">
+                            
+                            @* Conductor Sin Extras *@
+                            <div class="form-check form-switch p-3 border rounded-3 @(flagConductorSinExtras ? "bg-warning bg-opacity-10 border-warning" : "bg-light")">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="chkConductor" 
+                                       checked="@flagConductorSinExtras" 
+                                       @onchange="@(e => ToggleFlagConductor(Convert.ToBoolean(e.Value)))">
+                                <label class="form-check-label" for="chkConductor">
+                                    <strong class="text-dark">🚚 Modo Conductor (Sin Horas Extras):</strong>
+                                    <div class="small text-secondary mt-1">
+                                        El colaborador registra únicamente su hora de entrada y cumple con sus 48 horas semanales ordinarias. <strong>Bajo ninguna circunstancia se le generan horas extras</strong> (horasextras = 0.00).
+                                    </div>
+                                </label>
                             </div>
-                        </div>
 
-                        <!-- Group 2: Séptimo Día y Feriados -->
-                        <div class="col-12">
-                            <div class="card border rounded-3 p-3" style="background-color: #fffbeb; border-color: #fde68a !important;">
-                                <h6 class="fw-bold mb-2" style="color: #92400e;">
-                                    <i class="bi bi-calendar-event me-1"></i>Recargos por Séptimo Día y Feriados Ley 185 (Art. 64-67 CT)
-                                </h6>
-                                <div class="row g-2">
-                                    @foreach (var r in atomicasList.Where(x => x.Categoria == "DESCANSO" || x.Categoria == "FERIADO"))
-                                    {
-                                        <div class="col-md-6">
-                                            <div class="form-check form-switch bg-white p-2 px-3 rounded border">
-                                                <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
-                                                       checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
-                                                       @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
-                                                    @r.NombreRegla
-                                                </label>
-                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
+                            @* Turno 12h *@
+                            <div class="form-check form-switch p-3 border rounded-3 @(flagTurno12h ? "bg-info bg-opacity-10 border-info" : "bg-light")">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="chkTurno12h" 
+                                       checked="@flagTurno12h" 
+                                       @onchange="@(e => ToggleFlagTurno12h(Convert.ToBoolean(e.Value)))">
+                                <label class="form-check-label" for="chkTurno12h">
+                                    <strong class="text-dark">❄️ Modo Turno de 12 Horas (Factor 1.5 Días):</strong>
+                                    <div class="small text-secondary mt-1">
+                                        Cada turno de 12 horas equivale a <strong>1.50 días ordinarios de nómina</strong> hacia las 48h semanales (4 turnos = 6 días). La jornada de 12 horas es ordinaria; <strong>solo el exceso sobre 12 horas</strong> en el turno o los domingos se pagan como horas extras.
+                                    </div>
+                                </label>
                             </div>
-                        </div>
 
-                        <!-- Group 3: Turnos Operativos & Extras -->
-                        <div class="col-12">
-                            <div class="card border rounded-3 p-3" style="background-color: #f0f9ff; border-color: #bae6fd !important;">
-                                <h6 class="fw-bold mb-2" style="color: #0369a1;">
-                                    <i class="bi bi-gear-wide-connected me-1"></i>Turnos Operativos Específicos & Extras (Art. 54 CT & Convenios)
-                                </h6>
-                                <div class="row g-2">
-                                    @foreach (var r in atomicasList.Where(x => x.Categoria == "TURNO_ESPECIAL" || x.Categoria == "MARCADAS" || x.Categoria == "EXTRAS" || x.Categoria == "BENEFICIOS"))
-                                    {
-                                        <div class="col-md-6">
-                                            <div class="form-check form-switch bg-white p-2 px-3 rounded border">
-                                                <input class="form-check-input me-2" type="checkbox" id="@r.CodigoRegla" 
-                                                       checked="@selectedRuleCodes.Contains(r.CodigoRegla)" 
-                                                       @onchange="(e) => ToggleRule(r.CodigoRegla, e.Value)" />
-                                                <label class="form-check-label fw-bold" style="color: #0f172a;" for="@r.CodigoRegla">
-                                                    @r.NombreRegla
-                                                </label>
-                                                <div class="small ps-1" style="color: #475569;">@r.Descripcion</div>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
+                            @* Domingo 100% *@
+                            <div class="form-check form-switch p-3 border rounded-3 @(flagDomingo100 ? "bg-primary bg-opacity-10 border-primary" : "bg-light")">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="chkDomingo" 
+                                       checked="@flagDomingo100" 
+                                       @onchange="@(e => flagDomingo100 = Convert.ToBoolean(e.Value))">
+                                <label class="form-check-label" for="chkDomingo">
+                                    <strong class="text-dark">🛡️ Domingo / Día de Descanso con Recargo 100%:</strong>
+                                    <div class="small text-secondary mt-1">
+                                        Si el colaborador labora en día domingo, sus horas se pagan como horas extraordinarias al 100% de recargo según ley.
+                                    </div>
+                                </label>
                             </div>
-                        </div>
 
-                        <div class="col-12 mt-3">
-                            <label class="form-label fw-bold small" style="color: #334155;">Observaciones / Notas de la Asignación</label>
-                            <textarea class="form-control" style="color: #0f172a;" rows="2" @bind="activeAsignacion.Observaciones" placeholder="Notas sobre esta asignación..."></textarea>
+                            @* Nocturna 7h=8h *@
+                            <div class="form-check form-switch p-3 border rounded-3 @(flagNocturna ? "bg-dark bg-opacity-10 border-dark" : "bg-light")">
+                                <input class="form-check-input ms-0 me-3" type="checkbox" role="switch" id="chkNocturna" 
+                                       checked="@flagNocturna" 
+                                       @onchange="@(e => flagNocturna = Convert.ToBoolean(e.Value))">
+                                <label class="form-check-label" for="chkNocturna">
+                                    <strong class="text-dark">🌙 Conversión Nocturna (Art. 51-53 CT):</strong>
+                                    <div class="small text-secondary mt-1">
+                                        Turno nocturno de 7 horas se computa y paga como 8 horas ordinarias de salario.
+                                    </div>
+                                </label>
+                            </div>
+
                         </div>
                     </div>
+
                 </div>
-                <div class="modal-footer border-top bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" @onclick="() => showModal = false">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" @onclick="SaveAsignacion" disabled="@saving">
+
+                @* Modal Footer *@
+                <div class="modal-footer py-3 px-4 bg-white border-top d-flex justify-space-between align-center">
+                    <button type="button" class="btn btn-outline-secondary px-4 rounded-pill fw-bold" @onclick="() => showModal = false">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary px-5 rounded-pill fw-bold" @onclick="SaveAsignacion" disabled="@saving">
                         @if (saving)
                         {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Guardando...</span>
                         }
-                        Guardar Configuración
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Save" Size="Size.Small" Class="me-1" />
+                            <span>Guardar Configuración</span>
+                        }
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
 }
 
+
 @code {
     private List<AsignacionJornadaCliente> asignacionesList = new();
-    private List<ReglaAtomica> atomicasList = new();
     private List<Combos> operacionesList = new();
-    private HashSet<string> selectedRuleCodes = new();
+    private int? selectedOperacionFilter = null;
+    private string searchString = "";
     private bool loading = true;
     private bool saving = false;
     private bool showModal = false;
-    private string searchText = "";
+
+    // Entidad activa en el modal
     private AsignacionJornadaCliente activeAsignacion = new();
 
-    private IEnumerable<IGrouping<int?, AsignacionJornadaCliente>> ClientGroups => asignacionesList
-        .Where(a => string.IsNullOrWhiteSpace(searchText) ||
-                    (a.OperacionNombre != null && a.OperacionNombre.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                    (a.Puesto != null && a.Puesto.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                    (a.Area != null && a.Area.Contains(searchText, StringComparison.OrdinalIgnoreCase)))
-        .GroupBy(a => a.OperacionId);
+    // Flags simples del modal
+    private bool flagConductorSinExtras = false;
+    private bool flagTurno12h = false;
+    private bool flagDomingo100 = true;
+    private bool flagNocturna = true;
 
-    private int GetSortOrder(AsignacionJornadaCliente a)
-    {
-        if (string.IsNullOrWhiteSpace(a.Puesto) && string.IsNullOrWhiteSpace(a.Area)) return 10;
-        if (!string.IsNullOrWhiteSpace(a.Puesto) && !string.IsNullOrWhiteSpace(a.Area)) return 1;
-        if (!string.IsNullOrWhiteSpace(a.Puesto)) return 2;
-        return 3;
-    }
+    // Filtrado de la grilla
+    private IEnumerable<AsignacionJornadaCliente> FilteredAsignaciones => asignacionesList
+        .Where(a => 
+            (!selectedOperacionFilter.HasValue || a.OperacionId == selectedOperacionFilter.Value) &&
+            (string.IsNullOrWhiteSpace(searchString) ||
+             (a.OperacionNombre != null && a.OperacionNombre.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+             (a.Puesto != null && a.Puesto.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+             (a.Area != null && a.Area.Contains(searchString, StringComparison.OrdinalIgnoreCase)) ||
+             (a.CorteNominaTipo != null && a.CorteNominaTipo.Contains(searchString, StringComparison.OrdinalIgnoreCase))))
+        .OrderBy(a => a.OperacionNombre ?? "")
+        .ThenBy(a => string.IsNullOrWhiteSpace(a.Puesto) ? 1 : 0)
+        .ThenBy(a => a.Puesto ?? "");
 
     protected override async Task OnInitializedAsync()
     {
@@ -507,25 +587,81 @@
         try
         {
             var resAsig = await OdooService.GetAllAsignacionesJornada();
-            if (resAsig?.Model != null) asignacionesList = resAsig.Model.ToList();
-
-            var resAtomicas = await OdooService.GetAllReglasAtomicas();
-            if (resAtomicas?.Model != null) atomicasList = resAtomicas.Model.ToList();
+            if (resAsig?.Model != null)
+            {
+                asignacionesList = resAsig.Model.ToList();
+            }
 
             var resOp = await OdooService.GetAllCombosHost("OPERACIONES");
-            if (resOp?.Model != null) operacionesList = resOp.Model.ToList();
+            if (resOp?.Model != null)
+            {
+                operacionesList = resOp.Model.Where(x => x.id > 0).ToList();
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando datos: {ex.Message}");
+            Snackbar.Add("Error al cargar datos: " + ex.Message, Severity.Error);
         }
         finally
         {
             loading = false;
+            StateHasChanged();
         }
     }
 
-    private void OnOperacionChanged(ChangeEventArgs e)
+    private void OnFilterOperacionChanged(int? opId)
+    {
+        selectedOperacionFilter = opId;
+    }
+
+    private void PrepareCreate()
+    {
+        activeAsignacion = new AsignacionJornadaCliente
+        {
+            Id = 0,
+            OperacionId = selectedOperacionFilter,
+            CorteNominaTipo = (selectedOperacionFilter == 23 || selectedOperacionFilter == 28) ? "CORTE_13_28" : "CORTE_8_23",
+            HorasLunesViernes = 8.00m,
+            HorasSabado = 8.00m,
+            HorasSemanalesLimite = 48.00m,
+            Activo = true
+        };
+
+        flagConductorSinExtras = false;
+        flagTurno12h = false;
+        flagDomingo100 = true;
+        flagNocturna = true;
+        showModal = true;
+    }
+
+    private void EditAsignacion(AsignacionJornadaCliente item)
+    {
+        activeAsignacion = new AsignacionJornadaCliente
+        {
+            Id = item.Id,
+            OperacionId = item.OperacionId,
+            OperacionNombre = item.OperacionNombre,
+            Area = item.Area,
+            Puesto = item.Puesto,
+            HorasLunesViernes = item.HorasLunesViernes <= 0 ? 8.00m : item.HorasLunesViernes,
+            HorasSabado = item.HorasSabado <= 0 ? 8.00m : item.HorasSabado,
+            HorasSemanalesLimite = item.HorasSemanalesLimite <= 0 ? 48.00m : item.HorasSemanalesLimite,
+            CorteNominaTipo = string.IsNullOrEmpty(item.CorteNominaTipo) ? "CORTE_13_28" : item.CorteNominaTipo,
+            ReglasActivas = item.ReglasActivas != null ? new List<string>(item.ReglasActivas) : new List<string>(),
+            Observaciones = item.Observaciones,
+            Activo = item.Activo
+        };
+
+        // Extraer estado de los flags a partir de las reglas activas o puesto
+        flagConductorSinExtras = IsConductorRule(activeAsignacion);
+        flagTurno12h = IsTurno12hRule(activeAsignacion);
+        flagDomingo100 = activeAsignacion.ReglasActivas.Contains("DOMINGO_DESCANSO_RECARGO_100");
+        flagNocturna = activeAsignacion.ReglasActivas.Contains("JORNADA_NOCTURNA_7H_X_8H");
+
+        showModal = true;
+    }
+
+    private void OnModalOperacionChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int opId))
         {
@@ -534,11 +670,6 @@
             {
                 activeAsignacion.CorteNominaTipo = "CORTE_13_28";
             }
-            else
-            {
-                var existing = asignacionesList.FirstOrDefault(a => a.OperacionId == opId);
-                if (existing != null) activeAsignacion.CorteNominaTipo = existing.CorteNominaTipo;
-            }
         }
         else
         {
@@ -546,59 +677,18 @@
         }
     }
 
-    private void ManageClientModal(int? opId, string clientName)
-    {
-        var existing = asignacionesList.FirstOrDefault(a => a.OperacionId == opId);
-        string corte = existing?.CorteNominaTipo ?? (opId == 23 ? "CORTE_13_28" : "CORTE_8_23");
-
-        activeAsignacion = new AsignacionJornadaCliente
-        {
-            OperacionId = opId,
-            CorteNominaTipo = corte,
-            HorasLunesViernes = 9.00m,
-            HorasSabado = 3.00m,
-            HorasSemanalesLimite = 48.00m
-        };
-        
-        selectedRuleCodes = new HashSet<string>
-        {
-            "JORNADA_DIURNA_8H",
-            "JORNADA_NOCTURNA_7H_X_8H",
-            "JORNADA_MIXTA_NOCTURNA_CONVERSION",
-            "DOMINGO_DESCANSO_RECARGO_100",
-            "FERIADO_NACIONAL_RECARGO_100",
-            "HORAS_EXTRAS_RECARGO_100"
-        };
-        showModal = true;
-    }
-
-    private void PrepareCreate()
-    {
-        activeAsignacion = new AsignacionJornadaCliente
-        {
-            CorteNominaTipo = "CORTE_8_23",
-            HorasLunesViernes = 8.00m,
-            HorasSabado = 8.00m,
-            HorasSemanalesLimite = 48.00m
-        };
-        selectedRuleCodes = new HashSet<string>
-        {
-            "JORNADA_DIURNA_8H",
-            "JORNADA_NOCTURNA_7H_X_8H",
-            "JORNADA_MIXTA_NOCTURNA_CONVERSION",
-            "DOMINGO_DESCANSO_RECARGO_100",
-            "FERIADO_NACIONAL_RECARGO_100",
-            "HORAS_EXTRAS_RECARGO_100"
-        };
-        showModal = true;
-    }
-
+    // --- PRESETS RÁPIDOS (1 CLIC) ---
     private void ApplyPresetSinsa()
     {
+        activeAsignacion.Puesto = "Operador de almacen";
         activeAsignacion.HorasLunesViernes = 9.00m;
         activeAsignacion.HorasSabado = 3.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
         activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+        flagConductorSinExtras = false;
+        flagTurno12h = false;
+        flagDomingo100 = true;
+        flagNocturna = true;
     }
 
     private void ApplyPresetGlacialMontacarga()
@@ -608,12 +698,10 @@
         activeAsignacion.HorasSabado = 12.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
         activeAsignacion.CorteNominaTipo = "CORTE_13_28";
-        selectedRuleCodes = new HashSet<string>
-        {
-            "TURNO_12H_FACTOR_1_5",
-            "DOMINGO_DESCANSO_RECARGO_100",
-            "HORAS_EXTRAS_RECARGO_100"
-        };
+        flagTurno12h = true;
+        flagConductorSinExtras = false;
+        flagDomingo100 = true;
+        flagNocturna = false;
     }
 
     private void ApplyPresetGlacialConductor()
@@ -623,12 +711,10 @@
         activeAsignacion.HorasSabado = 8.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
         activeAsignacion.CorteNominaTipo = "CORTE_13_28";
-        selectedRuleCodes = new HashSet<string>
-        {
-            "JORNADA_DIURNA_8H",
-            "CONDUCTOR_SIN_EXTRAS",
-            "MARCA_UNICA_ORD_8H"
-        };
+        flagConductorSinExtras = true;
+        flagTurno12h = false;
+        flagDomingo100 = false;
+        flagNocturna = false;
     }
 
     private void ApplyPresetEstandar()
@@ -636,107 +722,142 @@
         activeAsignacion.HorasLunesViernes = 8.00m;
         activeAsignacion.HorasSabado = 8.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
+        flagConductorSinExtras = false;
+        flagTurno12h = false;
+        flagDomingo100 = true;
+        flagNocturna = true;
     }
 
-    private void EditAsignacion(AsignacionJornadaCliente a)
+    private void ToggleFlagConductor(bool val)
     {
-        activeAsignacion = new AsignacionJornadaCliente
+        flagConductorSinExtras = val;
+        if (val)
         {
-            Id = a.Id,
-            OperacionId = a.OperacionId,
-            Area = a.Area,
-            Puesto = a.Puesto,
-            HorasLunesViernes = a.HorasLunesViernes <= 0 ? 8.00m : a.HorasLunesViernes,
-            HorasSabado = a.HorasSabado <= 0 ? 8.00m : a.HorasSabado,
-            HorasSemanalesLimite = a.HorasSemanalesLimite <= 0 ? 48.00m : a.HorasSemanalesLimite,
-            EstructuraSalarialId = a.EstructuraSalarialId,
-            CorteNominaTipo = a.CorteNominaTipo,
-            ReglaId = a.ReglaId,
-            Observaciones = a.Observaciones,
-            Activo = a.Activo
-        };
-        selectedRuleCodes = new HashSet<string>(a.ReglasActivas ?? new List<string>());
-        showModal = true;
+            flagTurno12h = false;
+            activeAsignacion.HorasLunesViernes = 8.00m;
+            activeAsignacion.HorasSabado = 8.00m;
+            activeAsignacion.HorasSemanalesLimite = 48.00m;
+        }
     }
 
-    private void ToggleRule(string codigo, object checkedVal)
+    private void ToggleFlagTurno12h(bool val)
     {
-        bool isChecked = Convert.ToBoolean(checkedVal);
-        if (isChecked) selectedRuleCodes.Add(codigo);
-        else selectedRuleCodes.Remove(codigo);
+        flagTurno12h = val;
+        if (val)
+        {
+            flagConductorSinExtras = false;
+            activeAsignacion.HorasLunesViernes = 12.00m;
+            activeAsignacion.HorasSabado = 12.00m;
+            activeAsignacion.HorasSemanalesLimite = 48.00m;
+        }
     }
 
     private async Task SaveAsignacion()
     {
-        activeAsignacion.ReglasActivas = selectedRuleCodes.ToList();
         saving = true;
         try
         {
+            // Reconstruir lista de reglas activas según los flags
+            var rules = new List<string>();
+
+            if (flagConductorSinExtras)
+            {
+                rules.Add("JORNADA_DIURNA_8H");
+                rules.Add("CONDUCTOR_SIN_EXTRAS");
+                rules.Add("MARCA_UNICA_ORD_8H");
+            }
+            else if (flagTurno12h)
+            {
+                rules.Add("TURNO_12H_FACTOR_1_5");
+                if (flagDomingo100) rules.Add("DOMINGO_DESCANSO_RECARGO_100");
+                rules.Add("HORAS_EXTRAS_RECARGO_100");
+            }
+            else
+            {
+                rules.Add("JORNADA_DIURNA_8H");
+                if (flagNocturna)
+                {
+                    rules.Add("JORNADA_NOCTURNA_7H_X_8H");
+                    rules.Add("JORNADA_MIXTA_NOCTURNA_CONVERSION");
+                }
+                if (flagDomingo100) rules.Add("DOMINGO_DESCANSO_RECARGO_100");
+                rules.Add("FERIADO_NACIONAL_RECARGO_100");
+                rules.Add("HORAS_EXTRAS_RECARGO_100");
+            }
+
+            activeAsignacion.ReglasActivas = rules;
+            activeAsignacion.ReglaId = 1; // default para la BD
+
             await OdooService.SaveAsignacionJornada(activeAsignacion);
+            Snackbar.Add("Regla de puesto guardada exitosamente.", Severity.Success);
             showModal = false;
             await LoadData();
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"Error guardando asignación: {ex.Message}");
+            Snackbar.Add("Error al guardar: " + ex.Message, Severity.Error);
         }
         finally
         {
             saving = false;
+            StateHasChanged();
         }
     }
 
     private async Task DeleteAsignacion(int id)
     {
-        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta regla?");
+        bool confirm = await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta regla de puesto?");
         if (!confirm) return;
 
         try
         {
             await OdooService.DeleteAsignacionJornada(id);
+            Snackbar.Add("Regla eliminada exitosamente.", Severity.Info);
             await LoadData();
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"Error eliminando regla: {ex.Message}");
+            Snackbar.Add("Error al eliminar: " + ex.Message, Severity.Error);
         }
     }
 
-    private RenderFragment RenderRulesBadges(List<string> rules) => __builder =>
+    // Auxiliares
+    private bool IsConductorRule(AsignacionJornadaCliente a)
     {
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px;">
-            @if (rules == null || !rules.Any())
-            {
-                <span style="padding: 3px 8px; border-radius: 4px; background-color: #f1f5f9; color: #64748b; font-size: 12px; border: 1px solid #cbd5e1;">Sin reglas atómicas</span>
-            }
-            else
-            {
-                @foreach (var cod in rules)
-                {
-                    var rule = atomicasList.FirstOrDefault(r => r.CodigoRegla == cod);
-                    var label = rule != null ? rule.NombreRegla : cod;
-                    var category = rule?.Categoria ?? "";
+        return (a.Puesto != null && a.Puesto.Contains("conductor", StringComparison.OrdinalIgnoreCase)) ||
+               (a.ReglasActivas != null && (a.ReglasActivas.Contains("CONDUCTOR_SIN_EXTRAS") || a.ReglasActivas.Contains("MARCA_UNICA_ORD_8H")));
+    }
 
-                    if (category == "JORNADA")
-                    {
-                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600; font-size: 11px;" title="@label">
-                            <i class="bi bi-clock me-1"></i>@label
-                        </span>
-                    }
-                    else if (category == "DESCANSO" || category == "FERIADO")
-                    {
-                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; font-size: 11px;" title="@label">
-                            <i class="bi bi-calendar-event me-1"></i>@label
-                        </span>
-                    }
-                    else
-                    {
-                        <span style="display: inline-block; padding: 4px 8px; border-radius: 6px; background-color: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; font-weight: 600; font-size: 11px;" title="@label">
-                            <i class="bi bi-check2-circle me-1"></i>@label
-                        </span>
-                    }
-                }
-            }
-        </div>
-    };
+    private bool IsTurno12hRule(AsignacionJornadaCliente a)
+    {
+        return (a.HorasLunesViernes == 12.00m && a.HorasSabado == 12.00m) ||
+               (a.ReglasActivas != null && a.ReglasActivas.Contains("TURNO_12H_FACTOR_1_5")) ||
+               (a.Puesto != null && a.Puesto.Contains("montacarga", StringComparison.OrdinalIgnoreCase) && a.OperacionId == 28);
+    }
+
+    private string GetPuestoIcon(string puesto)
+    {
+        if (string.IsNullOrWhiteSpace(puesto)) return Icons.Material.Filled.Public;
+        if (puesto.Contains("conductor", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.LocalShipping;
+        if (puesto.Contains("montacarga", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.Agriculture;
+        if (puesto.Contains("supervisor", StringComparison.OrdinalIgnoreCase)) return Icons.Material.Filled.ManageAccounts;
+        return Icons.Material.Filled.Person;
+    }
+
+    private List<string> GetPuestosSugeridos(int? opId)
+    {
+        if (opId == 28) // Glacial
+        {
+            return new List<string> { "Operador de almacen", "Operador de montacarga", "Conductor", "Supervisor" };
+        }
+        if (opId == 23) // Sinsa
+        {
+            return new List<string> { "6-Operador de almacen", "10-Operador de montacarga", "11-Conductor", "Supervisor" };
+        }
+        if (opId == 4) // WalMart
+        {
+            return new List<string> { "6-Operador de almacen", "12-Holler", "5-Supervisor de personal" };
+        }
+        return new List<string> { "Operador de almacen", "Operador de montacarga", "Conductor", "Supervisor" };
+    }
 }
