@@ -1,4 +1,4 @@
-@page "/operaciones/registro-movimientos-supervisor"
+﻿@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -167,6 +167,115 @@
             </MudAlert>
         }
     </MudPaper>
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP (RESPONSIVA HORIZONTAL / VERTICAL Y TABLETS) --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid">
+            
+            @* 1. ASISTENCIAS *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Asistencias">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.TableChart" />
+                    @if (TotalPresentes > 0)
+                    {
+                        <span class="app-tab-badge badge-success">@TotalPresentes</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Asistencias</span>
+                </div>
+            </button>
+
+            @* 2. AUSENCIAS *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Ausencias del Personal">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonOff" />
+                    @if (TotalAusentes > 0)
+                    {
+                        <span class="app-tab-badge badge-error">@TotalAusentes</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Ausencias</span>
+                </div>
+            </button>
+
+            @* 3. VIÁTICOS *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 2 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(2)"
+                    title="Viáticos (Transporte y Alimentación)">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.AttachMoney" />
+                    @if (TotalConViaticosTransporteAlim > 0)
+                    {
+                        <span class="app-tab-badge badge-warning">@TotalConViaticosTransporteAlim</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Viáticos</span>
+                </div>
+            </button>
+
+            @* 4. BONO DIARIO *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 3 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(3)"
+                    title="Bono Diario (RRHH)">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.MonetizationOn" />
+                    @if (TotalConBono > 0)
+                    {
+                        <span class="app-tab-badge badge-primary">@TotalConBono</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Bono Diario</span>
+                </div>
+            </button>
+
+            @* 5. MOVIMIENTOS *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 4 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(4)"
+                    title="Movimientos y Novedades">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" />
+                    @if (gruposConsolidados.Count > 0)
+                    {
+                        <span class="app-tab-badge badge-info">@gruposConsolidados.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Movimientos</span>
+                </div>
+            </button>
+
+            @* 6. MI PERSONAL *@
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 5 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(5)"
+                    title="Mi Personal (Plantilla Permanente)">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Badge" />
+                    @if (miPlantillaPersonal.Count > 0)
+                    {
+                        <span class="app-tab-badge badge-secondary">@miPlantillaPersonal.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Mi Personal</span>
+                </div>
+            </button>
+
+        </div>
+    </div>
+
     @* --- PESTAÑAS PRINCIPALES DE LA APLICACIÓN --- *@
     <MudTabs @bind-ActivePanelIndex="@activeTabIndex" 
              Elevation="2" 
@@ -3776,61 +3885,207 @@
             </MudTabs>
 </div>
 <style>
-    .tablet-tabs .mud-tabs-tabbar {
-        padding-bottom: 4px;
+    /* Ocultar barra nativa plana de MudTabs y flechas direccionales */
+    .tablet-tabs > .mud-tabs-tabbar {
+        display: none !important;
     }
-    .tablet-tabs .mud-tab {
-        margin-right: 8px !important;
-        padding-left: 12px !important;
-        padding-right: 14px !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.3px;
-        min-height: 44px;
-        border-radius: 8px !important;
+
+    /* ========================================================================= */
+    /* BARRA DE NAVEGACION MODERNA ESTILO APP (RESPONSIVA HORIZONTAL / VERTICAL) */
+    /* ========================================================================= */
+    .app-tab-bar-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
     }
-    .tablet-tabs .mud-tab-badge {
-        margin-left: 8px !important;
-        margin-right: 4px !important;
+
+    .app-tab-grid {
+        display: grid;
+        gap: 6px;
+        width: 100%;
     }
-    .tablet-tabs .mud-tab-slider {
-        height: 3px !important;
-    }
-    /* En resoluciones medianas y pequenas (tablets y telefonos, max 1080px):
-       Ocultar el texto del tab para dejar solo el icono + badge y que nunca se corte ni desaparezca Configuracion */
-    @@media (max-width: 1080px) {
-        .tablet-tabs .mud-tabs-tabbar {
-            overflow-x: visible !important;
+
+    /* 1. TABLET HORIZONTAL / DESKTOP (>= 900px):
+       6 columnas distribuidas equitativamente al 100% del ancho con icono + texto + badge alineados */
+    @@media (min-width: 900px) {
+        .app-tab-grid {
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
         }
-        .tablet-tabs .mud-tab {
-            font-size: 0 !important;
-            margin-right: 4px !important;
-            padding-left: 10px !important;
-            padding-right: 10px !important;
-            min-width: 44px !important;
-            height: 42px !important;
-            min-height: 42px !important;
-            justify-content: center;
+        .app-tab-item {
+            flex-direction: row;
+            padding: 10px 12px;
+            min-height: 48px;
+            gap: 8px;
         }
-        .tablet-tabs .mud-tab .mud-tab-text {
-            display: none !important;
-        }
-        .tablet-tabs .mud-tab .mud-icon-root {
-            margin-right: 0 !important;
-            margin-left: 0 !important;
-            font-size: 1.45rem !important;
-            width: 1.45rem !important;
-            height: 1.45rem !important;
-        }
-        .tablet-tabs .mud-tab-badge {
-            margin-left: 4px !important;
-            margin-right: 0 !important;
-            font-size: 0.72rem !important;
-            padding: 2px 4px !important;
-            min-width: 18px !important;
-            height: 18px !important;
-            line-height: 14px !important;
+        .app-tab-label {
+            font-size: 13px;
         }
     }
+
+    /* 2. TABLET VERTICAL / PANTALLAS MEDIANAS (640px a 899px - Ej: iPad Mini 768px):
+       6 columnas redistribuidas equitativamente al 100% del ancho (repeat(6, 1fr)) */
+    @@media (min-width: 640px) and (max-width: 899px) {
+        .app-tab-grid {
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+        }
+        .app-tab-item {
+            flex-direction: column;
+            padding: 7px 3px;
+            min-height: 52px;
+            gap: 3px;
+        }
+        .app-tab-label {
+            font-size: 11px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    /* 3. CELULARES EN VERTICAL (hasta 639px - Ej: iPhone SE 375px, Android 360-430px):
+       Reorganizar en 2 filas de 3 botones anchos (repeat(3, 1fr)).
+       Esto les da mucho mas ancho en vertical para que los nombres quepan completos sin scroll ni flechas */
+    @@media (max-width: 639px) {
+        .app-tab-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        .app-tab-item {
+            flex-direction: column;
+            padding: 8px 4px;
+            min-height: 50px;
+            gap: 2px;
+        }
+        .app-tab-label {
+            font-size: 11px;
+            text-align: center;
+            white-space: nowrap;
+        }
+    }
+
+    /* ESTILO DE CADA BOTON DE APP */
+    .app-tab-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        user-select: none;
+        outline: none;
+    }
+
+    .app-tab-item:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    /* ESTADO ACTIVO (BOTON SELECCIONADO ESTILO APP) */
+    .app-tab-item.active {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+        color: #ffffff !important;
+        border-color: #0f172a !important;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.22);
+    }
+
+    .app-tab-item.active .mud-icon-root {
+        color: #38bdf8 !important;
+        fill: #38bdf8 !important;
+    }
+
+    .app-tab-item.active .app-tab-label {
+        color: #ffffff !important;
+        font-weight: 800 !important;
+    }
+
+    .app-tab-icon-wrap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .app-tab-icon-wrap .mud-icon-root {
+        font-size: 1.35rem;
+        transition: transform 0.2s ease;
+    }
+
+    .app-tab-item:hover .app-tab-icon-wrap .mud-icon-root {
+        transform: scale(1.08);
+    }
+
+    .app-tab-label-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .app-tab-label {
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+
+    /* BADGES DE CONTADOR */
+    .app-tab-badge {
+        position: absolute;
+        top: -6px;
+        right: -10px;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 1px 5px;
+        border-radius: 9999px;
+        line-height: 14px;
+        min-width: 16px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        border: 1.5px solid #ffffff;
+    }
+
+    .app-tab-item.active .app-tab-badge {
+        border-color: #0f172a;
+    }
+
+    .app-tab-badge.badge-success {
+        background-color: #10b981;
+        color: #ffffff;
+    }
+
+    .app-tab-badge.badge-error {
+        background-color: #ef4444;
+        color: #ffffff;
+    }
+
+    .app-tab-badge.badge-warning {
+        background-color: #f59e0b;
+        color: #ffffff;
+    }
+
+    .app-tab-badge.badge-primary {
+        background-color: #3b82f6;
+        color: #ffffff;
+    }
+
+    .app-tab-badge.badge-info {
+        background-color: #06b6d4;
+        color: #ffffff;
+    }
+
+    .app-tab-badge.badge-secondary {
+        background-color: #64748b;
+        color: #ffffff;
+    }
+
     /* Control de Vistas Estilo Odoo (Top-Right Toolbar Switcher) */
     .odoo-view-switcher {
         display: inline-flex;
@@ -3874,7 +4129,8 @@
     .odoo-view-btn.active .mud-icon-root {
         fill: #ffffff !important;
     }
-    /* Modal / Popover de Selección de Fecha */
+
+    /* Modal / Popover de Seleccion de Fecha */
     .mud-popover.mud-picker-popover-wide,
     .mud-picker-popover-wide,
     .mud-popover:has(.mud-picker-container),

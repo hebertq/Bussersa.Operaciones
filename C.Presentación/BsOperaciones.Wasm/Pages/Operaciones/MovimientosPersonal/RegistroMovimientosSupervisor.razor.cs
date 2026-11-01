@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -161,6 +161,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaGuardando = false;
         protected bool estaEnviandoHelpdesk = false;
         protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
         protected ModoVistaGrilla modoVistaGrilla = ModoVistaGrilla.Operativo;
 
         protected string currentUserName = string.Empty;
@@ -1018,7 +1023,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (!miPlantillaPersonal.Any())
             {
                 _snackbar.Add("No tienes colaboradores en tu plantilla. Puedes configurarlos en la pestaña 'Mi Personal' o guardar la jornada actual como tu plantilla.", Severity.Info);
-                activeTabIndex = 3; // Cambiar a pestaña Mi Personal
+                activeTabIndex = 5; // Cambiar a pestaña Mi Personal (Índice 5)
                 return;
             }
 
