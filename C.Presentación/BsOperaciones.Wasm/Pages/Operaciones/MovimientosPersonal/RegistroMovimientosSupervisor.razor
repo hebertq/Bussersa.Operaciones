@@ -41,14 +41,6 @@
             @* Botones Principales de Acción Táctica *@
             <MudItem xs="12" sm="7" md="8">
                 <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap header-tactical-actions">
-                    <MudButton Variant="Variant.Outlined" 
-                               Color="Color.Primary" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.FactCheck"
-                               Href="/operaciones/consulta-asistencia"
-                               Title="Consultar y auditar histórico de asistencia por rango de fechas">
-                        Auditoría
-                    </MudButton>
                     <MudButton Variant="Variant.Filled" 
                                Color="Color.Success" 
                                Size="Size.Small" 
@@ -136,9 +128,9 @@
                     Efectivo: <b>C$ @TotalViaticosEfectivo.ToString("N0")</b>
                 </MudChip>
                 </MudStack>
-            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person">
-                    Supervisor: <b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap user-status-stack">
+                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person" Class="chip-supervisor-responsive">
+                    <span class="d-none d-sm-inline">Supervisor:&nbsp;</span><b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
                 </MudChip>
                 @if (TotalConflictosHorarios > 0)
                 {
@@ -148,8 +140,8 @@
                 }
                 else if (HayCambiosSinGuardar)
                 {
-                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
-                        @(TotalModificadosSinGuardar + TotalNuevosSinGuardar) pendientes de guardar
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Warning" Class="chip-pendientes-responsive" Style="font-weight: 700; white-space: nowrap;">
+                        @(TotalModificadosSinGuardar + TotalNuevosSinGuardar) pendientes<span class="d-none d-sm-inline">&nbsp;de guardar</span>
                     </MudChip>
                 }
                 else if (empleadosJornada.Any())
@@ -293,7 +285,7 @@
                 
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-2">
-                    @* Izquierda: Buscador + Agregar Colaborador *@
+                    <div class="d-flex flex-wrap align-center gap-2" style="flex: 1 1 auto; max-width: 100%;">
                     <div class="search-colab-toolbar">
                         <MudTextField @bind-Value="textoBusqueda" 
                                       Placeholder="Buscar por nombre o carnet..." 
@@ -313,6 +305,68 @@
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
                         </MudButton>
+                    </div>
+                        @* Filtros rapidos de Cliente y Area para busqueda rapida de ubicacion *@
+                        <div class="grid-location-filters">
+                            <MudSelect T="string" 
+                                       Value="@filtroClienteGrilla" 
+                                       ValueChanged="OnFiltroClienteGrillaChanged" 
+                                       Dense="true" 
+                                       Margin="Margin.Dense" 
+                                       Variant="Variant.Outlined" 
+                                       Placeholder="Todos los Clientes" 
+                                       AdornmentIcon="@Icons.Material.Filled.Business" 
+                                       Adornment="Adornment.Start" 
+                                       AdornmentColor="Color.Primary" 
+                                       Class="filter-select-responsive" 
+                                       Clearable="true">
+                                <MudSelectItem T="string" Value="@((string?)null)">ðŸŒ Todos los Clientes</MudSelectItem>
+                                @foreach (var cli in ClientesDisponiblesGrilla)
+                                {
+                                    var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
+                                    <MudSelectItem T="string" Value="@cli">
+                                        @cli @(countCli > 0 ? $"({countCli})" : "")
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudSelect T="string" 
+                                       Value="@filtroAreaGrilla" 
+                                       ValueChanged="OnFiltroAreaGrillaChanged" 
+                                       Dense="true" 
+                                       Margin="Margin.Dense" 
+                                       Variant="Variant.Outlined" 
+                                       Placeholder="Todas las Ãreas" 
+                                       AdornmentIcon="@Icons.Material.Filled.Place" 
+                                       Adornment="Adornment.Start" 
+                                       AdornmentColor="Color.Info" 
+                                       Class="filter-select-responsive" 
+                                       Disabled="@(!AreasDisponiblesGrilla.Any())" 
+                                       Clearable="true">
+                                <MudSelectItem T="string" Value="@((string?)null)">ðŸ“ Todas las Ãreas</MudSelectItem>
+                                @foreach (var a in AreasDisponiblesGrilla)
+                                {
+                                    var countA = empleadosJornada.Count(x => 
+                                        (string.IsNullOrWhiteSpace(filtroClienteGrilla) || string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase)) &&
+                                        string.Equals(x.Area, a, StringComparison.OrdinalIgnoreCase));
+                                    <MudSelectItem T="string" Value="@a">
+                                        @a @(countA > 0 ? $"({countA})" : "")
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
+                            {
+                                <MudTooltip Text="Limpiar filtros de ubicaciÃ³n" Arrow="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAltOff" 
+                                                   Size="Size.Small" 
+                                                   Color="Color.Error" 
+                                                   Variant="Variant.Outlined" 
+                                                   Class="btn-clear-filter" 
+                                                   OnClick="LimpiarFiltrosUbicacionGrilla" />
+                                </MudTooltip>
+                            }
+                        </div>
                     </div>
                     @* Derecha: Filtros de Asistencia y Control de Vistas Estilo Odoo *@
                     <div class="d-flex flex-wrap align-center gap-2 justify-end" style="flex: 2 1 auto;">
@@ -713,7 +767,7 @@
                               Elevation="0" 
                               Breakpoint="Breakpoint.None"
                               Class="table-touch-scroll"
-                              Style="@(modoVistaGrilla == ModoVistaGrilla.Operativo ? "min-width: 940px;" : (modoVistaGrilla == ModoVistaGrilla.Ubicacion ? "min-width: 860px;" : "min-width: 1150px;"))"
+                              Style="@(modoVistaGrilla == ModoVistaGrilla.Operativo ? "min-width: 940px;" : (modoVistaGrilla == ModoVistaGrilla.Ubicacion ? "min-width: 760px;" : "min-width: 1150px;"))"
                               RowStyleFunc="@((item, idx) => item.TieneConflictoHorario ? "background-color: #fee2e2 !important;" : "")">
                         <HeaderContent>
                             @if (modoVistaGrilla == ModoVistaGrilla.Operativo)
@@ -755,7 +809,6 @@
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
                                 <MudTh Style="min-width: 180px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 190px;">Cargo / Puesto</MudTh>
@@ -1000,22 +1053,6 @@
                                              OnClick="@(() => ToggleAsistencia(context))">
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
-                                </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               Value="@(string.IsNullOrWhiteSpace(context.TipoEmpleado) ? "Permanente" : context.TipoEmpleado)" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               ValueChanged="@((val) => { 
-                                                   context.TipoEmpleado = val; 
-                                                   context.Modificado = true; 
-                                                   ActualizarGruposConsolidados(); 
-                                               })">
-                                        <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
-                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
-                                        <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
-                                    </MudSelect>
                                 </MudTd>
                                 <MudTd>
                                     <MudSelect T="string" 
@@ -3479,7 +3516,6 @@
                                 <MudTh Style="width: 200px;">Cliente Asignado</MudTh>
                                 <MudTh Style="min-width: 180px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                             else
@@ -3690,27 +3726,6 @@
                                             <MudSelectItem Value="@c">@c</MudSelectItem>
                                         }
                                     </MudSelect>
-                                </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               Value="@(string.IsNullOrWhiteSpace(context.TipoEmpleado) ? "Permanente" : context.TipoEmpleado)" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               ValueChanged="@(async (val) => { 
-                                                   context.TipoEmpleado = val; 
-                                                   await GuardarItemPlantilla(context); 
-                                               })">
-                                        <MudSelectItem Value="@("Permanente")">Permanente</MudSelectItem>
-                                        <MudSelectItem Value="@("Temporal")">Temporal</MudSelectItem>
-                                        <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
-                                    </MudSelect>
-                                    @if (context.TipoEmpleado == "Prestamo" && !string.IsNullOrWhiteSpace(context.ClienteOrigenNomina))
-                                    {
-                                        <div class="text-muted text-truncate mt-1" style="font-size: 0.7rem;" title="@($"Nómina: {context.ClienteOrigenNomina}")">
-                                            Origen: @context.ClienteOrigenNomina
-                                        </div>
-                                    }
                                 </MudTd>
                                 <MudTd>
                                     <div class="d-flex align-center gap-1">
@@ -4330,6 +4345,79 @@
         .btn-colab-responsive {
             padding: 0 6px !important;
             font-size: 0.74rem !important;
+        }
+    }
+    /* Chips de supervisor y pendientes responsivos en mÃ³vil */
+    .user-status-stack {
+        max-width: 100%;
+    }
+    .chip-supervisor-responsive {
+        max-width: 210px;
+    }
+    .chip-supervisor-responsive .mud-chip-content {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 175px;
+    }
+    .chip-pendientes-responsive {
+        max-width: 100%;
+    }
+
+    /* Filtros de Cliente y Ãrea en header de la grilla */
+    .grid-location-filters {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+
+    .filter-select-responsive {
+        min-width: 175px;
+        max-width: 220px;
+        background-color: #ffffff;
+    }
+
+    .filter-select-responsive .mud-input-control {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .filter-select-responsive .mud-input {
+        height: 36px !important;
+        font-size: 0.82rem !important;
+        border-radius: 8px !important;
+    }
+
+    .btn-clear-filter {
+        height: 36px !important;
+        width: 36px !important;
+        border-radius: 8px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Adaptaciones mÃ³vil */
+    @@media (max-width: 639px) {
+        .grid-location-filters {
+            width: 100%;
+            gap: 4px;
+            margin-top: 2px;
+        }
+
+        .filter-select-responsive {
+            flex: 1 1 calc(50% - 20px);
+            min-width: 125px;
+            max-width: none;
+        }
+
+        .filter-select-responsive .mud-input {
+            height: 34px !important;
+            font-size: 0.76rem !important;
+        }
+
+        .btn-clear-filter {
+            height: 34px !important;
+            width: 34px !important;
         }
     }
 </style>

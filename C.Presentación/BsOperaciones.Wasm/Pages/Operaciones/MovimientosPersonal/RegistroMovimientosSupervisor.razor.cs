@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -193,6 +193,80 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Filtro rápido de búsqueda en la grilla
         protected string textoBusqueda = string.Empty;
         protected string filtroAsistencia = "TODOS"; // "TODOS", "PRESENTES", "AUSENTES"
+        // Filtros rÃ¡pidos de Cliente y Ãrea para la grilla
+        protected string? filtroClienteGrilla { get; set; } = null;
+        protected string? filtroAreaGrilla { get; set; } = null;
+
+        protected IEnumerable<string> ClientesDisponiblesGrilla
+        {
+            get
+            {
+                var deJornada = empleadosJornada
+                    .Select(x => x.Cliente?.Trim())
+                    .Where(c => !string.IsNullOrWhiteSpace(c));
+
+                var deOperaciones = operacionesList
+                    .Select(o => o.nombre?.Trim())
+                    .Where(c => !string.IsNullOrWhiteSpace(c));
+
+                return deJornada.Union(deOperaciones, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(c => c);
+            }
+        }
+
+        protected IEnumerable<string> AreasDisponiblesGrilla
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
+                {
+                    var areasJornada = empleadosJornada
+                        .Where(x => string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.Area?.Trim())
+                        .Where(a => !string.IsNullOrWhiteSpace(a));
+
+                    var areasCatalogo = GetAreasParaCliente(filtroClienteGrilla);
+
+                    return areasJornada.Union(areasCatalogo, StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(a => a);
+                }
+                else
+                {
+                    return empleadosJornada
+                        .Select(x => x.Area?.Trim())
+                        .Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(a => a);
+                }
+            }
+        }
+
+        protected void OnFiltroClienteGrillaChanged(string? nuevoCliente)
+        {
+            filtroClienteGrilla = nuevoCliente;
+            if (!string.IsNullOrWhiteSpace(filtroAreaGrilla))
+            {
+                var validas = AreasDisponiblesGrilla.ToList();
+                if (!validas.Contains(filtroAreaGrilla, StringComparer.OrdinalIgnoreCase))
+                {
+                    filtroAreaGrilla = null;
+                }
+            }
+            StateHasChanged();
+        }
+
+        protected void OnFiltroAreaGrillaChanged(string? nuevaArea)
+        {
+            filtroAreaGrilla = nuevaArea;
+            StateHasChanged();
+        }
+
+        protected void LimpiarFiltrosUbicacionGrilla()
+        {
+            filtroClienteGrilla = null;
+            filtroAreaGrilla = null;
+            StateHasChanged();
+        }
 
         // Lista de grupos consolidados para Helpdesk (Tab 2)
         protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
@@ -1578,7 +1652,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 defaultOp = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "";
             }
 
-            if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "Administración", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(filtroClienteGrilla)) { defaultOp = filtroClienteGrilla; } else if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))
             {
                 if (NombresMisClientes.Any())
                 {
@@ -2796,6 +2870,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         x.Cliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase));
                 }
 
+                if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
+                {
+                    query = query.Where(x => string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrWhiteSpace(filtroAreaGrilla))
+                {
+                    query = query.Where(x => string.Equals(x.Area, filtroAreaGrilla, StringComparison.OrdinalIgnoreCase));
+                }
                 if (filtroAsistencia == "PRESENTES")
                     query = query.Where(x => x.Asistio);
                 else if (filtroAsistencia == "AUSENTES")
