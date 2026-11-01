@@ -32,6 +32,11 @@ namespace Modelo.Entidades.Nomina
         public string TipoRegla { get; set; }
         public int? OperacionId { get; set; }
         public string OperacionNombre { get; set; }
+        public string Area { get; set; }
+        public string Puesto { get; set; }
+        public decimal HorasLunesViernes { get; set; } = 8.00m;
+        public decimal HorasSabado { get; set; } = 8.00m;
+        public decimal HorasSemanalesLimite { get; set; } = 48.00m;
         public int? EstructuraSalarialId { get; set; }
         public string EstructuraSalarialNombre { get; set; }
         public string CorteNominaTipo { get; set; } = "CORTE_8_23";
