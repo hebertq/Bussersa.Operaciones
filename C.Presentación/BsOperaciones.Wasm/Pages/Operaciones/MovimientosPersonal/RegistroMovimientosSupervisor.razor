@@ -5,9 +5,9 @@
 @using Modelo.ClasesGenericas
 @using System.Globalization
 @attribute [Authorize]
-<div class="px-2 py-1">
+<div class="page-container-responsive">
     @* --- BARRA SUPERIOR DE CONTROL DE JORNADA --- *@
-    <MudPaper Elevation="2" Class="pa-3 mb-3 rounded-lg" Style="border-left: 6px solid #f97316;">
+    <MudPaper Elevation="2" Class="pa-2 pa-sm-3 mb-3 rounded-lg" Style="border-left: 6px solid #f97316;">
         <MudGrid Spacing="2" AlignItems="AlignItems.Center">
             @* Fecha con Navegación Rápida de 1 Toque *@
             <MudItem xs="12" sm="5" md="4">
@@ -40,7 +40,7 @@
             </MudItem>
             @* Botones Principales de Acción Táctica *@
             <MudItem xs="12" sm="7" md="8">
-                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
+                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap header-tactical-actions">
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Primary" 
                                Size="Size.Small" 
@@ -289,27 +289,27 @@
            TAB 1: ASISTENCIAS
            ========================================== *@
         <MudTabPanel Text="Asistencias" ToolTip="Asistencias" Icon="@Icons.Material.Filled.TableChart" BadgeData="@TotalPresentes" BadgeColor="Color.Success">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-2">
                     @* Izquierda: Buscador + Agregar Colaborador *@
-                    <div class="d-flex align-center gap-1" style="flex: 1 1 280px; max-width: 440px;">
+                    <div class="search-colab-toolbar">
                         <MudTextField @bind-Value="textoBusqueda" 
-                                      Placeholder="Buscar por nombre o carnet (#)..." 
+                                      Placeholder="Buscar por nombre o carnet..." 
                                       Adornment="Adornment.Start" 
                                       AdornmentIcon="@Icons.Material.Filled.Search" 
                                       Variant="Variant.Outlined" 
                                       Margin="Margin.Dense" 
                                       Immediate="true" 
                                       Clearable="true" 
-                                      Class="flex-grow-1" />
+                                      Class="search-colab-input" />
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    Size="Size.Small" 
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
                                    OnClick="@(() => AbrirDialogoAgregarColaborador(textoBusqueda))"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600;"
+                                   Class="btn-colab-responsive"
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
                         </MudButton>
@@ -705,12 +705,15 @@
                 else
                 {
                     @* VISTA MODO TABLA COMPLETA / OPERATIVA / UBICACIÓN *@
+                    <div class="table-responsive-wrapper">
                     <MudTable Items="@EmpleadosFiltrados" 
                               Dense="true" 
                               Hover="true" 
                               Striped="true" 
                               Elevation="0" 
                               Breakpoint="Breakpoint.None"
+                              Class="table-touch-scroll"
+                              Style="@(modoVistaGrilla == ModoVistaGrilla.Operativo ? "min-width: 940px;" : (modoVistaGrilla == ModoVistaGrilla.Ubicacion ? "min-width: 860px;" : "min-width: 1150px;"))"
                               RowStyleFunc="@((item, idx) => item.TieneConflictoHorario ? "background-color: #fee2e2 !important;" : "")">
                         <HeaderContent>
                             @if (modoVistaGrilla == ModoVistaGrilla.Operativo)
@@ -721,10 +724,10 @@
                                                  ValueChanged="@MarcarTodos" 
                                                  Color="Color.Primary" />
                                 </MudTh>
-                                <MudTh>Colaborador & Ubicación Asignada</MudTh>
+                                <MudTh Style="min-width: 220px;">Colaborador & Ubicación Asignada</MudTh>
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 155px;">
+                                <MudTh Style="width: 155px; min-width: 155px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Horario</span>
                                         <MudTooltip Text="Edición rápida masiva de horario y comida por Cliente/Área/Puesto" Arrow="true" Placement="Placement.Top">
@@ -737,7 +740,7 @@
                                         </MudTooltip>
                                     </div>
                                 </MudTh>
-                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -752,7 +755,7 @@
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
                                 <MudTh Style="min-width: 180px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 190px;">Cargo / Puesto</MudTh>
@@ -770,11 +773,11 @@
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 170px;">Cliente / Operación</MudTh>
                                 <MudTh Style="min-width: 170px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 155px;">
+                                <MudTh Style="width: 155px; min-width: 155px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Horario</span>
                                         <MudTooltip Text="Edición rápida masiva de horario y comida por Cliente/Área/Puesto" Arrow="true" Placement="Placement.Top">
@@ -787,7 +790,7 @@
                                         </MudTooltip>
                                     </div>
                                 </MudTh>
-                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -1280,6 +1283,7 @@
                             </MudStack>
                         </NoRecordsContent>
                     </MudTable>
+                    </div>
                 }
             </MudPaper>
         </MudTabPanel>
@@ -1290,7 +1294,7 @@
            TAB 2: AUSENCIAS (REPORTAR AUSENCIAS A HELPDESK TRACKER 8)
            ========================================== *@
         <MudTabPanel Text="Ausencias" ToolTip="Ausencias del Personal" Icon="@Icons.Material.Filled.PersonOff" BadgeData="@TotalAusentes" BadgeColor="Color.Error">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -1356,7 +1360,7 @@
                                       Margin="Margin.Dense" 
                                       Immediate="true" 
                                       Clearable="true" 
-                                      Class="flex-grow-1" />
+                                      Class="search-colab-input" />
                     </div>
                     @* Derecha: Botón Envío Helpdesk + Selector de Vistas Odoo *@
                     <div class="d-flex align-center flex-wrap gap-2">
@@ -1581,7 +1585,7 @@
                     else
                     {
                         @* VISTAS DE TABLA: OPERATIVO, UBICACIÓN O COMPLETO (COMPACTAS Y ADAPTADAS PARA TABLET) *@
-                        <div class="overflow-x-auto rounded-lg border">
+                        <div class="table-responsive-wrapper border rounded-lg">
                             <MudTable Items="@AusentesFiltrados" 
                                       Dense="true" 
                                       Hover="true" 
@@ -1742,7 +1746,7 @@
             </MudPaper>
         </MudTabPanel>
         <MudTabPanel Text="Viáticos" ToolTip="Viáticos (Operaciones - Tracker 27)" Icon="@Icons.Material.Filled.AttachMoney" BadgeData="@TotalConViaticosTransporteAlim" BadgeColor="Color.Warning">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -1883,7 +1887,7 @@
                         }
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
+                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap header-tactical-actions">
                             @if (CantidadSeleccionados > 0 && modoVistaViaticos == "COLABORADORES")
                             {
                                 <MudButton Variant="Variant.Filled" 
@@ -2037,12 +2041,13 @@
                     }
                     else
                     {
+                        <div class="table-responsive-wrapper">
                         <MudTable Items="@GruposViaticos" 
                                   Dense="true" 
                                   Hover="true" 
                                   Striped="true" 
                                   Elevation="1" 
-                                  Class="rounded-lg"
+                                  Class="rounded-lg table-touch-scroll" Style="min-width: 820px;"
                                   Breakpoint="Breakpoint.None">
                             <HeaderContent>
                                 <MudTh Style="width: 50px;">#</MudTh>
@@ -2134,6 +2139,7 @@
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
+                    </div>
                     }
                 }
                 else
@@ -2239,12 +2245,13 @@
                     }
                     else
                     {
+                        <div class="table-responsive-wrapper">
                         <MudTable Items="@EmpleadosViaticosFiltrados" 
                                   Dense="true" 
                                   Hover="true" 
                                   Striped="true" 
                                   Elevation="1" 
-                                  Class="rounded-lg"
+                                  Class="rounded-lg table-touch-scroll" Style="min-width: 860px;"
                                   Breakpoint="Breakpoint.None">
                             <HeaderContent>
                                 <MudTh Style="width: 44px;">
@@ -2333,6 +2340,7 @@
                                 </MudTd>
                             </RowTemplate>
                         </MudTable>
+                    </div>
                     }
                 }
             </MudPaper>
@@ -2341,7 +2349,7 @@
            TAB 4: BONO DIARIO (RRHH - TRACKER 11: APLICAR BONO DEL DIA)
            ========================================== *@
         <MudTabPanel Text="Bono Diario" ToolTip="Bono Diario (RRHH - Tracker 11)" Icon="@Icons.Material.Filled.MonetizationOn" BadgeData="@TotalConBono" BadgeColor="Color.Primary">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -2468,7 +2476,7 @@
                         </MudButtonGroup>
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap">
+                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" Class="flex-wrap header-tactical-actions">
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
@@ -2594,12 +2602,13 @@
                 }
                 else
                 {
+                    <div class="table-responsive-wrapper">
                     <MudTable Items="@EmpleadosBonosFiltrados" 
                               Dense="true" 
                               Hover="true" 
                               Striped="true" 
                               Elevation="1" 
-                              Class="rounded-lg"
+                              Class="rounded-lg table-touch-scroll" Style="min-width: 760px;"
                               Breakpoint="Breakpoint.None">
                         <HeaderContent>
                             <MudTh>Colaborador</MudTh>
@@ -2677,6 +2686,7 @@
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
+                    </div>
                 }
             </MudPaper>
         </MudTabPanel>
@@ -2684,7 +2694,7 @@
            TAB 3: CONSOLIDADO & ENVÍO A HELPDESK
            ========================================== *@
         <MudTabPanel Text="Movimientos" ToolTip="Movimientos" Icon="@Icons.Material.Filled.ConfirmationNumber" BadgeData="@gruposConsolidados.Count" BadgeColor="Color.Primary">
-            <MudPaper Class="pa-3 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 @if (HayCambiosSinGuardar)
                 {
                     <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
@@ -2897,14 +2907,15 @@
                 else
                 {
                     @* 2, 3, 4. VISTAS EN TABLA (OPERATIVO, UBICACIÓN, COMPLETO) *@
-                    <MudTable Items="@gruposConsolidados" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None">
+                    <div class="table-responsive-wrapper">
+                    <MudTable Items="@gruposConsolidados" Dense="true" Hover="true" Striped="true" Elevation="0" Breakpoint="Breakpoint.None" Class="table-touch-scroll" Style="@(modoVistaMovimientos == ModoVistaGrilla.Operativo ? "min-width: 880px;" : (modoVistaMovimientos == ModoVistaGrilla.Ubicacion ? "min-width: 820px;" : "min-width: 1050px;"))">
                         <HeaderContent>
                             @if (modoVistaMovimientos == ModoVistaGrilla.Operativo)
                             {
                                 <MudTh Style="width: 50px;">#</MudTh>
                                 <MudTh>Cliente & Área Operativa</MudTh>
                                 <MudTh Style="width: 140px;">Horario & Turno</MudTh>
-                                <MudTh Style="width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="min-width: 180px;">Colaboradores (Recursos)</MudTh>
                                 <MudTh Style="min-width: 250px;">Observaciones / Nómina Préstamo</MudTh>
@@ -3168,6 +3179,7 @@
                             }
                         </RowTemplate>
                     </MudTable>
+                    </div>
                 }
             </MudPaper>
         </MudTabPanel>
@@ -3175,7 +3187,7 @@
            TAB 4: MI PERSONAL (PLANTILLA PERMANENTE)
            ========================================== *@
         <MudTabPanel Text="Mi Personal" ToolTip="Mi Personal" Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
-            <MudPaper Class="pa-4 mt-2" Elevation="0">
+            <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
                     <div class="d-flex align-center justify-space-between flex-wrap gap-2">
                         <div>
@@ -3198,25 +3210,25 @@
                 </MudAlert>
                 @* BARRA DE HERRAMIENTAS Y VISTAS ESTILO ODOO *@
                 <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-3">
-                    <div class="d-flex align-center gap-2 flex-grow-1" style="max-width: 520px;">
+                    <div class="search-colab-toolbar">
                         <MudTextField @bind-Value="textoBusquedaPlantilla" 
-                                      Placeholder="Buscar en mi plantilla por nombre o carnet..." 
+                                      Placeholder="Buscar por nombre o carnet..." 
                                       Adornment="Adornment.Start" 
                                       AdornmentIcon="@Icons.Material.Filled.Search" 
                                       Variant="Variant.Outlined" 
                                       Margin="Margin.Dense" 
                                       Immediate="true" 
                                       Clearable="true"
-                                      Class="flex-grow-1" />
+                                      Class="search-colab-input" />
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    StartIcon="@Icons.Material.Filled.PersonAdd"
                                    OnClick="@(() => AbrirDialogoAgregarColaborador(esDesdePlantilla: true))"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 600;">
+                                   Class="btn-colab-responsive">
                             + Colaborador
                         </MudButton>
                     </div>
-                    <div class="d-flex align-center gap-2 flex-wrap">
+                    <div class="plantilla-actions-toolbar">
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    Size="Size.Small" 
@@ -3432,17 +3444,18 @@
                 else
                 {
                     @* VISTA TABLA COMPLETA / OPERATIVA / UBICACIÓN PARA MI PERSONAL *@
+                    <div class="table-responsive-wrapper">
                     <MudTable Items="@PlantillaFiltrada" 
                               Dense="true" 
                               Hover="true" 
                               Striped="true" 
                               Elevation="0" 
-                              Breakpoint="Breakpoint.None">
+                              Breakpoint="Breakpoint.None" Class="table-touch-scroll" Style="@(modoVistaPlantilla == ModoVistaGrilla.Operativo ? "min-width: 740px;" : (modoVistaPlantilla == ModoVistaGrilla.Ubicacion ? "min-width: 780px;" : "min-width: 880px;"))">
                         <HeaderContent>
                             @if (modoVistaPlantilla == ModoVistaGrilla.Operativo)
                             {
-                                <MudTh>Colaborador & Ubicación Asignada</MudTh>
-                                <MudTh Style="width: 155px;">
+                                <MudTh Style="min-width: 220px;">Colaborador & Ubicación Asignada</MudTh>
+                                <MudTh Style="width: 155px; min-width: 155px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Horario</span>
                                         <MudTooltip Text="EdiciÃ³n rÃ¡pida masiva de horario y comida por Cliente/Ãrea/Puesto (guarda en BD)" Arrow="true" Placement="Placement.Top">
@@ -3455,9 +3468,9 @@
                                         </MudTooltip>
                                     </div>
                                 </MudTh>
-                                <MudTh Style="width: 75px;">Comida</MudTh>
-                                <MudTh Style="width: 105px;">Viáticos Base</MudTh>
-                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px; min-width: 105px;">Viáticos Base</MudTh>
+                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                             else if (modoVistaPlantilla == ModoVistaGrilla.Ubicacion)
@@ -3466,7 +3479,7 @@
                                 <MudTh Style="width: 200px;">Cliente Asignado</MudTh>
                                 <MudTh Style="min-width: 180px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 180px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                             else
@@ -3476,7 +3489,7 @@
                                 <MudTh Style="width: 160px;">Cliente Asignado</MudTh>
                                 <MudTh Style="min-width: 160px;">Área Operativa</MudTh>
                                 <MudTh Style="width: 160px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 155px;">
+                                <MudTh Style="width: 155px; min-width: 155px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Horario</span>
                                         <MudTooltip Text="EdiciÃ³n rÃ¡pida masiva de horario y comida por Cliente/Ãrea/Puesto (guarda en BD)" Arrow="true" Placement="Placement.Top">
@@ -3491,7 +3504,7 @@
                                 </MudTh>
                                 <MudTh Style="width: 70px;">Comida</MudTh>
                                 <MudTh Style="width: 100px;">Viáticos Base</MudTh>
-                                <MudTh Style="width: 110px;">Tipo</MudTh>
+                                <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
                                 <MudTh Style="width: 75px;"></MudTh>
                             }
                         </HeaderContent>
@@ -3879,6 +3892,7 @@
                             }
                         </RowTemplate>
                     </MudTable>
+                    </div>
                 }
             </MudPaper>
         </MudTabPanel>
@@ -4152,5 +4166,170 @@
     .mud-picker-dialog .mud-dialog {
         max-width: 360px !important;
         width: 100% !important;
+    }
+
+    /* ========================================================================= */
+    /* MEJORAS DE RESPONSIVIDAD MOVIL (AJUSTES PARA PANTALLAS PEQUEÑAS)          */
+    /* ========================================================================= */
+    .page-container-responsive {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 4px 6px;
+    }
+
+    .mobile-compact-paper {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    /* Buscador + Boton Agregar Colaborador Responsivo */
+    .search-colab-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1 1 260px;
+        max-width: 520px;
+        min-width: 0 !important;
+        width: 100%;
+    }
+
+    .search-colab-toolbar .search-colab-input {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    .search-colab-toolbar .search-colab-input .mud-input-control {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .search-colab-toolbar .search-colab-input input {
+        min-width: 0 !important;
+        font-size: 0.85rem !important;
+    }
+
+    .btn-colab-responsive {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        height: 36px !important;
+        text-transform: none !important;
+        font-weight: 700 !important;
+        padding: 0 12px !important;
+        border-radius: 8px !important;
+    }
+
+    /* Barra de acciones de Plantilla (Cargar Base, Actualizar, Horario Masivo) */
+    .plantilla-actions-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    /* Botones de cabecera de jornada */
+    .header-tactical-actions {
+        width: 100%;
+    }
+
+    .header-tactical-btn {
+        text-transform: none !important;
+    }
+
+    /* Wrapper de tabla con scroll horizontal suave touch */
+    .table-responsive-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        position: relative;
+    }
+
+    .table-responsive-wrapper .mud-table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-touch-scroll table {
+        border-collapse: separate;
+    }
+
+    .table-responsive-wrapper::-webkit-scrollbar,
+    .mud-table-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    .table-responsive-wrapper::-webkit-scrollbar-thumb,
+    .mud-table-container::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    /* Adaptaciones especificas para telefonos (hasta 639px) */
+    @@media (max-width: 639px) {
+        .page-container-responsive {
+            padding: 2px 2px;
+        }
+
+        .mobile-compact-paper {
+            padding: 8px !important;
+        }
+
+        .search-colab-toolbar {
+            gap: 4px;
+            flex: 1 1 100%;
+        }
+
+        .btn-colab-responsive {
+            height: 34px !important;
+            padding: 0 8px !important;
+            font-size: 0.78rem !important;
+        }
+
+        .btn-colab-responsive .mud-button-icon-start {
+            margin-right: 3px !important;
+        }
+
+        .btn-colab-responsive .mud-icon-root {
+            font-size: 1.15rem !important;
+        }
+
+        .plantilla-actions-toolbar {
+            gap: 4px;
+            width: 100%;
+        }
+
+        .plantilla-actions-toolbar .mud-button-root {
+            height: 32px !important;
+            font-size: 0.75rem !important;
+            padding: 0 8px !important;
+        }
+
+        .plantilla-actions-toolbar .mud-button-icon-start {
+            margin-right: 3px !important;
+        }
+
+        .header-tactical-actions {
+            justify-content: flex-start !important;
+            gap: 4px;
+        }
+
+        .header-tactical-actions .mud-button-root {
+            font-size: 0.76rem !important;
+            padding: 0 8px !important;
+            height: 32px !important;
+            flex: 1 1 auto;
+        }
+
+        .header-tactical-actions .mud-button-icon-start {
+            margin-right: 3px !important;
+        }
+    }
+
+    @@media (max-width: 360px) {
+        .btn-colab-responsive {
+            padding: 0 6px !important;
+            font-size: 0.74rem !important;
+        }
     }
 </style>
