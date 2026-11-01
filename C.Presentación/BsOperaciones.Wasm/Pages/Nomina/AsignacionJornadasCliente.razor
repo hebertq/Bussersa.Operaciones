@@ -297,8 +297,11 @@
                                 <input type="text" class="form-control" list="puestosDatalist" placeholder="Dejar en blanco para todos los puestos..." @bind="activeAsignacion.Puesto" />
                                 <datalist id="puestosDatalist">
                                     <option value="6-Operador de almacen" />
+                                    <option value="Operador de almacen" />
                                     <option value="10-Operador de montacarga" />
+                                    <option value="Operador de montacarga" />
                                     <option value="11-Conductor" />
+                                    <option value="Conductor" />
                                     <option value="Supervisor" />
                                 </datalist>
                                 <div class="form-text small" style="color: #64748b;">
@@ -322,12 +325,18 @@
                             <h6 class="fw-bold text-primary mb-0">
                                 <i class="bi bi-clock-history me-2"></i>2. Horas Ordinarias Base de Jornada (Art. 51 CT):
                             </h6>
-                            <div class="d-flex gap-2">
+                            <div class="d-flex flex-wrap gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 fw-bold" style="font-size: 11px;" @onclick="ApplyPresetSinsa">
-                                    ⚡ Preset Operador Sinsa (9h L-V, 3h Sáb, 48h Sem)
+                                    ⚡ Sinsa Operador (9h L-V, 3h Sáb)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fw-bold text-dark" style="font-size: 11px;" @onclick="ApplyPresetGlacialMontacarga">
+                                    ❄️ Glacial Montacarga (12h, 48h Sem)
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2 py-1 fw-bold text-dark" style="font-size: 11px;" @onclick="ApplyPresetGlacialConductor">
+                                    🚚 Glacial Conductor (Sin Extras)
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 fw-bold" style="font-size: 11px;" @onclick="ApplyPresetEstandar">
-                                    ⏱️ Preset Estándar (8h L-V, 8h Sáb, 48h Sem)
+                                    ⏱️ Estándar 48h (8h L-S)
                                 </button>
                             </div>
                         </div>
@@ -521,7 +530,7 @@
         if (int.TryParse(e.Value?.ToString(), out int opId))
         {
             activeAsignacion.OperacionId = opId;
-            if (opId == 23) // Sinsa
+            if (opId == 23 || opId == 28) // Sinsa o Glacial
             {
                 activeAsignacion.CorteNominaTipo = "CORTE_13_28";
             }
@@ -590,6 +599,36 @@
         activeAsignacion.HorasSabado = 3.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
         activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+    }
+
+    private void ApplyPresetGlacialMontacarga()
+    {
+        activeAsignacion.Puesto = "Operador de montacarga";
+        activeAsignacion.HorasLunesViernes = 12.00m;
+        activeAsignacion.HorasSabado = 12.00m;
+        activeAsignacion.HorasSemanalesLimite = 48.00m;
+        activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+        selectedRuleCodes = new HashSet<string>
+        {
+            "TURNO_12H_FACTOR_1_5",
+            "DOMINGO_DESCANSO_RECARGO_100",
+            "HORAS_EXTRAS_RECARGO_100"
+        };
+    }
+
+    private void ApplyPresetGlacialConductor()
+    {
+        activeAsignacion.Puesto = "Conductor";
+        activeAsignacion.HorasLunesViernes = 8.00m;
+        activeAsignacion.HorasSabado = 8.00m;
+        activeAsignacion.HorasSemanalesLimite = 48.00m;
+        activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+        selectedRuleCodes = new HashSet<string>
+        {
+            "JORNADA_DIURNA_8H",
+            "CONDUCTOR_SIN_EXTRAS",
+            "MARCA_UNICA_ORD_8H"
+        };
     }
 
     private void ApplyPresetEstandar()
