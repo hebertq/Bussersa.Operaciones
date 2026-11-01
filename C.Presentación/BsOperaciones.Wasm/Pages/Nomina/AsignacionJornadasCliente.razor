@@ -680,7 +680,7 @@
     // --- PRESETS RÁPIDOS (1 CLIC) ---
     private void ApplyPresetSinsa()
     {
-        activeAsignacion.Puesto = "Operador de almacen";
+        activeAsignacion.Puesto = "6-Operador de almacen";
         activeAsignacion.HorasLunesViernes = 9.00m;
         activeAsignacion.HorasSabado = 3.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
@@ -693,7 +693,7 @@
 
     private void ApplyPresetGlacialMontacarga()
     {
-        activeAsignacion.Puesto = "Operador de montacarga";
+        activeAsignacion.Puesto = "10-Operador de montacarga";
         activeAsignacion.HorasLunesViernes = 12.00m;
         activeAsignacion.HorasSabado = 12.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
@@ -706,7 +706,7 @@
 
     private void ApplyPresetGlacialConductor()
     {
-        activeAsignacion.Puesto = "Conductor";
+        activeAsignacion.Puesto = "11-Conductor";
         activeAsignacion.HorasLunesViernes = 8.00m;
         activeAsignacion.HorasSabado = 8.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
@@ -846,18 +846,14 @@
 
     private List<string> GetPuestosSugeridos(int? opId)
     {
-        if (opId == 28) // Glacial
-        {
-            return new List<string> { "Operador de almacen", "Operador de montacarga", "Conductor", "Supervisor" };
-        }
-        if (opId == 23) // Sinsa
-        {
-            return new List<string> { "6-Operador de almacen", "10-Operador de montacarga", "11-Conductor", "Supervisor" };
-        }
-        if (opId == 4) // WalMart
-        {
-            return new List<string> { "6-Operador de almacen", "12-Holler", "5-Supervisor de personal" };
-        }
-        return new List<string> { "Operador de almacen", "Operador de montacarga", "Conductor", "Supervisor" };
+        return new List<string> 
+        { 
+            "6-Operador de almacen", 
+            "10-Operador de montacarga", 
+            "11-Conductor", 
+            "12-Holler", 
+            "5-Supervisor de personal", 
+            "3-Asistentes de gerencia" 
+        };
     }
 }
