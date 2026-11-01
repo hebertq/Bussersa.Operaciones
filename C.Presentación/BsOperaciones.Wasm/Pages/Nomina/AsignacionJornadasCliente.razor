@@ -262,7 +262,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold small" style="color: #334155;">Cliente / Operación</label>
-                                <select class="form-select fw-bold" style="color: #0f172a;" @bind="activeAsignacion.OperacionId">
+                                <select class="form-select fw-bold" style="color: #0f172a;" value="@activeAsignacion.OperacionId" @onchange="OnOperacionChanged">
                                     <option value="">🌐 GLOBAL (Todas las operaciones)</option>
                                     @foreach (var op in operacionesList)
                                     {
@@ -516,12 +516,36 @@
         }
     }
 
+    private void OnOperacionChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int opId))
+        {
+            activeAsignacion.OperacionId = opId;
+            if (opId == 23) // Sinsa
+            {
+                activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+            }
+            else
+            {
+                var existing = asignacionesList.FirstOrDefault(a => a.OperacionId == opId);
+                if (existing != null) activeAsignacion.CorteNominaTipo = existing.CorteNominaTipo;
+            }
+        }
+        else
+        {
+            activeAsignacion.OperacionId = null;
+        }
+    }
+
     private void ManageClientModal(int? opId, string clientName)
     {
+        var existing = asignacionesList.FirstOrDefault(a => a.OperacionId == opId);
+        string corte = existing?.CorteNominaTipo ?? (opId == 23 ? "CORTE_13_28" : "CORTE_8_23");
+
         activeAsignacion = new AsignacionJornadaCliente
         {
             OperacionId = opId,
-            CorteNominaTipo = "CORTE_8_23",
+            CorteNominaTipo = corte,
             HorasLunesViernes = 9.00m,
             HorasSabado = 3.00m,
             HorasSemanalesLimite = 48.00m
@@ -565,6 +589,7 @@
         activeAsignacion.HorasLunesViernes = 9.00m;
         activeAsignacion.HorasSabado = 3.00m;
         activeAsignacion.HorasSemanalesLimite = 48.00m;
+        activeAsignacion.CorteNominaTipo = "CORTE_13_28";
     }
 
     private void ApplyPresetEstandar()
