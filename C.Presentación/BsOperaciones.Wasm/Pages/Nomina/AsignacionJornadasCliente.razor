@@ -391,25 +391,31 @@
                         </p>
 
                         <div class="row g-2">
-                            <div class="col-sm-6 col-md-3">
+                            <div class="col-sm-6 col-md-4 col-lg">
                                 <button type="button" class="btn btn-outline-primary w-100 p-2 text-start rounded-3 h-100" @onclick="ApplyPresetSinsa">
                                     <div class="fw-bold" style="font-size: 12px;">⚡ Sinsa Operador</div>
                                     <div class="small text-muted" style="font-size: 11px;">9h L-V, 3h Sáb (48h sem)</div>
                                 </button>
                             </div>
-                            <div class="col-sm-6 col-md-3">
+                            <div class="col-sm-6 col-md-4 col-lg">
                                 <button type="button" class="btn btn-outline-info w-100 p-2 text-start rounded-3 h-100 text-dark" @onclick="ApplyPresetGlacialMontacarga">
                                     <div class="fw-bold text-dark" style="font-size: 12px;">❄️ Glacial Montacarga</div>
                                     <div class="small text-muted" style="font-size: 11px;">12h Turno (1.5d, 48h sem)</div>
                                 </button>
                             </div>
-                            <div class="col-sm-6 col-md-3">
+                            <div class="col-sm-6 col-md-4 col-lg">
                                 <button type="button" class="btn btn-outline-warning w-100 p-2 text-start rounded-3 h-100 text-dark" @onclick="ApplyPresetGlacialConductor">
-                                    <div class="fw-bold text-dark" style="font-size: 12px;">🚚 Glacial Conductor</div>
-                                    <div class="small text-muted" style="font-size: 11px;">48h sem (Sin Extras)</div>
+                                    <div class="fw-bold text-dark" style="font-size: 12px;">🚚 Conductor (Sin Extras)</div>
+                                    <div class="small text-muted" style="font-size: 11px;">Entrada fija (48h sem)</div>
                                 </button>
                             </div>
-                            <div class="col-sm-6 col-md-3">
+                            <div class="col-sm-6 col-md-6 col-lg">
+                                <button type="button" class="btn btn-outline-success w-100 p-2 text-start rounded-3 h-100 text-dark" @onclick="ApplyPresetCbcPepsi">
+                                    <div class="fw-bold text-dark" style="font-size: 12px;">🥤 CBC Pepsi Operador</div>
+                                    <div class="small text-muted" style="font-size: 11px;">8h L-S (Turnos 48h sem)</div>
+                                </button>
+                            </div>
+                            <div class="col-sm-6 col-md-6 col-lg">
                                 <button type="button" class="btn btn-outline-secondary w-100 p-2 text-start rounded-3 h-100" @onclick="ApplyPresetEstandar">
                                     <div class="fw-bold" style="font-size: 12px;">⏱️ Estándar 48h</div>
                                     <div class="small text-muted" style="font-size: 11px;">8h Lunes a Sábado</div>
@@ -666,7 +672,7 @@
         if (int.TryParse(e.Value?.ToString(), out int opId))
         {
             activeAsignacion.OperacionId = opId;
-            if (opId == 23 || opId == 28) // Sinsa o Glacial
+            if (opId == 23 || opId == 27 || opId == 28) // Sinsa, CBC Pepsi o Glacial
             {
                 activeAsignacion.CorteNominaTipo = "CORTE_13_28";
             }
@@ -678,6 +684,19 @@
     }
 
     // --- PRESETS RÁPIDOS (1 CLIC) ---
+    private void ApplyPresetCbcPepsi()
+    {
+        activeAsignacion.OperacionId = 27;
+        activeAsignacion.Puesto = "6-Operador de almacen";
+        activeAsignacion.HorasLunesViernes = 8.00m;
+        activeAsignacion.HorasSabado = 8.00m;
+        activeAsignacion.HorasSemanalesLimite = 48.00m;
+        activeAsignacion.CorteNominaTipo = "CORTE_13_28";
+        flagConductorSinExtras = false;
+        flagTurno12h = false;
+        flagDomingo100 = true;
+        flagNocturna = true;
+    }
     private void ApplyPresetSinsa()
     {
         activeAsignacion.Puesto = "6-Operador de almacen";
