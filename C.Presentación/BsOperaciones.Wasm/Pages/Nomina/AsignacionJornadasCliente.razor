@@ -355,24 +355,64 @@
 
                             @* Área de la Operación *@
                             <div class="col-md-6">
-                                <label class="form-label fw-bold small text-secondary">Área de la Operación (Opcional):</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       list="areasDatalistModal" 
-                                       placeholder="Dejar en blanco para todas las áreas..." 
-                                       @bind="activeAsignacion.Area" />
-                                <datalist id="areasDatalistModal">
-                                    <option value="Descargue" />
-                                    <option value="Operaciones" />
-                                    <option value="Logistica" />
-                                    <option value="Comodin" />
-                                    <option value="Rampa" />
-                                    <option value="Ceramica" />
-                                    <option value="Alta y Baja tención" />
-                                    <option value="Transporte" />
-                                    <option value="Construcción" />
-                                    <option value="Despacho Operaciones" />
-                                </datalist>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fw-bold small text-secondary mb-0">Área de la Operación (Opcional):</label>
+                                    @if (activeAsignacion.OperacionId.HasValue)
+                                    {
+                                        var countAreas = GetAreasSugeridas(activeAsignacion.OperacionId, activeAsignacion.OperacionNombre).Count;
+                                        <span class="badge @(countAreas > 0 ? "bg-primary-subtle text-primary border" : "bg-light text-muted border")" style="font-size: 10px;">
+                                            @(countAreas > 0 ? $"{countAreas} área(s) en supervisión" : "Sin áreas específicas")
+                                        </span>
+                                    }
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" 
+                                           class="form-control fw-bold" 
+                                           list="areasDatalistModal" 
+                                           placeholder="Dejar en blanco para todas las áreas..." 
+                                           @bind="activeAsignacion.Area" />
+                                    <datalist id="areasDatalistModal">
+                                        @foreach (var a in GetAreasSugeridas(activeAsignacion.OperacionId, activeAsignacion.OperacionNombre))
+                                        {
+                                            <option value="@a" />
+                                        }
+                                    </datalist>
+                                    @if (!string.IsNullOrWhiteSpace(activeAsignacion.Area))
+                                    {
+                                        <button class="btn btn-outline-secondary" type="button" @onclick="() => activeAsignacion.Area = null" title="Limpiar área (Aplica a todas)">
+                                            ✕
+                                        </button>
+                                    }
+                                </div>
+                                <div class="form-text small text-muted mt-1">
+                                    @if (activeAsignacion.OperacionId.HasValue)
+                                    {
+                                        <span>Áreas de supervisión para <strong>@(activeAsignacion.OperacionNombre ?? "el cliente")</strong>:</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Deje <strong>en blanco</strong> para aplicar a todas las áreas del cliente.</span>
+                                    }
+                                </div>
+                                @{
+                                    var areasClienteSugeridas = GetAreasSugeridas(activeAsignacion.OperacionId, activeAsignacion.OperacionNombre);
+                                    if (areasClienteSugeridas.Any())
+                                    {
+                                        <div class="d-flex flex-wrap gap-1 mt-2" style="max-height: 85px; overflow-y: auto;">
+                                            @foreach (var a in areasClienteSugeridas)
+                                            {
+                                                var isSelected = string.Equals(activeAsignacion.Area, a, StringComparison.OrdinalIgnoreCase);
+                                                <button type="button" 
+                                                        class="btn btn-sm py-0 px-2 rounded-pill @(isSelected ? "btn-primary" : "btn-outline-secondary")" 
+                                                        style="font-size: 11px;"
+                                                        @onclick="() => activeAsignacion.Area = isSelected ? null : a"
+                                                        title="@(isSelected ? "Quitar filtro de área" : $"Asignar a {a}")">
+                                                    @(isSelected ? "✓ " : "")@a
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                }
                             </div>
                         </div>
                     </div>
@@ -554,6 +594,9 @@
 @code {
     private List<AsignacionJornadaCliente> asignacionesList = new();
     private List<Combos> operacionesList = new();
+    private List<ClienteAreaDto> catalogoClienteAreas = new();
+    private Dictionary<int, List<string>> areasPorOperacionId = new();
+    private Dictionary<string, List<string>> areasPorCliente = new(StringComparer.OrdinalIgnoreCase);
     private int? selectedOperacionFilter = null;
     private string searchString = "";
     private bool loading = true;
@@ -592,16 +635,53 @@
         loading = true;
         try
         {
-            var resAsig = await OdooService.GetAllAsignacionesJornada();
-            if (resAsig?.Model != null)
+            var taskAsig = OdooService.GetAllAsignacionesJornada();
+            var taskOp = OdooService.GetAllCombosHost("OPERACIONES");
+            var taskAreas = OdooService.GetAllClienteAreas();
+
+            await Task.WhenAll(taskAsig, taskOp, taskAreas);
+
+            if (taskAsig.Result?.Model != null)
             {
-                asignacionesList = resAsig.Model.ToList();
+                asignacionesList = taskAsig.Result.Model.ToList();
             }
 
-            var resOp = await OdooService.GetAllCombosHost("OPERACIONES");
-            if (resOp?.Model != null)
+            if (taskOp.Result?.Model != null)
             {
-                operacionesList = resOp.Model.Where(x => x.id > 0).ToList();
+                operacionesList = taskOp.Result.Model.Where(x => x.id > 0).OrderBy(o => o.nombre).ToList();
+            }
+
+            if (taskAreas.Result?.Model != null)
+            {
+                catalogoClienteAreas = taskAreas.Result.Model.Where(x => x.Activo).ToList();
+
+                areasPorOperacionId.Clear();
+                areasPorCliente.Clear();
+
+                foreach (var ca in catalogoClienteAreas)
+                {
+                    var aName = ca.AreaNombre?.Trim();
+                    if (string.IsNullOrWhiteSpace(aName)) continue;
+
+                    if (ca.OperacionId > 0)
+                    {
+                        if (!areasPorOperacionId.ContainsKey(ca.OperacionId))
+                            areasPorOperacionId[ca.OperacionId] = new List<string>();
+
+                        if (!areasPorOperacionId[ca.OperacionId].Contains(aName, StringComparer.OrdinalIgnoreCase))
+                            areasPorOperacionId[ca.OperacionId].Add(aName);
+                    }
+
+                    var cName = ca.ClienteNombre?.Trim();
+                    if (!string.IsNullOrWhiteSpace(cName))
+                    {
+                        if (!areasPorCliente.ContainsKey(cName))
+                            areasPorCliente[cName] = new List<string>();
+
+                        if (!areasPorCliente[cName].Contains(aName, StringComparer.OrdinalIgnoreCase))
+                            areasPorCliente[cName].Add(aName);
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -622,11 +702,16 @@
 
     private void PrepareCreate()
     {
+        var opNombre = selectedOperacionFilter.HasValue 
+            ? operacionesList.FirstOrDefault(o => o.id == selectedOperacionFilter.Value)?.nombre 
+            : null;
+
         activeAsignacion = new AsignacionJornadaCliente
         {
             Id = 0,
             OperacionId = selectedOperacionFilter,
-            CorteNominaTipo = (selectedOperacionFilter == 23 || selectedOperacionFilter == 28) ? "CORTE_13_28" : "CORTE_8_23",
+            OperacionNombre = opNombre,
+            CorteNominaTipo = (selectedOperacionFilter == 23 || selectedOperacionFilter == 27 || selectedOperacionFilter == 28) ? "CORTE_13_28" : "CORTE_8_23",
             HorasLunesViernes = 8.00m,
             HorasSabado = 8.00m,
             HorasSemanalesLimite = 48.00m,
@@ -642,11 +727,17 @@
 
     private void EditAsignacion(AsignacionJornadaCliente item)
     {
+        var opNombre = item.OperacionNombre;
+        if (string.IsNullOrWhiteSpace(opNombre) && item.OperacionId.HasValue)
+        {
+            opNombre = operacionesList.FirstOrDefault(o => o.id == item.OperacionId.Value)?.nombre;
+        }
+
         activeAsignacion = new AsignacionJornadaCliente
         {
             Id = item.Id,
             OperacionId = item.OperacionId,
-            OperacionNombre = item.OperacionNombre,
+            OperacionNombre = opNombre,
             Area = item.Area,
             Puesto = item.Puesto,
             HorasLunesViernes = item.HorasLunesViernes <= 0 ? 8.00m : item.HorasLunesViernes,
@@ -672,6 +763,7 @@
         if (int.TryParse(e.Value?.ToString(), out int opId))
         {
             activeAsignacion.OperacionId = opId;
+            activeAsignacion.OperacionNombre = operacionesList.FirstOrDefault(o => o.id == opId)?.nombre;
             if (opId == 23 || opId == 27 || opId == 28) // Sinsa, CBC Pepsi o Glacial
             {
                 activeAsignacion.CorteNominaTipo = "CORTE_13_28";
@@ -680,13 +772,27 @@
         else
         {
             activeAsignacion.OperacionId = null;
+            activeAsignacion.OperacionNombre = null;
+        }
+
+        // Si el área actual no pertenece a las áreas disponibles del nuevo cliente, limpiarla
+        if (!string.IsNullOrWhiteSpace(activeAsignacion.Area))
+        {
+            var areasValidas = GetAreasSugeridas(activeAsignacion.OperacionId, activeAsignacion.OperacionNombre);
+            if (areasValidas.Any() && !areasValidas.Contains(activeAsignacion.Area, StringComparer.OrdinalIgnoreCase))
+            {
+                activeAsignacion.Area = null;
+            }
         }
     }
 
     // --- PRESETS RÁPIDOS (1 CLIC) ---
     private void ApplyPresetCbcPepsi()
     {
-        activeAsignacion.OperacionId = 27;
+        var op = operacionesList.FirstOrDefault(o => o.nombre != null && o.nombre.Contains("CBC", StringComparison.OrdinalIgnoreCase))
+                 ?? operacionesList.FirstOrDefault(o => o.id == 27);
+        activeAsignacion.OperacionId = op?.id ?? 27;
+        activeAsignacion.OperacionNombre = op?.nombre ?? "CBC Pepsi";
         activeAsignacion.Puesto = "6-Operador de almacen";
         activeAsignacion.HorasLunesViernes = 8.00m;
         activeAsignacion.HorasSabado = 8.00m;
@@ -697,8 +803,13 @@
         flagDomingo100 = true;
         flagNocturna = true;
     }
+
     private void ApplyPresetSinsa()
     {
+        var op = operacionesList.FirstOrDefault(o => o.nombre != null && o.nombre.Contains("Sinsa", StringComparison.OrdinalIgnoreCase))
+                 ?? operacionesList.FirstOrDefault(o => o.id == 23);
+        activeAsignacion.OperacionId = op?.id ?? 23;
+        activeAsignacion.OperacionNombre = op?.nombre ?? "Sinsa";
         activeAsignacion.Puesto = "6-Operador de almacen";
         activeAsignacion.HorasLunesViernes = 9.00m;
         activeAsignacion.HorasSabado = 3.00m;
@@ -712,6 +823,10 @@
 
     private void ApplyPresetGlacialMontacarga()
     {
+        var op = operacionesList.FirstOrDefault(o => o.nombre != null && o.nombre.Contains("Glacial", StringComparison.OrdinalIgnoreCase))
+                 ?? operacionesList.FirstOrDefault(o => o.id == 28);
+        activeAsignacion.OperacionId = op?.id ?? 28;
+        activeAsignacion.OperacionNombre = op?.nombre ?? "Glacial";
         activeAsignacion.Puesto = "10-Operador de montacarga";
         activeAsignacion.HorasLunesViernes = 12.00m;
         activeAsignacion.HorasSabado = 12.00m;
@@ -725,6 +840,10 @@
 
     private void ApplyPresetGlacialConductor()
     {
+        var op = operacionesList.FirstOrDefault(o => o.nombre != null && o.nombre.Contains("Glacial", StringComparison.OrdinalIgnoreCase))
+                 ?? operacionesList.FirstOrDefault(o => o.id == 28);
+        activeAsignacion.OperacionId = op?.id ?? 28;
+        activeAsignacion.OperacionNombre = op?.nombre ?? "Glacial";
         activeAsignacion.Puesto = "11-Conductor";
         activeAsignacion.HorasLunesViernes = 8.00m;
         activeAsignacion.HorasSabado = 8.00m;
@@ -776,6 +895,11 @@
         saving = true;
         try
         {
+            if (activeAsignacion.OperacionId.HasValue && string.IsNullOrEmpty(activeAsignacion.OperacionNombre))
+            {
+                activeAsignacion.OperacionNombre = operacionesList.FirstOrDefault(o => o.id == activeAsignacion.OperacionId.Value)?.nombre;
+            }
+
             // Reconstruir lista de reglas activas según los flags
             var rules = new List<string>();
 
@@ -874,5 +998,47 @@
             "5-Supervisor de personal", 
             "3-Asistentes de gerencia" 
         };
+    }
+
+    private List<string> GetAreasSugeridas(int? opId, string? clienteNombre = null)
+    {
+        // 1. Si hay opId y encontramos áreas en el catálogo de supervisión para ese ID
+        if (opId.HasValue && opId.Value > 0 && areasPorOperacionId.TryGetValue(opId.Value, out var listByOp) && listByOp.Any())
+        {
+            return listByOp.OrderBy(x => x).ToList();
+        }
+
+        // 2. Si no se encontró por ID o no tiene ID, buscar por nombre del cliente
+        string? nombreBusqueda = clienteNombre;
+        if (string.IsNullOrWhiteSpace(nombreBusqueda) && opId.HasValue && opId.Value > 0)
+        {
+            nombreBusqueda = operacionesList.FirstOrDefault(o => o.id == opId.Value)?.nombre;
+        }
+
+        if (!string.IsNullOrWhiteSpace(nombreBusqueda))
+        {
+            var match = areasPorCliente.FirstOrDefault(kv => 
+                kv.Key.Equals(nombreBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                kv.Key.Contains(nombreBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                nombreBusqueda.Contains(kv.Key, StringComparison.OrdinalIgnoreCase));
+
+            if (match.Value != null && match.Value.Any())
+            {
+                return match.Value.OrderBy(x => x).ToList();
+            }
+        }
+
+        // 3. Si no hay cliente seleccionado (GLOBAL), retornar todas las áreas de supervisión disponibles
+        if (!opId.HasValue || opId.Value <= 0)
+        {
+            return catalogoClienteAreas
+                .Select(x => x.AreaNombre?.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList()!;
+        }
+
+        return new List<string>();
     }
 }
