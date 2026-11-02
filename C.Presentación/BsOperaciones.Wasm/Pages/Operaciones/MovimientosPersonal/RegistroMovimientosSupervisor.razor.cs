@@ -362,17 +362,108 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     (x.Area != null && x.Area.Contains(q, StringComparison.OrdinalIgnoreCase)));
             }
         }
-        protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada =>
-            string.IsNullOrWhiteSpace(textoBusquedaPlantilla)
-                ? miPlantillaPersonal
-                : miPlantillaPersonal.Where(x =>
-                    x.NombreEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
-                    x.CodigoEmpleado.ToString().Contains(textoBusquedaPlantilla) ||
-                    x.ClienteDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
-                    x.AreaDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
-                    x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrWhiteSpace(x.TipoEmpleado) && x.TipoEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrWhiteSpace(x.ClienteOrigenNomina) && x.ClienteOrigenNomina.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)));
+                // Filtros rápidos de Cliente y Área para Mi Personal (Plantilla)
+        protected string? filtroClientePlantilla { get; set; } = null;
+        protected string? filtroAreaPlantilla { get; set; } = null;
+
+        protected IEnumerable<string> ClientesDisponiblesPlantilla
+        {
+            get
+            {
+                // Clientes presentes en la plantilla del supervisor
+                return miPlantillaPersonal
+                    .Select(x => x.ClienteDefault?.Trim())
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Select(c => c!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(c => c);
+            }
+        }
+
+        protected IEnumerable<string> AreasDisponiblesPlantilla
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
+                {
+                    // Al seleccionar un cliente, listar las áreas de ese cliente en la plantilla o en catálogo
+                    var areasPlantilla = miPlantillaPersonal
+                        .Where(x => string.Equals(x.ClienteDefault, filtroClientePlantilla, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.AreaDefault?.Trim())
+                        .Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Select(a => a!);
+
+                    var areasCatalogo = GetAreasParaCliente(filtroClientePlantilla)
+                        .Where(a => !string.IsNullOrWhiteSpace(a));
+
+                    return areasPlantilla.Union(areasCatalogo, StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(a => a);
+                }
+                else
+                {
+                    // Si no hay cliente seleccionado, listar las áreas presentes en la plantilla
+                    return miPlantillaPersonal
+                        .Select(x => x.AreaDefault?.Trim())
+                        .Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Select(a => a!)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(a => a);
+                }
+            }
+        }
+
+        protected void OnFiltroClientePlantillaChanged(string? nuevoCliente)
+        {
+            filtroClientePlantilla = nuevoCliente;
+            filtroAreaPlantilla = null;
+            StateHasChanged();
+        }
+
+        protected void OnFiltroAreaPlantillaChanged(string? nuevaArea)
+        {
+            filtroAreaPlantilla = nuevaArea;
+            StateHasChanged();
+        }
+
+        protected void LimpiarFiltrosPlantilla()
+        {
+            filtroClientePlantilla = null;
+            filtroAreaPlantilla = null;
+            textoBusquedaPlantilla = string.Empty;
+            StateHasChanged();
+        }
+
+        protected IEnumerable<SupervisorPlantillaItemDto> PlantillaFiltrada
+        {
+            get
+            {
+                var query = miPlantillaPersonal.AsEnumerable();
+
+                if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
+                {
+                    query = query.Where(x => string.Equals(x.ClienteDefault, filtroClientePlantilla, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrWhiteSpace(filtroAreaPlantilla))
+                {
+                    query = query.Where(x => string.Equals(x.AreaDefault, filtroAreaPlantilla, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (!string.IsNullOrWhiteSpace(textoBusquedaPlantilla))
+                {
+                    query = query.Where(x =>
+                        x.NombreEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                        x.CodigoEmpleado.ToString().Contains(textoBusquedaPlantilla) ||
+                        x.ClienteDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                        x.AreaDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                        x.PuestoDefault.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrWhiteSpace(x.TipoEmpleado) && x.TipoEmpleado.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)) ||
+                        (!string.IsNullOrWhiteSpace(x.ClienteOrigenNomina) && x.ClienteOrigenNomina.Contains(textoBusquedaPlantilla, StringComparison.OrdinalIgnoreCase)));
+                }
+
+                return query;
+            }
+        }
 
         // Catálogo de Áreas por Cliente (Tab 5)
         protected List<ClienteAreaDto> catalogoClienteAreas = new();
