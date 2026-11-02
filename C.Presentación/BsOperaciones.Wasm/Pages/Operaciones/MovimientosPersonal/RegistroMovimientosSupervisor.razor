@@ -320,7 +320,7 @@
                                        AdornmentColor="Color.Primary" 
                                        Class="filter-select-responsive" 
                                        Clearable="true">
-                                <MudSelectItem T="string" Value="@((string?)null)">ðŸŒ Todos los Clientes</MudSelectItem>
+                                <MudSelectItem T="string" Value="@((string?)null)">Todos los Clientes</MudSelectItem>
                                 @foreach (var cli in ClientesDisponiblesGrilla)
                                 {
                                     var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
@@ -336,14 +336,14 @@
                                        Dense="true" 
                                        Margin="Margin.Dense" 
                                        Variant="Variant.Outlined" 
-                                       Placeholder="Todas las Ãreas" 
+                                       Placeholder="Todas las Áreas" 
                                        AdornmentIcon="@Icons.Material.Filled.Place" 
                                        Adornment="Adornment.Start" 
                                        AdornmentColor="Color.Info" 
                                        Class="filter-select-responsive" 
                                        Disabled="@(!AreasDisponiblesGrilla.Any())" 
                                        Clearable="true">
-                                <MudSelectItem T="string" Value="@((string?)null)">ðŸ“ Todas las Ãreas</MudSelectItem>
+                                <MudSelectItem T="string" Value="@((string?)null)">Todas las Áreas</MudSelectItem>
                                 @foreach (var a in AreasDisponiblesGrilla)
                                 {
                                     var countA = empleadosJornada.Count(x => 
@@ -357,7 +357,7 @@
 
                             @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
                             {
-                                <MudTooltip Text="Limpiar filtros de ubicaciÃ³n" Arrow="true">
+                                <MudTooltip Text="Limpiar filtros de ubicación" Arrow="true">
                                     <MudIconButton Icon="@Icons.Material.Filled.FilterAltOff" 
                                                    Size="Size.Small" 
                                                    Color="Color.Error" 

@@ -201,15 +201,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             get
             {
-                var deJornada = empleadosJornada
+                // Solo mostrar los clientes presentes en la grilla de asistencias de la jornada actual
+                return empleadosJornada
                     .Select(x => x.Cliente?.Trim())
-                    .Where(c => !string.IsNullOrWhiteSpace(c));
-
-                var deOperaciones = operacionesList
-                    .Select(o => o.nombre?.Trim())
-                    .Where(c => !string.IsNullOrWhiteSpace(c));
-
-                return deJornada.Union(deOperaciones, StringComparer.OrdinalIgnoreCase)
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Select(c => c!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(c => c);
             }
         }
@@ -220,21 +217,26 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
                 {
+                    // Al seleccionar un cliente, listar las áreas de ese cliente presentes en la jornada o configuradas
                     var areasJornada = empleadosJornada
                         .Where(x => string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase))
                         .Select(x => x.Area?.Trim())
-                        .Where(a => !string.IsNullOrWhiteSpace(a));
+                        .Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Select(a => a!);
 
-                    var areasCatalogo = GetAreasParaCliente(filtroClienteGrilla);
+                    var areasCatalogo = GetAreasParaCliente(filtroClienteGrilla)
+                        .Where(a => !string.IsNullOrWhiteSpace(a));
 
                     return areasJornada.Union(areasCatalogo, StringComparer.OrdinalIgnoreCase)
                         .OrderBy(a => a);
                 }
                 else
                 {
+                    // Si no hay cliente seleccionado, listar las áreas presentes en la jornada actual
                     return empleadosJornada
                         .Select(x => x.Area?.Trim())
                         .Where(a => !string.IsNullOrWhiteSpace(a))
+                        .Select(a => a!)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .OrderBy(a => a);
                 }
@@ -244,14 +246,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected void OnFiltroClienteGrillaChanged(string? nuevoCliente)
         {
             filtroClienteGrilla = nuevoCliente;
-            if (!string.IsNullOrWhiteSpace(filtroAreaGrilla))
-            {
-                var validas = AreasDisponiblesGrilla.ToList();
-                if (!validas.Contains(filtroAreaGrilla, StringComparer.OrdinalIgnoreCase))
-                {
-                    filtroAreaGrilla = null;
-                }
-            }
+            // Al seleccionar o cambiar cliente, resetear el filtro de área para seleccionar entre las áreas del nuevo cliente
+            filtroAreaGrilla = null;
             StateHasChanged();
         }
 
@@ -3171,15 +3167,50 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return areasSugeridas.Any() ? areasSugeridas : new List<string> { "Operaciones" };
 
             string limpio = cliente.Trim();
+
+            // 1. Por catálogo configurado de supervisión (exacto)
             if (areasPorCliente.TryGetValue(limpio, out var exactList) && exactList.Any())
                 return exactList;
 
+            // 2. Por coincidencia parcial en el catálogo
             var match = areasPorCliente.FirstOrDefault(kvp =>
                 kvp.Key.Contains(limpio, StringComparison.OrdinalIgnoreCase) ||
                 limpio.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
 
             if (match.Value != null && match.Value.Any())
                 return match.Value;
+
+            // 3. Buscar en catálogo tbl_bs_cliente_areas por OperacionId si coincide con operacionesList
+            var opMatch = operacionesList.FirstOrDefault(o =>
+                string.Equals(o.nombre?.Trim(), limpio, StringComparison.OrdinalIgnoreCase) ||
+                (o.nombre?.IndexOf(limpio, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
+                limpio.IndexOf(o.nombre ?? "____", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (opMatch != null && opMatch.id > 0)
+            {
+                var areasOp = catalogoClienteAreas
+                    .Where(x => x.Activo && x.OperacionId == opMatch.id)
+                    .Select(x => x.AreaNombre?.Trim())
+                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .Select(a => a!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (areasOp.Any())
+                    return areasOp;
+            }
+
+            // 4. Áreas ya existentes en la jornada activa para este cliente
+            var areasDeJornada = empleadosJornada
+                .Where(x => string.Equals(x.Cliente?.Trim(), limpio, StringComparison.OrdinalIgnoreCase))
+                .Select(x => x.Area?.Trim())
+                .Where(a => !string.IsNullOrWhiteSpace(a))
+                .Select(a => a!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (areasDeJornada.Any())
+                return areasDeJornada;
 
             return new List<string> { "Operaciones" };
         }
