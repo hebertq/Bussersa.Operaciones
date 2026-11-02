@@ -1,10 +1,11 @@
-﻿using Blazored.LocalStorage;
+using Blazored.LocalStorage;
 using HostService.ClasesGenericas;
 using HostService.Interfaces;
 using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Interfaces;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using System.Threading.Tasks;
 using Utilidades.Interfaces;
@@ -15,7 +16,7 @@ namespace HostService.Clases
     {
         public RedmineService(IUtilidades _Util, ILocalStorageService ls) : base(_Util, ls) { }
     
-        public async Task<IResponse> CrearSolicituBonosAsync(HoraEntrada modelo,string cliente)
+        public async Task<IResponse> CrearSolicituBonosAsync(HoraEntrada modelo, string cliente)
         {
             IResponse response = new ErrorResponse();
             var projectId = "rrhh-bs";
@@ -28,14 +29,16 @@ namespace HostService.Clases
                     project_id = projectId,
                     tracker_id = trackerId,
                     start_date = modelo.fecha,
-                    subject = $"Solicitud de bono para empelado: {modelo.nombre}",
+                    subject = $"Solicitud de bono para empleado: {modelo.nombre}",
                     description = BuildDescription(modelo),
                     custom_fields = new List<RedmineCustomField>
                     {
-                        new() { id = 49, value = modelo.id.ToString() },
-                        new() { id = 12, value = modelo.bono.ToString()},
-                        new() { id = 1, value  = cliente },
-                        new() { id = 50, value  = modelo.nombre }
+                        new() { id = 1, value = cliente },
+                        new() { id = 12, value = modelo.bono.ToString("F2", CultureInfo.InvariantCulture) },
+                        new() { id = 28, value = "Operaciones" },
+                        new() { id = 49, value = modelo.id.ToString(CultureInfo.InvariantCulture) },
+                        new() { id = 50, value = modelo.nombre },
+                        new() { id = 91, value = "1" }
                     }
                 }
             };
@@ -54,8 +57,8 @@ namespace HostService.Clases
             return response;
         }
         private string BuildDescription(HoraEntrada m) =>
-            $"Numero de empelado: {m.id}\n" +
+            $"Número de empleado: {m.id}\n" +
             $"Nombre completo: {m.nombre}\n" +
-            $"Solicita bono de cumplimiento el dia: {m.fecha}\n";
+            $"Solicita bono de cumplimiento el día: {m.fecha}\n";
     }
 }
