@@ -1,12 +1,15 @@
 using System;
+using Newtonsoft.Json;
 
 namespace Modelo.Report
 {
     public class ReporteCierreMarcadas
     {
+        [JsonIgnore]
         public string? nombre_cliente { get; set; }
         public DateTime fecha_asistencia { get; set; }
         public int id_empleado { get; set; }
+        [JsonIgnore]
         public int tarea_id { get; set; }
         public string? nombre_empleado { get; set; }
         public string? tipo_empleado { get; set; }
@@ -15,7 +18,9 @@ namespace Modelo.Report
         public string? salida_movimiento { get; set; }
         public decimal horas_totales { get; set; }
         public decimal horas_extras { get; set; }
+        [JsonIgnore]
         public DateTime fecha_registro { get; set; }
+        [JsonIgnore]
         public DateTime? fecha_actualizacion { get; set; }
         public string? cargo { get; set; }
         public decimal horas_normales_cobrables { get; set; }

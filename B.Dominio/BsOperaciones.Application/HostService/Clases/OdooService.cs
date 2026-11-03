@@ -11,6 +11,7 @@ using Modelo.Comercial;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 using System.Threading.Tasks;
 using Utilidades.Interfaces;
 
@@ -104,33 +105,63 @@ namespace HostService.Clases
 
         public async Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaMes(int Anio, int Mes, int Operacion)
         {
+            var inicioMes = new DateTime(Anio, Mes, 1);
+            var finMes = inicioMes.AddMonths(1).AddDays(-1);
+            return await GetCierreFacturaRango(Operacion, inicioMes, finMes);
+        }
+
+        public async Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaRango(int Operacion, DateTime Inicio, DateTime Fin)
+        {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<ReporteCierreMarcadas> response = new ListResponse<ReporteCierreMarcadas>();
+
             try
             {
-                var requestUrl = CreateRequestUri($"OdQuery/GetCierreFacturaMes/Cliente/{Operacion}/Anio/{Anio}/Mes/{Mes}");
-                var registro = await GetAsync(requestUrl);
-
-                if (registro.IsSuccess)
+                // Si el rango es mayor a 15 días, dividimos en bloques de máximo 15 días
+                // para evitar exceder el límite de 1 MB de payload en AWS ALB / Lambda
+                if ((Fin.Date - Inicio.Date).TotalDays > 15)
                 {
-                    var reg = registro.Data;
-                    if (reg.sucess)
-                        response.Model = _Util.ObtenerDato<ReporteCierreMarcadas>(reg.detail.ToString());
-                    else
-                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    var chunks = new List<(DateTime start, DateTime end)>();
+                    var curStart = Inicio.Date;
+                    while (curStart <= Fin.Date)
+                    {
+                        var curEnd = curStart.AddDays(14);
+                        if (curEnd > Fin.Date) curEnd = Fin.Date;
+                        chunks.Add((curStart, curEnd));
+                        curStart = curEnd.AddDays(1);
+                    }
+
+                    var tasks = chunks.Select(c => GetCierreFacturaRangoDirecto(Operacion, c.start, c.end)).ToList();
+                    var results = await Task.WhenAll(tasks);
+
+                    var firstError = results.FirstOrDefault(r => r.Respuesta != null && r.Respuesta.ExisteError);
+                    if (firstError != null)
+                    {
+                        response.Respuesta = firstError.Respuesta;
+                        return response;
+                    }
+
+                    var allItems = results
+                        .Where(r => r.Model != null)
+                        .SelectMany(r => r.Model)
+                        .OrderBy(x => x.fecha_asistencia)
+                        .ThenBy(x => x.nombre_empleado)
+                        .ToList();
+
+                    response.Model = allItems;
+                    return response;
                 }
-                else
-                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+
+                return await GetCierreFacturaRangoDirecto(Operacion, Inicio, Fin);
             }
             catch (Exception ex)
             {
                 response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+                return response;
             }
-
-            return response;
         }
 
-        public async Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaRango(int Operacion, DateTime Inicio, DateTime Fin)
+        private async Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaRangoDirecto(int Operacion, DateTime Inicio, DateTime Fin)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IListResponse<ReporteCierreMarcadas> response = new ListResponse<ReporteCierreMarcadas>();
