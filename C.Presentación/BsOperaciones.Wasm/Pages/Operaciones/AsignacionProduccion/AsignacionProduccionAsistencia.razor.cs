@@ -119,6 +119,30 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected int catalogoClienteId;
         protected List<CatalogoServicioPuestoAreaDto> catalogoList = new();
         protected List<CatalogoServicioPuestoAreaDto> masterCatalogoList = new();
+        protected string filtroCatalogoArea = "";
+        protected string filtroCatalogoCargo = "";
+        protected string filtroCatalogoTexto = "";
+
+        protected int TotalReglasCliente =>
+            catalogoClienteId > 0
+                ? masterCatalogoList.Count(c => c.operacion_id == catalogoClienteId)
+                : masterCatalogoList.Count;
+
+        protected List<string> DistinctAreasCatalogo =>
+            masterCatalogoList
+                .Where(c => (catalogoClienteId <= 0 || c.operacion_id == catalogoClienteId) && !string.IsNullOrWhiteSpace(c.area_nombre))
+                .Select(c => c.area_nombre.Trim())
+                .Distinct()
+                .OrderBy(a => a)
+                .ToList();
+
+        protected List<string> DistinctCargosCatalogo =>
+            masterCatalogoList
+                .Where(c => (catalogoClienteId <= 0 || c.operacion_id == catalogoClienteId) && !string.IsNullOrWhiteSpace(c.cargo))
+                .Select(c => c.cargo.Trim())
+                .Distinct()
+                .OrderBy(c => c)
+                .ToList();
 
         protected List<Combos> OperacionesConfiguradas =>
             operacionesList
@@ -789,23 +813,75 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected void OnCatalogoClienteChanged(int newClientId)
         {
             catalogoClienteId = newClientId;
+            filtroCatalogoArea = "";
+            filtroCatalogoCargo = "";
+            filtroCatalogoTexto = "";
+            FiltrarCatalogo();
+            StateHasChanged();
+        }
+
+        protected void OnFiltroAreaChanged(string newArea)
+        {
+            filtroCatalogoArea = newArea ?? "";
+            FiltrarCatalogo();
+            StateHasChanged();
+        }
+
+        protected void OnFiltroCargoChanged(string newCargo)
+        {
+            filtroCatalogoCargo = newCargo ?? "";
+            FiltrarCatalogo();
+            StateHasChanged();
+        }
+
+        protected void LimpiarFiltrosCatalogo()
+        {
+            filtroCatalogoArea = "";
+            filtroCatalogoCargo = "";
+            filtroCatalogoTexto = "";
             FiltrarCatalogo();
             StateHasChanged();
         }
 
         private void FiltrarCatalogo()
         {
+            var query = masterCatalogoList.AsEnumerable();
+
             if (catalogoClienteId > 0)
             {
-                catalogoList = masterCatalogoList
-                    .Where(c => c.operacion_id == catalogoClienteId)
-                    .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+                query = query.Where(c => c.operacion_id == catalogoClienteId);
             }
-            else
+
+            if (!string.IsNullOrWhiteSpace(filtroCatalogoArea))
             {
-                catalogoList = masterCatalogoList
-                    .OrderBy(c => c.cliente_nombre).ThenBy(c => c.cargo).ThenBy(c => c.tipo_hora).ToList();
+                var fa = filtroCatalogoArea.Trim().ToLower();
+                query = query.Where(c => (c.area_nombre?.ToLower() == fa) || (c.area_nombre?.ToLower().Contains(fa) ?? false));
             }
+
+            if (!string.IsNullOrWhiteSpace(filtroCatalogoCargo))
+            {
+                var fc = filtroCatalogoCargo.Trim().ToLower();
+                query = query.Where(c => (c.cargo?.ToLower() == fc) || (c.cargo?.ToLower().Contains(fc) ?? false));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroCatalogoTexto))
+            {
+                var ft = filtroCatalogoTexto.Trim().ToLower();
+                query = query.Where(c =>
+                    (c.servicio_codigo?.ToLower().Contains(ft) ?? false) ||
+                    (c.servicio_descripcion?.ToLower().Contains(ft) ?? false) ||
+                    (c.area_nombre?.ToLower().Contains(ft) ?? false) ||
+                    (c.cargo?.ToLower().Contains(ft) ?? false) ||
+                    (c.turno?.ToLower().Contains(ft) ?? false) ||
+                    (c.tipo_hora?.ToLower().Contains(ft) ?? false));
+            }
+
+            catalogoList = query
+                .OrderBy(c => c.cliente_nombre)
+                .ThenBy(c => c.area_nombre)
+                .ThenBy(c => c.cargo)
+                .ThenBy(c => c.tipo_hora)
+                .ToList();
         }
 
         protected async Task CargarCatalogo()
