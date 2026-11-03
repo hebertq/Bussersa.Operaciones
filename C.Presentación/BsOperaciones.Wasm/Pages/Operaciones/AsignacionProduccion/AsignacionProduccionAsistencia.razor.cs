@@ -121,7 +121,14 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected List<CatalogoServicioPuestoAreaDto> masterCatalogoList = new();
         protected string filtroCatalogoArea = "";
         protected string filtroCatalogoCargo = "";
+        protected string filtroCatalogoTipoHora = "";
         protected string filtroCatalogoTexto = "";
+
+        protected bool HayFiltrosActivosCatalogo =>
+            !string.IsNullOrWhiteSpace(filtroCatalogoArea) ||
+            !string.IsNullOrWhiteSpace(filtroCatalogoCargo) ||
+            !string.IsNullOrWhiteSpace(filtroCatalogoTipoHora) ||
+            !string.IsNullOrWhiteSpace(filtroCatalogoTexto);
 
         protected int TotalReglasCliente =>
             catalogoClienteId > 0
@@ -142,6 +149,14 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 .Select(c => c.cargo.Trim())
                 .Distinct()
                 .OrderBy(c => c)
+                .ToList();
+
+        protected List<string> DistinctTiposHoraCatalogo =>
+            masterCatalogoList
+                .Where(c => (catalogoClienteId <= 0 || c.operacion_id == catalogoClienteId) && !string.IsNullOrWhiteSpace(c.tipo_hora))
+                .Select(c => c.tipo_hora.Trim())
+                .Distinct()
+                .OrderBy(t => t)
                 .ToList();
 
         protected List<Combos> OperacionesConfiguradas =>
@@ -815,6 +830,7 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             catalogoClienteId = newClientId;
             filtroCatalogoArea = "";
             filtroCatalogoCargo = "";
+            filtroCatalogoTipoHora = "";
             filtroCatalogoTexto = "";
             FiltrarCatalogo();
             StateHasChanged();
@@ -834,10 +850,18 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             StateHasChanged();
         }
 
+        protected void OnFiltroTipoHoraChanged(string newTipo)
+        {
+            filtroCatalogoTipoHora = newTipo ?? "";
+            FiltrarCatalogo();
+            StateHasChanged();
+        }
+
         protected void LimpiarFiltrosCatalogo()
         {
             filtroCatalogoArea = "";
             filtroCatalogoCargo = "";
+            filtroCatalogoTipoHora = "";
             filtroCatalogoTexto = "";
             FiltrarCatalogo();
             StateHasChanged();
@@ -862,6 +886,12 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
             {
                 var fc = filtroCatalogoCargo.Trim().ToLower();
                 query = query.Where(c => (c.cargo?.ToLower() == fc) || (c.cargo?.ToLower().Contains(fc) ?? false));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroCatalogoTipoHora))
+            {
+                var fth = filtroCatalogoTipoHora.Trim().ToUpper();
+                query = query.Where(c => c.tipo_hora?.ToUpper() == fth);
             }
 
             if (!string.IsNullOrWhiteSpace(filtroCatalogoTexto))

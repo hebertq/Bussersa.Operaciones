@@ -453,170 +453,307 @@
        PESTAÑA 2: CATÁLOGO DE VARIANTES POR PUESTO Y ÁREA
        ========================================== *@
     <MudTabPanel Text="Catálogo de Variantes y Tarifas" Icon="@Icons.Material.Filled.Rule">
-        <div class="d-flex align-center justify-space-between mb-4 flex-wrap gap-3">
-            <div class="d-flex align-center gap-3 flex-wrap">
-                <MudSelect T="int" Label="Filtrar por Cliente" Value="catalogoClienteId"
-                           ValueChanged="OnCatalogoClienteChanged"
-                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width: 250px;">
-                    <MudSelectItem Value="0">Todas las operaciones configuradas...</MudSelectItem>
-                    @foreach (var op in OperacionesConfiguradas)
-                    {
-                        <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudTextField @bind-Value="filtroCatalogoTexto"
-                              Placeholder="Buscar regla (SKU, servicio)..."
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              IconSize="Size.Small" Margin="Margin.Dense" Variant="Variant.Outlined"
-                              Immediate="true" Clearable="true"
-                              TextChanged="@((string val) => { filtroCatalogoTexto = val; FiltrarCatalogo(); })"
-                              Style="max-width: 240px; background-color: white;" />
-                <MudChip T="string" Color="Color.Info" Size="Size.Small">
-                    @catalogoList.Count reglas
-                    @if (catalogoClienteId > 0)
-                    {
-                        <span> (@(OperacionesConfiguradas.FirstOrDefault(o => o.id == catalogoClienteId)?.nombre ?? "Cliente"))</span>
-                    }
-                    @if (!string.IsNullOrWhiteSpace(filtroCatalogoArea) || !string.IsNullOrWhiteSpace(filtroCatalogoCargo) || !string.IsNullOrWhiteSpace(filtroCatalogoTexto))
-                    {
-                        <span> (Filtradas de @TotalReglasCliente)</span>
-                    }
-                </MudChip>
-                @if (!string.IsNullOrWhiteSpace(filtroCatalogoArea) || !string.IsNullOrWhiteSpace(filtroCatalogoCargo) || !string.IsNullOrWhiteSpace(filtroCatalogoTexto))
-                {
-                    <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.FilterAltOff"
-                               OnClick="LimpiarFiltrosCatalogo">
-                        Limpiar Filtros
-                    </MudButton>
-                }
+
+        @* Encabezado y Acción *@
+        <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold text-dark d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Tune" Color="Color.Primary" Size="Size.Medium" />
+                    Reglas de Facturación y Tarifas por Puesto / Área
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Asocie cada combinación de puesto, área y jornada al código de servicio Odoo correspondiente para la emisión de proformas.
+                </MudText>
             </div>
             <div>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                           OnClick="AbrirModalNuevaRegla">
+                           OnClick="AbrirModalNuevaRegla" Style="border-radius: 8px; font-weight: 600; text-transform: none;">
                     Nueva Regla de Tarifa
                 </MudButton>
             </div>
         </div>
 
-        <MudTable Items="@catalogoList" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1">
+        @* Barra de Filtros Unificada y Elegante *@
+        <MudPaper Elevation="0" Class="pa-3 mb-3" Style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <MudGrid Spacing="2" Class="align-center">
+                @* 1. Selector de Cliente *@
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="int" Label="Cliente / Operación" Value="catalogoClienteId"
+                               ValueChanged="OnCatalogoClienteChanged"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business"
+                               Style="background-color: #ffffff; border-radius: 8px;">
+                        <MudSelectItem Value="0">Todas las operaciones configuradas...</MudSelectItem>
+                        @foreach (var op in OperacionesConfiguradas)
+                        {
+                            <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 2. Filtro de Área *@
+                <MudItem xs="12" sm="6" md="2">
+                    <MudSelect T="string" Label="Área" Value="@filtroCatalogoArea" ValueChanged="OnFiltroAreaChanged"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Apartment"
+                               Style="background-color: #ffffff; border-radius: 8px;">
+                        <MudSelectItem Value="@("")">Todas las áreas (*)</MudSelectItem>
+                        @foreach (var area in DistinctAreasCatalogo)
+                        {
+                            <MudSelectItem Value="@area">@area</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 3. Filtro de Cargo / Puesto *@
+                <MudItem xs="12" sm="6" md="2">
+                    <MudSelect T="string" Label="Cargo / Puesto" Value="@filtroCatalogoCargo" ValueChanged="OnFiltroCargoChanged"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Badge"
+                               Style="background-color: #ffffff; border-radius: 8px;">
+                        <MudSelectItem Value="@("")">Todos los puestos</MudSelectItem>
+                        @foreach (var cargo in DistinctCargosCatalogo)
+                        {
+                            <MudSelectItem Value="@cargo">@cargo</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 4. Filtro de Tipo de Hora *@
+                <MudItem xs="12" sm="6" md="2">
+                    <MudSelect T="string" Label="Tipo de Hora" Value="@filtroCatalogoTipoHora" ValueChanged="OnFiltroTipoHoraChanged"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
+                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Schedule"
+                               Style="background-color: #ffffff; border-radius: 8px;">
+                        <MudSelectItem Value="@("")">Todos los tipos</MudSelectItem>
+                        @foreach (var tipo in DistinctTiposHoraCatalogo)
+                        {
+                            <MudSelectItem Value="@tipo">@tipo</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* 5. Buscador de Texto (SKU / Servicio) *@
+                <MudItem xs="12" sm="12" md="3">
+                    <MudTextField @bind-Value="filtroCatalogoTexto"
+                                  Placeholder="Buscar SKU o servicio..."
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  IconSize="Size.Small" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Immediate="true" Clearable="true"
+                                  TextChanged="@((string val) => { filtroCatalogoTexto = val; FiltrarCatalogo(); })"
+                                  Style="background-color: #ffffff; border-radius: 8px;" />
+                </MudItem>
+            </MudGrid>
+
+            @* Sub-barra de Resumen y Filtros Activos *@
+            <div class="d-flex align-center justify-space-between mt-2 pt-2 border-top flex-wrap gap-2" style="font-size: 0.82rem;">
+                <div class="d-flex align-center gap-2 flex-wrap">
+                    <span class="text-secondary fw-semibold">
+                        @if (HayFiltrosActivosCatalogo)
+                        {
+                            <span>Mostrando <b class="text-primary">@catalogoList.Count</b> de <b>@TotalReglasCliente</b> reglas</span>
+                        }
+                        else
+                        {
+                            <span>Total: <b class="text-primary">@catalogoList.Count</b> reglas configuradas @(catalogoClienteId > 0 ? $"({OperacionesConfiguradas.FirstOrDefault(o => o.id == catalogoClienteId)?.nombre})" : "")</span>
+                        }
+                    </span>
+
+                    @if (!string.IsNullOrWhiteSpace(filtroCatalogoArea))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                 OnClose="@(() => OnFiltroAreaChanged(""))" Class="ma-0" Style="height: 22px; font-size: 11px;">
+                            Área: @filtroCatalogoArea
+                        </MudChip>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(filtroCatalogoCargo))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                 OnClose="@(() => OnFiltroCargoChanged(""))" Class="ma-0" Style="height: 22px; font-size: 11px;">
+                            Puesto: @filtroCatalogoCargo
+                        </MudChip>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(filtroCatalogoTipoHora))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                 OnClose="@(() => OnFiltroTipoHoraChanged(""))" Class="ma-0" Style="height: 22px; font-size: 11px;">
+                            Tipo: @filtroCatalogoTipoHora
+                        </MudChip>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(filtroCatalogoTexto))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined"
+                                 OnClose="@(() => { filtroCatalogoTexto = ""; FiltrarCatalogo(); })" Class="ma-0" Style="height: 22px; font-size: 11px;">
+                            Texto: "@filtroCatalogoTexto"
+                        </MudChip>
+                    }
+                </div>
+
+                @if (HayFiltrosActivosCatalogo)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.FilterAltOff"
+                               OnClick="LimpiarFiltrosCatalogo" Style="text-transform: none; font-size: 12px; font-weight: 600;">
+                        Limpiar todos los filtros
+                    </MudButton>
+                }
+            </div>
+        </MudPaper>
+
+        @* Grilla de Datos Moderna y Compacta *@
+        <MudTable Items="@catalogoList" Dense="true" Hover="true" Bordered="false" Striped="true" Elevation="0"
+                  Style="border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background-color: #ffffff;">
             <HeaderContent>
-                <MudTh Style="vertical-align: bottom;">Cliente</MudTh>
-                <MudTh Style="min-width: 170px;">
-                    <div class="d-flex flex-column gap-1">
-                        <div class="d-flex align-center justify-space-between">
-                            <span class="fw-bold">Área</span>
-                            @if (!string.IsNullOrWhiteSpace(filtroCatalogoArea))
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
-                                         Style="height: 18px; font-size: 10px; cursor: pointer;"
-                                         OnClick="@(() => OnFiltroAreaChanged(""))">
-                                    ✕ Filtrado
-                                </MudChip>
-                            }
-                        </div>
-                        <MudSelect T="string" Value="@filtroCatalogoArea" ValueChanged="OnFiltroAreaChanged"
-                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                   Clearable="true" Placeholder="Todas..."
-                                   Style="font-size: 11px; background-color: #ffffff; height: 32px;">
-                            <MudSelectItem Value="@("")">Todas las áreas (*)</MudSelectItem>
-                            @foreach (var area in DistinctAreasCatalogo)
-                            {
-                                <MudSelectItem Value="@area">@area</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </div>
-                </MudTh>
-                <MudTh Style="min-width: 170px;">
-                    <div class="d-flex flex-column gap-1">
-                        <div class="d-flex align-center justify-space-between">
-                            <span class="fw-bold">Cargo / Puesto</span>
-                            @if (!string.IsNullOrWhiteSpace(filtroCatalogoCargo))
-                            {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled"
-                                         Style="height: 18px; font-size: 10px; cursor: pointer;"
-                                         OnClick="@(() => OnFiltroCargoChanged(""))">
-                                    ✕ Filtrado
-                                </MudChip>
-                            }
-                        </div>
-                        <MudSelect T="string" Value="@filtroCatalogoCargo" ValueChanged="OnFiltroCargoChanged"
-                                   Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined"
-                                   Clearable="true" Placeholder="Todos..."
-                                   Style="font-size: 11px; background-color: #ffffff; height: 32px;">
-                            <MudSelectItem Value="@("")">Todos los puestos</MudSelectItem>
-                            @foreach (var cargo in DistinctCargosCatalogo)
-                            {
-                                <MudSelectItem Value="@cargo">@cargo</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </div>
-                </MudTh>
-                <MudTh Style="vertical-align: bottom;">Turno</MudTh>
-                <MudTh Style="vertical-align: bottom;">Tipo Hora</MudTh>
-                <MudTh Style="vertical-align: bottom;">SKU Odoo</MudTh>
-                <MudTh Style="vertical-align: bottom;">Descripción de Servicio Odoo</MudTh>
-                <MudTh Style="vertical-align: bottom;">UoM</MudTh>
-                <MudTh Style="text-align: right; vertical-align: bottom;">Tarifa Venta ($)</MudTh>
-                <MudTh Style="text-align: center; vertical-align: bottom;">Estado</MudTh>
-                <MudTh Style="text-align: center; vertical-align: bottom;">Acciones</MudTh>
+                @if (catalogoClienteId == 0)
+                {
+                    <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px;">Cliente</MudTh>
+                }
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px;">Área</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px;">Cargo / Puesto</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: center;">Turno</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px;">Tipo Hora</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; min-width: 140px;">SKU Odoo</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px;">Descripción de Servicio Odoo</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: center;">UoM</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: right;">Tarifa ($)</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: center;">Estado</MudTh>
+                <MudTh Style="background-color: #f1f5f9; color: #475569; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: center; min-width: 90px;">Acciones</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Cliente">@context.cliente_nombre</MudTd>
+                @if (catalogoClienteId == 0)
+                {
+                    <MudTd DataLabel="Cliente">
+                        <span class="fw-semibold text-dark" style="font-size: 0.82rem;">@context.cliente_nombre</span>
+                    </MudTd>
+                }
                 <MudTd DataLabel="Área">
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(context.area_nombre == "*" ? Color.Default : Color.Info)">
-                        @context.area_nombre
-                    </MudChip>
-                </MudTd>
-                <MudTd DataLabel="Cargo"><b>@context.cargo</b></MudTd>
-                <MudTd DataLabel="Turno">
-                    @if (context.turno == "Diurno")
+                    @if (context.area_nombre == "*")
                     {
-                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">☀️ Diurno</MudChip>
-                    }
-                    else if (context.turno == "Nocturno")
-                    {
-                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled" Class="fw-bold text-white" Style="font-size: 11px; background-color: #34495e;">🌙 Nocturno</MudChip>
-                    }
-                    else if (context.turno == "Mixto")
-                    {
-                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">⚖️ Mixto</MudChip>
+                        <span class="text-secondary" style="font-size: 0.8rem; font-style: italic;">Todas (*)</span>
                     }
                     else
                     {
-                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text" Style="font-size: 11px;">@context.turno</MudChip>
+                        <span style="background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.76rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; display: inline-block;">
+                            @context.area_nombre
+                        </span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Cargo">
+                    <span style="font-weight: 600; color: #0f172a; font-size: 0.85rem;">@context.cargo</span>
+                </MudTd>
+                <MudTd DataLabel="Turno" Style="text-align: center;">
+                    @if (context.turno == "Diurno")
+                    {
+                        <span style="background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.74rem; font-weight: 600; padding: 2px 7px; border-radius: 9999px; display: inline-block;">☀️ Diurno</span>
+                    }
+                    else if (context.turno == "Nocturno")
+                    {
+                        <span style="background-color: #1e293b; color: #f8fafc; font-size: 0.74rem; font-weight: 600; padding: 2px 7px; border-radius: 9999px; display: inline-block;">🌙 Nocturno</span>
+                    }
+                    else if (context.turno == "Mixto")
+                    {
+                        <span style="background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 0.74rem; font-weight: 600; padding: 2px 7px; border-radius: 9999px; display: inline-block;">⚖️ Mixto</span>
+                    }
+                    else
+                    {
+                        <span class="text-secondary" style="font-size: 0.78rem;">@context.turno</span>
                     }
                 </MudTd>
                 <MudTd DataLabel="Tipo Hora">
-                    <MudChip T="string" Size="Size.Small" Color="@(context.tipo_hora == "EXTRA" ? Color.Warning : Color.Primary)">
-                        @context.tipo_hora
-                    </MudChip>
+                    @if (context.tipo_hora == "ORDINARIA")
+                    {
+                        <span style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
+                            ORDINARIA
+                        </span>
+                    }
+                    else if (context.tipo_hora == "EXTRA")
+                    {
+                        <span style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
+                            EXTRA
+                        </span>
+                    }
+                    else if (context.tipo_hora == "DOMINGO_FERIADO")
+                    {
+                        <span style="background-color: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
+                            DOMINGO / FERIADO
+                        </span>
+                    }
+                    else
+                    {
+                        <span style="background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-block;">
+                            @context.tipo_hora
+                        </span>
+                    }
                 </MudTd>
-                <MudTd DataLabel="SKU"><code>@context.servicio_codigo</code></MudTd>
-                <MudTd DataLabel="Descripción">@context.servicio_descripcion</MudTd>
-                <MudTd DataLabel="UoM">@context.unidad_medida</MudTd>
-                <MudTd DataLabel="Tarifa" Style="text-align: right; font-weight: bold; color: #16a34a;">
-                    $ @context.tarifa_venta.ToString("N2")
+                <MudTd DataLabel="SKU">
+                    <span style="font-family: Consolas, 'Courier New', monospace; font-size: 0.78rem; font-weight: 600; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; color: #0f172a; white-space: nowrap; display: inline-block;">
+                        @context.servicio_codigo
+                    </span>
+                </MudTd>
+                <MudTd DataLabel="Descripción" Style="max-width: 320px;">
+                    <div style="font-size: 0.81rem; color: #334155; line-height: 1.35;">
+                        @context.servicio_descripcion
+                    </div>
+                </MudTd>
+                <MudTd DataLabel="UoM" Style="text-align: center;">
+                    <span style="font-size: 0.72rem; font-weight: 700; color: #64748b; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px; display: inline-block;">
+                        @context.unidad_medida
+                    </span>
+                </MudTd>
+                <MudTd DataLabel="Tarifa" Style="text-align: right;">
+                    <span style="font-weight: 700; color: #059669; font-size: 0.95rem;">
+                        $ @context.tarifa_venta.ToString("N2")
+                    </span>
                 </MudTd>
                 <MudTd DataLabel="Estado" Style="text-align: center;">
-                    <MudChip T="string" Size="Size.Small" Color="@(context.activo ? Color.Success : Color.Error)">
-                        @(context.activo ? "ACTIVO" : "INACTIVO")
-                    </MudChip>
+                    @if (context.activo)
+                    {
+                        <span style="background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; display: inline-block;"></span>
+                            Activo
+                        </span>
+                    }
+                    else
+                    {
+                        <span style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="width: 6px; height: 6px; background-color: #ef4444; border-radius: 50%; display: inline-block;"></span>
+                            Inactivo
+                        </span>
+                    }
                 </MudTd>
                 <MudTd DataLabel="Acciones" Style="text-align: center;">
-                    <MudTooltip Text="Editar Regla">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => AbrirModalEditarRegla(context))" />
-                    </MudTooltip>
-                    <MudTooltip Text="Eliminar Regla">
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => EliminarRegla(context.id))" />
-                    </MudTooltip>
+                    <div class="d-inline-flex align-center gap-1">
+                        <MudTooltip Text="Editar Regla">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                           Style="padding: 4px; background-color: #eff6ff;"
+                                           OnClick="@(() => AbrirModalEditarRegla(context))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Eliminar Regla">
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Color="Color.Error"
+                                           Style="padding: 4px; background-color: #fef2f2;"
+                                           OnClick="@(() => EliminarRegla(context.id))" />
+                        </MudTooltip>
+                    </div>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
-                <MudText Typo="Typo.body2" Class="pa-4 text-center">
-                    No hay reglas de servicio configuradas para este cliente. Haga clic en 'Nueva Regla de Tarifa' para crear una.
-                </MudText>
+                <div class="pa-8 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold text-secondary">No se encontraron reglas con los filtros aplicados</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Pruebe ajustando los filtros o cree una nueva regla de tarifa para este cliente.</MudText>
+                    @if (HayFiltrosActivosCatalogo)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="LimpiarFiltrosCatalogo" StartIcon="@Icons.Material.Filled.FilterAltOff">
+                            Limpiar Filtros
+                        </MudButton>
+                    }
+                </div>
             </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[]{15, 25, 50, 100}"
+                               RowsPerPageString="Reglas por página:"
+                               InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
         </MudTable>
     </MudTabPanel>
 
