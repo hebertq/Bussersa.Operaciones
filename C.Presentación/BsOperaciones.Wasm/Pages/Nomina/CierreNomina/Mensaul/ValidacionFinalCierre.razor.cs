@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -78,6 +78,42 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             public string Nombre { get; set; }
             public string ErrorTipo { get; set; }
             public string EstadoNomina { get; set; }
+        }
+
+        protected async Task DescargarInssCsvStep3()
+        {
+            if (ListaNomina == null || !ListaNomina.Any()) return;
+            isloading = true;
+            StateHasChanged();
+            await Task.Delay(50);
+            try
+            {
+                string csvContent = InssReporteHelper.GenerarCsvInss(ListaNomina);
+                string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
+                await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, "NOVEDADES_INSS_TURING.csv");
+            }
+            finally
+            {
+                isloading = false;
+            }
+        }
+
+        protected async Task DescargarInssExcelStep3()
+        {
+            if (ListaNomina == null || !ListaNomina.Any()) return;
+            isloading = true;
+            StateHasChanged();
+            await Task.Delay(50);
+            try
+            {
+                byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(ListaNomina);
+                string base64Data = Convert.ToBase64String(excelBytes);
+                await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, "NOVEDADES_INSS_TURING.xlsx");
+            }
+            finally
+            {
+                isloading = false;
+            }
         }
     }
 }

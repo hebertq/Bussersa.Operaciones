@@ -1,4 +1,5 @@
 @using Modelo.Report
+@using Utilidades.ClasesGenericas
 
 <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
     <MudGrid Spacing="3" Class="align-end">
@@ -46,6 +47,16 @@
             <MudSpacer />
             @if (_nominaFinal != null && _nominaFinal.Any())
             {
+                <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.FileDownload"
+                           OnClick="DescargarInssCsv" Size="MudBlazor.Size.Small" Class="mr-2">
+                    SUBIR A INSS (CSV)
+                </MudButton>
+                <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info"
+                           StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                           OnClick="DescargarInssExcel" Size="MudBlazor.Size.Small" Class="mr-2">
+                    PLANTILLA INSS (EXCEL)
+                </MudButton>
                 <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Success"
                            StartIcon="@Icons.Custom.FileFormats.FileExcel"
                            OnClick="DescargarNominaInss" Size="MudBlazor.Size.Small">
@@ -54,7 +65,11 @@
             }
         </ToolBarContent>
         <Columns>
-            <PropertyColumn Property="x => x.emp_noinss" Title="No Inss" />
+            <TemplateColumn Title="No Inss">
+                <CellTemplate>
+                    @(InssReporteHelper.CleanInss(context.Item.emp_noinss))
+                </CellTemplate>
+            </TemplateColumn>
             <PropertyColumn Property="x => x.emp_nombre" Title="Nombre" />
             <PropertyColumn Property="x => x.emp_sal_basico" Title="Salario Básico" Format="N2" />
             <TemplateColumn Title="Prestaciones">

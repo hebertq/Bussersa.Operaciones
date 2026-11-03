@@ -1,5 +1,6 @@
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Report
+@using Utilidades.ClasesGenericas
 
 <MudOverlay Visible="isloading" DarkBackground="true" Absolute="true" ZIndex="9999">
     <div class="d-flex flex-column align-center">
@@ -69,5 +70,31 @@
         <MudAlert Severity="MudBlazor.Severity.Success" Variant="MudBlazor.Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle">
             Integridad Verificada: Todos los activos tienen pago y deducción de ley correspondiente.
         </MudAlert>
+    }
+
+    @if (ListaNomina != null && ListaNomina.Any())
+    {
+        <MudPaper Elevation="0" Class="pa-4 mt-4" Style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                <div>
+                    <MudText Typo="MudBlazor.Typo.subtitle1" Color="MudBlazor.Color.Success">
+                        <b>Descarga de Archivo para Carga Masiva INSS (Turing | Newton)</b>
+                    </MudText>
+                    <MudText Typo="MudBlazor.Typo.body2">
+                        Generar el archivo oficial con las personas activas en nómina (Novedad 03 si días &gt; 28, sino 04).
+                    </MudText>
+                </div>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.FileDownload" OnClick="DescargarInssCsvStep3">
+                        SUBIR A INSS (CSV)
+                    </MudButton>
+                    <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info"
+                               StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="DescargarInssExcelStep3">
+                        PLANTILLA INSS (EXCEL)
+                    </MudButton>
+                </div>
+            </div>
+        </MudPaper>
     }
 </MudPaper>

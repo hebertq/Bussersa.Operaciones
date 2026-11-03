@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace Modelo.Report
 {
@@ -54,10 +54,10 @@ namespace Modelo.Report
         {
             get
             {
-                if (emp_sal_fijo != (emp_ingresos_deducir - emp_total_deducciones))
-                    return 9; // Ingresos nuevos
+                if ((emp_diaslab ?? 0) > 28)
+                    return 3;
 
-                return 3; // Por defecto 9
+                return 4;
             }
         }
 
