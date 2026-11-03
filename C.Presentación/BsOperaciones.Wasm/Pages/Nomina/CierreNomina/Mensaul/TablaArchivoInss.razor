@@ -1,0 +1,180 @@
+@using Modelo.Report
+@using Utilidades.ClasesGenericas
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+@if (FilasInss == null || !FilasInss.Any())
+{
+    <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="my-4">
+        No hay datos de nómina disponibles para generar el archivo de INSS. Por favor ejecute o cargue el Cierre Mensual primero.
+    </MudAlert>
+}
+else
+{
+    @* KPIs informativos del archivo INSS *@
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f1f5f9; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.People" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total Asegurados</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6"><b>@FilasInss.Count</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f0fdf4; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 03 (&gt;28 días)</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Success"><b>@FilasInss.Count(x => x.TipoNovedad == "03")</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #fffbeb; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.HourglassBottom" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 04 (≤28 días)</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Warning"><b>@FilasInss.Count(x => x.TipoNovedad == "04")</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #eff6ff; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="MudBlazor.Color.Info" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total Sal. Devengado</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Info"><b>C$ @FilasInss.Sum(x => x.SalDevengado).ToString("N2")</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudDataGrid T="InssReporteRow" Items="@FilasInss" Dense="true" Elevation="0"
+                 ReadOnly="true" Bordered="true" Striped="true" Height="450px" FixedHeader="true"
+                 QuickFilter="@_quickFilter">
+        <ToolBarContent>
+            <div>
+                <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Primary">
+                    <b>Estructura del Archivo de Novedades INSS (Turing | Newton)</b>
+                </MudText>
+                <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">
+                    12 columnas oficiales requeridas por el portal INSS para importación masiva
+                </MudText>
+            </div>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por NSS o Nombre..."
+                          Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="MudBlazor.Size.Medium" Class="mt-0 mr-4" Immediate="true" Margin="MudBlazor.Margin.Dense" />
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.FileDownload"
+                       OnClick="DescargarCsv" Size="MudBlazor.Size.Small" Class="mr-2">
+                SUBIR A INSS (CSV)
+            </MudButton>
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info"
+                       StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                       OnClick="DescargarExcel" Size="MudBlazor.Size.Small">
+                PLANTILLA INSS (EXCEL)
+            </MudButton>
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.Nss" Title="NSS" />
+            <PropertyColumn Property="x => x.PNombre" Title="P-Nombre" />
+            <PropertyColumn Property="x => x.PApellido" Title="P-Apellido" />
+            <PropertyColumn Property="x => x.Nomina" Title="Nómina" />
+            <TemplateColumn Title="Tipo Novedad">
+                <CellTemplate>
+                    <MudChip T="string" Color="@(context.Item.TipoNovedad == "03" ? MudBlazor.Color.Success : MudBlazor.Color.Warning)"
+                             Size="MudBlazor.Size.Small" Variant="MudBlazor.Variant.Filled">
+                        @context.Item.TipoNovedad
+                    </MudChip>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.Fecha" Title="Fecha" />
+            <PropertyColumn Property="x => x.SalDevengado" Title="Sal-Devengado" Format="N2" />
+            <PropertyColumn Property="x => x.SalMensual" Title="Sal-Mensual" Format="N2" />
+            <PropertyColumn Property="x => x.Semanas" Title="Semanas" />
+            <PropertyColumn Property="x => x.CentroCosto" Title="Centro-Costo" />
+            <PropertyColumn Property="x => x.TipoEmpleo" Title="Tipo-Empleo" />
+            <PropertyColumn Property="x => x.Puesto" Title="Puesto" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="InssReporteRow" />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+@code {
+    [Parameter] public List<NominaMensualReportar> NominaFinal { get; set; } = new();
+    [Parameter] public int Anio { get; set; } = DateTime.Now.Year;
+    [Parameter] public int Mes { get; set; } = DateTime.Now.Month;
+    [Parameter] public EventCallback<bool> OnProcessing { get; set; }
+
+    private string _searchString = "";
+    private List<InssReporteRow> FilasInss => InssReporteHelper.ObtenerFilasInss(NominaFinal, Anio, Mes);
+
+    private Func<InssReporteRow, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Nss.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.PNombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.PApellido.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TipoNovedad.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+
+    private async Task DescargarCsv()
+    {
+        if (NominaFinal == null || !NominaFinal.Any()) return;
+        await OnProcessing.InvokeAsync(true);
+        await Task.Delay(50);
+        try
+        {
+            string csvContent = InssReporteHelper.GenerarCsvInss(NominaFinal, Anio, Mes);
+            string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
+            await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.csv");
+            Snackbar.Add("Archivo CSV para INSS generado exitosamente.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al generar CSV INSS: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            await OnProcessing.InvokeAsync(false);
+        }
+    }
+
+    private async Task DescargarExcel()
+    {
+        if (NominaFinal == null || !NominaFinal.Any()) return;
+        await OnProcessing.InvokeAsync(true);
+        await Task.Delay(50);
+        try
+        {
+            byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(NominaFinal, Anio, Mes);
+            string base64Data = Convert.ToBase64String(excelBytes);
+            await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.xlsx");
+            Snackbar.Add("Plantilla Excel para INSS generada exitosamente.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al generar Excel INSS: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            await OnProcessing.InvokeAsync(false);
+        }
+    }
+}

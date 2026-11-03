@@ -10,7 +10,7 @@
 </MudOverlay>
 
 @* Control de pasos mediante enlace bidireccional *@
-<MudStepper @bind-ActiveIndex="_activeIndex" NonLinear="false" CenterLabels="true" Class="mud-width-full">
+<MudStepper @bind-ActiveIndex="_activeIndex" NonLinear="true" CenterLabels="true" Class="mud-width-full">
     <MudStep Title="Validar Empleados Activos">
         <TablaEmpleadosActivos _PayLoadList="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
                                OnLoadFiles="LoadFiles"
@@ -30,5 +30,14 @@
     <MudStep Title="Auditoría de Integridad">
         <ValidacionFinalCierre ListaInss="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
                                ListaNomina="_nominaFinalGlobal" />
+    </MudStep>
+
+    <MudStep Title="Archivo Masivo INSS">
+        <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
+            <TablaArchivoInss NominaFinal="_nominaFinalGlobal"
+                              Anio="_anioGlobal"
+                              Mes="_mesGlobal"
+                              OnProcessing="@((bool loading) => isloaddata = loading)" />
+        </MudPaper>
     </MudStep>
 </MudStepper>

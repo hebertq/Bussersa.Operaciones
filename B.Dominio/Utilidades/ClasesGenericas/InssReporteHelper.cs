@@ -11,6 +11,22 @@ using OfficeOpenXml.Table;
 
 namespace Utilidades.ClasesGenericas
 {
+    public class InssReporteRow
+    {
+        public string Nss { get; set; } = string.Empty;
+        public string PNombre { get; set; } = string.Empty;
+        public string PApellido { get; set; } = string.Empty;
+        public int Nomina { get; set; } = 1;
+        public string TipoNovedad { get; set; } = "03";
+        public string Fecha { get; set; } = string.Empty;
+        public decimal SalDevengado { get; set; }
+        public decimal SalMensual { get; set; }
+        public string Semanas { get; set; } = string.Empty;
+        public string CentroCosto { get; set; } = string.Empty;
+        public string TipoEmpleo { get; set; } = string.Empty;
+        public string Puesto { get; set; } = string.Empty;
+    }
+
     public static class InssReporteHelper
     {
         public static (string pNombre, string pApellido) SplitNombreCompleto(string nombreCompleto)
@@ -41,23 +57,10 @@ namespace Utilidades.ClasesGenericas
             return string.IsNullOrEmpty(digits) ? "0" : digits;
         }
 
-        public static DataTable CrearDataTableInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
+        public static List<InssReporteRow> ObtenerFilasInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
-            var dt = new DataTable("NovedadesINSS");
-            dt.Columns.Add("nss", typeof(string));
-            dt.Columns.Add("p-nombre", typeof(string));
-            dt.Columns.Add("p-apellido", typeof(string));
-            dt.Columns.Add("nomina", typeof(int));
-            dt.Columns.Add("tipo-novedad", typeof(string));
-            dt.Columns.Add("fecha", typeof(string));
-            dt.Columns.Add("sal-devengado", typeof(decimal));
-            dt.Columns.Add("sal-mensual", typeof(decimal));
-            dt.Columns.Add("semanas", typeof(string));
-            dt.Columns.Add("centro-costo", typeof(string));
-            dt.Columns.Add("tipo-empleo", typeof(string));
-            dt.Columns.Add("puesto", typeof(string));
-
-            if (nominaList == null) return dt;
+            var list = new List<InssReporteRow>();
+            if (nominaList == null) return list;
 
             foreach (var item in nominaList)
             {
@@ -87,19 +90,58 @@ namespace Utilidades.ClasesGenericas
                     ? (esMayor28 ? "11111" : "11110")
                     : item.emp_semanas_labs;
 
+                list.Add(new InssReporteRow
+                {
+                    Nss = CleanInss(item.emp_noinss),
+                    PNombre = pNombre,
+                    PApellido = pApellido,
+                    Nomina = item.emp_nomina > 0 ? item.emp_nomina : 1,
+                    TipoNovedad = tipoNovedad,
+                    Fecha = fechaStr,
+                    SalDevengado = Math.Round(salDevengado, 2),
+                    SalMensual = Math.Round(salMensual, 2),
+                    Semanas = semanasStr,
+                    CentroCosto = "",
+                    TipoEmpleo = "",
+                    Puesto = ""
+                });
+            }
+
+            return list;
+        }
+
+        public static DataTable CrearDataTableInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
+        {
+            var dt = new DataTable("NovedadesINSS");
+            dt.Columns.Add("nss", typeof(string));
+            dt.Columns.Add("p-nombre", typeof(string));
+            dt.Columns.Add("p-apellido", typeof(string));
+            dt.Columns.Add("nomina", typeof(int));
+            dt.Columns.Add("tipo-novedad", typeof(string));
+            dt.Columns.Add("fecha", typeof(string));
+            dt.Columns.Add("sal-devengado", typeof(decimal));
+            dt.Columns.Add("sal-mensual", typeof(decimal));
+            dt.Columns.Add("semanas", typeof(string));
+            dt.Columns.Add("centro-costo", typeof(string));
+            dt.Columns.Add("tipo-empleo", typeof(string));
+            dt.Columns.Add("puesto", typeof(string));
+
+            var filas = ObtenerFilasInss(nominaList, anio, mes);
+            foreach (var fila in filas)
+            {
                 dt.Rows.Add(
-                    CleanInss(item.emp_noinss),
-                    pNombre,
-                    pApellido,
-                    item.emp_nomina > 0 ? item.emp_nomina : 1,
-                    tipoNovedad,
-                    fechaStr,
-                    Math.Round(salDevengado, 2),
-                    Math.Round(salMensual, 2),
-                    semanasStr,
-                    "", // centro-costo
-                    "", // tipo-empleo
-                    ""  // puesto
+                    fila.Nss,
+                    fila.PNombre,
+                    fila.PApellido,
+                    fila.Nomina,
+                    fila.TipoNovedad,
+                    fila.Fecha,
+                    fila.SalDevengado,
+                    fila.SalMensual,
+                    fila.Semanas,
+                    fila.CentroCosto,
+                    fila.TipoEmpleo,
+                    fila.Puesto
                 );
             }
 
