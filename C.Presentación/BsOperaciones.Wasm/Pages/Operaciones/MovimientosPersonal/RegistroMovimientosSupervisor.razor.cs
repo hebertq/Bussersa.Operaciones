@@ -820,11 +820,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Cliente = !string.IsNullOrWhiteSpace(m.Cliente)
                                 ? m.Cliente
                                 : (operacionesList.FirstOrDefault(o => o.id == m.OperacionId)?.nombre ?? "General"),
-                            Bnc = m.Bnc ?? string.Empty,
-                            VtcoTrasp = m.VtcoTrasp,
-                            VtcoAlim = m.VtcoAlim,
-                            TraspAplicaNomina = m.TraspAplicaNomina || (m.VtcoTrasp > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal1) && bVal1 >= m.VtcoTrasp),
-                            AlimAplicaNomina = m.AlimAplicaNomina || (m.VtcoAlim > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal2) && bVal2 >= m.VtcoAlim),
+                            Bnc = !m.Asistio ? "0" : (m.Bnc ?? string.Empty),
+                            VtcoTrasp = !m.Asistio ? 0m : m.VtcoTrasp,
+                            VtcoAlim = !m.Asistio ? 0m : m.VtcoAlim,
+                            TraspAplicaNomina = m.Asistio && (m.TraspAplicaNomina || (m.VtcoTrasp > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal1) && bVal1 >= m.VtcoTrasp)),
+                            AlimAplicaNomina = m.Asistio && (m.AlimAplicaNomina || (m.VtcoAlim > 0 && decimal.TryParse(m.Bnc, NumberStyles.Any, CultureInfo.InvariantCulture, out var bVal2) && bVal2 >= m.VtcoAlim)),
                             Observaciones = m.Observaciones ?? string.Empty,
                             TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
                             Asistio = m.Asistio,
@@ -1573,11 +1573,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraSalida = salida,
                         TurnoNombre = turno,
                         TiempoComida = comida,
-                        Bnc = e.Bnc,
-                        VtcoTrasp = e.VtcoTrasp,
-                        VtcoAlim = e.VtcoAlim,
-                        TraspAplicaNomina = e.TraspAplicaNomina,
-                        AlimAplicaNomina = e.AlimAplicaNomina,
+                        Bnc = !e.Asistio ? "0" : e.Bnc,
+                        VtcoTrasp = !e.Asistio ? 0m : e.VtcoTrasp,
+                        VtcoAlim = !e.Asistio ? 0m : e.VtcoAlim,
+                        TraspAplicaNomina = e.Asistio && e.TraspAplicaNomina,
+                        AlimAplicaNomina = e.Asistio && e.AlimAplicaNomina,
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
@@ -2258,6 +2258,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 emp.FechaInicioAusencia = fRef;
                 emp.FechaFinAusencia = fRef;
                 emp.DiasAusencia = 1.0m;
+                emp.VtcoTrasp = 0m;
+                emp.VtcoAlim = 0m;
+                emp.TraspAplicaNomina = false;
+                emp.AlimAplicaNomina = false;
+                emp.BonoBnc = 0m;
+                emp.Bnc = "0";
             }
             else
             {
@@ -2266,6 +2272,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 emp.HoraSalida = !string.IsNullOrWhiteSpace(plant?.HoraSalidaDefault) ? plant.HoraSalidaDefault : "14:00";
                 emp.TiempoComida = !string.IsNullOrWhiteSpace(plant?.TiempoComidaDefault) ? plant.TiempoComidaDefault : "1.00";
                 emp.TurnoNombre = DeterminarTurnoSegunLeyNicaragua(emp.HoraEntrada, emp.HoraSalida);
+                AplicarReglasViaticosEnMemoria(emp, notificar: false);
             }
 
             ValidarConflictosHorarios(out _);
@@ -3334,7 +3341,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected void AplicarReglasViaticosEnMemoria(EmpleadoJornadaItem item, bool notificar = false)
         {
-            if (!item.Asistio || cacheReglasViaticos == null || !cacheReglasViaticos.Any()) return;
+            if (!item.Asistio)
+            {
+                item.VtcoTrasp = 0m;
+                item.VtcoAlim = 0m;
+                item.TraspAplicaNomina = false;
+                item.AlimAplicaNomina = false;
+                item.BonoBnc = 0m;
+                item.Bnc = "0";
+                return;
+            }
+
+            if (cacheReglasViaticos == null || !cacheReglasViaticos.Any()) return;
 
             string cliente = !string.IsNullOrWhiteSpace(item.Cliente)
                 ? item.Cliente
@@ -3345,7 +3363,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.Area,
                 item.HoraEntrada,
                 item.HoraSalida,
-                cacheReglasViaticos);
+                cacheReglasViaticos,
+                item.Asistio);
 
             if (evaluacion.AplicaRegla)
             {

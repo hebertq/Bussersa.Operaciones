@@ -50,18 +50,34 @@ namespace BsOperaciones.Application.Common
 
         /// <summary>
         /// Evalúa las reglas de viáticos en memoria para un colaborador específico:
-        /// 1. Prioriza reglas específicas del área sobre reglas generales.
-        /// 2. Si un área tiene regla pero esta no aplica por horario y la general sí aplica, hace fallback a la general.
-        /// 3. Si tiene regla de entrada y regla de salida, valida y aplica ambas respetando la especificidad del área.
+        /// 1. Si está ausente, no aplica ninguna regla y retorna 0.
+        /// 2. Prioriza reglas específicas del área sobre reglas generales.
+        /// 3. Si un área tiene regla pero esta no aplica por horario y la general sí aplica, hace fallback a la general.
+        /// 4. Si tiene regla de entrada y regla de salida, valida y aplica ambas respetando la especificidad del área.
         /// </summary>
         public static ResultadoEvaluacionViatico Evaluar(
             string? cliente,
             string? area,
             string? horaEntrada,
             string? horaSalida,
-            IEnumerable<ReglaViaticoDto>? reglas)
+            IEnumerable<ReglaViaticoDto>? reglas,
+            bool asistio = true)
         {
             var resultado = new ResultadoEvaluacionViatico();
+
+            if (!asistio)
+            {
+                resultado.AplicaRegla = false;
+                resultado.TieneReglasCliente = false;
+                resultado.MontoTransporte = 0;
+                resultado.MontoAlimentacion = 0;
+                resultado.BonoBnc = 0;
+                resultado.PagaEnNomina = false;
+                resultado.TraspAplicaNomina = false;
+                resultado.AlimAplicaNomina = false;
+                resultado.Resumen = "Colaborador ausente - no aplican viáticos";
+                return resultado;
+            }
 
             if (reglas == null || !reglas.Any() || string.IsNullOrWhiteSpace(cliente))
             {
