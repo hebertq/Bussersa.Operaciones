@@ -97,6 +97,19 @@
                         </CellTemplate>
                     </TemplateColumn>
                     <PropertyColumn Property="x => x.emp_nombre" Title="Nombre" />
+                    <TemplateColumn Title="Novedad">
+                        <CellTemplate>
+                            <MudChip T="string" Color="@(context.Item.emp_tipo_novedad == "03" ? MudBlazor.Color.Success : MudBlazor.Color.Warning)"
+                                     Size="MudBlazor.Size.Small" Variant="MudBlazor.Variant.Filled">
+                                @context.Item.emp_tipo_novedad
+                            </MudChip>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Semanas">
+                        <CellTemplate>
+                            @(InssReporteHelper.CalcularSemanasInss(context.Item.fec_inicio, context.Item.fec_fin, context.Item.emp_diaslab ?? 0, _anioSeleccionado, _mesSeleccionado))
+                        </CellTemplate>
+                    </TemplateColumn>
                     <PropertyColumn Property="x => x.emp_sal_basico" Title="Salario Básico" Format="N2" />
                     <TemplateColumn Title="Prestaciones">
                         <CellTemplate>
@@ -105,7 +118,7 @@
                                 : "")
                         </CellTemplate>
                     </TemplateColumn>
-                    <PropertyColumn Property="x => x.emp_pago_recibir" Title="A Recibir" Format="N2" />
+                    <PropertyColumn Property="x => x.emp_pago_recibir" Title="Disponible (A Recibir)" Format="N2" />
                 </Columns>
                 <PagerContent>
                     <MudDataGridPager T="NominaMensualReportar" />

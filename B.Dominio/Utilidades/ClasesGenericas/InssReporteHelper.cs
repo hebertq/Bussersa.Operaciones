@@ -57,6 +57,132 @@ namespace Utilidades.ClasesGenericas
             return string.IsNullOrEmpty(digits) ? "0" : digits;
         }
 
+        /// <summary>
+        /// Obtiene los rangos de fechas (Inicio, Fin) de cada semana del mes de acuerdo al estándar del INSS de Nicaragua
+        /// computado por sábados (de domingo a sábado). Devuelve 4 o 5 semanas según la cantidad de sábados en el mes.
+        /// </summary>
+        public static List<(DateTime Inicio, DateTime Fin)> ObtenerSemanasDelMes(int anio, int mes)
+        {
+            var primerDia = new DateTime(anio, mes, 1);
+            int diasEnMes = DateTime.DaysInMonth(anio, mes);
+            var ultimoDia = new DateTime(anio, mes, diasEnMes);
+
+            var sabados = new List<DateTime>();
+            for (int d = 1; d <= diasEnMes; d++)
+            {
+                var fecha = new DateTime(anio, mes, d);
+                if (fecha.DayOfWeek == DayOfWeek.Saturday)
+                {
+                    sabados.Add(fecha);
+                }
+            }
+
+            var semanas = new List<(DateTime Inicio, DateTime Fin)>();
+            if (sabados.Count == 4)
+            {
+                semanas.Add((primerDia, sabados[0]));
+                semanas.Add((sabados[0].AddDays(1), sabados[1]));
+                semanas.Add((sabados[1].AddDays(1), sabados[2]));
+                semanas.Add((sabados[2].AddDays(1), ultimoDia));
+            }
+            else if (sabados.Count >= 5)
+            {
+                semanas.Add((primerDia, sabados[0]));
+                semanas.Add((sabados[0].AddDays(1), sabados[1]));
+                semanas.Add((sabados[1].AddDays(1), sabados[2]));
+                semanas.Add((sabados[2].AddDays(1), sabados[3]));
+                semanas.Add((sabados[3].AddDays(1), ultimoDia));
+            }
+            else
+            {
+                // Fallback por bloques de 7 días si fuera un caso anómalo
+                semanas.Add((primerDia, primerDia.AddDays(6)));
+                semanas.Add((primerDia.AddDays(7), primerDia.AddDays(13)));
+                semanas.Add((primerDia.AddDays(14), primerDia.AddDays(20)));
+                semanas.Add((primerDia.AddDays(21), ultimoDia));
+            }
+
+            return semanas;
+        }
+
+        /// <summary>
+        /// Calcula la cadena binaria de 5 posiciones de semanas trabajadas para el INSS ('11111', '11110', '00100', etc.)
+        /// asegurando que NUNCA se marquen semanas anteriores a la fecha de ingreso ni posteriores al retiro.
+        /// </summary>
+        public static string CalcularSemanasInss(DateTime? fecInicio, DateTime? fecFin, decimal diasLab, int anio, int mes)
+        {
+            var primerDiaMes = new DateTime(anio, mes, 1);
+            int diasEnMes = DateTime.DaysInMonth(anio, mes);
+            var ultimoDiaMes = new DateTime(anio, mes, diasEnMes);
+
+            var semanasMes = ObtenerSemanasDelMes(anio, mes);
+            int totalSemanasMes = semanasMes.Count; // 4 o 5
+
+            if (diasLab <= 0) return "00000";
+
+            // Si laboró más de 28 días, es mes completo:
+            if (diasLab > 28)
+            {
+                return totalSemanasMes == 4 ? "11110" : "11111";
+            }
+
+            // Fecha efectiva de ingreso y retiro en el mes actual
+            DateTime ingresoEfectivo = fecInicio.HasValue && fecInicio.Value >= primerDiaMes 
+                ? fecInicio.Value.Date 
+                : primerDiaMes;
+
+            DateTime finEfectivo = fecFin.HasValue && fecFin.Value <= ultimoDiaMes 
+                ? fecFin.Value.Date 
+                : ultimoDiaMes;
+
+            // Determinar qué semanas del mes caen dentro del período de contratación del empleado
+            var elegibles = new List<int>();
+            for (int i = 0; i < semanasMes.Count; i++)
+            {
+                var sem = semanasMes[i];
+                // Una semana que terminó antes del ingreso NO puede marcarse
+                bool antesIngreso = sem.Fin.Date < ingresoEfectivo;
+                // Una semana que inició después de la fecha de retiro/corte NO puede marcarse
+                bool despuesFin = sem.Inicio.Date > finEfectivo;
+
+                if (!antesIngreso && !despuesFin)
+                {
+                    elegibles.Add(i);
+                }
+            }
+
+            if (!elegibles.Any())
+            {
+                // Fallback seguro: tomar la última semana elegible dentro del mes
+                elegibles.Add(Math.Min(totalSemanasMes - 1, Math.Max(0, (ingresoEfectivo.Day - 1) / 7)));
+            }
+
+            // Cantidad de semanas a marcar según días efectivamente laborados (INSS ~ 7 días por semana)
+            int semanasPorDias = diasLab switch
+            {
+                <= 7 => 1,
+                <= 14 => 2,
+                <= 21 => 3,
+                <= 28 => 4,
+                _ => totalSemanasMes
+            };
+
+            int aMarcar = Math.Min(semanasPorDias, elegibles.Count);
+            if (aMarcar <= 0 && elegibles.Any()) aMarcar = 1;
+
+            var resultado = new char[5] { '0', '0', '0', '0', '0' };
+            var seleccionadas = elegibles.Take(aMarcar);
+            foreach (int idx in seleccionadas)
+            {
+                if (idx >= 0 && idx < 5)
+                {
+                    resultado[idx] = '1';
+                }
+            }
+
+            return new string(resultado);
+        }
+
         public static List<InssReporteRow> ObtenerFilasInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
             var list = new List<InssReporteRow>();
@@ -69,26 +195,28 @@ namespace Utilidades.ClasesGenericas
                 bool esMayor28 = dias > 28;
                 string tipoNovedad = esMayor28 ? "03" : "04";
 
-                decimal salDevengado = item.emp_ingresos_deducir ?? item.emp_total_ingresos ?? item.emp_sal_basico ?? 0;
-                decimal salMensual = esMayor28 ? (item.emp_sal_fijo ?? 0) : 0m;
+                // REGLA USUARIO: Debe coincidir exactamente con el disponible ("Total Recibir" / emp_pago_recibir) del primer archivo
+                decimal salDevengado = item.emp_pago_recibir ?? 0m;
+                if (salDevengado < 0) salDevengado = 0m;
+
+                decimal salMensual = esMayor28 ? (item.emp_sal_fijo ?? 0m) : 0m;
+
+                int anioCalc = anio ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value / 100 : DateTime.Now.Year);
+                int mesCalc = mes ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value % 100 : DateTime.Now.Month);
 
                 string fechaStr;
-                if (item.fec_inicio.HasValue)
+                if (item.fec_inicio.HasValue && !esMayor28 && item.fec_inicio.Value.Month == mesCalc)
                 {
-                    fechaStr = item.fec_inicio.Value.ToString("yyyy-MM-01");
-                }
-                else if (anio.HasValue && mes.HasValue)
-                {
-                    fechaStr = $"{anio.Value:D4}-{mes.Value:D2}-01";
+                    // Para novedades de ingreso parcial en el mes se reporta la fecha real de inicio
+                    fechaStr = item.fec_inicio.Value.ToString("yyyy-MM-dd");
                 }
                 else
                 {
-                    fechaStr = DateTime.Now.ToString("yyyy-MM-01");
+                    fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
                 }
 
-                string semanasStr = string.IsNullOrWhiteSpace(item.emp_semanas_labs)
-                    ? (esMayor28 ? "11111" : "11110")
-                    : item.emp_semanas_labs;
+                // Cálculo congruente de semanas sin marcar antes de la fecha de ingreso
+                string semanasStr = CalcularSemanasInss(item.fec_inicio, item.fec_fin, dias, anioCalc, mesCalc);
 
                 list.Add(new InssReporteRow
                 {

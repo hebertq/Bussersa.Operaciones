@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Modelo.Report
 {
@@ -60,6 +60,8 @@ namespace Modelo.Report
                 return 4;
             }
         }
+
+        public string emp_tipo_novedad => (emp_diaslab ?? 0) > 28 ? "03" : "04";
 
         // Pago final 
         public decimal? emp_pago_reportar
