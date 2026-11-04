@@ -27,7 +27,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         private long maxFileSize = 1024 * 1024 * 15;
         public bool BotonEnabledActivosInss { get; set; } = true;
-        protected int _activeIndex = 1; // Abrir por defecto en Conciliación & Cierre si ya hay nómina o en 0
+        protected int _activeIndex = 0; // Pestaña activa inicial: 1. Validar Activos
         protected bool isloaddata = false;
         protected int _anioGlobal = DateTime.Now.Year;
         protected int _mesGlobal = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month - 1;
