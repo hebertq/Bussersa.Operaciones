@@ -288,7 +288,7 @@
         </div>
 
         @* Tabla 1: Grilla de Producción Semanal Segregada *@
-        <MudTable Items="@GrillaFiltrada" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1" Class="mb-4">
+        <MudTable Items="@GrillaFiltrada" RowsPerPage="15" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1" Class="mb-4">
             <HeaderContent>
                 <MudTh>Corte / Período</MudTh>
                 <MudTh>Cliente</MudTh>
@@ -367,6 +367,11 @@
                 <MudTh Class="fw-bold" Style="text-align: right; color: #16a34a;">$ @TotalMontoVenta.ToString("N2")</MudTh>
                 <MudTh></MudTh>
             </FooterContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 15, 25, 50, 100 }"
+                               RowsPerPageString="Líneas por página:"
+                               InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
             <NoRecordsContent>
                 <MudText Typo="Typo.body2" Class="pa-4 text-center">
                     No se encontraron horas registradas para esta semana o no se han configurado reglas en el catálogo.
