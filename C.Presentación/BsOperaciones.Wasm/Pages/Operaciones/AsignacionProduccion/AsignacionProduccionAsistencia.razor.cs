@@ -746,7 +746,12 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                     row.CreateCell(14).SetCellValue(g.cantidad_empleados);
                 }
 
-                for (int i = 0; i < headers1.Length; i++) sheetProd.AutoSizeColumn(i);
+                int[] widths1 = { 16, 16, 16, 20, 22, 22, 14, 14, 25, 35, 15, 16, 14, 18, 16 };
+                for (int i = 0; i < headers1.Length; i++)
+                {
+                    int w = (i < widths1.Length) ? widths1[i] : 20;
+                    sheetProd.SetColumnWidth(i, w * 256);
+                }
 
                 // Hoja 2: Detalle Marcadas Asistencia
                 var sheetMarcadas = workbook.CreateSheet("Detalle_Asistencias");
@@ -809,7 +814,12 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                     row.CreateCell(19).SetCellValue(m.tiene_regla_catalogo ? "SÍ" : "NO");
                 }
 
-                for (int i = 0; i < headers2.Length; i++) sheetMarcadas.AutoSizeColumn(i);
+                int[] widths2 = { 12, 14, 16, 28, 14, 22, 22, 16, 14, 12, 12, 12, 14, 12, 14, 14, 25, 14, 24, 14 };
+                for (int i = 0; i < headers2.Length; i++)
+                {
+                    int w = (i < widths2.Length) ? widths2[i] : 20;
+                    sheetMarcadas.SetColumnWidth(i, w * 256);
+                }
 
                 using var ms = new MemoryStream();
                 workbook.Write(ms);
