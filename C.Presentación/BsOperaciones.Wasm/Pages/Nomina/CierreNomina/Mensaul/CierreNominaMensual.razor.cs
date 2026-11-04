@@ -49,6 +49,19 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             }
         }
 
+        public List<EmpleadosActivos> ListaAseguradosParaInss
+        {
+            get
+            {
+                if (_PayLoadListInss != null && _PayLoadListInss.Any(x => x != null))
+                {
+                    return _PayLoadListInss.Where(x => x != null).Cast<EmpleadosActivos>().ToList();
+                }
+
+                return _PayLoadListLocal.Where(x => x != null).Cast<EmpleadosActivos>().ToList();
+            }
+        }
+
         protected int ConteoDiscrepancias
         {
             get
@@ -123,7 +136,21 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         {
             var respemp = await _mediator.Send(new GetAllEmpleadosQuery());
             if (!respemp.Respuesta.ExisteError)
+            {
                 _PayLoadListLocal = respemp.Model;
+                if (_PayLoadListLocal != null)
+                {
+                    foreach (var emp in _PayLoadListLocal)
+                    {
+                        if (emp != null && string.IsNullOrWhiteSpace(emp.PrimerNombre) && !string.IsNullOrWhiteSpace(emp.NombreCompleto))
+                        {
+                            var (pn, pa) = InssReporteHelper.SplitNombreCompleto(emp.NombreCompleto);
+                            emp.PrimerNombre = pn;
+                            emp.PrimerApellido = pa;
+                        }
+                    }
+                }
+            }
         }
 
         protected async Task UpdateEmpleados()

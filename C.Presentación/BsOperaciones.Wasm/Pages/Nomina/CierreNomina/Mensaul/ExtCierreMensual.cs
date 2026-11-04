@@ -10,6 +10,21 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 {
     public static class ExtCierreMensual
     {
+        private static string NormalizeKey(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "";
+            return name.Trim().ToLowerInvariant()
+                .Replace(" ", "")
+                .Replace("_", "")
+                .Replace("-", "")
+                .Replace(".", "")
+                .Replace("á", "a")
+                .Replace("é", "e")
+                .Replace("í", "i")
+                .Replace("ó", "o")
+                .Replace("ú", "u");
+        }
+
         private static string GetStringVal(DataRow row, params string[] columnNames)
         {
             foreach (var col in columnNames)
@@ -17,6 +32,17 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 if (row.Table.Columns.Contains(col) && row[col] != DBNull.Value && row[col] != null)
                 {
                     string str = row[col].ToString()?.Replace("'", "").Trim();
+                    if (!string.IsNullOrWhiteSpace(str)) return str;
+                }
+            }
+
+            foreach (var col in columnNames)
+            {
+                string normTarget = NormalizeKey(col);
+                var matchCol = row.Table.Columns.Cast<DataColumn>().FirstOrDefault(c => NormalizeKey(c.ColumnName) == normTarget);
+                if (matchCol != null && row[matchCol] != DBNull.Value && row[matchCol] != null)
+                {
+                    string str = row[matchCol].ToString()?.Replace("'", "").Trim();
                     if (!string.IsNullOrWhiteSpace(str)) return str;
                 }
             }
@@ -34,6 +60,18 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                     if (double.TryParse(str, out double resLocal)) return resLocal;
                 }
             }
+
+            foreach (var col in columnNames)
+            {
+                string normTarget = NormalizeKey(col);
+                var matchCol = row.Table.Columns.Cast<DataColumn>().FirstOrDefault(c => NormalizeKey(c.ColumnName) == normTarget);
+                if (matchCol != null && row[matchCol] != DBNull.Value && row[matchCol] != null)
+                {
+                    string str = row[matchCol].ToString()?.Trim();
+                    if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double res)) return res;
+                    if (double.TryParse(str, out double resLocal)) return resLocal;
+                }
+            }
             return 0;
         }
 
@@ -45,19 +83,50 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             if (dataActivos != null && dataActivos.Columns.Count > 0 && dataActivos.Columns[0].ColumnName == "IdNomina")
             {
                 _PayLoadList = DataTableHelper.ConvertTo<EmpleadosActivos>(dataActivos);
+                foreach (var emp in _PayLoadList)
+                {
+                    if (string.IsNullOrWhiteSpace(emp.PrimerNombre) && !string.IsNullOrWhiteSpace(emp.NombreCompleto))
+                    {
+                        var (pn, pa) = InssReporteHelper.SplitNombreCompleto(emp.NombreCompleto);
+                        emp.PrimerNombre = pn;
+                        emp.PrimerApellido = pa;
+                    }
+                }
             }
             else if (dataActivos != null && dataActivos.Rows.Count > 0)
             {
                 ListaInssAct = (from myRow in dataActivos.AsEnumerable()
                                 select new EmpleadosActivosInss()
                                 {
-                                    NoCedula = GetStringVal(myRow, "Cedula", "Cédula", "NoCedula", "Identificacion"),
-                                    NoInss = GetDoubleVal(myRow, "Nss", "NoInss", "NSS", "No_INSS", "No Inss", "No. Inss", "No. INSS"),
-                                    PrimerNombre = GetStringVal(myRow, "Primer Nombre", "Primer_Nombre", "PrimerNombre", "Nombre1", "Nombre"),
-                                    PrimerApellido = GetStringVal(myRow, "Primer Apellido", "Primer_Apellido", "PrimerApellido", "Apellido1", "Apellido"),
-                                    SegundoNombre = GetStringVal(myRow, "Segundo Nombre", "Segundo_Nombre", "SegundoNombre", "Nombre2"),
-                                    SegundoApellido = GetStringVal(myRow, "Segundo Apellido", "Segundo_Apellido", "SegundoApellido", "Apellido2")
+                                    NoCedula = GetStringVal(myRow, "Cedula", "Cédula", "NoCedula", "Identificacion", "No_Cedula", "No. Cedula", "No. Cédula", "Num_Cedula"),
+                                    NoInss = GetDoubleVal(myRow, "Nss", "NoInss", "NSS", "No_INSS", "No Inss", "No. Inss", "No. INSS", "Afiliacion", "Afiliación", "No_Afiliacion", "No. Afiliacion", "Asegurado", "Num_Afiliacion"),
+                                    PrimerNombre = GetStringVal(myRow, "Primer_Nombre", "Primer Nombre", "PrimerNombre", "p-nombre", "p_nombre", "pnombre", "PNombre", "Nombre 1", "Nombre1"),
+                                    PrimerApellido = GetStringVal(myRow, "Primer_Apellido", "Primer Apellido", "PrimerApellido", "p-apellido", "p_apellido", "papellido", "PApellido", "Apellido 1", "Apellido1"),
+                                    SegundoNombre = GetStringVal(myRow, "Segundo_Nombre", "Segundo Nombre", "SegundoNombre", "s-nombre", "s_nombre", "snombre", "SNombre", "Nombre 2", "Nombre2"),
+                                    SegundoApellido = GetStringVal(myRow, "Segundo_Apellido", "Segundo Apellido", "SegundoApellido", "s-apellido", "s_apellido", "sapellido", "SApellido", "Apellido 2", "Apellido2")
                                 }).ToList();
+
+                // Post-proceso para completar nombres si vinieron en una columna combinada
+                foreach (var empInss in ListaInssAct)
+                {
+                    if (string.IsNullOrWhiteSpace(empInss.PrimerNombre) || string.IsNullOrWhiteSpace(empInss.PrimerApellido))
+                    {
+                        var row = dataActivos.AsEnumerable().FirstOrDefault(r => 
+                            (!string.IsNullOrWhiteSpace(empInss.NoCedula) && GetStringVal(r, "Cedula", "NoCedula") == empInss.NoCedula) ||
+                            (empInss.NoInss > 0 && GetDoubleVal(r, "Nss", "NoInss") == empInss.NoInss));
+
+                        if (row != null)
+                        {
+                            string colNomComp = GetStringVal(row, "Nombre_Completo", "Nombre Completo", "NombreCompleto", "Nombres_y_Apellidos", "Nombres y Apellidos", "Asegurado", "Trabajador", "Empleado", "Nombre", "Nombres");
+                            if (!string.IsNullOrWhiteSpace(colNomComp))
+                            {
+                                var (pn, pa) = InssReporteHelper.SplitNombreCompleto(colNomComp);
+                                if (string.IsNullOrWhiteSpace(empInss.PrimerNombre)) empInss.PrimerNombre = pn;
+                                if (string.IsNullOrWhiteSpace(empInss.PrimerApellido)) empInss.PrimerApellido = pa;
+                            }
+                        }
+                    }
+                }
 
                 var querycedula = (from ea in _PayLoadListLocal
                                    where !string.IsNullOrWhiteSpace(ea.NoCedula)
@@ -69,6 +138,10 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        NoCedula = ea.NoCedula,
                                        NombreCompleto = ea.NombreCompleto,
                                        NombreCorto = $"{ei.PrimerNombre} {ei.PrimerApellido}".Trim(),
+                                       PrimerNombre = ei.PrimerNombre,
+                                       PrimerApellido = ei.PrimerApellido,
+                                       SegundoNombre = ei.SegundoNombre,
+                                       SegundoApellido = ei.SegundoApellido,
                                        NoInss = (ea.NoInss != ei.NoInss && ei.NoInss > 0) ? ei.NoInss : ea.NoInss,
                                        NoContrato = ea.NoContrato,
                                        ActivoInss = true,
@@ -85,6 +158,10 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        NoCedula = (!string.IsNullOrWhiteSpace(ea.NoCedula) && !string.IsNullOrWhiteSpace(ei.NoCedula) && ea.NoCedula.Trim().ToLower() != ei.NoCedula.Trim().ToLower()) ? ei.NoCedula : ea.NoCedula,
                                        NombreCompleto = ea.NombreCompleto,
                                        NombreCorto = $"{ei.PrimerNombre} {ei.PrimerApellido}".Trim(),
+                                       PrimerNombre = ei.PrimerNombre,
+                                       PrimerApellido = ei.PrimerApellido,
+                                       SegundoNombre = ei.SegundoNombre,
+                                       SegundoApellido = ei.SegundoApellido,
                                        NoInss = ea.NoInss,
                                        NoContrato = ea.NoContrato,
                                        ActivoInss = true,
@@ -111,6 +188,10 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                       NoCedula = ei.NoCedula,
                                       NombreCompleto = $"{ei.PrimerNombre} {ei.SegundoNombre} {ei.PrimerApellido} {ei.SegundoApellido}".Replace("  ", " ").Trim(),
                                       NombreCorto = $"{ei.PrimerNombre} {ei.PrimerApellido}".Trim(),
+                                      PrimerNombre = ei.PrimerNombre,
+                                      PrimerApellido = ei.PrimerApellido,
+                                      SegundoNombre = ei.SegundoNombre,
+                                      SegundoApellido = ei.SegundoApellido,
                                       NoInss = ei.NoInss,
                                       NoContrato = 0,
                                       ActivoInss = true,
@@ -145,6 +226,11 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                      IdNomina = ei.IdNomina,
                                      NoCedula = ei.NoCedula,
                                      NombreCompleto = ei.NombreCompleto,
+                                     NombreCorto = ei.NombreCorto,
+                                     PrimerNombre = !string.IsNullOrWhiteSpace(ei.PrimerNombre) ? ei.PrimerNombre : InssReporteHelper.SplitNombreCompleto(ei.NombreCompleto).pNombre,
+                                     PrimerApellido = !string.IsNullOrWhiteSpace(ei.PrimerApellido) ? ei.PrimerApellido : InssReporteHelper.SplitNombreCompleto(ei.NombreCompleto).pApellido,
+                                     SegundoNombre = ei.SegundoNombre,
+                                     SegundoApellido = ei.SegundoApellido,
                                      NoInss = ei.NoInss,
                                      NoContrato = ei.NoContrato,
                                      ActivoInss = false,

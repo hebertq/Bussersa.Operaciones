@@ -1,4 +1,5 @@
 @using Modelo.Report
+@using Modelo.Entidades.Entradas.Odoo
 @using Utilidades.ClasesGenericas
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
@@ -107,12 +108,13 @@ else
 
 @code {
     [Parameter] public List<NominaMensualReportar> NominaFinal { get; set; } = new();
+    [Parameter] public List<EmpleadosActivos>? ListaActivos { get; set; }
     [Parameter] public int Anio { get; set; } = DateTime.Now.Year;
     [Parameter] public int Mes { get; set; } = DateTime.Now.Month;
     [Parameter] public EventCallback<bool> OnProcessing { get; set; }
 
     private string _searchString = "";
-    private List<InssReporteRow> FilasInss => InssReporteHelper.ObtenerFilasInss(NominaFinal, Anio, Mes);
+    private List<InssReporteRow> FilasInss => InssReporteHelper.ObtenerFilasInss(NominaFinal, ListaActivos, Anio, Mes);
 
     private Func<InssReporteRow, bool> _quickFilter => x =>
     {
@@ -141,7 +143,7 @@ else
         await Task.Delay(50);
         try
         {
-            string csvContent = InssReporteHelper.GenerarCsvInss(NominaFinal, Anio, Mes);
+            string csvContent = InssReporteHelper.GenerarCsvInss(NominaFinal, ListaActivos, Anio, Mes);
             string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
             await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.csv");
             Snackbar.Add("Archivo CSV para INSS generado exitosamente.", Severity.Success);
@@ -163,7 +165,7 @@ else
         await Task.Delay(50);
         try
         {
-            byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(NominaFinal, Anio, Mes);
+            byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(NominaFinal, ListaActivos, Anio, Mes);
             string base64Data = Convert.ToBase64String(excelBytes);
             await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.xlsx");
             Snackbar.Add("Plantilla Excel para INSS generada exitosamente.", Severity.Success);

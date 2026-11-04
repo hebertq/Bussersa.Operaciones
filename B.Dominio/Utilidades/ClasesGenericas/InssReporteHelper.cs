@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Report;
 using OfficeOpenXml;
 using OfficeOpenXml.Table;
@@ -185,12 +186,80 @@ namespace Utilidades.ClasesGenericas
 
         public static List<InssReporteRow> ObtenerFilasInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
+            return ObtenerFilasInss(nominaList, null, anio, mes);
+        }
+
+        public static List<InssReporteRow> ObtenerFilasInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            int? anio = null, 
+            int? mes = null)
+        {
             var list = new List<InssReporteRow>();
             if (nominaList == null) return list;
 
+            var activosList = listaActivos?.Where(x => x != null).ToList();
+
             foreach (var item in nominaList)
             {
+                // 1. Obtener nombres preliminares dividiendo el nombre de nómina
                 var (pNombre, pApellido) = SplitNombreCompleto(item.emp_nombre);
+
+                // 2. Si se suministró la lista de asegurados activos (cargada del archivo de activos del INSS),
+                // tomar primer nombre y primer apellido del registro oficial del INSS para evitar rechazos en el portal Turing/Newton.
+                if (activosList != null && activosList.Any())
+                {
+                    string cleanNss = CleanInss(item.emp_noinss);
+                    bool tieneNss = !string.IsNullOrWhiteSpace(cleanNss) && cleanNss != "0";
+
+                    EmpleadosActivos? match = null;
+
+                    // Coincidencia 1: Por número de NSS
+                    if (tieneNss)
+                    {
+                        match = activosList.FirstOrDefault(a => 
+                            a.NoInss > 0 && CleanInss(a.NoInss.ToString(CultureInfo.InvariantCulture)) == cleanNss);
+                    }
+
+                    // Coincidencia 2: Por IdNomina
+                    if (match == null && item.emp_nomina > 0)
+                    {
+                        match = activosList.FirstOrDefault(a => a.IdNomina > 0 && a.IdNomina == item.emp_nomina);
+                    }
+
+                    // Coincidencia 3: Por Nombre Completo normalizado
+                    if (match == null && !string.IsNullOrWhiteSpace(item.emp_nombre))
+                    {
+                        string nomNorm = item.emp_nombre.Trim().ToLowerInvariant().Replace(" ", "");
+                        match = activosList.FirstOrDefault(a => 
+                            !string.IsNullOrWhiteSpace(a.NombreCompleto) && 
+                            a.NombreCompleto.Trim().ToLowerInvariant().Replace(" ", "") == nomNorm);
+                    }
+
+                    if (match != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(match.PrimerNombre))
+                        {
+                            pNombre = match.PrimerNombre.Trim();
+                        }
+                        else if (!string.IsNullOrWhiteSpace(match.NombreCorto))
+                        {
+                            var (ncNom, _) = SplitNombreCompleto(match.NombreCorto);
+                            if (!string.IsNullOrWhiteSpace(ncNom)) pNombre = ncNom;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(match.PrimerApellido))
+                        {
+                            pApellido = match.PrimerApellido.Trim();
+                        }
+                        else if (!string.IsNullOrWhiteSpace(match.NombreCorto))
+                        {
+                            var (_, ncApe) = SplitNombreCompleto(match.NombreCorto);
+                            if (!string.IsNullOrWhiteSpace(ncApe)) pApellido = ncApe;
+                        }
+                    }
+                }
+
                 decimal dias = item.emp_diaslab ?? 0;
                 bool esMayor28 = dias > 28;
 
@@ -258,6 +327,15 @@ namespace Utilidades.ClasesGenericas
 
         public static DataTable CrearDataTableInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
+            return CrearDataTableInss(nominaList, null, anio, mes);
+        }
+
+        public static DataTable CrearDataTableInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            int? anio = null, 
+            int? mes = null)
+        {
             var dt = new DataTable("NovedadesINSS");
             dt.Columns.Add("nss", typeof(string));
             dt.Columns.Add("p-nombre", typeof(string));
@@ -272,7 +350,7 @@ namespace Utilidades.ClasesGenericas
             dt.Columns.Add("tipo-empleo", typeof(string));
             dt.Columns.Add("puesto", typeof(string));
 
-            var filas = ObtenerFilasInss(nominaList, anio, mes);
+            var filas = ObtenerFilasInss(nominaList, listaActivos, anio, mes);
             foreach (var fila in filas)
             {
                 dt.Rows.Add(
@@ -296,7 +374,16 @@ namespace Utilidades.ClasesGenericas
 
         public static string GenerarCsvInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
-            var dt = CrearDataTableInss(nominaList, anio, mes);
+            return GenerarCsvInss(nominaList, null, anio, mes);
+        }
+
+        public static string GenerarCsvInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            int? anio = null, 
+            int? mes = null)
+        {
+            var dt = CrearDataTableInss(nominaList, listaActivos, anio, mes);
             var sb = new StringBuilder();
 
             // Encabezado
@@ -320,10 +407,19 @@ namespace Utilidades.ClasesGenericas
 
         public static byte[] GenerarExcelInssBytes(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
         {
+            return GenerarExcelInssBytes(nominaList, null, anio, mes);
+        }
+
+        public static byte[] GenerarExcelInssBytes(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            int? anio = null, 
+            int? mes = null)
+        {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using var pack = new ExcelPackage();
             var ws = pack.Workbook.Worksheets.Add("NovedadesINSS");
-            var dt = CrearDataTableInss(nominaList, anio, mes);
+            var dt = CrearDataTableInss(nominaList, listaActivos, anio, mes);
 
             ws.Cells["A1"].LoadFromDataTable(dt, true, TableStyles.Light2);
 
