@@ -15,6 +15,7 @@ namespace Modelo.Entidades.Entradas.Odoo
         public double NoInss { get; set; } = 0;
         public int NoContrato { get; set; } = 0;
         public DateTime? FechaIngreso { get; set; }
+        public decimal? Salario { get; set; }
         public bool ActivoInss { get; set; } = false;
         public AccionesEmp Accion { get; set; } = AccionesEmp.Ninguna;
 
@@ -29,6 +30,7 @@ namespace Modelo.Entidades.Entradas.Odoo
         public string SegundoApellido { get; set; } = string.Empty;
         public double NoInss { get; set; } = 0;
         public DateTime? FechaIngreso { get; set; }
+        public decimal? Salario { get; set; }
 
     }
 

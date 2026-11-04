@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 
-@if (FilasInss == null || !FilasInss.Any())
+@if (NominaFinal == null || !NominaFinal.Any())
 {
     <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="my-4">
         No hay datos de nómina disponibles para generar el archivo de INSS. Por favor ejecute o cargue el Cierre Mensual primero.
@@ -14,20 +14,29 @@ else
 {
     @* KPIs informativos del archivo INSS *@
     <MudGrid Class="mb-4">
-        <MudItem xs="12" sm="6" md="3">
+        <MudItem xs="12" sm="6" md="2">
             <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f1f5f9; border-radius: 8px;">
                 <MudIcon Icon="@Icons.Material.Filled.People" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" />
                 <div>
-                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total Asegurados</MudText>
-                    <MudText Typo="MudBlazor.Typo.h6"><b>@FilasInss.Count</b></MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total Nómina</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6"><b>@NominaFinal.Count</b></MudText>
                 </div>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12" sm="6" md="3">
+        <MudItem xs="12" sm="6" md="2">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f8fafc; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="MudBlazor.Color.Default" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Mismo Salario (Omitidos)</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Default"><b>@TotalOmitidos</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
             <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f0fdf4; border-radius: 8px;">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" />
                 <div>
-                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 03 (Mes Completo)</MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 03 (Cambio)</MudText>
                     <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Success"><b>@FilasInss.Count(x => x.TipoNovedad == "03")</b></MudText>
                 </div>
             </MudPaper>
@@ -43,10 +52,10 @@ else
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
             <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #eff6ff; border-radius: 8px;">
-                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Color="MudBlazor.Color.Info" Size="MudBlazor.Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.UploadFile" Color="MudBlazor.Color.Info" Size="MudBlazor.Size.Large" />
                 <div>
-                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total Sal. Devengado</MudText>
-                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Info"><b>C$ @FilasInss.Sum(x => x.SalDevengado).ToString("N2")</b></MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">A Informar INSS</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Info"><b>@FilasInss.Count</b></MudText>
                 </div>
             </MudPaper>
         </MudItem>
@@ -61,10 +70,11 @@ else
                     <b>Estructura del Archivo de Novedades INSS (Turing | Newton)</b>
                 </MudText>
                 <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">
-                    12 columnas oficiales requeridas por el portal INSS para importación masiva
+                    Solo se informan colaboradores con cambio de salario respecto al mes anterior o novedad 04
                 </MudText>
             </div>
             <MudSpacer />
+            <MudSwitch @bind-Value="_soloCambiosSalario" Label="Solo cambios de salario" Color="MudBlazor.Color.Primary" Dense="true" Class="mr-4" />
             <MudTextField @bind-Value="_searchString" Placeholder="Buscar por NSS o Nombre..."
                           Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           IconSize="MudBlazor.Size.Medium" Class="mt-0 mr-4" Immediate="true" Margin="MudBlazor.Margin.Dense" />
@@ -109,12 +119,25 @@ else
 @code {
     [Parameter] public List<NominaMensualReportar> NominaFinal { get; set; } = new();
     [Parameter] public List<EmpleadosActivos>? ListaActivos { get; set; }
+    [Parameter] public List<NominaMensualReportar>? NominaMesAnterior { get; set; }
     [Parameter] public int Anio { get; set; } = DateTime.Now.Year;
     [Parameter] public int Mes { get; set; } = DateTime.Now.Month;
     [Parameter] public EventCallback<bool> OnProcessing { get; set; }
 
     private string _searchString = "";
-    private List<InssReporteRow> FilasInss => InssReporteHelper.ObtenerFilasInss(NominaFinal, ListaActivos, Anio, Mes);
+    private bool _soloCambiosSalario = true;
+
+    private List<InssReporteRow> FilasInss => InssReporteHelper.ObtenerFilasInss(NominaFinal, ListaActivos, NominaMesAnterior, Anio, Mes, _soloCambiosSalario);
+
+    private int TotalOmitidos
+    {
+        get
+        {
+            if (NominaFinal == null || !NominaFinal.Any()) return 0;
+            var todasFilas = InssReporteHelper.ObtenerFilasInss(NominaFinal, ListaActivos, NominaMesAnterior, Anio, Mes, false);
+            return todasFilas.Count(x => x.EsMismoSalario);
+        }
+    }
 
     private Func<InssReporteRow, bool> _quickFilter => x =>
     {
@@ -143,7 +166,7 @@ else
         await Task.Delay(50);
         try
         {
-            string csvContent = InssReporteHelper.GenerarCsvInss(NominaFinal, ListaActivos, Anio, Mes);
+            string csvContent = InssReporteHelper.GenerarCsvInss(NominaFinal, ListaActivos, NominaMesAnterior, Anio, Mes, _soloCambiosSalario);
             string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
             await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.csv");
             Snackbar.Add("Archivo CSV para INSS generado exitosamente.", Severity.Success);
@@ -165,7 +188,7 @@ else
         await Task.Delay(50);
         try
         {
-            byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(NominaFinal, ListaActivos, Anio, Mes);
+            byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(NominaFinal, ListaActivos, NominaMesAnterior, Anio, Mes, _soloCambiosSalario);
             string base64Data = Convert.ToBase64String(excelBytes);
             await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, $"NOVEDADES_INSS_{Mes}_{Anio}.xlsx");
             Snackbar.Add("Plantilla Excel para INSS generada exitosamente.", Severity.Success);

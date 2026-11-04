@@ -30,6 +30,7 @@ namespace HostService.Interfaces
         Task<IListResponse<EmpleadosActivos>> GetAllEmpleadosActivos();
         Task<IResponse> ActualizarEmpleadosInss(List<EmpleadosActivos> model);
         Task<IListResponse<NominaMensualReportar>> AddCerrarMesNomina(int Anio,int Mes);
+        Task<IListResponse<NominaMensualReportar>> GetNominaMensualInss(int Anio, int Mes);
         Task<IResponse> AddCierreMarcadaFacturar(List<DiasTrabajadosAreas> model, int operacion);
         Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaRango(int Operacion, DateTime Inicio, DateTime Fin);
         Task<IListResponse<ReporteCierreMarcadas>> GetCierreFacturaMes(int Anio, int Mes, int Operacion);

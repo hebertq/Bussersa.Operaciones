@@ -34,6 +34,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         private List<EmpleadosActivos?> _PayLoadListLocal = new();
         protected List<EmpleadosActivos?> _PayLoadListInss = new();
         protected List<NominaMensualReportar> _nominaFinalGlobal = new();
+        protected List<NominaMensualReportar> _nominaMesAnterior = new();
 
         public List<EmpleadosActivos> ListaAseguradosParaAuditoria
         {
@@ -91,7 +92,30 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         protected override async Task OnInitializedAsync()
         {
             await LoadEmpleados();
+            await CargarNominaMesAnterior();
             _PayLoadListInss = new();
+        }
+
+        protected async Task CargarNominaMesAnterior()
+        {
+            int anioAnt = _mesGlobal == 1 ? _anioGlobal - 1 : _anioGlobal;
+            int mesAnt = _mesGlobal == 1 ? 12 : _mesGlobal - 1;
+            try
+            {
+                var resp = await _mediator.Send(new GetNominaMensualInssQuery(anioAnt, mesAnt));
+                if (!resp.Respuesta.ExisteError && resp.Model != null)
+                {
+                    _nominaMesAnterior = resp.Model;
+                }
+                else
+                {
+                    _nominaMesAnterior = new();
+                }
+            }
+            catch
+            {
+                _nominaMesAnterior = new();
+            }
         }
 
         protected async Task LoadFiles(InputFileChangeEventArgs e)
@@ -125,9 +149,10 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             }
         }
 
-        protected void HandleNominaGenerated(List<NominaMensualReportar> nomina)
+        protected async void HandleNominaGenerated(List<NominaMensualReportar> nomina)
         {
             _nominaFinalGlobal = nomina;
+            await CargarNominaMesAnterior();
             Snackbar.Add($"Nómina consolidada generada con {nomina.Count} colaboradores. Pestañas de Auditoría y Archivo INSS actualizadas.", Severity.Success);
             StateHasChanged();
         }

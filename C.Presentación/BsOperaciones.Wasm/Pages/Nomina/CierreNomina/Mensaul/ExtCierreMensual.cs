@@ -75,6 +75,38 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             return 0;
         }
 
+                private static decimal? GetDecimalVal(DataRow row, params string[] columnNames)
+        {
+            foreach (var col in columnNames)
+            {
+                if (row.Table.Columns.Contains(col) && row[col] != DBNull.Value && row[col] != null)
+                {
+                    string str = row[col].ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        if (decimal.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res)) return res;
+                        if (decimal.TryParse(str, out decimal resLocal)) return resLocal;
+                    }
+                }
+            }
+
+            foreach (var col in columnNames)
+            {
+                string normTarget = NormalizeKey(col);
+                var matchCol = row.Table.Columns.Cast<DataColumn>().FirstOrDefault(c => NormalizeKey(c.ColumnName) == normTarget);
+                if (matchCol != null && row[matchCol] != DBNull.Value && row[matchCol] != null)
+                {
+                    string str = row[matchCol].ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        if (decimal.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal res)) return res;
+                        if (decimal.TryParse(str, out decimal resLocal)) return resLocal;
+                    }
+                }
+            }
+            return null;
+        }
+
         private static DateTime? GetDateTimeVal(DataRow row, params string[] columnNames)
         {
             foreach (var col in columnNames)
@@ -148,7 +180,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                     PrimerApellido = GetStringVal(myRow, "Primer_Apellido", "Primer Apellido", "PrimerApellido", "p-apellido", "p_apellido", "papellido", "PApellido", "Apellido 1", "Apellido1"),
                                     SegundoNombre = GetStringVal(myRow, "Segundo_Nombre", "Segundo Nombre", "SegundoNombre", "s-nombre", "s_nombre", "snombre", "SNombre", "Nombre 2", "Nombre2"),
                                     SegundoApellido = GetStringVal(myRow, "Segundo_Apellido", "Segundo Apellido", "SegundoApellido", "s-apellido", "s_apellido", "sapellido", "SApellido", "Apellido 2", "Apellido2"),
-                                    FechaIngreso = GetDateTimeVal(myRow, "Fecha de Ingreso", "Fecha_de_Ingreso", "FechaIngreso", "Fecha_Ingreso", "fec_ingreso", "fec_inicio", "Fecha Inicio", "Ingreso", "FecIngreso")
+                                    FechaIngreso = GetDateTimeVal(myRow, "Fecha de Ingreso", "Fecha_de_Ingreso", "FechaIngreso", "Fecha_Ingreso", "fec_ingreso", "fec_inicio", "Fecha Inicio", "Ingreso", "FecIngreso"),
+                                    Salario = GetDecimalVal(myRow, "Salario", "salario", "Salario_Actual", "SalarioActual", "Sueldo", "Salario Devengado", "SalarioDevengado")
                                 }).ToList();
 
                 // Post-proceso para completar nombres si vinieron en una columna combinada
@@ -190,6 +223,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        NoInss = (ea.NoInss != ei.NoInss && ei.NoInss > 0) ? ei.NoInss : ea.NoInss,
                                        NoContrato = ea.NoContrato,
                                        FechaIngreso = ei.FechaIngreso ?? ea.FechaIngreso,
+                                       Salario = ei.Salario ?? ea.Salario,
                                        ActivoInss = true,
                                        Accion = (ea.NoInss != ei.NoInss && ei.NoInss > 0) ? AccionesEmp.NoInss : ea.Accion,
                                    }).ToList();
@@ -211,6 +245,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        NoInss = ea.NoInss,
                                        NoContrato = ea.NoContrato,
                                        FechaIngreso = ei.FechaIngreso ?? ea.FechaIngreso,
+                                       Salario = ei.Salario ?? ea.Salario,
                                        ActivoInss = true,
                                        Accion = (!string.IsNullOrWhiteSpace(ea.NoCedula) && !string.IsNullOrWhiteSpace(ei.NoCedula) && ea.NoCedula.Trim().ToLower() != ei.NoCedula.Trim().ToLower()) ? AccionesEmp.Cedula : ea.Accion,
                                    }).ToList();
@@ -242,6 +277,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                       NoInss = ei.NoInss,
                                       NoContrato = 0,
                                       FechaIngreso = ei.FechaIngreso,
+                                      Salario = ei.Salario,
                                       ActivoInss = true,
                                       Accion = AccionesEmp.NoActivoAdmin
                                   }).ToList();
@@ -282,6 +318,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                      NoInss = ei.NoInss,
                                      NoContrato = ei.NoContrato,
                                      FechaIngreso = ei.FechaIngreso,
+                                     Salario = ei.Salario,
                                      ActivoInss = false,
                                      Accion = AccionesEmp.NoActivoInss
                                  }).ToList();

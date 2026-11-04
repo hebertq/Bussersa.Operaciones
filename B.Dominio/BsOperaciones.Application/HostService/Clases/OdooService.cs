@@ -613,6 +613,32 @@ namespace HostService.Clases
             }
             return response;
         }
+
+        public async Task<IListResponse<NominaMensualReportar>> GetNominaMensualInss(int Anio, int Mes)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<NominaMensualReportar>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"OdQuery/GetNominaMensualInss/{Anio}/{Mes}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<NominaMensualReportar>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (CoreException ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
         public async Task<IListResponse<DiasTrabajados>> GetAllDiasTrabajados(typeeinout rango)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

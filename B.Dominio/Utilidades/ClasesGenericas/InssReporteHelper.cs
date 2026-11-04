@@ -26,6 +26,8 @@ namespace Utilidades.ClasesGenericas
         public string CentroCosto { get; set; } = string.Empty;
         public string TipoEmpleo { get; set; } = string.Empty;
         public string Puesto { get; set; } = string.Empty;
+        public decimal? SalAnterior { get; set; }
+        public bool EsMismoSalario { get; set; } = false;
     }
 
     public static class InssReporteHelper
@@ -184,9 +186,12 @@ namespace Utilidades.ClasesGenericas
             return new string(resultado);
         }
 
-        public static List<InssReporteRow> ObtenerFilasInss(List<NominaMensualReportar> nominaList, int? anio = null, int? mes = null)
+        public static List<InssReporteRow> ObtenerFilasInss(
+            List<NominaMensualReportar> nominaList, 
+            int? anio = null, 
+            int? mes = null)
         {
-            return ObtenerFilasInss(nominaList, null, anio, mes);
+            return ObtenerFilasInss(nominaList, null, null, anio, mes, true);
         }
 
         public static List<InssReporteRow> ObtenerFilasInss(
@@ -194,6 +199,17 @@ namespace Utilidades.ClasesGenericas
             IEnumerable<EmpleadosActivos>? listaActivos, 
             int? anio = null, 
             int? mes = null)
+        {
+            return ObtenerFilasInss(nominaList, listaActivos, null, anio, mes, true);
+        }
+
+        public static List<InssReporteRow> ObtenerFilasInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            IEnumerable<NominaMensualReportar>? nominaMesAnterior, 
+            int? anio = null, 
+            int? mes = null, 
+            bool soloCambiosSalario = true)
         {
             var list = new List<InssReporteRow>();
             if (nominaList == null) return list;
@@ -322,6 +338,48 @@ namespace Utilidades.ClasesGenericas
                 // Para Novedad 03 (Mes completo), sal-mensual es el salario mensual pactado (emp_sal_fijo).
                 decimal salMensual = tipoNovedad == "04" ? 0m : (item.emp_sal_fijo ?? 0m);
 
+                // REGLA CRÍTICA USUARIO / INSS:
+                // Validar contra el mes anterior los deducibles: si es el mismo del mes pasado no debemos informarlo
+                // en la plantilla a subir al INSS, solo debemos informar los que sufrieron cambios en el salario.
+                decimal? salAnterior = null;
+
+                // 1. Buscar en la nómina del mes anterior cerrada en BD
+                if (nominaMesAnterior != null && nominaMesAnterior.Any())
+                {
+                    string cNss = CleanInss(item.emp_noinss);
+                    var prev = nominaMesAnterior.FirstOrDefault(p =>
+                        (!string.IsNullOrWhiteSpace(cNss) && cNss != "0" && CleanInss(p.emp_noinss) == cNss) ||
+                        (item.emp_nomina > 0 && p.emp_nomina == item.emp_nomina));
+
+                    if (prev != null)
+                    {
+                        decimal prevDeduc = (prev.emp_ingresos_deducir.HasValue && prev.emp_ingresos_deducir.Value > 0)
+                            ? prev.emp_ingresos_deducir.Value
+                            : (prev.emp_sal_fijo ?? prev.emp_sal_basico ?? 0m);
+                        salAnterior = Math.Round(prevDeduc, 2);
+                    }
+                }
+
+                // 2. Si no se encontró en nómina previa de BD, validar contra Salario del archivo de activos del INSS
+                if (!salAnterior.HasValue && match?.Salario.HasValue == true && match.Salario.Value > 0)
+                {
+                    salAnterior = Math.Round(match.Salario.Value, 2);
+                }
+
+                bool esMismoSalario = false;
+                if (tipoNovedad == "03" && salAnterior.HasValue)
+                {
+                    if (Math.Abs(Math.Round(salDevengado, 2) - salAnterior.Value) < 0.01m)
+                    {
+                        esMismoSalario = true;
+                    }
+                }
+
+                if (soloCambiosSalario && esMismoSalario)
+                {
+                    continue; // Omitir: no se informa en la plantilla a subir al INSS
+                }
+
                 list.Add(new InssReporteRow
                 {
                     Nss = CleanInss(item.emp_noinss),
@@ -335,7 +393,9 @@ namespace Utilidades.ClasesGenericas
                     Semanas = semanasStr,
                     CentroCosto = "",
                     TipoEmpleo = "",
-                    Puesto = ""
+                    Puesto = "",
+                    SalAnterior = salAnterior,
+                    EsMismoSalario = esMismoSalario
                 });
             }
 
@@ -353,6 +413,17 @@ namespace Utilidades.ClasesGenericas
             int? anio = null, 
             int? mes = null)
         {
+            return CrearDataTableInss(nominaList, listaActivos, null, anio, mes, true);
+        }
+
+        public static DataTable CrearDataTableInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            IEnumerable<NominaMensualReportar>? nominaMesAnterior, 
+            int? anio = null, 
+            int? mes = null, 
+            bool soloCambiosSalario = true)
+        {
             var dt = new DataTable("NovedadesINSS");
             dt.Columns.Add("nss", typeof(string));
             dt.Columns.Add("p-nombre", typeof(string));
@@ -367,7 +438,7 @@ namespace Utilidades.ClasesGenericas
             dt.Columns.Add("tipo-empleo", typeof(string));
             dt.Columns.Add("puesto", typeof(string));
 
-            var filas = ObtenerFilasInss(nominaList, listaActivos, anio, mes);
+            var filas = ObtenerFilasInss(nominaList, listaActivos, nominaMesAnterior, anio, mes, soloCambiosSalario);
             foreach (var fila in filas)
             {
                 dt.Rows.Add(
@@ -400,7 +471,18 @@ namespace Utilidades.ClasesGenericas
             int? anio = null, 
             int? mes = null)
         {
-            var dt = CrearDataTableInss(nominaList, listaActivos, anio, mes);
+            return GenerarCsvInss(nominaList, listaActivos, null, anio, mes, true);
+        }
+
+        public static string GenerarCsvInss(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            IEnumerable<NominaMensualReportar>? nominaMesAnterior, 
+            int? anio = null, 
+            int? mes = null, 
+            bool soloCambiosSalario = true)
+        {
+            var dt = CrearDataTableInss(nominaList, listaActivos, nominaMesAnterior, anio, mes, soloCambiosSalario);
             var sb = new StringBuilder();
 
             // Encabezado
@@ -433,10 +515,21 @@ namespace Utilidades.ClasesGenericas
             int? anio = null, 
             int? mes = null)
         {
+            return GenerarExcelInssBytes(nominaList, listaActivos, null, anio, mes, true);
+        }
+
+        public static byte[] GenerarExcelInssBytes(
+            List<NominaMensualReportar> nominaList, 
+            IEnumerable<EmpleadosActivos>? listaActivos, 
+            IEnumerable<NominaMensualReportar>? nominaMesAnterior, 
+            int? anio = null, 
+            int? mes = null, 
+            bool soloCambiosSalario = true)
+        {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             using var pack = new ExcelPackage();
             var ws = pack.Workbook.Worksheets.Add("NovedadesINSS");
-            var dt = CrearDataTableInss(nominaList, listaActivos, anio, mes);
+            var dt = CrearDataTableInss(nominaList, listaActivos, nominaMesAnterior, anio, mes, soloCambiosSalario);
 
             ws.Cells["A1"].LoadFromDataTable(dt, true, TableStyles.Light2);
 
