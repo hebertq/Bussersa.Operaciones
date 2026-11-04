@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1626,8 +1626,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             {
                                 var local = empleadosJornada.FirstOrDefault(e => 
                                     (e.Id > 0 && e.Id == itemBd.Id) || 
-                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado && string.Equals(e.Cliente, itemBd.Cliente, StringComparison.OrdinalIgnoreCase)) ||
-                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado));
+                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado 
+                                               && string.Equals(e.Area?.Trim(), itemBd.Area?.Trim(), StringComparison.OrdinalIgnoreCase)
+                                               && string.Equals(e.HoraEntrada?.Trim(), itemBd.HoraEntrada?.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado 
+                                               && string.Equals(e.Area?.Trim(), itemBd.Area?.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                                    (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado && !empleadosJornada.Any(other => other != e && other.Id == itemBd.Id)));
                                 if (local != null)
                                 {
                                     local.Id = itemBd.Id;
