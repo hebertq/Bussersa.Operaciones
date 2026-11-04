@@ -98,37 +98,79 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             await Task.Delay(50);
             try
             {
-                var reporteExcel = _nominaFinal.Select(x => new
+                var reporteExcel = _nominaFinal.Select(x =>
                 {
-                    Mes = x.anyo_mes_cierre,
-                    Inicio = x.fec_inicio?.ToString("yyyy-MM-dd"),
-                    Fin = x.fec_fin?.ToString("yyyy-MM-dd"),
-                    EmpId = x.emp_nomina,
-                    No_Inss = decimal.TryParse(x.emp_noinss, out decimal vInss) ? Convert.ToInt64(vInss) : 0,
-                    Nombre = x.emp_nombre,
-                    Novedad = (x.emp_diaslab ?? 0) > 28 ? "03" : "04",
-                    Semanas = InssReporteHelper.CalcularSemanasInss(x.fec_inicio, x.fec_fin, x.emp_diaslab ?? 0, _anioSeleccionado, _mesSeleccionado),
-                    DiasLab = x.emp_diaslab,
-                    ExtrasLab = x.emp_no_hras_extra,
-                    SalBase = x.emp_sal_fijo,
-                    SalBasico = x.emp_sal_basico,
-                    HrasExtras = x.emp_pago_hras_extras,
-                    Trasnporte = x.emp_viatico_trasporte,
-                    Alimnetacion = x.emp_viatico_alimentacion,
-                    Combustible = x.emp_viatico_combustible,
-                    Depreciacion = x.emb_depre_vehiculo,
-                    Vacaciones = x.emp_vacaciones,
-                    Aguinaldo = x.emp_aguinaldo,
-                    Prestaciones = x.emp_prestaciones,
-                    Otros_Ingresos = x.emp_otros_ingresos,
-                    TotalIngresos = x.emp_total_ingresos,
-                    Deducibles = x.emp_ingresos_deducir,
-                    Inss = x.emp_deduc_inss,
-                    Ir = x.emp_ir_reportar,
-                    Otras_Deduciones = x.emp_otras_deduciones,
-                    Prestamos = x.emp_prestamos,
-                    TotalDeduciones = x.emp_total_deducciones,
-                    TotalRecibir = x.emp_pago_recibir
+                    decimal salBase = x.emp_sal_fijo ?? 0m;
+                    decimal salBasico = x.emp_sal_basico ?? 0m;
+                    decimal horaExtraTotal = x.emp_pago_hras_extras ?? 0m;
+                    decimal cantHorasExtra = x.emp_no_hras_extra ?? 0m;
+
+                    decimal hrasExtrasRep = 0m;
+                    decimal extrasLabRep = 0m;
+
+                    // Si el básico no completa el salario fijo pactado en contrato:
+                    // Se reporta en horas extras únicamente la cantidad requerida para completar el básico hasta el salario fijo
+                    if (salBasico < salBase)
+                    {
+                        decimal faltante = salBase - salBasico;
+                        if (horaExtraTotal > 0m && faltante > 0m)
+                        {
+                            hrasExtrasRep = Math.Min(horaExtraTotal, faltante);
+                            if (cantHorasExtra > 0m)
+                            {
+                                extrasLabRep = Math.Round((cantHorasExtra * hrasExtrasRep) / horaExtraTotal, 2);
+                            }
+                        }
+                    }
+
+                    // El excedente de horas extras devengadas se redistribuye en 3 partes iguales (centavo a centavo)
+                    // entre Transporte, Alimentación y Depreciación para blindar legalmente a la empresa contra multas del MITRAB e INSS
+                    decimal excesoExtras = Math.Max(0m, horaExtraTotal - hrasExtrasRep);
+                    decimal p1 = Math.Round(excesoExtras / 3.0m, 2);
+                    decimal p2 = Math.Round(excesoExtras / 3.0m, 2);
+                    decimal p3 = excesoExtras - (p1 + p2);
+
+                    decimal transporteFinal = (x.emp_viatico_trasporte ?? 0m) + p1;
+                    decimal alimentacionFinal = (x.emp_viatico_alimentacion ?? 0m) + p2;
+                    decimal depreciacionFinal = (x.emb_depre_vehiculo ?? 0m) + p3;
+
+                    // Base deducible sujeta a cotización del INSS (salario fijo completado o base contractual)
+                    decimal deduciblesFinal = (x.emp_ingresos_deducir.HasValue && x.emp_ingresos_deducir.Value > 0m)
+                        ? x.emp_ingresos_deducir.Value
+                        : (salBasico + hrasExtrasRep);
+
+                    return new
+                    {
+                        Mes = x.anyo_mes_cierre,
+                        Inicio = x.fec_inicio?.ToString("yyyy-MM-dd"),
+                        Fin = x.fec_fin?.ToString("yyyy-MM-dd"),
+                        EmpId = x.emp_nomina,
+                        No_Inss = decimal.TryParse(x.emp_noinss, out decimal vInss) ? Convert.ToInt64(vInss) : 0,
+                        Nombre = x.emp_nombre,
+                        Novedad = (x.emp_diaslab ?? 0) > 28 ? "03" : "04",
+                        Semanas = InssReporteHelper.CalcularSemanasInss(x.fec_inicio, x.fec_fin, x.emp_diaslab ?? 0, _anioSeleccionado, _mesSeleccionado),
+                        DiasLab = x.emp_diaslab,
+                        ExtrasLab = extrasLabRep,
+                        SalBase = x.emp_sal_fijo,
+                        SalBasico = x.emp_sal_basico,
+                        HrasExtras = hrasExtrasRep,
+                        Trasnporte = transporteFinal,
+                        Alimnetacion = alimentacionFinal,
+                        Combustible = x.emp_viatico_combustible,
+                        Depreciacion = depreciacionFinal,
+                        Vacaciones = x.emp_vacaciones,
+                        Aguinaldo = x.emp_aguinaldo,
+                        Prestaciones = x.emp_prestaciones,
+                        Otros_Ingresos = x.emp_otros_ingresos,
+                        TotalIngresos = x.emp_total_ingresos,
+                        Deducibles = deduciblesFinal,
+                        Inss = x.emp_deduc_inss,
+                        Ir = x.emp_ir_reportar,
+                        Otras_Deduciones = x.emp_otras_deduciones,
+                        Prestamos = x.emp_prestamos,
+                        TotalDeduciones = x.emp_total_deducciones,
+                        TotalRecibir = x.emp_pago_recibir
+                    };
                 }).ToList();
 
                 var request = new MultiSheetExcelRequest
