@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -22,9 +22,37 @@ namespace BsOperaciones.Application.Common
 
     public static class ReglaViaticoEvaluator
     {
+        private static bool EsGeneral(string? area)
+        {
+            if (string.IsNullOrWhiteSpace(area)) return true;
+            var a = area.Trim();
+            return a == "*" || 
+                   string.Equals(a, "TODAS", StringComparison.OrdinalIgnoreCase) || 
+                   string.Equals(a, "TODOS", StringComparison.OrdinalIgnoreCase) || 
+                   string.Equals(a, "GENERAL", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool EsMismaArea(string? areaRegla, string? areaColaborador)
+        {
+            if (EsGeneral(areaRegla)) return false;
+            if (string.IsNullOrWhiteSpace(areaColaborador)) return false;
+            return string.Equals(areaRegla?.Trim(), areaColaborador?.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool EsSoloEntrada(ReglaViaticoDto r) =>
+            string.Equals(r.ModoCriterioHorario?.Trim(), "SoloEntrada", StringComparison.OrdinalIgnoreCase);
+
+        private static bool EsSoloSalida(ReglaViaticoDto r) =>
+            string.Equals(r.ModoCriterioHorario?.Trim(), "SoloSalida", StringComparison.OrdinalIgnoreCase);
+
+        private static bool EsMixta(ReglaViaticoDto r) =>
+            !EsSoloEntrada(r) && !EsSoloSalida(r);
+
         /// <summary>
-        /// Evalúa las reglas de viáticos en memoria para un colaborador específico.
-        /// No realiza peticiones HTTP.
+        /// Evalúa las reglas de viáticos en memoria para un colaborador específico:
+        /// 1. Prioriza reglas específicas del área sobre reglas generales.
+        /// 2. Si un área tiene regla pero esta no aplica por horario y la general sí aplica, hace fallback a la general.
+        /// 3. Si tiene regla de entrada y regla de salida, valida y aplica ambas respetando la especificidad del área.
         /// </summary>
         public static ResultadoEvaluacionViatico Evaluar(
             string? cliente,
@@ -56,37 +84,95 @@ namespace BsOperaciones.Application.Common
 
             resultado.TieneReglasCliente = true;
 
-            // 2. Determinar reglas candidatas por área (prioridad: área específica, luego comodín '*')
-            var reglasCandidatas = reglasCliente
-                .Where(r => !string.IsNullOrWhiteSpace(r.Area) && !string.Equals(r.Area.Trim(), "*") &&
-                            string.Equals(r.Area.Trim(), areaNorm, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (!reglasCandidatas.Any())
-            {
-                reglasCandidatas = reglasCliente
-                    .Where(r => string.IsNullOrWhiteSpace(r.Area) || string.Equals(r.Area.Trim(), "*"))
-                    .ToList();
-            }
-
-            if (!reglasCandidatas.Any())
-            {
-                return resultado;
-            }
-
-            // 3. Parsear horas de entrada y salida del empleado
+            // 2. Parsear horas de entrada y salida del empleado
             TimeSpan entradaEmp = ParseHora(horaEntrada, new TimeSpan(6, 0, 0));
             TimeSpan salidaEmp = ParseHora(horaSalida, new TimeSpan(14, 0, 0));
 
-            // 4. Evaluar cada regla candidata
+            // 3. Evaluación de Regla de Entrada (SoloEntrada)
+            ReglaViaticoDto? reglaEntradaElegida = null;
+            var reglasEntradaArea = reglasCliente.Where(r => EsSoloEntrada(r) && EsMismaArea(r.Area, areaNorm)).ToList();
+            if (reglasEntradaArea.Any())
+            {
+                // Si el área tiene configurada regla específica de entrada, evaluar primero
+                reglaEntradaElegida = reglasEntradaArea.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+            // Si el área no tiene regla de entrada, o la que tiene no aplicó por horario, fallback a la general ("todas las áreas")
+            if (reglaEntradaElegida == null)
+            {
+                var reglasEntradaGeneral = reglasCliente.Where(r => EsSoloEntrada(r) && EsGeneral(r.Area)).ToList();
+                reglaEntradaElegida = reglasEntradaGeneral.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+
+            // 4. Evaluación de Regla de Salida (SoloSalida)
+            ReglaViaticoDto? reglaSalidaElegida = null;
+            var reglasSalidaArea = reglasCliente.Where(r => EsSoloSalida(r) && EsMismaArea(r.Area, areaNorm)).ToList();
+            if (reglasSalidaArea.Any())
+            {
+                // Si el área tiene configurada regla específica de salida, evaluar primero
+                reglaSalidaElegida = reglasSalidaArea.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+            // Si el área no tiene regla de salida, o la que tiene no aplicó por horario, fallback a la general ("todas las áreas")
+            if (reglaSalidaElegida == null)
+            {
+                var reglasSalidaGeneral = reglasCliente.Where(r => EsSoloSalida(r) && EsGeneral(r.Area)).ToList();
+                reglaSalidaElegida = reglasSalidaGeneral.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+
+            // 5. Evaluación de Regla Mixta / Jornada Completa (EntradaYSalida, EntradaOSalida, Siempre)
+            ReglaViaticoDto? reglaMixtaElegida = null;
+            var reglasMixtasArea = reglasCliente.Where(r => EsMixta(r) && EsMismaArea(r.Area, areaNorm)).ToList();
+            if (reglasMixtasArea.Any())
+            {
+                reglaMixtaElegida = reglasMixtasArea.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+            if (reglaMixtaElegida == null)
+            {
+                var reglasMixtasGeneral = reglasCliente.Where(r => EsMixta(r) && EsGeneral(r.Area)).ToList();
+                reglaMixtaElegida = reglasMixtasGeneral.FirstOrDefault(r => EvaluarCriterioHorario(r, entradaEmp, salidaEmp));
+            }
+
+            // 6. Consolidación de reglas coincidentes
             var reglasCoincidentes = new List<ReglaViaticoDto>();
 
-            foreach (var regla in reglasCandidatas)
+            if (reglaEntradaElegida != null)
             {
-                bool cumple = EvaluarCriterioHorario(regla, entradaEmp, salidaEmp);
-                if (cumple)
+                reglasCoincidentes.Add(reglaEntradaElegida);
+            }
+
+            if (reglaSalidaElegida != null)
+            {
+                if (!reglasCoincidentes.Any(r => r.Id == reglaSalidaElegida.Id))
                 {
-                    reglasCoincidentes.Add(regla);
+                    reglasCoincidentes.Add(reglaSalidaElegida);
+                }
+            }
+
+            if (reglaMixtaElegida != null)
+            {
+                if (reglaEntradaElegida == null && reglaSalidaElegida == null)
+                {
+                    reglasCoincidentes.Add(reglaMixtaElegida);
+                }
+                else if (EsMismaArea(reglaMixtaElegida.Area, areaNorm))
+                {
+                    // Si el área tiene regla mixta específica que cumplió, prevalece sobre reglas generales
+                    reglasCoincidentes.RemoveAll(r => EsGeneral(r.Area));
+                    if (!reglasCoincidentes.Any(r => r.Id == reglaMixtaElegida.Id))
+                    {
+                        reglasCoincidentes.Add(reglaMixtaElegida);
+                    }
+                }
+                else
+                {
+                    // Si la regla mixta es general, solo reemplaza si entrada y salida eran ambas generales
+                    bool tieneEntradaArea = reglaEntradaElegida != null && EsMismaArea(reglaEntradaElegida.Area, areaNorm);
+                    bool tieneSalidaArea = reglaSalidaElegida != null && EsMismaArea(reglaSalidaElegida.Area, areaNorm);
+
+                    if (!tieneEntradaArea && !tieneSalidaArea)
+                    {
+                        reglasCoincidentes.RemoveAll(r => EsGeneral(r.Area));
+                        reglasCoincidentes.Add(reglaMixtaElegida);
+                    }
                 }
             }
 
@@ -100,9 +186,10 @@ namespace BsOperaciones.Application.Common
             foreach (var r in reglasCoincidentes)
             {
                 string etiqueta = !string.IsNullOrWhiteSpace(r.NombreRegla) ? r.NombreRegla : $"Regla #{r.Id}";
-                resultado.ReglasAplicadas.Add(etiqueta);
+                string origen = !string.IsNullOrWhiteSpace(r.Area) && !EsGeneral(r.Area) ? $"{etiqueta} ({r.Area})" : $"{etiqueta} (General)";
+                resultado.ReglasAplicadas.Add(origen);
 
-                // Montos de transporte y alimentacion siempre se asignan para cobro al cliente (Ticket de Viaticos)
+                // Montos de transporte y alimentación siempre se asignan para cobro al cliente (Ticket de Viáticos)
                 resultado.MontoTransporte += r.MontoTransporte;
                 resultado.MontoAlimentacion += r.MontoAlimentacion;
 
@@ -114,18 +201,19 @@ namespace BsOperaciones.Application.Common
                 }
             }
 
-            // Bono BNC suma transporte y alimentacion siempre que esten marcados para aplicar en nomina
+            // Bono BNC suma transporte y alimentación siempre que estén marcados para aplicar en nómina
             resultado.BonoBnc = (resultado.TraspAplicaNomina ? resultado.MontoTransporte : 0) +
                                 (resultado.AlimAplicaNomina ? resultado.MontoAlimentacion : 0);
 
             if (resultado.PagaEnNomina)
             {
-                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> BNC Nomina C$ {resultado.BonoBnc:N2} ({string.Join(", ", resultado.ReglasAplicadas)})";
+                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> BNC Nómina C$ {resultado.BonoBnc:N2} [{string.Join(" + ", resultado.ReglasAplicadas)}]";
             }
             else
             {
-                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> Efectivo ({string.Join(", ", resultado.ReglasAplicadas)})";
+                resultado.Resumen = $"Trasp C$ {resultado.MontoTransporte:N2}, Alim C$ {resultado.MontoAlimentacion:N2} -> Efectivo [{string.Join(" + ", resultado.ReglasAplicadas)}]";
             }
+
             return resultado;
         }
 
