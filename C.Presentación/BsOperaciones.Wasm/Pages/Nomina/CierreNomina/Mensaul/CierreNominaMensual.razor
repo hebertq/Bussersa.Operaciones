@@ -107,7 +107,7 @@
         </MudTabPanel>
 
         <MudTabPanel Text="Auditoría de Integridad">
-            <ValidacionFinalCierre ListaInss="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
+            <ValidacionFinalCierre ListaInss="@ListaAseguradosParaAuditoria"
                                    ListaNomina="_nominaFinalGlobal" />
         </MudTabPanel>
 

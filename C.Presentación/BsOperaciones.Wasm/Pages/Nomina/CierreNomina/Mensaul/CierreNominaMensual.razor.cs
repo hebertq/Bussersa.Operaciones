@@ -13,6 +13,7 @@ using BsOperaciones.Application.Features.Odoo.Command;
 using BsOperaciones.Application.Features.Odoo.Queries;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Report;
+using Utilidades.ClasesGenericas;
 using Utilidades.Interfaces;
 
 namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
@@ -34,16 +35,36 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         protected List<EmpleadosActivos?> _PayLoadListInss = new();
         protected List<NominaMensualReportar> _nominaFinalGlobal = new();
 
+        public List<EmpleadosActivos> ListaAseguradosParaAuditoria
+        {
+            get
+            {
+                if (_PayLoadListInss != null && _PayLoadListInss.Any(x => x != null && x.ActivoInss == true))
+                {
+                    return _PayLoadListInss.Where(x => x != null).Cast<EmpleadosActivos>().ToList();
+                }
+
+                // Fallback automático a los asegurados activos de la base de datos local
+                return _PayLoadListLocal.Where(x => x != null && x.ActivoInss == true).Cast<EmpleadosActivos>().ToList();
+            }
+        }
+
         protected int ConteoDiscrepancias
         {
             get
             {
-                if (_PayLoadListInss == null || !_PayLoadListInss.Any() || _nominaFinalGlobal == null || !_nominaFinalGlobal.Any())
+                var listaActivos = ListaAseguradosParaAuditoria;
+                if (listaActivos == null || !listaActivos.Any() || _nominaFinalGlobal == null || !_nominaFinalGlobal.Any())
                     return 0;
 
-                int sinNom = _PayLoadListInss.Count(i => i != null && i.ActivoInss == true && !_nominaFinalGlobal.Any(n => n.emp_nomina == i.IdNomina));
+                int sinNom = listaActivos.Count(i => i != null && i.ActivoInss == true && !_nominaFinalGlobal.Any(n => 
+                    (i.IdNomina > 0 && n.emp_nomina == i.IdNomina) ||
+                    (i.NoInss > 0 && InssReporteHelper.CleanInss(n.emp_noinss) == InssReporteHelper.CleanInss(i.NoInss.ToString()))));
+
                 int sinCob = _nominaFinalGlobal.Count(n => (n.emp_deduc_inss == 0 || n.emp_deduc_inss == null) &&
-                                                           _PayLoadListInss.Any(i => i != null && i.IdNomina == n.emp_nomina && i.ActivoInss == true));
+                                                           listaActivos.Any(i => i != null && i.ActivoInss == true &&
+                                                            ((i.IdNomina > 0 && i.IdNomina == n.emp_nomina) ||
+                                                             (i.NoInss > 0 && InssReporteHelper.CleanInss(n.emp_noinss) == InssReporteHelper.CleanInss(i.NoInss.ToString())))));
                 return sinNom + sinCob;
             }
         }

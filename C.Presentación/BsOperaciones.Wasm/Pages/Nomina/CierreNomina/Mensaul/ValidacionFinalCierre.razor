@@ -50,7 +50,13 @@
         </MudItem>
     </MudGrid>
 
-    @if (sinNomina.Any() || sinCobroInss.Any())
+    @if (ListaNomina == null || !ListaNomina.Any())
+    {
+        <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="my-4" Icon="@Icons.Material.Filled.Info">
+            <b>Esperando Consolidación de Nómina:</b> Ejecute el cierre de nómina en la pestaña <b>2. Conciliación & Cierre</b> para procesar la auditoría de integridad contra los colaboradores asegurados.
+        </MudAlert>
+    }
+    else if (sinNomina.Any() || sinCobroInss.Any())
     {
         @* Alerta 1: Personas sin Nómina *@
         @if (sinNomina.Any())
@@ -89,12 +95,15 @@
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>No. INSS</MudTh>
+                <MudTh>Cédula</MudTh>
                 <MudTh>Nombre del Colaborador</MudTh>
-                <MudTh>Categoría de Error</MudTh>
-                <MudTh>Estado en Nómina</MudTh>
+                <MudTh>Categoría</MudTh>
+                <MudTh>Estado Nómina</MudTh>
+                <MudTh>Causa / Detalle</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.NoInss</MudTd>
+                <MudTd>@context.Cedula</MudTd>
                 <MudTd><b>@context.Nombre</b></MudTd>
                 <MudTd>
                     <MudChip T="string" Color="@(context.ErrorTipo == "SIN PAGO" ? MudBlazor.Color.Error : MudBlazor.Color.Warning)" 
@@ -103,6 +112,9 @@
                     </MudChip>
                 </MudTd>
                 <MudTd>@context.EstadoNomina</MudTd>
+                <MudTd>
+                    <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">@context.Observacion</MudText>
+                </MudTd>
             </RowTemplate>
             <PagerContent>
                 <MudTablePager RowsPerPageString="Filas por página:" />

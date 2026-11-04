@@ -51,12 +51,12 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 ListaInssAct = (from myRow in dataActivos.AsEnumerable()
                                 select new EmpleadosActivosInss()
                                 {
-                                    NoCedula = GetStringVal(myRow, "Cedula", "Cédula", "NoCedula"),
-                                    NoInss = GetDoubleVal(myRow, "Nss", "NoInss", "NSS", "No_INSS"),
-                                    PrimerNombre = GetStringVal(myRow, "Primer_Nombre", "PrimerNombre", "Nombre1"),
-                                    PrimerApellido = GetStringVal(myRow, "Primer_Apellido", "PrimerApellido", "Apellido1"),
-                                    SegundoNombre = GetStringVal(myRow, "Segundo_Nombre", "SegundoNombre", "Nombre2"),
-                                    SegundoApellido = GetStringVal(myRow, "Segundo_Apellido", "SegundoApellido", "Apellido2")
+                                    NoCedula = GetStringVal(myRow, "Cedula", "Cédula", "NoCedula", "Identificacion"),
+                                    NoInss = GetDoubleVal(myRow, "Nss", "NoInss", "NSS", "No_INSS", "No Inss", "No. Inss", "No. INSS"),
+                                    PrimerNombre = GetStringVal(myRow, "Primer Nombre", "Primer_Nombre", "PrimerNombre", "Nombre1", "Nombre"),
+                                    PrimerApellido = GetStringVal(myRow, "Primer Apellido", "Primer_Apellido", "PrimerApellido", "Apellido1", "Apellido"),
+                                    SegundoNombre = GetStringVal(myRow, "Segundo Nombre", "Segundo_Nombre", "SegundoNombre", "Nombre2"),
+                                    SegundoApellido = GetStringVal(myRow, "Segundo Apellido", "Segundo_Apellido", "SegundoApellido", "Apellido2")
                                 }).ToList();
 
                 var querycedula = (from ea in _PayLoadListLocal
@@ -128,6 +128,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                     if (match != null)
                     {
                         item2.IdNomina = match.IdNomina;
+                        if (string.IsNullOrWhiteSpace(item2.NombreCompleto))
+                            item2.NombreCompleto = match.NombreCompleto;
                     }
                 }
 

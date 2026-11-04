@@ -20,16 +20,24 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         protected string _searchString = "";
         protected bool isloading { get; set; } = false;
 
-        // 1. Empleados que están en el Excel de INSS pero no en la nómina calculada
-        protected List<EmpleadosActivos> sinNomina => ListaInss?
-            .Where(i => i.ActivoInss == true && !ListaNomina.Any(n => n.emp_nomina == i.IdNomina))
-            .ToList() ?? new();
+        // 1. Empleados que están en el padrón/activos de INSS pero no en la nómina calculada
+        protected List<EmpleadosActivos> sinNomina => (ListaInss != null && ListaNomina != null && ListaNomina.Any())
+            ? ListaInss
+                .Where(i => i != null && i.ActivoInss == true && !ListaNomina.Any(n => 
+                    (i.IdNomina > 0 && n.emp_nomina == i.IdNomina) ||
+                    (i.NoInss > 0 && InssReporteHelper.CleanInss(n.emp_noinss) == InssReporteHelper.CleanInss(i.NoInss.ToString()))))
+                .ToList() 
+            : new();
 
         // 2. Empleados que están en la nómina pero tienen INSS en 0 (siendo que están marcados como activos)
-        protected List<NominaMensualReportar> sinCobroInss => ListaNomina?
-            .Where(n => (n.emp_deduc_inss == 0 || n.emp_deduc_inss == null) &&
-                         ListaInss.Any(i => i.IdNomina == n.emp_nomina && i.ActivoInss == true))
-            .ToList() ?? new();
+        protected List<NominaMensualReportar> sinCobroInss => (ListaInss != null && ListaInss.Any() && ListaNomina != null && ListaNomina.Any())
+            ? ListaNomina
+                .Where(n => (n.emp_deduc_inss == 0 || n.emp_deduc_inss == null) &&
+                             ListaInss.Any(i => i != null && i.ActivoInss == true &&
+                                ((i.IdNomina > 0 && i.IdNomina == n.emp_nomina) ||
+                                 (i.NoInss > 0 && InssReporteHelper.CleanInss(n.emp_noinss) == InssReporteHelper.CleanInss(i.NoInss.ToString())))))
+                .ToList()
+            : new();
 
         protected List<AuditoriaInssModel> ObtenerListaConsolidada()
         {
@@ -38,19 +46,34 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             // Agregar los que no tienen nómina
             consolidado.AddRange(sinNomina.Select(x => new AuditoriaInssModel
             {
-                NoInss = x.NoInss.ToString(),
-                Nombre = x.NombreCompleto,
+                NoInss = InssReporteHelper.CleanInss(x.NoInss.ToString()),
+                Cedula = x.NoCedula ?? "",
+                Nombre = !string.IsNullOrWhiteSpace(x.NombreCompleto) 
+                    ? x.NombreCompleto 
+                    : (!string.IsNullOrWhiteSpace(x.NombreCorto) 
+                        ? x.NombreCorto 
+                        : $"Asegurado No. {InssReporteHelper.CleanInss(x.NoInss.ToString())}"),
                 ErrorTipo = "SIN PAGO",
-                EstadoNomina = "No generado"
+                EstadoNomina = "No generado",
+                Observacion = x.IdNomina > 0 
+                    ? "Asegurado activo en INSS pero no generó recibo de nómina en el período." 
+                    : "Asegurado activo en INSS pero no vinculado a empleado en Odoo."
             }));
 
             // Agregar los que tienen nómina pero INSS 0
-            consolidado.AddRange(sinCobroInss.Select(x => new AuditoriaInssModel
-            {
-                NoInss = x.emp_noinss,
-                Nombre = x.emp_nombre,
-                ErrorTipo = "INSS EN CERO",
-                EstadoNomina = "Deducción omitida"
+            consolidado.AddRange(sinCobroInss.Select(x => {
+                var inssMatch = ListaInss.FirstOrDefault(i => 
+                    (i.IdNomina > 0 && i.IdNomina == x.emp_nomina) ||
+                    (i.NoInss > 0 && InssReporteHelper.CleanInss(x.emp_noinss) == InssReporteHelper.CleanInss(i.NoInss.ToString())));
+                return new AuditoriaInssModel
+                {
+                    NoInss = InssReporteHelper.CleanInss(x.emp_noinss),
+                    Cedula = inssMatch?.NoCedula ?? "",
+                    Nombre = x.emp_nombre,
+                    ErrorTipo = "INSS EN CERO",
+                    EstadoNomina = "Deducción omitida",
+                    Observacion = "Registrado en nómina pero con aporte INSS de C$ 0.00."
+                };
             }));
 
             return consolidado;
@@ -65,7 +88,9 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 return list.Where(x =>
                     (x.Nombre != null && x.Nombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
                     (x.NoInss != null && x.NoInss.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
-                    (x.ErrorTipo != null && x.ErrorTipo.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+                    (x.Cedula != null && x.Cedula.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.ErrorTipo != null && x.ErrorTipo.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.Observacion != null && x.Observacion.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
                 );
             }
         }
@@ -91,9 +116,11 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         public class AuditoriaInssModel
         {
             public string NoInss { get; set; } = string.Empty;
+            public string Cedula { get; set; } = string.Empty;
             public string Nombre { get; set; } = string.Empty;
             public string ErrorTipo { get; set; } = string.Empty;
             public string EstadoNomina { get; set; } = string.Empty;
+            public string Observacion { get; set; } = string.Empty;
         }
     }
 }
