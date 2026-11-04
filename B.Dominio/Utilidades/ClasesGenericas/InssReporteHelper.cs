@@ -288,19 +288,14 @@ namespace Utilidades.ClasesGenericas
                 string tipoNovedad;
                 string fechaStr;
 
-                if (esNuevoIngreso)
+                if (esMayor28)
                 {
-                    tipoNovedad = "01"; // Alta / Ingreso en el mes
-                    fechaStr = fecInicioEfectivo.Value.ToString("yyyy-MM-dd");
-                }
-                else if (esMayor28)
-                {
-                    tipoNovedad = "03"; // Mes completo / Cambio ordinario
+                    tipoNovedad = "03"; // Mes completo / Salario ordinario
                     fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
                 }
                 else
                 {
-                    tipoNovedad = "04"; // Período incompleto (colaborador previo con ausencias/días parciales)
+                    tipoNovedad = "04"; // Salario Devengado / Período incompleto (la novedad 01 no existe en el INSS)
                     
                     // Si ingresó en este mes, la fecha del movimiento 04 debe coincidir con su fecha de ingreso reportada
                     // para evitar el error de semanas anteriores a la fecha del movimiento en el portal del INSS.
@@ -324,7 +319,7 @@ namespace Utilidades.ClasesGenericas
                 // REGLA OFICIAL INSS (Turing | Newton):
                 // Cuando se reporta Novedad 04 (período incompleto / ausencias / subsidios / días <= 28),
                 // el campo sal-mensual debe ser estrictamente 0.00 según los requisitos del INSS.
-                // Para Novedad 01 (Ingreso) y Novedad 03 (Mes completo), sal-mensual es el salario mensual pactado (emp_sal_fijo).
+                // Para Novedad 03 (Mes completo), sal-mensual es el salario mensual pactado (emp_sal_fijo).
                 decimal salMensual = tipoNovedad == "04" ? 0m : (item.emp_sal_fijo ?? 0m);
 
                 list.Add(new InssReporteRow

@@ -36,8 +36,8 @@ else
             <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #fffbeb; border-radius: 8px;">
                 <MudIcon Icon="@Icons.Material.Filled.HourglassBottom" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Large" />
                 <div>
-                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 01 / 04 (Altas / Incompletos)</MudText>
-                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Warning"><b>@FilasInss.Count(x => x.TipoNovedad == "01" || x.TipoNovedad == "04")</b></MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Novedad 04 (Sal. Devengado)</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Warning"><b>@FilasInss.Count(x => x.TipoNovedad == "04")</b></MudText>
                 </div>
             </MudPaper>
         </MudItem>
@@ -86,7 +86,7 @@ else
             <PropertyColumn Property="x => x.Nomina" Title="Nómina" />
             <TemplateColumn Title="Tipo Novedad">
                 <CellTemplate>
-                    <MudChip T="string" Color="@(context.Item.TipoNovedad == "03" ? MudBlazor.Color.Success : (context.Item.TipoNovedad == "01" ? MudBlazor.Color.Info : MudBlazor.Color.Warning))"
+                    <MudChip T="string" Color="@(context.Item.TipoNovedad == "03" ? MudBlazor.Color.Success : MudBlazor.Color.Warning)"
                              Size="MudBlazor.Size.Small" Variant="MudBlazor.Variant.Filled">
                         @context.Item.TipoNovedad
                     </MudChip>
