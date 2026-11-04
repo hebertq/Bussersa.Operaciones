@@ -228,9 +228,10 @@ namespace Utilidades.ClasesGenericas
                 if (salDevengado < 0) salDevengado = 0m;
 
                 // REGLA OFICIAL INSS (Turing | Newton):
-                // sal-mensual es el salario nominal/contractual mensual completo pactado a 30 días (emp_sal_fijo).
-                // NUNCA debe ser 0.00 en trabajadores activos o altas, de acuerdo con el manual oficial del INSS.
-                decimal salMensual = item.emp_sal_fijo ?? 0m;
+                // Cuando se reporta Novedad 04 (período incompleto / ausencias / subsidios / días <= 28),
+                // el campo sal-mensual debe ser estrictamente 0.00 según los requisitos del INSS.
+                // Para Novedad 01 (Ingreso) y Novedad 03 (Mes completo), sal-mensual es el salario mensual pactado (emp_sal_fijo).
+                decimal salMensual = tipoNovedad == "04" ? 0m : (item.emp_sal_fijo ?? 0m);
 
                 // Cálculo congruente de semanas sin marcar antes de la fecha de ingreso
                 string semanasStr = CalcularSemanasInss(item.fec_inicio, item.fec_fin, dias, anioCalc, mesCalc);
