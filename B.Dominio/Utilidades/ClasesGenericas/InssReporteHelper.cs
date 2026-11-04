@@ -193,27 +193,41 @@ namespace Utilidades.ClasesGenericas
                 var (pNombre, pApellido) = SplitNombreCompleto(item.emp_nombre);
                 decimal dias = item.emp_diaslab ?? 0;
                 bool esMayor28 = dias > 28;
-                string tipoNovedad = esMayor28 ? "03" : "04";
+
+                int anioCalc = anio ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value / 100 : DateTime.Now.Year);
+                int mesCalc = mes ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value % 100 : DateTime.Now.Month);
+
+                bool esNuevoIngreso = item.fec_inicio.HasValue &&
+                                      item.fec_inicio.Value.Year == anioCalc &&
+                                      item.fec_inicio.Value.Month == mesCalc;
+
+                string tipoNovedad;
+                string fechaStr;
+
+                if (esNuevoIngreso)
+                {
+                    tipoNovedad = "01"; // Alta / Ingreso en el mes
+                    fechaStr = item.fec_inicio.Value.ToString("yyyy-MM-dd");
+                }
+                else if (esMayor28)
+                {
+                    tipoNovedad = "03"; // Mes completo / Cambio ordinario
+                    fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
+                }
+                else
+                {
+                    tipoNovedad = "04"; // Período incompleto (colaborador previo con ausencias/días parciales)
+                    fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
+                }
 
                 // REGLA USUARIO: Debe coincidir exactamente con el disponible ("Total Recibir" / emp_pago_recibir) del primer archivo
                 decimal salDevengado = item.emp_pago_recibir ?? 0m;
                 if (salDevengado < 0) salDevengado = 0m;
 
-                decimal salMensual = esMayor28 ? (item.emp_sal_fijo ?? 0m) : 0m;
-
-                int anioCalc = anio ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value / 100 : DateTime.Now.Year);
-                int mesCalc = mes ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value % 100 : DateTime.Now.Month);
-
-                string fechaStr;
-                if (item.fec_inicio.HasValue && !esMayor28 && item.fec_inicio.Value.Month == mesCalc)
-                {
-                    // Para novedades de ingreso parcial en el mes se reporta la fecha real de inicio
-                    fechaStr = item.fec_inicio.Value.ToString("yyyy-MM-dd");
-                }
-                else
-                {
-                    fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
-                }
+                // REGLA OFICIAL INSS (Turing | Newton):
+                // sal-mensual es el salario nominal/contractual mensual completo pactado a 30 días (emp_sal_fijo).
+                // NUNCA debe ser 0.00 en trabajadores activos o altas, de acuerdo con el manual oficial del INSS.
+                decimal salMensual = item.emp_sal_fijo ?? 0m;
 
                 // Cálculo congruente de semanas sin marcar antes de la fecha de ingreso
                 string semanasStr = CalcularSemanasInss(item.fec_inicio, item.fec_fin, dias, anioCalc, mesCalc);
@@ -223,7 +237,7 @@ namespace Utilidades.ClasesGenericas
                     Nss = CleanInss(item.emp_noinss),
                     PNombre = pNombre,
                     PApellido = pApellido,
-                    Nomina = item.emp_nomina > 0 ? item.emp_nomina : 1,
+                    Nomina = 1, // Número de nómina de la empresa (Nómina Patronal 1, no número de empleado)
                     TipoNovedad = tipoNovedad,
                     Fecha = fechaStr,
                     SalDevengado = Math.Round(salDevengado, 2),
