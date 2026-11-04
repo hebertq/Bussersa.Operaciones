@@ -178,9 +178,73 @@
 }
 else
 {
-    <MudTabs @bind-ActivePanelIndex="activeTabIndex" Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Default">
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-3">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Consolidado por Área">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.TableChart" />
+                    @{
+                        int totalConsolidado = modoVistaConsolidado == "AreaPuesto" 
+                            ? (resultadoConciliacion?.ConsolidadoAreaPuesto?.Count ?? 0) 
+                            : (resultadoConciliacion?.ConsolidadoSoloArea?.Count ?? 0);
+                    }
+                    @if (totalConsolidado > 0)
+                    {
+                        <span class="app-tab-badge badge-primary">@totalConsolidado</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Consolidado por Área</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Detalle por Colaborador">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" />
+                    @{
+                        int totalDetalle = (resultadoConciliacion?.TurnosFaltantes?.Count ?? 0) 
+                            + (resultadoConciliacion?.RegistrosSoloCliente?.Count ?? 0) 
+                            + (resultadoConciliacion?.DiferenciasDiasComunes?.Count ?? 0);
+                    }
+                    @if (totalDetalle > 0)
+                    {
+                        <span class="app-tab-badge badge-warning">@totalDetalle</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Detalle por Colaborador</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 2 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(2)"
+                    title="Marcadas por Facturar">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" />
+                    @if (PayLoadListFiltrada != null && PayLoadListFiltrada.Any())
+                    {
+                        <span class="app-tab-badge badge-info">@PayLoadListFiltrada.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Marcadas por Facturar</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs @bind-ActivePanelIndex="activeTabIndex" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" 
+             Class="tablet-tabs">
         @* PESTAÑA 0: CONSOLIDADO POR ÁREA *@
-        <MudTabPanel Text="@($"CONSOLIDADO POR ÁREA ({(modoVistaConsolidado == "AreaPuesto" ? resultadoConciliacion.ConsolidadoAreaPuesto.Count : resultadoConciliacion.ConsolidadoSoloArea.Count)})")" Icon="@Icons.Material.Filled.TableChart">
+        <MudTabPanel Text="CONSOLIDADO POR ÁREA">
             <MudPaper Elevation="0" Class="pa-3 mb-2 d-flex align-center justify-between flex-wrap gap-2" Style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
                 <div class="d-flex align-center gap-2">
                     <span class="small fw-bold text-secondary">Vista de Agrupación:</span>
@@ -361,7 +425,7 @@ else
         </MudTabPanel>
 
         @* PESTAÑA 1: DETALLE POR COLABORADOR *@
-        <MudTabPanel Text="@($"DETALLE POR COLABORADOR ({resultadoConciliacion.TurnosFaltantes.Count + resultadoConciliacion.RegistrosSoloCliente.Count + resultadoConciliacion.DiferenciasDiasComunes.Count})")" Icon="@Icons.Material.Filled.PeopleAlt">
+        <MudTabPanel Text="DETALLE POR COLABORADOR">
             <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Secondary" Class="mt-2">
                 @* SUB-TAB 0: TURNOS EN BUSSERSA OMITIDOS POR EL CLIENTE *@
                 <MudTabPanel Text="@($"Faltantes en Sinsa ({resultadoConciliacion.TurnosFaltantes.Count})")" Icon="@Icons.Material.Filled.Warning">
@@ -512,7 +576,7 @@ else
         </MudTabPanel>
 
         @* PESTAÑA 2: MARCADAS POR FACTURAR (ORIGINAL) *@
-        <MudTabPanel Text="@($"MARCADAS POR FACTURAR ({PayLoadListFiltrada.Count})")" Icon="@Icons.Material.Filled.ListAlt">
+        <MudTabPanel Text="MARCADAS POR FACTURAR">
             <TablaMarcadasxFacturar PayLoadList="@PayLoadListFiltrada"
                                     OperacionName="@nombreOperacion"
                                     OperacionId="@operacion"

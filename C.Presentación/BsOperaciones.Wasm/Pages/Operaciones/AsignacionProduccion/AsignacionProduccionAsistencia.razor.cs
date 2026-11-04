@@ -38,6 +38,13 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
         protected bool estaCargando;
         protected string mensajeCarga = "Cargando...";
 
+        protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
+
         // Pestaña 1: Generación Semanal
         protected int operacionId;
         protected DateTime fchaInicioSemana;

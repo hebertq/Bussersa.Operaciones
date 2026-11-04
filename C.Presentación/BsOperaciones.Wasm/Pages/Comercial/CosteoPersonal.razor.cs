@@ -27,6 +27,13 @@ namespace BsOperaciones.Pages.Comercial
         private Cotizacion? editingQuote;
         private string turno = "Diurno";
         private int horasTurno = 8;
+        protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
+
         private decimal salarioBase = 9000.00m;
         private decimal utilidadPorcentaje = 20.00m;
         private decimal supervision = 1000.00m;

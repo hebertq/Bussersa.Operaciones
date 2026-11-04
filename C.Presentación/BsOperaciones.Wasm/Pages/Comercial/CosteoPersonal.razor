@@ -17,9 +17,55 @@
         Cotizador de Servicios de Personal (Cálculo por Horas)
     </MudText>
 
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary" Class="mb-6">
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-3">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Cotizador de Personal">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Calculate" />
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Cotizador Personal</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Historial de Cotizaciones">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.History" />
+                    @if (groupedQuotes != null && groupedQuotes.Any())
+                    {
+                        <span class="app-tab-badge badge-info">@groupedQuotes.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Historial Cotizaciones</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 2 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(2)"
+                    title="Gestión de Catálogos Globales">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Settings" />
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Catálogos Globales</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" 
+             Class="tablet-tabs mb-6" @bind-ActivePanelIndex="@activeTabIndex">
         <!-- Pestaña 1: Cotizador -->
-        <MudTabPanel Text="🧮 Cotizador de Personal" Icon="@Icons.Material.Filled.Calculate">
+        <MudTabPanel Text="Cotizador de Personal">
             <div class="pa-4">
                 <MudGrid>
                     <!-- Formulario de Entrada (Izquierda) -->
@@ -390,7 +436,7 @@
         </MudTabPanel>
 
         <!-- Pestaña 2: Historial -->
-        <MudTabPanel Text="📋 Historial de Cotizaciones" Icon="@Icons.Material.Filled.History">
+        <MudTabPanel Text="Historial de Cotizaciones">
             <div class="pa-6">
                 <MudText Typo="Typo.h5" Class="mb-4 font-bold" Color="Color.Primary">Historial de Cotizaciones Guardadas</MudText>
                 
@@ -489,7 +535,7 @@
         </MudTabPanel>
 
         <!-- Pestaña 3: Catálogos Globales -->
-        <MudTabPanel Text="⚙️ Gestión de Catálogos" Icon="@Icons.Material.Filled.Settings">
+        <MudTabPanel Text="Gestión de Catálogos">
             <div class="pa-6">
                 <MudText Typo="Typo.h5" Class="mb-6 font-bold" Color="Color.Primary">Gestión de Catálogos Globales (EPP, Viáticos y Maquinaria)</MudText>
                 

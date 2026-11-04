@@ -45,6 +45,11 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
         protected string nombreArchivoConciliacion = string.Empty;
         protected byte[]? archivoConciliacionBytes = null;
         protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
         protected string modoVistaConsolidado = "AreaPuesto"; // "AreaPuesto" o "SoloArea"
         protected string _searchConsolidado = "";
         protected string _searchFaltante = "";

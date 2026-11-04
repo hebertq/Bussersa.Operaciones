@@ -156,12 +156,50 @@
     @* ==========================================
        PESTAÑAS PRINCIPALES DEL MÓDULO
        ========================================== *@
-    <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3 pt-4" Color="Color.Surface" Class="tabs-personal-supervisor">
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-2">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Personal por Cliente">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Badge" />
+                    @if ((listaPersonal.Count + colaboradoresPendientes.Count) > 0)
+                    {
+                        <span class="app-tab-badge badge-primary">@(listaPersonal.Count + colaboradoresPendientes.Count)</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Personal por Cliente</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Clientes por Supervisor">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" />
+                    @if (listaSupervisorClientes.Count > 0)
+                    {
+                        <span class="app-tab-badge badge-warning">@listaSupervisorClientes.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Clientes por Supervisor</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-3 pt-4" 
+             Class="tablet-tabs tabs-personal-supervisor" @bind-ActivePanelIndex="@activeTabIndex">
 
         @* ----------------------------------------------------
            PESTAÑA 1: PERSONAL POR CLIENTE
            ---------------------------------------------------- *@
-        <MudTabPanel Text="@("Personal por Cliente\u00A0\u00A0\u00A0")" Icon="@Icons.Material.Filled.Badge" BadgeData="@(listaPersonal.Count + colaboradoresPendientes.Count)" BadgeColor="Color.Primary">
+        <MudTabPanel Text="Personal por Cliente">
 
             @* BANNER DE ALERTA SI HAY REGISTROS PENDIENTES DE GUARDAR EN BASE DE DATOS *@
             @if (colaboradoresPendientes.Any())
@@ -1013,7 +1051,7 @@
         @* ----------------------------------------------------
            PESTAÑA 2: ASIGNACIÓN DE CLIENTES A SUPERVISORES
            ---------------------------------------------------- *@
-        <MudTabPanel Text="@("Clientes por Supervisor\u00A0\u00A0\u00A0")" Icon="@Icons.Material.Filled.SupervisorAccount" BadgeData="@listaSupervisorClientes.Count" BadgeColor="Color.Warning">
+        <MudTabPanel Text="Clientes por Supervisor">
 
             @* BARRA DE HERRAMIENTAS Y BÚSQUEDA *@
             <MudPaper Class="pa-3 mb-4 rounded-xl" Elevation="1" Style="background: #ffffff; border: 1px solid #e2e8f0;">
@@ -1213,6 +1251,13 @@
 </MudContainer>
 
 @code {
+    private int activeTabIndex = 0;
+    private void SetActiveTab(int index)
+    {
+        activeTabIndex = index;
+        StateHasChanged();
+    }
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
 

@@ -152,10 +152,48 @@
 
 @* --- CONTENEDOR DE RESULTADOS --- *@
 <div>
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Primary" @bind-ActivePanelIndex="activeTabIndex">
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-2">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Consolidado por Área">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Assignment" />
+                    @if (ResumenPorArea != null && ResumenPorArea.Any())
+                    {
+                        <span class="app-tab-badge badge-primary">@ResumenPorArea.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Consolidado por Área</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Detalle Nominal">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.People" />
+                    @if (DatosCierre != null && DatosCierre.Any())
+                    {
+                        <span class="app-tab-badge badge-info">@DatosCierre.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Detalle Nominal</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" 
+             Class="tablet-tabs" @bind-ActivePanelIndex="activeTabIndex">
 
         @* TAB 1: CONSOLIDADO *@
-        <MudTabPanel Text="CONSOLIDADO POR ÁREA" Icon="@Icons.Material.Filled.Assignment">
+        <MudTabPanel Text="CONSOLIDADO POR ÁREA">
             <MudDataGrid Items="@ResumenPorArea" Dense="true" Hover="true" Striped="true"
                          RowsPerPage="10" QuickFilter="@_filterMaestro" Loading="@isloading">
                 <ToolBarContent>

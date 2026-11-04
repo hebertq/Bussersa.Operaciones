@@ -186,3 +186,230 @@ a, .btn-link {
 /*
 
 .mud-popover.mud-picker-popover-wide, .mud-picker-popover-wide { width: 315px !important; min-width: 315px !important; max-width: 340px !important; overflow: visible !important; } .mud-picker-popover-wide .mud-picker-container, .mud-picker-popover-wide .mud-picker-content, .mud-picker-popover-wide .mud-calendar, .mud-picker-popover-wide .mud-picker { min-width: 295px !important; width: 100% !important; }
+
+
+*/
+
+/* ========================================================================= */
+/* BARRA DE NAVEGACION MODERNA ESTILO APP / TABLET (TABS MODERNOS)           */
+/* ========================================================================= */
+.tablet-tabs > .mud-tabs-tabbar {
+    display: none !important;
+}
+
+.app-tab-bar-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.app-tab-grid {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+}
+
+/* Configuraciones de columnas según clase */
+.app-tab-grid.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.app-tab-grid.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.app-tab-grid.cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.app-tab-grid.cols-5 {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.app-tab-grid.cols-6 {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+/* Default si no se especifica cols-N */
+.app-tab-grid:not([class*="cols-"]) {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+/* Responsive para Pantallas Grandes (Desktop / Tablet Horizontal >= 900px) */
+@media (min-width: 900px) {
+    .app-tab-item {
+        flex-direction: row;
+        padding: 10px 14px;
+        min-height: 48px;
+        gap: 10px;
+    }
+    .app-tab-label {
+        font-size: 13px;
+    }
+}
+
+/* Responsive para Pantallas Medianas (640px a 899px - Tablet Vertical / iPad) */
+@media (min-width: 640px) and (max-width: 899px) {
+    .app-tab-grid.cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .app-tab-grid.cols-6 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .app-tab-item {
+        flex-direction: column;
+        padding: 8px 4px;
+        min-height: 52px;
+        gap: 4px;
+    }
+    .app-tab-label {
+        font-size: 11.5px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Responsive para Pantallas Móviles (<= 639px) */
+@media (max-width: 639px) {
+    .app-tab-grid.cols-3,
+    .app-tab-grid.cols-4,
+    .app-tab-grid.cols-5,
+    .app-tab-grid.cols-6 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .app-tab-item {
+        flex-direction: column;
+        padding: 8px 4px;
+        min-height: 50px;
+        gap: 2px;
+    }
+    .app-tab-label {
+        font-size: 11px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Estilo individual de cada pestaña */
+.app-tab-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    user-select: none;
+    outline: none;
+}
+
+.app-tab-item:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* Estado Activo */
+.app-tab-item.active {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+    color: #ffffff !important;
+    border-color: #0f172a !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.22);
+}
+
+.app-tab-item.active .mud-icon-root {
+    color: #38bdf8 !important;
+    fill: #38bdf8 !important;
+}
+
+.app-tab-item.active .app-tab-label {
+    color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+.app-tab-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.app-tab-icon-wrap .mud-icon-root {
+    font-size: 1.35rem;
+    transition: transform 0.2s ease;
+}
+
+.app-tab-item:hover .app-tab-icon-wrap .mud-icon-root {
+    transform: scale(1.08);
+}
+
+.app-tab-label-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-tab-label {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+/* Badges / Contadores */
+.app-tab-badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 9999px;
+    line-height: 14px;
+    min-width: 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 1.5px solid #ffffff;
+}
+
+.app-tab-item.active .app-tab-badge {
+    border-color: #0f172a;
+}
+
+.app-tab-badge.badge-success {
+    background-color: #10b981;
+    color: #ffffff;
+}
+
+.app-tab-badge.badge-error {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+.app-tab-badge.badge-warning {
+    background-color: #f59e0b;
+    color: #ffffff;
+}
+
+.app-tab-badge.badge-primary {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+.app-tab-badge.badge-info {
+    background-color: #06b6d4;
+    color: #ffffff;
+}
+
+.app-tab-badge.badge-secondary {
+    background-color: #64748b;
+    color: #ffffff;
+}

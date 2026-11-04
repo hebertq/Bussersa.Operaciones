@@ -21,6 +21,11 @@ namespace BsOperaciones.Pages.Comercial
         private DialogOptions sendDialogOptions = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
         private int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
         private Guid? editingQuoteId;
         private string? editingNumeroCotizacion;
         private HashSet<Cotizacion> expandedQuotes = new HashSet<Cotizacion>();

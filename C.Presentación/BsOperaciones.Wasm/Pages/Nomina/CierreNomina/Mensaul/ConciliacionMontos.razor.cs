@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -44,6 +44,13 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         }
 
         protected List<NominaMensualReportar> _nominaFinal => NominaFinalGlobal;
+
+        protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
 
         protected async Task ConfirmarEjecucionCierre()
         {

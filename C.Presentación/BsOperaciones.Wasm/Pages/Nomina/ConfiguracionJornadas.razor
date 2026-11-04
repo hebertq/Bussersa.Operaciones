@@ -174,8 +174,41 @@
     }
 
     @* VISTA DE PESTAÑAS (TABLA DE REGLAS ASIGNADAS + CATÁLOGO) *@
-    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToInnerViews="true" PanelClass="pa-0">
-        <MudTabPanel Text="Reglas Asignadas por Cliente / Operación" Icon="@Icons.Material.Filled.ListAlt">
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-2">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Reglas Asignadas por Cliente / Operación">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.ListAlt" />
+                    @if (configuraciones != null && configuraciones.Any())
+                    {
+                        <span class="app-tab-badge badge-primary">@configuraciones.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Reglas Asignadas</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Guía de Motores de Cálculo y Reglas Preconfiguradas">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.HelpOutline" />
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Guía de Motores de Cálculo</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToInnerViews="true" PanelClass="pa-0"
+             Class="tablet-tabs" @bind-ActivePanelIndex="@activeTabIndex">
+        <MudTabPanel Text="Reglas Asignadas por Cliente / Operación">
             <div class="panel-card pa-4 mt-4">
                 <MudTable Items="@configuraciones" Hover="true" Striped="true" Dense="true" Elevation="0" Filter="new Func<JornadaConfiguracion, bool>(FilterConfig)">
                     <ToolBarContent>
@@ -331,6 +364,13 @@
 </div>
 
 @code {
+    private int activeTabIndex = 0;
+    private void SetActiveTab(int index)
+    {
+        activeTabIndex = index;
+        StateHasChanged();
+    }
+
     private bool isLoading = false;
     private bool showForm = false;
     private string searchString = "";

@@ -15,9 +15,47 @@
             }
             else
             {
-                <MudTabs Elevation="2" Rounded="true" ApplyEffectsToInnerViews="true" PanelClass="pa-6">
+                @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+                <div class="app-tab-bar-card mb-3">
+                    <div class="app-tab-grid cols-2">
+                        <button type="button" 
+                                class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                                @onclick="() => SetActiveTab(0)"
+                                title="Grupos de Roles">
+                            <div class="app-tab-icon-wrap">
+                                <MudIcon Icon="@Icons.Material.Filled.Group" />
+                                @if (Groups != null && Groups.Any())
+                                {
+                                    <span class="app-tab-badge badge-primary">@Groups.Count</span>
+                                }
+                            </div>
+                            <div class="app-tab-label-wrap">
+                                <span class="app-tab-label">Grupos de Roles</span>
+                            </div>
+                        </button>
+
+                        <button type="button" 
+                                class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                                @onclick="() => SetActiveTab(1)"
+                                title="Roles">
+                            <div class="app-tab-icon-wrap">
+                                <MudIcon Icon="@Icons.Material.Filled.Security" />
+                                @if (Roles != null && Roles.Any())
+                                {
+                                    <span class="app-tab-badge badge-info">@Roles.Count</span>
+                                }
+                            </div>
+                            <div class="app-tab-label-wrap">
+                                <span class="app-tab-label">Roles</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <MudTabs Elevation="0" Rounded="true" ApplyEffectsToInnerViews="true" PanelClass="pa-6"
+                         Class="tablet-tabs" @bind-ActivePanelIndex="@activeTabIndex">
                     @* Pestaña Grupos *@
-                    <MudTabPanel Text="Grupos de Roles" Icon="@Icons.Material.Filled.Group">
+                    <MudTabPanel Text="Grupos de Roles">
                         <div class="d-flex justify-end mb-4">
                             <MudButton OnClick="OpenNewGroupDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
                                 Nuevo Grupo
@@ -47,7 +85,7 @@
                     </MudTabPanel>
 
                     @* Pestaña Roles *@
-                    <MudTabPanel Text="Roles" Icon="@Icons.Material.Filled.Security">
+                    <MudTabPanel Text="Roles">
                         <div class="d-flex justify-end mb-4">
                             <MudButton OnClick="OpenNewRoleDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
                                 Nuevo Rol
@@ -82,6 +120,13 @@
 </DocsPages>
 
 @code {
+    private int activeTabIndex = 0;
+    private void SetActiveTab(int index)
+    {
+        activeTabIndex = index;
+        StateHasChanged();
+    }
+
     private List<AdmonGroup> Groups = new List<AdmonGroup>();
     private List<AdmonRole> Roles = new List<AdmonRole>();
     private bool isloading = true;

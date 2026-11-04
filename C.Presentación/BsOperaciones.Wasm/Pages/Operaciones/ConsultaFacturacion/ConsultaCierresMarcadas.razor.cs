@@ -33,6 +33,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
         protected int operacionId = 0, anio = DateTime.Now.Year, mes = DateTime.Now.Month;
         protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
         protected bool esRango, isloading;
         protected DateTime? fchaInicio = DateTime.Now.Date.AddDays(-30), fchaFin = DateTime.Now.Date;
         protected string _searchMaestro = "", _searchDetalle = "";

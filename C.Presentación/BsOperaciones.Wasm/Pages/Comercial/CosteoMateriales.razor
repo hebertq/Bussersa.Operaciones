@@ -17,9 +17,59 @@
         Cotizador de Materiales e Insumos
     </MudText>
 
-    <MudTabs @bind-ActivePanelIndex="activeTabIndex" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Warning" Class="mb-6">
+    @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-3">
+        <div class="app-tab-grid cols-3">
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="Cotizador de Materiales">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Calculate" />
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Cotizador Materiales</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="Historial de Cotizaciones">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.History" />
+                    @if (FilteredQuotes != null && FilteredQuotes.Any())
+                    {
+                        <span class="app-tab-badge badge-info">@FilteredQuotes.Count()</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Historial Cotizaciones</span>
+                </div>
+            </button>
+
+            <button type="button" 
+                    class="app-tab-item @(activeTabIndex == 2 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(2)"
+                    title="Catálogo de Materiales e Insumos">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory" />
+                    @if (materialesList != null && materialesList.Any())
+                    {
+                        <span class="app-tab-badge badge-warning">@materialesList.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">Catálogo Materiales</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <MudTabs @bind-ActivePanelIndex="activeTabIndex" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" 
+             Class="tablet-tabs mb-6">
         <!-- Pestaña 1: Cotizador de Materiales -->
-        <MudTabPanel Text="🧮 Cotizador de Materiales" Icon="@Icons.Material.Filled.Calculate">
+        <MudTabPanel Text="Cotizador de Materiales">
             <div class="pa-4">
                 @if (editingQuoteId.HasValue)
                 {
@@ -230,7 +280,7 @@
         </MudTabPanel>
 
         <!-- Pestaña 2: Historial Maestro-Detalle de Cotizaciones de Materiales -->
-        <MudTabPanel Text="📚 Historial de Cotizaciones" Icon="@Icons.Material.Filled.History">
+        <MudTabPanel Text="Historial de Cotizaciones">
             <div class="pa-4">
                 <MudCard Elevation="3" Class="pa-4 mb-4">
                     <MudGrid AlignItems="AlignItems.Center">
@@ -346,7 +396,7 @@
         </MudTabPanel>
 
         <!-- Pestaña 3: Catálogo de Materiales e Insumos -->
-        <MudTabPanel Text="📦 Catálogo de Materiales" Icon="@Icons.Material.Filled.Inventory">
+        <MudTabPanel Text="Catálogo de Materiales">
             <div class="pa-4">
                 <MudCard Elevation="3" Class="pa-6 mb-6" Style="border-radius: 12px; border-left: 5px solid #F57C00;">
                     <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Warning">Gestión del Catálogo de Materiales</MudText>

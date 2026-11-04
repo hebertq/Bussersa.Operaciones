@@ -27,6 +27,13 @@ namespace BsOperaciones.Pages.Comercial
         private string cliente = "";
         private string skuNombre = "";
         private int produccionDiaria = 1000;
+        protected int activeTabIndex = 0;
+        protected void SetActiveTab(int index)
+        {
+            activeTabIndex = index;
+            StateHasChanged();
+        }
+
         private decimal manoObraUnitaria = 1.5000m;
         private decimal mermaPorcentaje = 2.00m;
         private decimal tarifaAcordada = 0.0000m;
