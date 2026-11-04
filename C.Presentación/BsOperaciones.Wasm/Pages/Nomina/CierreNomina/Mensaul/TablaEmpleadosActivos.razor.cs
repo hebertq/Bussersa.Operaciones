@@ -20,12 +20,21 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         [Parameter] public bool BotonEnabled { get; set; } = true;
 
         protected bool isloading { get; set; } = false;
+        protected string _searchString = "";
+
+        protected Func<EmpleadosActivos, bool> _quickFilter => x =>
+        {
+            if (string.IsNullOrWhiteSpace(_searchString)) return true;
+            if (x.NombreCompleto != null && x.NombreCompleto.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+            if (x.NoCedula != null && x.NoCedula.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+            if (x.NoInss != null && x.NoInss.ToString().Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        };
 
         protected async Task LoadFiles(InputFileChangeEventArgs e) => await OnLoadFiles.InvokeAsync(e);
 
         protected async Task UpdateEmpleados() => await OnUpdateEmpleados.InvokeAsync();
 
-        // Lógica para descargar el archivo basado en la lista actual de la tabla
         protected async Task DownloadFile()
         {
             if (_PayLoadList == null || !_PayLoadList.Any()) return;
@@ -35,13 +44,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             await Task.Delay(50);
             try
             {
-                // Generar el Excel usando la utilidad DataExcel
                 var exceldata = DataExcel.CreateExcel(_PayLoadList, "Revision_Cierre_Mensual");
-
-                // Convertir a Base64 para la descarga
                 string base64Data = Convert.ToBase64String(exceldata.Data);
-
-                // Invocar función de JavaScript para descargar el archivo
                 await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, "Revision_Empleados_Cierre.xlsx");
             }
             finally

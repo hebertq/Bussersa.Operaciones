@@ -1,5 +1,6 @@
 @page "/cierre-mensual"
 @using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Report
 
 @* Bloqueo de pantalla para procesos asíncronos *@
 <MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
@@ -9,35 +10,114 @@
     </div>
 </MudOverlay>
 
-@* Control de pasos mediante enlace bidireccional *@
-<MudStepper @bind-ActiveIndex="_activeIndex" NonLinear="true" CenterLabels="true" Class="mud-width-full">
-    <MudStep Title="Validar Empleados Activos">
-        <TablaEmpleadosActivos _PayLoadList="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
-                               OnLoadFiles="LoadFiles"
-                               OnUpdateEmpleados="UpdateEmpleados" 
-                               BotonEnabled="BotonEnabledActivosInss" />
-    </MudStep>
+<div class="pa-2">
+    @* --- BARRA DE PESTAÑAS ESTILO APP / TABLET --- *@
+    <div class="app-tab-bar-card mb-4">
+        <div class="app-tab-grid cols-4">
+            <button type="button" 
+                    class="app-tab-item @(_activeIndex == 0 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(0)"
+                    title="1. Validar Empleados Activos">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Group" />
+                    @if (_PayLoadListInss != null && _PayLoadListInss.Any())
+                    {
+                        <span class="app-tab-badge badge-primary">@_PayLoadListInss.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">1. Validar Activos</span>
+                </div>
+            </button>
 
-    <MudStep Title="Conciliación de Montos">
-        @* Pasamos el estado global de la nómina, año y mes *@
-        <ConciliacionMontos @bind-Anio="_anioGlobal"
-                            @bind-Mes="_mesGlobal"
-                            NominaFinalGlobal="_nominaFinalGlobal"
-                            OnProcessing="@((bool loading) => isloaddata = loading)"
-                            OnNominaGenerated="HandleNominaGenerated" />
-    </MudStep>
+            <button type="button" 
+                    class="app-tab-item @(_activeIndex == 1 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(1)"
+                    title="2. Conciliación y Cierre de Nómina">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Payments" />
+                    @if (_nominaFinalGlobal != null && _nominaFinalGlobal.Any())
+                    {
+                        <span class="app-tab-badge badge-success">@_nominaFinalGlobal.Count</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">2. Conciliación & Cierre</span>
+                </div>
+            </button>
 
-    <MudStep Title="Auditoría de Integridad">
-        <ValidacionFinalCierre ListaInss="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
-                               ListaNomina="_nominaFinalGlobal" />
-    </MudStep>
+            <button type="button" 
+                    class="app-tab-item @(_activeIndex == 2 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(2)"
+                    title="3. Auditoría de Integridad">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" />
+                    @if (_nominaFinalGlobal != null && _nominaFinalGlobal.Any())
+                    {
+                        int discrepancias = ConteoDiscrepancias;
+                        if (discrepancias > 0)
+                        {
+                            <span class="app-tab-badge badge-error">@discrepancias</span>
+                        }
+                        else
+                        {
+                            <span class="app-tab-badge badge-success">OK</span>
+                        }
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">3. Auditoría Integridad</span>
+                </div>
+            </button>
 
-    <MudStep Title="Archivo Masivo INSS">
-        <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
-            <TablaArchivoInss NominaFinal="_nominaFinalGlobal"
-                              Anio="_anioGlobal"
-                              Mes="_mesGlobal"
-                              OnProcessing="@((bool loading) => isloaddata = loading)" />
-        </MudPaper>
-    </MudStep>
-</MudStepper>
+            <button type="button" 
+                    class="app-tab-item @(_activeIndex == 3 ? "active" : "")" 
+                    @onclick="() => SetActiveTab(3)"
+                    title="4. Archivo Masivo INSS (Turing | Newton)">
+                <div class="app-tab-icon-wrap">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" />
+                    @if (_nominaFinalGlobal != null && _nominaFinalGlobal.Any())
+                    {
+                        <span class="app-tab-badge badge-info">12 Col</span>
+                    }
+                </div>
+                <div class="app-tab-label-wrap">
+                    <span class="app-tab-label">4. Archivo Masivo INSS</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    @* --- CONTENIDO DE CADA PESTAÑA --- *@
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-0" 
+             Class="tablet-tabs" @bind-ActivePanelIndex="@_activeIndex">
+        <MudTabPanel Text="Validar Activos">
+            <TablaEmpleadosActivos _PayLoadList="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
+                                   OnLoadFiles="LoadFiles"
+                                   OnUpdateEmpleados="UpdateEmpleados" 
+                                   BotonEnabled="BotonEnabledActivosInss" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Conciliación y Cierre">
+            <ConciliacionMontos @bind-Anio="_anioGlobal"
+                                @bind-Mes="_mesGlobal"
+                                NominaFinalGlobal="_nominaFinalGlobal"
+                                OnProcessing="@((bool loading) => isloaddata = loading)"
+                                OnNominaGenerated="HandleNominaGenerated" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Auditoría de Integridad">
+            <ValidacionFinalCierre ListaInss="@(_PayLoadListInss.Cast<EmpleadosActivos>().ToList())"
+                                   ListaNomina="_nominaFinalGlobal" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Archivo Masivo INSS">
+            <MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
+                <TablaArchivoInss NominaFinal="_nominaFinalGlobal"
+                                  Anio="_anioGlobal"
+                                  Mes="_mesGlobal"
+                                  OnProcessing="@((bool loading) => isloaddata = loading)" />
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+</div>

@@ -44,13 +44,21 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         }
 
         protected List<NominaMensualReportar> _nominaFinal => NominaFinalGlobal;
+        private string _searchString = "";
 
-        protected int activeTabIndex = 0;
-        protected void SetActiveTab(int index)
+        private Func<NominaMensualReportar, bool> _quickFilter => x =>
         {
-            activeTabIndex = index;
-            StateHasChanged();
-        }
+            if (string.IsNullOrWhiteSpace(_searchString))
+                return true;
+
+            if (x.emp_nombre != null && x.emp_nombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (x.emp_noinss != null && x.emp_noinss.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return false;
+        };
 
         protected async Task ConfirmarEjecucionCierre()
         {
@@ -72,8 +80,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 if (!response.Respuesta.ExisteError)
                 {
                     var resultado = response.Model ?? new();
-                    await OnNominaGenerated.InvokeAsync(resultado); // Notifica al padre
-                    Snackbar.Add("Cierre finalizado con éxito.", Severity.Success);
+                    await OnNominaGenerated.InvokeAsync(resultado);
+                    Snackbar.Add("Cierre de nómina finalizado con éxito.", Severity.Success);
                 }
                 else Snackbar.Add(response.Respuesta.MensajeError, Severity.Error);
             }
@@ -85,6 +93,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         protected async Task DescargarNominaInss()
         {
+            if (_nominaFinal == null || !_nominaFinal.Any()) return;
             await OnProcessing.InvokeAsync(true);
             await Task.Delay(50);
             try
@@ -145,50 +154,6 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             {
                 Snackbar.Add("Error al generar el Excel: " + ex.Message, Severity.Error);
             }       
-            finally
-            {
-                await OnProcessing.InvokeAsync(false);
-            }
-        }
-
-        protected async Task DescargarInssCsv()
-        {
-            if (_nominaFinal == null || !_nominaFinal.Any()) return;
-            await OnProcessing.InvokeAsync(true);
-            await Task.Delay(50);
-            try
-            {
-                string csvContent = InssReporteHelper.GenerarCsvInss(_nominaFinal, _anioSeleccionado, _mesSeleccionado);
-                string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
-                await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, $"NOVEDADES_INSS_{_mesSeleccionado}_{_anioSeleccionado}.csv");
-                Snackbar.Add("Archivo CSV para INSS generado exitosamente.", Severity.Success);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add("Error al generar CSV INSS: " + ex.Message, Severity.Error);
-            }
-            finally
-            {
-                await OnProcessing.InvokeAsync(false);
-            }
-        }
-
-        protected async Task DescargarInssExcel()
-        {
-            if (_nominaFinal == null || !_nominaFinal.Any()) return;
-            await OnProcessing.InvokeAsync(true);
-            await Task.Delay(50);
-            try
-            {
-                byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(_nominaFinal, _anioSeleccionado, _mesSeleccionado);
-                string base64Data = Convert.ToBase64String(excelBytes);
-                await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, $"NOVEDADES_INSS_{_mesSeleccionado}_{_anioSeleccionado}.xlsx");
-                Snackbar.Add("Plantilla Excel para INSS generada exitosamente.", Severity.Success);
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add("Error al generar Excel INSS: " + ex.Message, Severity.Error);
-            }
             finally
             {
                 await OnProcessing.InvokeAsync(false);

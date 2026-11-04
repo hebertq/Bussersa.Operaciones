@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +16,9 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         [Parameter] public List<EmpleadosActivos> ListaInss { get; set; } = new();
         [Parameter] public List<NominaMensualReportar> ListaNomina { get; set; } = new();
+
+        protected string _searchString = "";
+        protected bool isloading { get; set; } = false;
 
         // 1. Empleados que están en el Excel de INSS pero no en la nómina calculada
         protected List<EmpleadosActivos> sinNomina => ListaInss?
@@ -53,11 +56,24 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             return consolidado;
         }
 
-        protected bool isloading { get; set; } = false;
+        protected IEnumerable<AuditoriaInssModel> ListaFiltrada
+        {
+            get
+            {
+                var list = ObtenerListaConsolidada();
+                if (string.IsNullOrWhiteSpace(_searchString)) return list;
+                return list.Where(x =>
+                    (x.Nombre != null && x.Nombre.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.NoInss != null && x.NoInss.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                    (x.ErrorTipo != null && x.ErrorTipo.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+                );
+            }
+        }
 
         protected async Task DescargarAuditoria()
         {
             var data = ObtenerListaConsolidada();
+            if (!data.Any()) return;
             isloading = true;
             StateHasChanged();
             await Task.Delay(50);
@@ -74,46 +90,10 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         public class AuditoriaInssModel
         {
-            public string NoInss { get; set; }
-            public string Nombre { get; set; }
-            public string ErrorTipo { get; set; }
-            public string EstadoNomina { get; set; }
-        }
-
-        protected async Task DescargarInssCsvStep3()
-        {
-            if (ListaNomina == null || !ListaNomina.Any()) return;
-            isloading = true;
-            StateHasChanged();
-            await Task.Delay(50);
-            try
-            {
-                string csvContent = InssReporteHelper.GenerarCsvInss(ListaNomina);
-                string base64Data = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(csvContent));
-                await JS.InvokeVoidAsync("downloadFile", "text/csv;charset=utf-8;", base64Data, "NOVEDADES_INSS_TURING.csv");
-            }
-            finally
-            {
-                isloading = false;
-            }
-        }
-
-        protected async Task DescargarInssExcelStep3()
-        {
-            if (ListaNomina == null || !ListaNomina.Any()) return;
-            isloading = true;
-            StateHasChanged();
-            await Task.Delay(50);
-            try
-            {
-                byte[] excelBytes = InssReporteHelper.GenerarExcelInssBytes(ListaNomina);
-                string base64Data = Convert.ToBase64String(excelBytes);
-                await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64Data, "NOVEDADES_INSS_TURING.xlsx");
-            }
-            finally
-            {
-                isloading = false;
-            }
+            public string NoInss { get; set; } = string.Empty;
+            public string Nombre { get; set; } = string.Empty;
+            public string ErrorTipo { get; set; } = string.Empty;
+            public string EstadoNomina { get; set; } = string.Empty;
         }
     }
 }

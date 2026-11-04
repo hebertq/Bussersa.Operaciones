@@ -26,18 +26,38 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         private long maxFileSize = 1024 * 1024 * 15;
         public bool BotonEnabledActivosInss { get; set; } = true;
-        protected int _activeIndex = 0;
+        protected int _activeIndex = 1; // Abrir por defecto en Conciliación & Cierre si ya hay nómina o en 0
         protected bool isloaddata = false;
-        protected int _anioGlobal = DateTime.Now.AddMonths(-1).Year;
-        protected int _mesGlobal = DateTime.Now.AddMonths(-1).Month;
+        protected int _anioGlobal = DateTime.Now.Year;
+        protected int _mesGlobal = DateTime.Now.Month == 1 ? 12 : DateTime.Now.Month - 1;
         private List<EmpleadosActivos?> _PayLoadListLocal = new();
         protected List<EmpleadosActivos?> _PayLoadListInss = new();
         protected List<NominaMensualReportar> _nominaFinalGlobal = new();
 
+        protected int ConteoDiscrepancias
+        {
+            get
+            {
+                if (_PayLoadListInss == null || !_PayLoadListInss.Any() || _nominaFinalGlobal == null || !_nominaFinalGlobal.Any())
+                    return 0;
+
+                int sinNom = _PayLoadListInss.Count(i => i != null && i.ActivoInss == true && !_nominaFinalGlobal.Any(n => n.emp_nomina == i.IdNomina));
+                int sinCob = _nominaFinalGlobal.Count(n => (n.emp_deduc_inss == 0 || n.emp_deduc_inss == null) &&
+                                                           _PayLoadListInss.Any(i => i != null && i.IdNomina == n.emp_nomina && i.ActivoInss == true));
+                return sinNom + sinCob;
+            }
+        }
+
+        protected void SetActiveTab(int index)
+        {
+            _activeIndex = index;
+            StateHasChanged();
+        }
+
         protected override async Task OnInitializedAsync()
         {
-             await LoadEmpleados();
-            _PayLoadListInss = new(); // Aseguramos que empiece vacío visualmente
+            await LoadEmpleados();
+            _PayLoadListInss = new();
         }
 
         protected async Task LoadFiles(InputFileChangeEventArgs e)
@@ -59,11 +79,11 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                 _PayLoadListInss = result.Cast<EmpleadosActivos?>().ToList();
 
                 BotonEnabledActivosInss = false;
-                Snackbar.Add("Archivo procesado. Verifique los registros con ID 0.", Severity.Success);
+                Snackbar.Add("Archivo procesado con éxito. Revise la comparación antes de sincronizar.", Severity.Success);
             }
             catch (Exception ex)
             {
-                Snackbar.Add("Error al procesar: " + ex.Message, Severity.Error);
+                Snackbar.Add("Error al procesar archivo: " + ex.Message, Severity.Error);
             }
             finally
             {
@@ -74,8 +94,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         protected void HandleNominaGenerated(List<NominaMensualReportar> nomina)
         {
             _nominaFinalGlobal = nomina;
-            _activeIndex = 2; // SALTO AUTOMÁTICO AL PASO 3
-            StateHasChanged(); // Permite que el paso 3 reciba los datos sin saltar automáticamente
+            Snackbar.Add($"Nómina consolidada generada con {nomina.Count} colaboradores. Pestañas de Auditoría y Archivo INSS actualizadas.", Severity.Success);
+            StateHasChanged();
         }
 
         private async Task LoadEmpleados()
@@ -87,7 +107,6 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 
         protected async Task UpdateEmpleados()
         {
-            // Filtramos vinculados y activos reales
             var vinculados = _PayLoadListInss.Where(x => x != null && x.IdNomina > 0 && x.ActivoInss == true).Cast<EmpleadosActivos>().ToList();
 
             if (!vinculados.Any())
@@ -116,12 +135,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                     else
                     {
                         Snackbar.Add("Sincronización masiva exitosa.", Severity.Success);
-
-                        // Mantenemos _PayLoadList intacto para el Paso 2
                         BotonEnabledActivosInss = true;
-
-                        // Avanzamos al Paso 2 automáticamente
-                        _activeIndex = 1; // AVANCE AL PASO 2 TRAS SINCRONIZAR
+                        _activeIndex = 1; // Avanza a la pestaña de Nómina y Cierre
                         StateHasChanged();
                     }
                 }

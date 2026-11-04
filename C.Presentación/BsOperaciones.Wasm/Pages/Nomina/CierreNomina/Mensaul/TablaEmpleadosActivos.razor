@@ -3,72 +3,133 @@
 <MudOverlay Visible="isloading" DarkBackground="true" Absolute="true" ZIndex="9999">
     <div class="d-flex flex-column align-center">
         <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
-        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Generando reporte Excel...</MudText>
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando archivo...</MudText>
     </div>
 </MudOverlay>
 
-<MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px;">
-    <MudGrid Spacing="3" Class="align-center">
+<MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
+    @* Barra de acciones: Cargar Excel y Sincronizar *@
+    <MudGrid Spacing="3" Class="align-center mb-2">
         <MudItem xs="12" md="6">
             <InputFile id="fileInputInss" OnChange="LoadFiles" hidden accept=".xls,.xlsx" />
             <MudButton HtmlTag="label" Variant="MudBlazor.Variant.Outlined" Color="MudBlazor.Color.Primary"
-                       StartIcon="@Icons.Material.Filled.FileUpload" for="fileInputInss" FullWidth="true" Style="height: 50px;">
-                CARGAR EXCEL INSS
+                       StartIcon="@Icons.Material.Filled.FileUpload" for="fileInputInss" FullWidth="true" Style="height: 48px;">
+                CARGAR EXCEL PADRÓN INSS
             </MudButton>
         </MudItem>
         <MudItem xs="12" md="6">
-            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info" StartIcon="@Icons.Material.Filled.Update"
-                       OnClick="UpdateEmpleados" Disabled="@BotonEnabled" FullWidth="true" Style="height: 50px;">
+            <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info" StartIcon="@Icons.Material.Filled.Sync"
+                       OnClick="UpdateEmpleados" Disabled="@BotonEnabled" FullWidth="true" Style="height: 48px;">
                 SINCRONIZAR CON ADMIN
             </MudButton>
         </MudItem>
     </MudGrid>
+
+    @if (_PayLoadList != null && _PayLoadList.Any())
+    {
+        <MudDivider Class="my-4" />
+
+        @* Tarjetas KPIs de Comparación *@
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f1f5f9; border-radius: 8px;">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" />
+                    <div>
+                        <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Total en Archivo</MudText>
+                        <MudText Typo="MudBlazor.Typo.h6"><b>@_PayLoadList.Count</b></MudText>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f0fdf4; border-radius: 8px;">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" />
+                    <div>
+                        <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Vinculados Correctos</MudText>
+                        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Success"><b>@_PayLoadList.Count(x => x.IdNomina > 0)</b></MudText>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                @{
+                    int sinReg = _PayLoadList.Count(x => x.IdNomina == 0);
+                }
+                <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" 
+                          Style="@(sinReg > 0 ? "background-color: #fff1f2; border-radius: 8px;" : "background-color: #f0fdf4; border-radius: 8px;")">
+                    <MudIcon Icon="@(sinReg > 0 ? Icons.Material.Filled.ErrorOutline : Icons.Material.Filled.Verified)" 
+                             Color="@(sinReg > 0 ? MudBlazor.Color.Error : MudBlazor.Color.Success)" Size="MudBlazor.Size.Large" />
+                    <div>
+                        <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Sin Registro en Admin</MudText>
+                        <MudText Typo="MudBlazor.Typo.h6" Color="@(sinReg > 0 ? MudBlazor.Color.Error : MudBlazor.Color.Success)">
+                            <b>@sinReg</b>
+                        </MudText>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudDataGrid T="EmpleadosActivos" Items="@_PayLoadList" Dense="true" Elevation="0"
+                     Bordered="true" Striped="true" Height="450px" FixedHeader="true"
+                     QuickFilter="@_quickFilter">
+            <ToolBarContent>
+                <div>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Primary">
+                        <b>Comparación Padrón INSS vs Base de Datos</b>
+                    </MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">
+                        Verifique que los colaboradores activos estén vinculados antes de sincronizar
+                    </MudText>
+                </div>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Buscar por Nombre, Cédula o INSS..."
+                              Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="MudBlazor.Size.Medium" Class="mt-0 mr-4" Immediate="true" Margin="MudBlazor.Margin.Dense" />
+                <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Success"
+                           StartIcon="@Icons.Custom.FileFormats.FileExcel"
+                           OnClick="DownloadFile" Size="MudBlazor.Size.Small">
+                    DESCARGAR REVISIÓN
+                </MudButton>
+            </ToolBarContent>
+            <Columns>
+                <TemplateColumn Title="Sincronización" HeaderStyle="width: 190px">
+                    <CellTemplate>
+                        @if (context.Item.IdNomina == 0)
+                        {
+                            <MudChip T="string" Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Error" Size="MudBlazor.Size.Small">
+                                SIN REGISTRO
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Small">
+                                VINCULADO
+                            </MudChip>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.IdNomina" Title="ID Nómina" />
+                <PropertyColumn Property="x => x.NoCedula" Title="Cédula" />
+                <PropertyColumn Property="x => x.NoInss" Title="No. INSS" />
+                <PropertyColumn Property="x => x.NombreCompleto" Title="Colaborador" />
+                <TemplateColumn Title="Estado en Archivo" HeaderStyle="width: 140px">
+                    <CellTemplate>
+                        <MudChip T="string" Variant="MudBlazor.Variant.Text"
+                                 Color="@(context.Item.ActivoInss ? MudBlazor.Color.Success : MudBlazor.Color.Error)"
+                                 Size="MudBlazor.Size.Small">
+                            @(context.Item.ActivoInss ? "ACTIVO" : "INACTIVO")
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <PagerContent>
+                <MudDataGridPager T="EmpleadosActivos" />
+            </PagerContent>
+        </MudDataGrid>
+    }
+    else
+    {
+        <MudDivider Class="my-4" />
+        <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="my-4">
+            Cargue el archivo Excel del padrón de asegurados del INSS para cotejar altas, bajas y números patronales contra los registros de la empresa.
+        </MudAlert>
+    }
 </MudPaper>
-
-<MudDataGrid T="EmpleadosActivos" Items="@_PayLoadList" Dense="true" Elevation="0" RowsPerPage="10">
-    <ToolBarContent>
-        <MudText Typo="MudBlazor.Typo.h6">Resultados de Comparación</MudText>
-        <MudSpacer />
-        @* Botón para descargar el archivo de la tabla *@
-        <MudIconButton Icon="@Icons.Material.Filled.FileDownload"
-                       Color="MudBlazor.Color.Success"
-                       OnClick="DownloadFile"
-                       Disabled="@BotonEnabled"
-                       Title="Descargar Revisión" />
-    </ToolBarContent>
-    <Columns>
-        <TemplateColumn Title="Sincronización" HeaderStyle="width: 200px">
-            <CellTemplate>
-                @if (context.Item.IdNomina == 0)
-                {
-                    <MudChip T="string" Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Error" Size="MudBlazor.Size.Small">
-                        SIN REGISTRO EN ADMIN
-                    </MudChip>
-                }
-                else
-                {
-                    <MudChip T="string" Variant="MudBlazor.Variant.Outlined" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Small">
-                        VINCULADO CORRECTO
-                    </MudChip>
-                }
-            </CellTemplate>
-        </TemplateColumn>
-
-        <PropertyColumn Property="x => x.IdNomina" Title="ID Nómina" />
-        <PropertyColumn Property="x => x.NoCedula" Title="Cédula" />
-        <PropertyColumn Property="x => x.NoInss" Title="No. INSS" />
-        <PropertyColumn Property="x => x.NombreCompleto" Title="Nombre" />
-
-        <TemplateColumn Title="Estado en Archivo">
-            <CellTemplate>
-                <MudChip T="string" Variant="MudBlazor.Variant.Text"
-                         Color="@(context.Item.ActivoInss ? MudBlazor.Color.Success : MudBlazor.Color.Error)">
-                    @(context.Item.ActivoInss ? "ACTIVO" : "INACTIVO")
-                </MudChip>
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
-    <PagerContent>
-        <MudDataGridPager T="EmpleadosActivos" />
-    </PagerContent>
-</MudDataGrid>

@@ -5,45 +5,85 @@
 <MudOverlay Visible="isloading" DarkBackground="true" Absolute="true" ZIndex="9999">
     <div class="d-flex flex-column align-center">
         <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
-        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Generando reporte Excel...</MudText>
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Generando reporte de auditoría...</MudText>
     </div>
 </MudOverlay>
 
-<MudPaper Elevation="0" Class="pa-6" Style="background-color: #fff5f5; border: 1px solid #ffcdd2; border-radius: 12px;">
-    <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Error" Class="mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2" /> Auditoría de Integridad y Cumplimiento INSS
-    </MudText>
+<MudPaper Elevation="0" Class="pa-6" Style="background-color: #f8fafc; border-radius: 12px;">
+    @* Tarjetas de Resumen de Auditoría *@
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f1f5f9; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentInd" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Activos Reportados INSS</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6"><b>@(ListaInss?.Count(x => x.ActivoInss == true) ?? 0)</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" Style="background-color: #f0fdf4; border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Payments" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">En Nómina Consolidada</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Success"><b>@(ListaNomina?.Count ?? 0)</b></MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="4">
+            @{
+                int anomalías = ObtenerListaConsolidada().Count;
+            }
+            <MudPaper Elevation="0" Class="pa-4 d-flex align-center gap-3" 
+                      Style="@(anomalías > 0 ? "background-color: #fff1f2; border-radius: 8px;" : "background-color: #f0fdf4; border-radius: 8px;")">
+                <MudIcon Icon="@(anomalías > 0 ? Icons.Material.Filled.Warning : Icons.Material.Filled.CheckCircle)" 
+                         Color="@(anomalías > 0 ? MudBlazor.Color.Error : MudBlazor.Color.Success)" Size="MudBlazor.Size.Large" />
+                <div>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">Discrepancias Totales</MudText>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="@(anomalías > 0 ? MudBlazor.Color.Error : MudBlazor.Color.Success)">
+                        <b>@(anomalías > 0 ? anomalías.ToString() : "0 (Conforme)")</b>
+                    </MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 
     @if (sinNomina.Any() || sinCobroInss.Any())
     {
-        <MudGrid>
-            @* Alerta 1: Personas sin Nómina *@
-            @if (sinNomina.Any())
-            {
-                <MudItem xs="12">
-                    <MudAlert Severity="MudBlazor.Severity.Error" Variant="MudBlazor.Variant.Filled" Class="mb-2">
-                        <b>DISCREPANCIA DE ACTIVOS:</b> @sinNomina.Count personas aseguradas que NO aparecen en la nómina.
-                    </MudAlert>
-                </MudItem>
-            }
+        @* Alerta 1: Personas sin Nómina *@
+        @if (sinNomina.Any())
+        {
+            <MudAlert Severity="MudBlazor.Severity.Error" Variant="MudBlazor.Variant.Filled" Class="mb-3" Icon="@Icons.Material.Filled.ErrorOutline">
+                <b>DISCREPANCIA DE ACTIVOS:</b> Se identificaron <b>@sinNomina.Count</b> personas aseguradas activas que <b>NO</b> aparecen en el cálculo de nómina.
+            </MudAlert>
+        }
 
-            @* Alerta 2: Personas con INSS en Cero *@
-            @if (sinCobroInss.Any())
-            {
-                <MudItem xs="12">
-                    <MudAlert Severity="MudBlazor.Severity.Warning" Variant="MudBlazor.Variant.Filled" Class="mb-2" Style="background-color: #ff9800;">
-                        <b>ALERTA DE REPORTE:</b> @sinCobroInss.Count personas activas con deducción de INSS en C$ 0.00.
-                    </MudAlert>
-                </MudItem>
-            }
-        </MudGrid>
+        @* Alerta 2: Personas con INSS en Cero *@
+        @if (sinCobroInss.Any())
+        {
+            <MudAlert Severity="MudBlazor.Severity.Warning" Variant="MudBlazor.Variant.Filled" Class="mb-3" Icon="@Icons.Material.Filled.WarningAmber">
+                <b>ALERTA DE REPORTE:</b> Se identificaron <b>@sinCobroInss.Count</b> personas activas con deducción de INSS en C$ 0.00.
+            </MudAlert>
+        }
 
-        <MudTable T="AuditoriaInssModel" Items="@ObtenerListaConsolidada()" Dense="true" Bordered="true" Striped="true" Class="mt-4">
+        <MudTable T="AuditoriaInssModel" Items="@ListaFiltrada" Dense="true" Bordered="true" Striped="true" Class="mt-2" Elevation="0">
             <ToolBarContent>
-                <MudText Typo="MudBlazor.Typo.h6">Detalle de Anomalías Detectadas</MudText>
+                <div>
+                    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Primary">
+                        <b>Detalle de Anomalías Detectadas</b>
+                    </MudText>
+                    <MudText Typo="MudBlazor.Typo.caption" Color="MudBlazor.Color.Secondary">
+                        Revise las inconsistencias antes de someter el lote al INSS
+                    </MudText>
+                </div>
                 <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Buscar anomalía..."
+                              Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="MudBlazor.Size.Medium" Class="mt-0 mr-4" Immediate="true" Margin="MudBlazor.Margin.Dense" />
                 <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Dark"
-                           StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="DescargarAuditoria">
+                           StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="DescargarAuditoria" Size="MudBlazor.Size.Small">
                     EXPORTAR AUDITORÍA
                 </MudButton>
             </ToolBarContent>
@@ -55,46 +95,34 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.NoInss</MudTd>
-                <MudTd>@context.Nombre</MudTd>
+                <MudTd><b>@context.Nombre</b></MudTd>
                 <MudTd>
-                    <MudChip T="string" Color="@(context.ErrorTipo == "SIN PAGO" ? MudBlazor.Color.Error : MudBlazor.Color.Warning)" Size="MudBlazor.Size.Small">
+                    <MudChip T="string" Color="@(context.ErrorTipo == "SIN PAGO" ? MudBlazor.Color.Error : MudBlazor.Color.Warning)" 
+                             Size="MudBlazor.Size.Small" Variant="MudBlazor.Variant.Filled">
                         @context.ErrorTipo
                     </MudChip>
                 </MudTd>
                 <MudTd>@context.EstadoNomina</MudTd>
             </RowTemplate>
+            <PagerContent>
+                <MudTablePager RowsPerPageString="Filas por página:" />
+            </PagerContent>
         </MudTable>
     }
     else
     {
-        <MudAlert Severity="MudBlazor.Severity.Success" Variant="MudBlazor.Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle">
-            Integridad Verificada: Todos los activos tienen pago y deducción de ley correspondiente.
+        <MudAlert Severity="MudBlazor.Severity.Success" Variant="MudBlazor.Variant.Outlined" Class="my-4" Icon="@Icons.Material.Filled.Verified">
+            <b>Auditoría Conforme:</b> No se detectaron discrepancias entre los colaboradores activos y los registrados en la nómina. Todos los colaboradores asegurados cuentan con su cálculo correspondiente.
         </MudAlert>
     }
 
-    @if (ListaNomina != null && ListaNomina.Any())
-    {
-        <MudPaper Elevation="0" Class="pa-4 mt-4" Style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px;">
-            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
-                <div>
-                    <MudText Typo="MudBlazor.Typo.subtitle1" Color="MudBlazor.Color.Success">
-                        <b>Descarga de Archivo para Carga Masiva INSS (Turing | Newton)</b>
-                    </MudText>
-                    <MudText Typo="MudBlazor.Typo.body2">
-                        Generar el archivo oficial con las personas activas en nómina (Novedad 03 si días &gt; 28, sino 04).
-                    </MudText>
-                </div>
-                <div class="d-flex gap-2">
-                    <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Secondary"
-                               StartIcon="@Icons.Material.Filled.FileDownload" OnClick="DescargarInssCsvStep3">
-                        SUBIR A INSS (CSV)
-                    </MudButton>
-                    <MudButton Variant="MudBlazor.Variant.Filled" Color="MudBlazor.Color.Info"
-                               StartIcon="@Icons.Custom.FileFormats.FileExcel" OnClick="DescargarInssExcelStep3">
-                        PLANTILLA INSS (EXCEL)
-                    </MudButton>
-                </div>
-            </div>
-        </MudPaper>
-    }
+    <MudPaper Elevation="0" Class="pa-4 mt-4 d-flex align-center justify-space-between flex-wrap gap-3" 
+              Style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 10px;">
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Color="MudBlazor.Color.Info" />
+            <MudText Typo="MudBlazor.Typo.body2">
+                Una vez verificadas las anomalías, diríjase a la pestaña <b>4. Archivo Masivo INSS</b> para descargar los formatos oficiales para el portal.
+            </MudText>
+        </div>
+    </MudPaper>
 </MudPaper>
