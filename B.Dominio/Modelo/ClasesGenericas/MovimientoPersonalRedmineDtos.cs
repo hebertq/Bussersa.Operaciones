@@ -86,7 +86,39 @@ namespace Modelo.ClasesGenericas
         public string? UsuarioRegistro { get; set; }
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }
-    }
+    
+        private string? _clienteOrigenNomina;
+        public string? ClienteOrigenNomina
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(_clienteOrigenNomina))
+                    return _clienteOrigenNomina;
+
+                if (!string.IsNullOrWhiteSpace(Observaciones))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(Observaciones, @"(?i)N[oó]mina:\s*([^)\r\n]+)");
+                    if (match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value))
+                        return match.Groups[1].Value.Trim();
+                }
+
+                return Cliente;
+            }
+            set => _clienteOrigenNomina = value;
+        }
+
+        public bool EsPrestamo
+        {
+            get
+            {
+                var nom = ClienteOrigenNomina;
+                return !string.IsNullOrWhiteSpace(nom) 
+                       && !string.Equals(nom, Cliente, StringComparison.OrdinalIgnoreCase)
+                       && !string.Equals(nom, "Administración", StringComparison.OrdinalIgnoreCase)
+                       && !string.Equals(nom, "Operaciones", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+}
 
     public class GuardarMovimientosPersonalDiarioRequest
     {
