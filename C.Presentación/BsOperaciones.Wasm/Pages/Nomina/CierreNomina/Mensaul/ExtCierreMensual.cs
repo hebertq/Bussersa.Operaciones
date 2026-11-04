@@ -75,6 +75,50 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
             return 0;
         }
 
+        private static DateTime? GetDateTimeVal(DataRow row, params string[] columnNames)
+        {
+            foreach (var col in columnNames)
+            {
+                if (row.Table.Columns.Contains(col) && row[col] != DBNull.Value && row[col] != null)
+                {
+                    var val = row[col];
+                    if (val is DateTime dt) return dt;
+                    string str = val.ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d1)) return d1;
+                        if (DateTime.TryParse(str, out var d2)) return d2;
+                        if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double dbl) && dbl > 30000 && dbl < 70000)
+                        {
+                            try { return DateTime.FromOADate(dbl); } catch { }
+                        }
+                    }
+                }
+            }
+
+            foreach (var col in columnNames)
+            {
+                string normTarget = NormalizeKey(col);
+                var matchCol = row.Table.Columns.Cast<DataColumn>().FirstOrDefault(c => NormalizeKey(c.ColumnName) == normTarget);
+                if (matchCol != null && row[matchCol] != DBNull.Value && row[matchCol] != null)
+                {
+                    var val = row[matchCol];
+                    if (val is DateTime dt) return dt;
+                    string str = val.ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d1)) return d1;
+                        if (DateTime.TryParse(str, out var d2)) return d2;
+                        if (double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out double dbl) && dbl > 30000 && dbl < 70000)
+                        {
+                            try { return DateTime.FromOADate(dbl); } catch { }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         public static List<EmpleadosActivos> GetEmpActivosInss(List<EmpleadosActivos> _PayLoadListLocal, DataTable dataActivos)
         {
             var _PayLoadList = new List<EmpleadosActivos>();
@@ -103,7 +147,8 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                     PrimerNombre = GetStringVal(myRow, "Primer_Nombre", "Primer Nombre", "PrimerNombre", "p-nombre", "p_nombre", "pnombre", "PNombre", "Nombre 1", "Nombre1"),
                                     PrimerApellido = GetStringVal(myRow, "Primer_Apellido", "Primer Apellido", "PrimerApellido", "p-apellido", "p_apellido", "papellido", "PApellido", "Apellido 1", "Apellido1"),
                                     SegundoNombre = GetStringVal(myRow, "Segundo_Nombre", "Segundo Nombre", "SegundoNombre", "s-nombre", "s_nombre", "snombre", "SNombre", "Nombre 2", "Nombre2"),
-                                    SegundoApellido = GetStringVal(myRow, "Segundo_Apellido", "Segundo Apellido", "SegundoApellido", "s-apellido", "s_apellido", "sapellido", "SApellido", "Apellido 2", "Apellido2")
+                                    SegundoApellido = GetStringVal(myRow, "Segundo_Apellido", "Segundo Apellido", "SegundoApellido", "s-apellido", "s_apellido", "sapellido", "SApellido", "Apellido 2", "Apellido2"),
+                                    FechaIngreso = GetDateTimeVal(myRow, "Fecha de Ingreso", "Fecha_de_Ingreso", "FechaIngreso", "Fecha_Ingreso", "fec_ingreso", "fec_inicio", "Fecha Inicio", "Ingreso", "FecIngreso")
                                 }).ToList();
 
                 // Post-proceso para completar nombres si vinieron en una columna combinada
@@ -144,6 +189,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        SegundoApellido = ei.SegundoApellido,
                                        NoInss = (ea.NoInss != ei.NoInss && ei.NoInss > 0) ? ei.NoInss : ea.NoInss,
                                        NoContrato = ea.NoContrato,
+                                       FechaIngreso = ei.FechaIngreso ?? ea.FechaIngreso,
                                        ActivoInss = true,
                                        Accion = (ea.NoInss != ei.NoInss && ei.NoInss > 0) ? AccionesEmp.NoInss : ea.Accion,
                                    }).ToList();
@@ -164,6 +210,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                        SegundoApellido = ei.SegundoApellido,
                                        NoInss = ea.NoInss,
                                        NoContrato = ea.NoContrato,
+                                       FechaIngreso = ei.FechaIngreso ?? ea.FechaIngreso,
                                        ActivoInss = true,
                                        Accion = (!string.IsNullOrWhiteSpace(ea.NoCedula) && !string.IsNullOrWhiteSpace(ei.NoCedula) && ea.NoCedula.Trim().ToLower() != ei.NoCedula.Trim().ToLower()) ? AccionesEmp.Cedula : ea.Accion,
                                    }).ToList();
@@ -194,6 +241,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                       SegundoApellido = ei.SegundoApellido,
                                       NoInss = ei.NoInss,
                                       NoContrato = 0,
+                                      FechaIngreso = ei.FechaIngreso,
                                       ActivoInss = true,
                                       Accion = AccionesEmp.NoActivoAdmin
                                   }).ToList();
@@ -233,6 +281,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                                      SegundoApellido = ei.SegundoApellido,
                                      NoInss = ei.NoInss,
                                      NoContrato = ei.NoContrato,
+                                     FechaIngreso = ei.FechaIngreso,
                                      ActivoInss = false,
                                      Accion = AccionesEmp.NoActivoInss
                                  }).ToList();

@@ -1,3 +1,5 @@
+using System;
+
 namespace Modelo.Entidades.Entradas.Odoo
 {
     public class EmpleadosActivos
@@ -12,6 +14,7 @@ namespace Modelo.Entidades.Entradas.Odoo
         public string SegundoApellido { get; set; } = string.Empty;
         public double NoInss { get; set; } = 0;
         public int NoContrato { get; set; } = 0;
+        public DateTime? FechaIngreso { get; set; }
         public bool ActivoInss { get; set; } = false;
         public AccionesEmp Accion { get; set; } = AccionesEmp.Ninguna;
 
@@ -25,6 +28,7 @@ namespace Modelo.Entidades.Entradas.Odoo
         public string SegundoNombre { get; set; } = string.Empty;
         public string SegundoApellido { get; set; } = string.Empty;
         public double NoInss { get; set; } = 0;
+        public DateTime? FechaIngreso { get; set; }
 
     }
 

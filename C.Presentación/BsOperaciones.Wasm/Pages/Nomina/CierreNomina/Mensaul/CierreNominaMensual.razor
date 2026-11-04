@@ -102,6 +102,7 @@
             <ConciliacionMontos @bind-Anio="_anioGlobal"
                                 @bind-Mes="_mesGlobal"
                                 NominaFinalGlobal="_nominaFinalGlobal"
+                                ListaActivos="ListaAseguradosParaInss"
                                 OnProcessing="@((bool loading) => isloaddata = loading)"
                                 OnNominaGenerated="HandleNominaGenerated" />
         </MudTabPanel>

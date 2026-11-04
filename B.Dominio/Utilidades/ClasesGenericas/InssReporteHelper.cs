@@ -205,14 +205,13 @@ namespace Utilidades.ClasesGenericas
                 // 1. Obtener nombres preliminares dividiendo el nombre de nómina
                 var (pNombre, pApellido) = SplitNombreCompleto(item.emp_nombre);
 
+                EmpleadosActivos? match = null;
                 // 2. Si se suministró la lista de asegurados activos (cargada del archivo de activos del INSS),
                 // tomar primer nombre y primer apellido del registro oficial del INSS para evitar rechazos en el portal Turing/Newton.
                 if (activosList != null && activosList.Any())
                 {
                     string cleanNss = CleanInss(item.emp_noinss);
                     bool tieneNss = !string.IsNullOrWhiteSpace(cleanNss) && cleanNss != "0";
-
-                    EmpleadosActivos? match = null;
 
                     // Coincidencia 1: Por número de NSS
                     if (tieneNss)
@@ -266,9 +265,25 @@ namespace Utilidades.ClasesGenericas
                 int anioCalc = anio ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value / 100 : DateTime.Now.Year);
                 int mesCalc = mes ?? (item.anyo_mes_cierre.HasValue ? item.anyo_mes_cierre.Value % 100 : DateTime.Now.Month);
 
-                bool esNuevoIngreso = item.fec_inicio.HasValue &&
-                                      item.fec_inicio.Value.Year == anioCalc &&
-                                      item.fec_inicio.Value.Month == mesCalc;
+                // REGLA CRÍTICA OFICIAL INSS:
+                // Si el colaborador tiene fecha de ingreso reportada ante el INSS en el archivo de activos cargado,
+                // esa fecha oficial reportada MANDA sobre cualquier fecha interna para que el portal no rechace con
+                // "SE HA MARCADO UNA SEMANA ANTERIOR A LA FECHA DEL MOVIMIENTO".
+                DateTime? fecInicioEfectivo = item.fec_inicio;
+                if (match?.FechaIngreso.HasValue == true)
+                {
+                    if (match.FechaIngreso.Value.Year == anioCalc && match.FechaIngreso.Value.Month == mesCalc)
+                    {
+                        fecInicioEfectivo = match.FechaIngreso.Value;
+                    }
+                }
+
+                bool esNuevoIngreso = fecInicioEfectivo.HasValue &&
+                                      fecInicioEfectivo.Value.Year == anioCalc &&
+                                      fecInicioEfectivo.Value.Month == mesCalc;
+
+                // Cálculo congruente de semanas sin marcar antes de la fecha de ingreso
+                string semanasStr = CalcularSemanasInss(fecInicioEfectivo, item.fec_fin, dias, anioCalc, mesCalc);
 
                 string tipoNovedad;
                 string fechaStr;
@@ -276,7 +291,7 @@ namespace Utilidades.ClasesGenericas
                 if (esNuevoIngreso)
                 {
                     tipoNovedad = "01"; // Alta / Ingreso en el mes
-                    fechaStr = item.fec_inicio.Value.ToString("yyyy-MM-dd");
+                    fechaStr = fecInicioEfectivo.Value.ToString("yyyy-MM-dd");
                 }
                 else if (esMayor28)
                 {
@@ -286,7 +301,17 @@ namespace Utilidades.ClasesGenericas
                 else
                 {
                     tipoNovedad = "04"; // Período incompleto (colaborador previo con ausencias/días parciales)
-                    fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
+                    
+                    // Si ingresó en este mes, la fecha del movimiento 04 debe coincidir con su fecha de ingreso reportada
+                    // para evitar el error de semanas anteriores a la fecha del movimiento en el portal del INSS.
+                    if (esNuevoIngreso)
+                    {
+                        fechaStr = fecInicioEfectivo.Value.ToString("yyyy-MM-dd");
+                    }
+                    else
+                    {
+                        fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
+                    }
                 }
 
                 // REGLA OFICIAL INSS: Sal-Devengado a cotizar ante el INSS (monto deducible sujeto a aporte)
@@ -301,9 +326,6 @@ namespace Utilidades.ClasesGenericas
                 // el campo sal-mensual debe ser estrictamente 0.00 según los requisitos del INSS.
                 // Para Novedad 01 (Ingreso) y Novedad 03 (Mes completo), sal-mensual es el salario mensual pactado (emp_sal_fijo).
                 decimal salMensual = tipoNovedad == "04" ? 0m : (item.emp_sal_fijo ?? 0m);
-
-                // Cálculo congruente de semanas sin marcar antes de la fecha de ingreso
-                string semanasStr = CalcularSemanasInss(item.fec_inicio, item.fec_fin, dias, anioCalc, mesCalc);
 
                 list.Add(new InssReporteRow
                 {

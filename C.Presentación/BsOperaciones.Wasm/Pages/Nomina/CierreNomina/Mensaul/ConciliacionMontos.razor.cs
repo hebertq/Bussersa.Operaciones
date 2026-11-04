@@ -11,6 +11,7 @@ using BsOperaciones.Application.Features.Odoo.Command;
 using Modelo.Report;
 using Utilidades.ClasesGenericas;
 using Modelo.ClasesGenericas;
+using Modelo.Entidades.Entradas.Odoo;
 
 namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
 {
@@ -29,6 +30,7 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
         [Parameter] public EventCallback<int> MesChanged { get; set; }
 
         [Parameter] public List<NominaMensualReportar> NominaFinalGlobal { get; set; }
+        [Parameter] public List<EmpleadosActivos>? ListaActivos { get; set; }
         [Parameter] public EventCallback<List<NominaMensualReportar>> OnNominaGenerated { get; set; }
         [Parameter] public EventCallback<bool> OnProcessing { get; set; }
 
@@ -139,16 +141,35 @@ namespace BsOperaciones.Pages.Nomina.CierreNomina.Mensaul
                         ? x.emp_ingresos_deducir.Value
                         : (salBasico + hrasExtrasRep);
 
+                    DateTime? fecInicioEfectivo = x.fec_inicio;
+                    if (ListaActivos != null && ListaActivos.Any())
+                    {
+                        string cleanNss = InssReporteHelper.CleanInss(x.emp_noinss);
+                        var matchActivo = ListaActivos.FirstOrDefault(a => 
+                            (a.NoInss > 0 && InssReporteHelper.CleanInss(a.NoInss.ToString(System.Globalization.CultureInfo.InvariantCulture)) == cleanNss)
+                            || (a.IdNomina > 0 && a.IdNomina == x.emp_nomina));
+
+                        if (matchActivo?.FechaIngreso.HasValue == true)
+                        {
+                            if (matchActivo.FechaIngreso.Value.Year == _anioSeleccionado && matchActivo.FechaIngreso.Value.Month == _mesSeleccionado)
+                            {
+                                fecInicioEfectivo = matchActivo.FechaIngreso.Value;
+                            }
+                        }
+                    }
+
+                    string semanasCalculadas = InssReporteHelper.CalcularSemanasInss(fecInicioEfectivo, x.fec_fin, x.emp_diaslab ?? 0, _anioSeleccionado, _mesSeleccionado);
+
                     return new
                     {
                         Mes = x.anyo_mes_cierre,
-                        Inicio = x.fec_inicio?.ToString("yyyy-MM-dd"),
+                        Inicio = fecInicioEfectivo?.ToString("yyyy-MM-dd"),
                         Fin = x.fec_fin?.ToString("yyyy-MM-dd"),
                         EmpId = x.emp_nomina,
                         No_Inss = decimal.TryParse(x.emp_noinss, out decimal vInss) ? Convert.ToInt64(vInss) : 0,
                         Nombre = x.emp_nombre,
                         Novedad = (x.emp_diaslab ?? 0) > 28 ? "03" : "04",
-                        Semanas = InssReporteHelper.CalcularSemanasInss(x.fec_inicio, x.fec_fin, x.emp_diaslab ?? 0, _anioSeleccionado, _mesSeleccionado),
+                        Semanas = semanasCalculadas,
                         DiasLab = x.emp_diaslab,
                         ExtrasLab = extrasLabRep,
                         SalBase = x.emp_sal_fijo,
