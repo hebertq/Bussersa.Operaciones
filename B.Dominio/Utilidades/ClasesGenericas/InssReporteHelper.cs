@@ -220,8 +220,11 @@ namespace Utilidades.ClasesGenericas
                     fechaStr = $"{anioCalc:D4}-{mesCalc:D2}-01";
                 }
 
-                // REGLA USUARIO: Debe coincidir exactamente con el disponible ("Total Recibir" / emp_pago_recibir) del primer archivo
-                decimal salDevengado = item.emp_pago_recibir ?? 0m;
+                // REGLA OFICIAL INSS: Sal-Devengado a cotizar ante el INSS (monto deducible sujeto a aporte)
+                // Se reporta el salario deducible (emp_ingresos_deducir) equivalente al salario fijo o completado con extras/otros ingresos
+                decimal salDevengado = (item.emp_ingresos_deducir.HasValue && item.emp_ingresos_deducir.Value > 0)
+                    ? item.emp_ingresos_deducir.Value
+                    : (item.emp_sal_fijo ?? item.emp_sal_basico ?? 0m);
                 if (salDevengado < 0) salDevengado = 0m;
 
                 // REGLA OFICIAL INSS (Turing | Newton):
