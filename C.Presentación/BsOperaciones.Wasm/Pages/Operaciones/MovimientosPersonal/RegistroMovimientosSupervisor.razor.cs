@@ -109,12 +109,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal TotalNominaPorPersona => (TraspAplicaNomina ? VtcoTrasp : 0) + (AlimAplicaNomina ? VtcoAlim : 0);
         public decimal TotalEfectivoPorPersona => (TraspAplicaNomina ? 0 : VtcoTrasp) + (AlimAplicaNomina ? 0 : VtcoAlim);
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
-        public int Cantidad => Empleados.Count;
-        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
-        public string NombresResumen => string.Join(", ", Empleados.Take(3).Select(e => e.NombreEmpleado)) + (Empleados.Count > 3 ? $" y {Empleados.Count - 3} más..." : "");
-        public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
-        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
-        public int? TicketBonoId => Empleados.FirstOrDefault(e => e.TicketBonoId.HasValue && e.TicketBonoId > 0)?.TicketBonoId;
+        public int Cantidad => Empleados.Count(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--");
+        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Select(e => e.CodigoEmpleado));
+        public string NombresResumen => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Take(3).Select(e => e.NombreEmpleado)) + (Cantidad > 3 ? $" y {Cantidad - 3} más..." : "");
+        public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
+        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
+        public int? TicketBonoId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketBonoId.HasValue && e.TicketBonoId > 0)?.TicketBonoId;
         public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
         public string Observaciones { get; set; } = string.Empty;
         public string NotaPrestamos { get; set; } = string.Empty;
@@ -129,7 +129,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraInicio { get; set; } = string.Empty;
         public string HoraFin { get; set; } = string.Empty;
         public string TurnoNombre { get; set; } = string.Empty;
-        public int Recursos => Empleados.Count; // Número de personas del viático
+        public int Recursos => Empleados.Count(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--"); // Número de personas del viático (asistentes)
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
         public bool TraspAplicaNomina { get; set; }
@@ -141,8 +141,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal TotalNominaGrupo => Recursos * TotalNominaPorPersona;
         public decimal TotalEfectivoGrupo => Recursos * TotalEfectivoPorPersona;
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
-        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Select(e => e.CodigoEmpleado));
-        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
+        public string IdsEmpleadosTexto => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Select(e => e.CodigoEmpleado));
+        public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
         public bool Sincronizado => TicketViaticoId.HasValue && TicketViaticoId.Value > 0;
     }
 
@@ -829,9 +829,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             TipoEmpleado = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == m.CodigoEmpleado)?.TipoEmpleado ?? "Permanente",
                             Asistio = m.Asistio,
                             Estado = m.Estado,
-                            TicketRedmineId = m.TicketRedmineId,
-                            TicketViaticoId = m.TicketViaticoId,
-                            TicketBonoId = m.TicketBonoId,
+                            TicketRedmineId = !m.Asistio ? null : m.TicketRedmineId,
+                            TicketViaticoId = !m.Asistio ? null : m.TicketViaticoId,
+                            TicketBonoId = !m.Asistio ? null : m.TicketBonoId,
                             TicketAusenciaId = m.TicketAusenciaId,
                             TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
                             FechaInicioAusencia = fIni,
@@ -1548,6 +1548,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         salida = "--:--";
                         comida = "0";
                         turno = "Ausente";
+                        e.TicketRedmineId = null;
+                        e.TicketViaticoId = null;
+                        e.TicketBonoId = null;
                     }
 
                     DateTime fRef = fechaSeleccionada.Value;
@@ -1581,9 +1584,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
-                        TicketRedmineId = e.TicketRedmineId,
-                        TicketViaticoId = e.TicketViaticoId,
-                        TicketBonoId = e.TicketBonoId,
+                        TicketRedmineId = !e.Asistio ? null : e.TicketRedmineId,
+                        TicketViaticoId = !e.Asistio ? null : e.TicketViaticoId,
+                        TicketBonoId = !e.Asistio ? null : e.TicketBonoId,
                         TicketAusenciaId = e.TicketAusenciaId,
                         TipoAusencia = !string.IsNullOrWhiteSpace(e.TipoAusencia) ? e.TipoAusencia : "Ausencias justificadas",
                         FechaInicioAusencia = fIni,
@@ -2254,6 +2257,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 emp.HoraSalida = "--:--";
                 emp.TiempoComida = "0";
                 emp.TurnoNombre = "Ausente";
+                emp.TicketRedmineId = null;
+                emp.TicketViaticoId = null;
+                emp.TicketBonoId = null;
                 DateTime fRef = fechaSeleccionada ?? DateTime.Today;
                 emp.FechaInicioAusencia = fRef;
                 emp.FechaFinAusencia = fRef;
@@ -2990,7 +2996,21 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         private void ActualizarGruposConsolidados()
         {
             // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
-            var presentes = empleadosJornada.Where(x => x.Asistio).ToList();
+            // Garantizar que ningún colaborador ausente conserve tickets de movimientos ni viáticos
+            foreach (var aus in empleadosJornada.Where(x => !x.Asistio || string.Equals(x.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)))
+            {
+                aus.TicketRedmineId = null;
+                aus.TicketViaticoId = null;
+                aus.TicketBonoId = null;
+            }
+
+            // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx (EXCLUSIVAMENTE ASISTENTES)
+            var presentes = empleadosJornada
+                .Where(x => x.Asistio 
+                         && !string.Equals(x.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
+                         && x.HoraEntrada != "--:--"
+                         && x.HoraSalida != "--:--")
+                .ToList();
 
             // Preservar observaciones previas del supervisor si ya existían para no sobreescribir lo que digitó
             var dicObsPrevias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -3105,6 +3125,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- ENVIAR A HELPDESK (REDMINE) ---
         protected async Task EnviarAHelpdeskMasivo()
         {
+            ActualizarGruposConsolidados();
+
             if (!gruposConsolidados.Any())
             {
                 _snackbar.Add("No hay grupos activos para enviar a Helpdesk.", Severity.Warning);
@@ -3120,8 +3142,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
-            // Filtrar únicamente los grupos que NO están ya sincronizados con Helpdesk
-            var gruposPendientes = gruposConsolidados.Where(g => !g.Sincronizado).ToList();
+            // Filtrar únicamente los grupos de asistentes que NO están ya sincronizados con Helpdesk
+            var gruposPendientes = gruposConsolidados.Where(g => !g.Sincronizado && g.Cantidad > 0).ToList();
             if (!gruposPendientes.Any())
             {
                 _snackbar.Add("Todos los grupos de movimiento ya están sincronizados con Helpdesk.", Severity.Info);
@@ -3176,7 +3198,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     var res = response.Model;
                     int creados = res.Exitosos;
 
-                    // Estampar los IDs de Redmine en los empleados correspondientes
+                    // Estampar los IDs de Redmine en los empleados correspondientes (EXCLUSIVAMENTE PRESENTES)
                     if (res.Detalles != null)
                     {
                         foreach (var det in res.Detalles)
@@ -3184,7 +3206,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             var grupo = gruposConsolidados.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
                             if (grupo != null && (det.RedmineIssueId.HasValue || det.RedmineViaticosIssueId.HasValue))
                             {
-                                var idsDb = grupo.Empleados.Where(e => e.Id > 0).Select(e => e.Id).ToList();
+                                var idsDb = grupo.Empleados
+                                    .Where(e => e.Id > 0 && e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase))
+                                    .Select(e => e.Id)
+                                    .ToList();
+
                                 if (idsDb.Any())
                                 {
                                     await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
@@ -3196,7 +3222,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                     });
                                 }
 
-                                foreach (var emp in grupo.Empleados)
+                                foreach (var emp in grupo.Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)))
                                 {
                                     if (det.RedmineIssueId.HasValue) emp.TicketRedmineId = det.RedmineIssueId;
                                     if (det.RedmineViaticosIssueId.HasValue) emp.TicketViaticoId = det.RedmineViaticosIssueId;
@@ -3951,7 +3977,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             var grupo = gruposConsolidados.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
                             if (grupo != null && det.RedmineViaticosIssueId.HasValue)
                             {
-                                var idsDb = grupo.Empleados.Where(e => e.Id > 0).Select(e => e.Id).ToList();
+                                var idsDb = grupo.Empleados
+                                    .Where(e => e.Id > 0 && e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase))
+                                    .Select(e => e.Id)
+                                    .ToList();
+
                                 if (idsDb.Any())
                                 {
                                     await _odooService.UpdateSyncHelpdeskMovimientos(new ActualizarSyncHelpdeskRequest
@@ -3962,7 +3992,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                     });
                                 }
 
-                                foreach (var emp in grupo.Empleados)
+                                foreach (var emp in grupo.Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)))
                                 {
                                     emp.TicketViaticoId = det.RedmineViaticosIssueId;
                                     emp.Modificado = false;
