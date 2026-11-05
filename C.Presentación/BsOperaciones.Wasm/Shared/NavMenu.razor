@@ -1,31 +1,103 @@
 @using BsOperaciones.Component.MenuComponen
 @using BsOperaciones.Component.MenuComponen.Rrhh
 @using BsOperaciones.Component.MenuComponen.Operaciones
+@using BsOperaciones.Services
 @using Modelo.Admin
-@using Modelo.Entidades;
+@using Modelo.Entidades
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IUserInfo _Iuser;
+@inject ModuloNavigationService ModuloNavService
+@inject IUserInfo _Iuser
+@implements IDisposable
 
-@* IMPORTANTE: Se eliminó MudPaper y el ancho fijo. 
-   MudNavMenu ahora se ajusta automáticamente al ancho del Drawer (250px o 56px).
-*@
 <MudNavMenu Class="mud-width-full">
 
-    @* Sección Inicio *@
-    <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/index" Match="NavLinkMatch.All">
-        Inicio
-    </MudNavLink>
+    @if (moduloActual != null)
+    {
+        @* Encabezado del Módulo Activo con botón de retorno estilo Odoo *@
+        <div class="active-module-card pa-3 mx-2 my-2 rounded-lg" style="background: rgba(var(--mud-palette-primary-rgb), 0.08); border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.2);">
+            <div class="d-flex align-center justify-space-between mb-1">
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@moduloActual.Icono" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="letter-spacing: 0.5px; color: var(--mud-palette-primary);">
+                        @moduloActual.Titulo
+                    </MudText>
+                </div>
+                <MudTooltip Text="Cambiar Módulo (Odoo App Switcher)">
+                    <MudIconButton Icon="@Icons.Material.Filled.Apps" 
+                                   Size="Size.Small" 
+                                   Color="Color.Primary" 
+                                   OnClick="IrAModulos" 
+                                   Title="Cambiar de Módulo" />
+                </MudTooltip>
+            </div>
+            <MudButton Variant="Variant.Text" 
+                       Size="Size.Small" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.ArrowBack" 
+                       OnClick="IrAModulos" 
+                       Class="px-1 text-lowercase"
+                       Style="font-size: 0.72rem; font-weight: 600; text-transform: none;">
+                Volver a Módulos
+            </MudButton>
+        </div>
 
-    <MudDivider Class="my-2" />
+        <MudDivider Class="my-1" />
 
-    @* Subcomponentes de Menú:
-       Asegúrate que dentro de MenuRrhh y MenuOperaciones uses MudNavLink o MudNavGroup
-    *@
-    <MenuRRHH />
-    <MenuOperaciones />
-    <MenuComercial />
-    <MenuAdministracion />
+        @* Submenús del Módulo Seleccionado ÚNICAMENTE *@
+        @if (moduloActual.Clave == "operaciones")
+        {
+            <MenuOperaciones />
+        }
+        else if (moduloActual.Clave == "asistencias")
+        {
+            <MenuAsistencia />
+        }
+        else if (moduloActual.Clave == "nomina")
+        {
+            <MenuNomina />
+        }
+        else if (moduloActual.Clave == "comercial")
+        {
+            <MenuComercial />
+        }
+        else if (moduloActual.Clave == "supervision")
+        {
+            <MudNavGroup Title="Supervisión" Icon="@Icons.Material.Filled.SupervisorAccount" Expanded="true">
+                <MenuItem MenuId="62" Name="Áreas del Cliente" Url="/admon/supervision/areas-cliente" IconName="@Icons.Material.Filled.Domain" />
+                <MenuItem MenuId="63" Name="Personal por Cliente" Url="/admon/supervision/personal-cliente" IconName="@Icons.Material.Filled.Badge" />
+                <MenuItem MenuId="65" Name="Reglas de Viáticos" Url="/admon/supervision/reglas-viaticos" IconName="@Icons.Material.Filled.Payments" />
+            </MudNavGroup>
+        }
+        else if (moduloActual.Clave == "admon")
+        {
+            <MenuAdministracion />
+        }
+    }
+    else
+    {
+        @* En Inicio / Lanzador de Apps: Mostrar acceso directo a Módulos Permitidos *@
+        <MudNavLink Icon="@Icons.Material.Filled.Apps" Href="/index" Match="NavLinkMatch.All" Style="font-weight: 700; color: var(--mud-palette-primary);">
+            Módulos del Sistema
+        </MudNavLink>
+
+        <MudDivider Class="my-2" />
+
+        <div class="px-3 py-1">
+            <MudText Typo="Typo.overline" Color="Color.Secondary" Style="font-size: 0.7rem; font-weight: 700;">
+                MÓDULOS ACTIVOS
+            </MudText>
+        </div>
+
+        @foreach (var mod in modulosPermitidos)
+        {
+            <MudNavLink Icon="@mod.Icono" Href="@mod.RutaPrincipal" Match="NavLinkMatch.Prefix">
+                @mod.Titulo
+            </MudNavLink>
+        }
+    }
 
     <MudDivider Class="my-2" />
 
@@ -52,7 +124,35 @@
 </MudNavMenu>
 
 @code {
-    public IList<NavMenuModel> MenuList = new List<NavMenuModel>();
+    private ModuloAppItem? moduloActual = null;
+    private List<ModuloAppItem> modulosPermitidos = new();
+    private ClaimsPrincipal? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+        modulosPermitidos = ModuloNavService.ObtenerModulosPermitidos(user);
+        ActualizarModuloActivo();
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        ActualizarModuloActivo();
+        StateHasChanged();
+    }
+
+    private void ActualizarModuloActivo()
+    {
+        string relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        moduloActual = ModuloNavService.DetectarModuloPorUrl(relativePath);
+    }
+
+    private void IrAModulos()
+    {
+        NavigationManager.NavigateTo("/index");
+    }
 
     public async Task Logout()
     {
@@ -66,40 +166,8 @@
         NavigationManager.NavigateTo("");
     }
 
-    // --- Métodos de Lógica de Menú Dinámico ---
-
-    private IList<NavMenuModel> GetChildrenMenu(int parentId = 0)
+    public void Dispose()
     {
-        return MenuList.Where(x => x.parentid == parentId).OrderBy(x => x.order).ToList();
-    }
-
-    private NavMenuModel GetMenuItem(int id)
-    {
-        return MenuList.FirstOrDefault(x => x.id == id);
-    }
-
-    private IList<MenuViewModel> GetMenu(int parentId)
-    {
-        var children = GetChildrenMenu(parentId);
-
-        if (!children.Any())
-        {
-            return new List<MenuViewModel>();
-        }
-
-        var vmList = new List<MenuViewModel>();
-        foreach (var item in children)
-        {
-            var menu = GetMenuItem(item.id);
-            var vm = new MenuViewModel();
-            vm.id = menu.id;
-            vm.content = menu.content;
-            vm.icontype = menu.icontype;
-            vm.url = menu.url;
-            vm.Children = GetMenu(menu.id);
-            vmList.Add(vm);
-        }
-
-        return vmList;
+        NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }

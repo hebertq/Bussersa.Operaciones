@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using BsOperaciones.Services
+@using System.Security.Claims
 
 <MudThemeProvider Theme="_bussersaTheme" @bind-IsDarkMode="@_isDarkMode" />
 <MudPopoverProvider />
@@ -7,16 +9,41 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    @* --- BARRA SUPERIOR (APPBAR) --- *@
+    @* --- BARRA SUPERIOR (APPBAR ESTILO ODOO) --- *@
     <MudAppBar Elevation="0" Color="Color.Default" Dense="true" Class="mud-appbar">
-        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <div class="d-flex align-center px-2">
-            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:32px;" class="mr-3" />
-            <MudText Typo="Typo.h6" Class="d-none d-sm-flex" Style="font-weight: 800; letter-spacing: 1px; font-family: 'Outfit', sans-serif;">
-                OPERACIONES
-            </MudText>
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Title="Alternar Menú" />
+        
+        @* Botón Odoo App Switcher para regresar al lanzador principal *@
+        <MudTooltip Text="Lanzador de Módulos (Odoo App Switcher)">
+            <MudIconButton Icon="@Icons.Material.Filled.Apps" 
+                           Color="Color.Primary" 
+                           OnClick="@IrAInicioModulos" 
+                           Class="mr-1"
+                           Title="Ver todos los módulos" />
+        </MudTooltip>
+
+        <div class="d-flex align-center px-2 cursor-pointer" @onclick="@IrAInicioModulos" style="cursor: pointer;" title="Ir al Lanzador de Módulos">
+            <img src="/img/brand/sygnet.png" alt="Bussersa" style="height:30px;" class="mr-2" />
+            <div class="d-none d-sm-flex align-center">
+                <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: 0.8px; font-family: 'Outfit', sans-serif;">
+                    BUSSERSA
+                </MudText>
+                @if (moduloActual != null)
+                {
+                    <span class="mx-2 text-muted-appbar" style="font-size: 1.1rem; font-weight: 300;">•</span>
+                    <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Style="font-weight: 700; letter-spacing: 0.5px;">
+                        @moduloActual.Titulo.ToUpperInvariant()
+                    </MudText>
+                }
+            </div>
         </div>
         <MudSpacer />
+
+        @* Punto de Estado En Línea estilo Odoo *@
+        <div class="d-none d-md-flex align-center mr-3" title="Sistema en línea y sincronizado">
+            <span class="odoo-status-dot mr-1"></span>
+            <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.7rem; font-weight: 600;">EN LÍNEA</MudText>
+        </div>
 
         @* Botón de Instalación PWA en Barra Superior *@
         <BotonInstalarPwa Class="mr-2" Texto="Instalar App" />
@@ -28,29 +55,37 @@
                        Class="mr-2"
                        Title="Alternar Modo Oscuro" />
 
-        <MudBadge Content="@("3")" Color="Color.Secondary" Overlap="true" Class="mr-5">
+        <MudBadge Content="@("3")" Color="Color.Secondary" Overlap="true" Class="mr-4">
             <MudIcon Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" />
         </MudBadge>
         
+        @* Píldora de Perfil del Usuario Logueado *@
         <div class="d-flex align-center ml-2 py-1 px-3 profile-pill">
             <div class="d-flex flex-column align-end mr-3 d-none d-md-flex">
-                <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1; font-weight: 600;">Admin Usuario</MudText>
-                <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 500;">ADMINISTRADOR</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1.1; font-weight: 700;">@_userDisplayName</MudText>
+                <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">@_userRoleName</MudText>
             </div>
-            <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled">AD</MudAvatar>
+            <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled" Style="font-weight: 700; font-size: 0.75rem;">
+                @_userInitials
+            </MudAvatar>
         </div>
     </MudAppBar>
 
-    @* --- MENÚ LATERAL (DRAWER) --- *@
+    @* --- MENÚ LATERAL (DRAWER CONTEXTUAL) --- *@
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Mini" Class="border-light mud-drawer">
-        <MudDrawerHeader Class="pa-4 d-flex align-center">
+        <MudDrawerHeader Class="pa-4 d-flex align-center justify-space-between">
             @if (_drawerOpen)
             {
-                <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem; font-family: 'Outfit';">SISTEMA DE GESTIÓN</MudText>
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@(moduloActual?.Icono ?? Icons.Material.Outlined.Business)" Color="Color.Primary" Size="Size.Small" />
+                    <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem; font-family: 'Outfit';">
+                        @(moduloActual?.Titulo?.ToUpperInvariant() ?? "BUSSERSA APPS")
+                    </MudText>
+                </div>
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Outlined.Business" Color="Color.Primary" />
+                <MudIcon Icon="@(moduloActual?.Icono ?? Icons.Material.Outlined.Business)" Color="Color.Primary" />
             }
         </MudDrawerHeader>
 
@@ -61,7 +96,7 @@
     @* --- CONTENIDO PRINCIPAL --- *@
     <MudMainContent Style="min-height: 100vh;">
         <div class="page-transition">
-            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-6 pb-16">
                 @Body
             </MudContainer>
         </div>
@@ -96,6 +131,15 @@
         opacity: 0.8;
     }
 
+    .odoo-status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background-color: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+        display: inline-block;
+    }
+
     /* Esto garantiza que el texto desaparezca totalmente en modo mini */
     .mud-drawer--mini:not(.mud-drawer--open) .mud-nav-link-text {
         display: none !important;
@@ -106,17 +150,32 @@
     [Inject] IJSRuntime JS { get; set; }
     [Inject] AuthenticationStateProvider AuthStateProvider { get; set; }
     [Inject] NavigationManager NavigationManager { get; set; }
+    [Inject] ModuloNavigationService ModuloNavService { get; set; }
 
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
     private DotNetObjectReference<MainLayout>? _objRef;
     private System.Threading.Timer? _validationTimer;
 
+    private ModuloAppItem? moduloActual = null;
+    private string _userDisplayName = "Usuario";
+    private string _userRoleName = "COLABORADOR";
+    private string _userInitials = "US";
+
     private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
     private void ToggleDarkMode() => _isDarkMode = !_isDarkMode;
 
+    private void IrAInicioModulos()
+    {
+        NavigationManager.NavigateTo("/index");
+    }
+
     protected override void OnInitialized()
     {
+        NavigationManager.LocationChanged += OnLocationChanged;
+        ActualizarModulo();
+        _ = CargarInfoUsuario();
+
         // Periodic check every 30 seconds to ensure token validity
         _validationTimer = new System.Threading.Timer(async _ =>
         {
@@ -129,6 +188,61 @@
                 }
             });
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        ActualizarModulo();
+        StateHasChanged();
+    }
+
+    private void ActualizarModulo()
+    {
+        string relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        moduloActual = ModuloNavService.DetectarModuloPorUrl(relative);
+    }
+
+    private async Task CargarInfoUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                _userDisplayName = user.Identity.Name ?? "Usuario";
+                
+                string nameLower = _userDisplayName.ToLowerInvariant();
+                if (user.IsInRole("Admin") || user.IsInRole("Administrador") || nameLower == "admin" || nameLower.Contains("admin"))
+                {
+                    _userRoleName = "ADMINISTRADOR";
+                }
+                else
+                {
+                    _userRoleName = user.FindFirst(ClaimTypes.Role)?.Value?.ToUpperInvariant() ?? "SUPERVISOR";
+                }
+
+                if (!string.IsNullOrWhiteSpace(_userDisplayName))
+                {
+                    var parts = _userDisplayName.Split(new[] { ' ', '.', '@', '_' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 2)
+                    {
+                        _userInitials = $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+                    }
+                    else if (_userDisplayName.Length >= 2)
+                    {
+                        _userInitials = _userDisplayName.Substring(0, 2).ToUpperInvariant();
+                    }
+                    else
+                    {
+                        _userInitials = _userDisplayName.ToUpperInvariant();
+                    }
+                }
+
+                StateHasChanged();
+            }
+        }
+        catch { }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -152,6 +266,7 @@
 
     public void Dispose()
     {
+        NavigationManager.LocationChanged -= OnLocationChanged;
         _objRef?.Dispose();
         _validationTimer?.Dispose();
     }

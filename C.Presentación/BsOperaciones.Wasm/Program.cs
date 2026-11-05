@@ -29,8 +29,9 @@ builder.Services.AddScoped<ICodeSnippetService, FakeSnippetService>();
 builder.Services.AddApplicationServices();
 builder.Services.AddAuthorizationPolicy();
 
-// Register UserInfo
+// Register UserInfo and ModuloNavigationService
 builder.Services.AddSingleton<IUserInfo, UserInfo>();
+builder.Services.AddScoped<ModuloNavigationService>();
 
 // Set default culture for Nicaragua (using '.' as decimal separator)
 var culture = new System.Globalization.CultureInfo("es-NI");

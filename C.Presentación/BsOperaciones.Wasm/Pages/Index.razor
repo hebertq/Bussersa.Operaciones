@@ -1,96 +1,491 @@
 @page "/index"
 @using System.Security.Claims
+@using BsOperaciones.Services
+@using Modelo.Entidades
 @inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject ModuloNavigationService ModuloNavService
 
-<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-8">
-    <MudText Typo="MudBlazor.Typo.h3" Color="MudBlazor.Color.Primary" Style="font-weight: 800;" Class="mb-2">
-        Bienvenido, @(user?.Identity?.Name ?? "Usuario")
-    </MudText>
-    <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Secondary" Class="mb-6">
-        Panel de Control - Módulo de Operaciones Logísticas
-    </MudText>
+<div class="odoo-launcher-wrapper">
+    <div class="odoo-launcher-container">
+        @* Decoraciones geométricas de fondo estilo Odoo *@
+        <div class="odoo-bg-facet odoo-facet-1"></div>
+        <div class="odoo-bg-facet odoo-facet-2"></div>
+        <div class="odoo-bg-facet odoo-facet-3"></div>
 
-    @* Banner Inteligente de Instalación de la Aplicación (PWA) en Inicio *@
-    <BotonInstalarPwa EsBanner="true" />
+        <div class="odoo-content-inner">
+            @* Encabezado y Bienvenida *@
+            <div class="text-center mb-6">
+                <div class="d-inline-flex align-center gap-2 px-3 py-1 mb-2 odoo-header-pill">
+                    <img src="/img/brand/sygnet.png" alt="Bussersa" style="height: 20px;" />
+                    <span style="font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; color: var(--mud-palette-primary);">
+                        BUSSERSA APPS
+                    </span>
+                    <span class="odoo-role-badge">@userRole</span>
+                </div>
+                <h1 class="odoo-main-title">
+                    ¡Bienvenido, @userName!
+                </h1>
+                <p class="odoo-subtitle">
+                    Seleccione un módulo o aplicación para gestionar sus operaciones
+                </p>
+            </div>
 
-    @if (IsUserAuthenticated)
-    {
-        <MudGrid>
-            @* Tarjeta Principal de Bienvenida *@
-            <MudItem xs="12" md="4">
-                <MudPaper Elevation="4" Class="pa-6" Style="height: 100%; background-color: #1a237e; color: white; border-radius: 16px;">
-                    <MudText Typo="MudBlazor.Typo.h5" Class="mb-4" Style="font-weight: 700;">Gestión Operativa</MudText>
-                    <MudText Typo="MudBlazor.Typo.body1" Style="opacity: 0.9;">
-                        Usted se encuentra en el centro de control de BUSSERSA. Desde aquí puede sincronizar la asistencia de campo con la facturación final en el Admin.
+            @* Barra de Búsqueda Rápida Estilo Odoo *@
+            <div class="d-flex justify-center mb-8">
+                <div class="odoo-search-box">
+                    <MudIcon Icon="@Icons.Material.Filled.Search" Size="Size.Medium" Class="mr-2 text-muted" />
+                    <input type="text"
+                           class="odoo-search-input"
+                           placeholder="Buscar módulo o aplicación..."
+                           @bind="filtroBusqueda"
+                           @bind:event="oninput" />
+                    @if (!string.IsNullOrWhiteSpace(filtroBusqueda))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                       Size="Size.Small"
+                                       OnClick="@(() => filtroBusqueda = string.Empty)"
+                                       Class="pa-1" />
+                    }
+                </div>
+            </div>
+
+            @* Banner Inteligente de Instalación de la Aplicación (PWA) *@
+            <div class="mb-6 mx-auto" style="max-width: 800px;">
+                <BotonInstalarPwa EsBanner="true" />
+            </div>
+
+            @if (cargando)
+            {
+                <div class="d-flex flex-column align-center justify-center py-12">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-4" />
+                    <MudText Typo="Typo.body2" Class="text-muted">Cargando aplicaciones autorizadas...</MudText>
+                </div>
+            }
+            else if (!modulosFiltrados.Any() && !tilesFiltrados.Any())
+            {
+                <div class="text-center py-12">
+                    <MudIcon Icon="@Icons.Material.Outlined.SearchOff" Size="Size.Large" Color="Color.Secondary" Class="mb-3" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 700;">No se encontraron aplicaciones</MudText>
+                    <MudText Typo="Typo.body2" Class="text-muted">
+                        @(string.IsNullOrWhiteSpace(filtroBusqueda)
+                            ? "No cuenta con módulos asignados en este momento. Contacte al administrador."
+                            : $"No hay coincidencias para '{filtroBusqueda}'.")
                     </MudText>
-                </MudPaper>
-            </MudItem>
+                </div>
+            }
+            else
+            {
+                @* SECCIÓN 1: MÓDULOS PRINCIPALES DEL SISTEMA *@
+                @if (modulosFiltrados.Any())
+                {
+                    <div class="mb-8">
+                        <div class="d-flex align-center justify-space-between mb-4 px-2">
+                            <span class="odoo-section-header">MÓDULOS PRINCIPALES</span>
+                            <span class="odoo-section-counter">@modulosFiltrados.Count módulos</span>
+                        </div>
 
-            @* Sección de Accesos Rápidos *@
-            <MudItem xs="12" md="8">
-                <MudGrid>
-                    <MudItem xs="12" sm="6">
-                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
-                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="MudBlazor.Color.Primary" Size="MudBlazor.Size.Large" Class="mb-4" />
-                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Importación de Datos</MudText>
-                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Subida masiva de archivos desde relojes biométricos.</MudText>
-                        </MudPaper>
-                    </MudItem>
+                        <div class="odoo-apps-grid">
+                            @foreach (var modulo in modulosFiltrados)
+                            {
+                                <div class="odoo-app-item" @onclick="@(() => NavegarA(modulo.RutaPrincipal))" title="@modulo.Subtitulo">
+                                    <div class="odoo-app-icon-card" style="border-top: 3px solid @modulo.IconColor;">
+                                        <div class="odoo-icon-halo" style="background: @(modulo.IconColor + "15");">
+                                            <MudIcon Icon="@modulo.Icono" Style="@($"color: {modulo.IconColor}; font-size: 2.5rem;")" />
+                                        </div>
+                                    </div>
+                                    <span class="odoo-app-label">@modulo.Titulo</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
 
-                    <MudItem xs="12" sm="6">
-                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
-                            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="MudBlazor.Color.Info" Size="MudBlazor.Size.Large" Class="mb-4" />
-                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Validación de Nómina</MudText>
-                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Control de horas laboradas y validación de turnos.</MudText>
-                        </MudPaper>
-                    </MudItem>
+                @* SECCIÓN 2: ACCESOS DIRECTOS / HERRAMIENTAS ESPECÍFICAS *@
+                @if (tilesFiltrados.Any(t => !t.EsModuloPrincipal))
+                {
+                    <div class="mb-6">
+                        <div class="d-flex align-center justify-space-between mb-4 px-2">
+                            <span class="odoo-section-header">ACCESOS DIRECTOS & HERRAMIENTAS</span>
+                            <span class="odoo-section-counter">@tilesFiltrados.Count(t => !t.EsModuloPrincipal) accesos</span>
+                        </div>
 
-                    <MudItem xs="12" sm="6">
-                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
-                            <MudIcon Icon="@Icons.Material.Filled.SyncAlt" Color="MudBlazor.Color.Success" Size="MudBlazor.Size.Large" Class="mb-4" />
-                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Conexión</MudText>
-                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Sincronización directa hacia el ERP institucional.</MudText>
-                        </MudPaper>
-                    </MudItem>
+                        <div class="odoo-apps-grid">
+                            @foreach (var tile in tilesFiltrados.Where(t => !t.EsModuloPrincipal))
+                            {
+                                <div class="odoo-app-item" @onclick="@(() => NavegarA(tile.Ruta))" title="@tile.Subtitulo">
+                                    <div class="odoo-app-icon-card">
+                                        <div class="odoo-icon-halo" style="background: @(tile.IconColor + "15");">
+                                            <MudIcon Icon="@tile.Icono" Style="@($"color: {tile.IconColor}; font-size: 2.3rem;")" />
+                                        </div>
+                                    </div>
+                                    <span class="odoo-app-label">@tile.Titulo</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
 
-                    <MudItem xs="12" sm="6">
-                        <MudPaper Elevation="2" Class="pa-6 d-flex flex-column align-center text-center" Style="border-radius: 16px;">
-                            <MudIcon Icon="@Icons.Material.Filled.BarChart" Color="MudBlazor.Color.Warning" Size="MudBlazor.Size.Large" Class="mb-4" />
-                            <MudText Typo="MudBlazor.Typo.h6" Style="font-weight: 700;">Horas a Facturar</MudText>
-                            <MudText Typo="MudBlazor.Typo.body2" Color="MudBlazor.Color.Secondary">Reportes detallados listos para facturación.</MudText>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
-            </MudItem>
+            @* Pie de página / Estado del Servidor *@
+            <div class="text-center pt-8">
+                <MudText Typo="Typo.caption" Class="text-muted" Style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                    BUSSERSA ERP & OPERACIONES • VERSIÓN 2.5 • CONECTADO A DB CLOUD
+                </MudText>
+            </div>
+        </div>
+    </div>
+</div>
 
-            <MudItem xs="12">
-                <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Class="mt-4" Style="border-radius: 12px;">
-                    Estado del sistema: <b>Operativo</b>. Todos los módulos están sincronizados con Admin.
-                </MudAlert>
-            </MudItem>
-        </MudGrid>
+<style>
+    /* Contenedor principal con fondo Odoo y perspectiva */
+    .odoo-launcher-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        padding: 0;
     }
-</MudContainer>
+
+    .odoo-launcher-container {
+        width: 100%;
+        max-width: 1180px;
+        min-height: calc(100vh - 110px);
+        background: linear-gradient(135deg, #ede8f5 0%, #dbd0ee 35%, #e8e1f5 70%, #f3eff9 100%);
+        border-radius: 28px;
+        padding: 3rem 2rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(100, 80, 140, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        transition: all 0.3s ease;
+    }
+
+    /* Soporte modo oscuro */
+    .mud-theme-dark .odoo-launcher-container {
+        background: linear-gradient(135deg, #0b0f19 0%, #1e1b4b 45%, #0f172a 100%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Facetas geométricas decorativas estilo Odoo */
+    .odoo-bg-facet {
+        position: absolute;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%);
+        transform: rotate(-35deg);
+        z-index: 1;
+    }
+
+    .odoo-facet-1 {
+        width: 600px;
+        height: 280px;
+        top: -100px;
+        right: -150px;
+        border-radius: 60px;
+    }
+
+    .odoo-facet-2 {
+        width: 800px;
+        height: 350px;
+        bottom: -150px;
+        left: -200px;
+        border-radius: 80px;
+    }
+
+    .odoo-facet-3 {
+        width: 350px;
+        height: 350px;
+        top: 40%;
+        right: -80px;
+        border-radius: 50%;
+        opacity: 0.5;
+    }
+
+    .mud-theme-dark .odoo-bg-facet {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+    }
+
+    .odoo-content-inner {
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Encabezado */
+    .odoo-header-pill {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .mud-theme-dark .odoo-header-pill {
+        background: rgba(30, 41, 59, 0.7) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .odoo-role-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        padding: 2px 8px;
+        background: var(--mud-palette-secondary);
+        color: white;
+        border-radius: 12px;
+        letter-spacing: 0.5px;
+    }
+
+    .odoo-main-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+    .mud-theme-dark .odoo-main-title {
+        color: #f8fafc !important;
+    }
+
+    .odoo-subtitle {
+        font-size: 0.95rem;
+        color: #64748b;
+        margin-top: 6px;
+        font-weight: 500;
+    }
+    .mud-theme-dark .odoo-subtitle {
+        color: #94a3b8 !important;
+    }
+
+    /* Barra de Búsqueda */
+    .odoo-search-box {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        max-width: 460px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        border-radius: 30px;
+        padding: 8px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        transition: all 0.25s ease;
+    }
+    .odoo-search-box:focus-within {
+        background: #ffffff;
+        box-shadow: 0 8px 25px rgba(37, 99, 235, 0.15);
+        border-color: rgba(37, 99, 235, 0.4);
+        transform: translateY(-1px);
+    }
+    .mud-theme-dark .odoo-search-box {
+        background: rgba(30, 41, 59, 0.85) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    .mud-theme-dark .odoo-search-box:focus-within {
+        background: #1e293b !important;
+        border-color: var(--mud-palette-primary) !important;
+    }
+
+    .odoo-search-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: 0.95rem;
+        font-family: inherit;
+        color: #1e293b;
+    }
+    .mud-theme-dark .odoo-search-input {
+        color: #f8fafc;
+    }
+    .odoo-search-input::placeholder {
+        color: #94a3b8;
+    }
+
+    /* Encabezados de sección */
+    .odoo-section-header {
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #475569;
+        text-transform: uppercase;
+        font-family: 'Outfit', sans-serif;
+    }
+    .mud-theme-dark .odoo-section-header {
+        color: #94a3b8 !important;
+    }
+
+    .odoo-section-counter {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    /* Grilla de aplicaciones estilo Odoo */
+    .odoo-apps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 1.8rem 1.2rem;
+        justify-items: center;
+        align-items: start;
+    }
+
+    @@media (max-width: 600px) {
+        .odoo-apps-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1.4rem 0.8rem;
+        }
+        .odoo-launcher-container {
+            padding: 2rem 1rem;
+            border-radius: 20px;
+        }
+    }
+
+    /* Ítem de aplicación individual */
+    .odoo-app-item {
+        display: flex;
+        flex-column;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        cursor: pointer;
+        width: 100%;
+        max-width: 120px;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+    }
+
+    .odoo-app-item:hover {
+        transform: translateY(-6px);
+    }
+
+    .odoo-app-item:active {
+        transform: scale(0.95);
+    }
+
+    /* Tarjeta del icono (Squircle Odoo) */
+    .odoo-app-icon-card {
+        width: 82px;
+        height: 82px;
+        border-radius: 22px;
+        background: #ffffff;
+        box-shadow: 0 10px 22px -4px rgba(50, 50, 93, 0.12), 0 6px 10px -4px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .mud-theme-dark .odoo-app-icon-card {
+        background: #1e293b !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    .odoo-app-item:hover .odoo-app-icon-card {
+        box-shadow: 0 20px 30px -8px rgba(50, 50, 93, 0.22), 0 10px 14px -5px rgba(0, 0, 0, 0.15);
+        transform: scale(1.06);
+    }
+
+    .odoo-icon-halo {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s ease;
+    }
+
+    .odoo-app-item:hover .odoo-icon-halo {
+        transform: scale(1.08);
+    }
+
+    /* Etiqueta / Nombre de la app debajo del icono */
+    .odoo-app-label {
+        margin-top: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.25;
+        max-width: 110px;
+        word-break: break-word;
+        transition: color 0.2s ease;
+        text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    }
+
+    .mud-theme-dark .odoo-app-label {
+        color: #f1f5f9 !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+    }
+
+    .odoo-app-item:hover .odoo-app-label {
+        color: var(--mud-palette-primary);
+        font-weight: 700;
+    }
+</style>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private ClaimsPrincipal? user;
+    private string userName = "Usuario";
+    private string userRole = "SUPERVISOR";
+    private bool cargando = true;
+    private string filtroBusqueda = string.Empty;
 
-    ClaimsPrincipal user;
-    bool IsUserAuthenticated;
+    private List<ModuloAppItem> todosModulos = new();
+    private List<AppTileItem> todosTiles = new();
+
+    private List<ModuloAppItem> modulosFiltrados =>
+        string.IsNullOrWhiteSpace(filtroBusqueda)
+            ? todosModulos
+            : todosModulos.Where(m =>
+                m.Titulo.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                m.Subtitulo.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private List<AppTileItem> tilesFiltrados =>
+        string.IsNullOrWhiteSpace(filtroBusqueda)
+            ? todosTiles
+            : todosTiles.Where(t =>
+                t.Titulo.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                t.Subtitulo.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                t.Categoria.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase)).ToList();
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await authenticationStateTask;
+        var authState = await authenticationStateProvider.GetAuthenticationStateAsync();
         user = authState.User;
 
-        if (user.Identity.IsAuthenticated)
+        if (user?.Identity?.IsAuthenticated == true)
         {
-            IsUserAuthenticated = true;
+            userName = user.Identity.Name ?? "Usuario";
+            string nameLower = userName.ToLowerInvariant();
+
+            if (user.IsInRole("Admin") || user.IsInRole("Administrador") || nameLower == "admin" || nameLower.Contains("admin"))
+            {
+                userRole = "ADMINISTRADOR";
+            }
+            else
+            {
+                userRole = user.FindFirst(ClaimTypes.Role)?.Value?.ToUpperInvariant() ?? "SUPERVISOR";
+            }
+
+            // Obtener módulos y tiles validados automáticamente por permisos
+            todosModulos = ModuloNavService.ObtenerModulosPermitidos(user);
+            todosTiles = ModuloNavService.ObtenerTilesPermitidos(user);
+            cargando = false;
         }
         else
         {
             navigationManager.NavigateTo("/");
+        }
+    }
+
+    private void NavegarA(string ruta)
+    {
+        if (!string.IsNullOrWhiteSpace(ruta))
+        {
+            navigationManager.NavigateTo(ruta);
         }
     }
 }
