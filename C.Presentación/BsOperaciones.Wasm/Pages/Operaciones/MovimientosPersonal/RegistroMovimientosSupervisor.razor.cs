@@ -758,7 +758,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     currentUserName = "Supervisor";
                 }
 
-                await PurgarBorradoresLocalesAntiguos();
+                activeTabIndex = 0;
+                await LimpiarTodosLosBorradoresLocales();
                 await CargarMisClientesAsignados();
                 await Task.WhenAll(
                     CargarOperaciones(),
@@ -919,12 +920,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (!fechaSeleccionada.HasValue) fechaSeleccionada = DateTime.Today;
             fechaSeleccionada = fechaSeleccionada.Value.AddDays(dias);
+            activeTabIndex = 0;
             await CargarJornadaActual();
         }
 
         protected async Task OnFechaSeleccionadaChanged(DateTime? nuevaFecha)
         {
             fechaSeleccionada = nuevaFecha;
+            activeTabIndex = 0;
             await CargarJornadaActual();
         }
 
@@ -1077,8 +1080,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     empleadosJornada = itemsBd;
                     await AutoGuardarBorradorLocal();
                 }
-                else if (tieneBorradorLocal && borradorLocal != null && borradorLocal.Any())
+                else if (exitoBd)
                 {
+                    // La base de datos respondió exitosamente y confirmó que no hay registros para esta fecha.
+                    // El día aún no se ha trabajado: mantener limpio en 0 y remover cualquier borrador previo.
+                    empleadosJornada.Clear();
+                    await LimpiarBorradorLocal();
+                }
+                else if (!exitoBd && tieneBorradorLocal && borradorLocal != null && borradorLocal.Any())
+                {
+                    // Modo Offline real (sin conexión al servidor): cargar borrador local de bodega
                     empleadosJornada = borradorLocal;
                     _snackbar.Add($"Modo Offline: jornada cargada desde memoria local del dispositivo ({empleadosJornada.Count} colaboradores).", Severity.Info);
                 }
@@ -3766,23 +3777,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE (Conservando días recientes) ---
-        private async Task PurgarBorradoresLocalesAntiguos()
+        private async Task LimpiarTodosLosBorradoresLocales()
         {
             try
             {
                 await _js.InvokeVoidAsync("eval", @"
                     try {
-                        const limite = new Date();
-                        limite.setDate(limite.getDate() - 7);
-                        const limiteStr = limite.toISOString().slice(0, 10).replace(/-/g, '');
                         for (let i = localStorage.length - 1; i >= 0; i--) {
                             const key = localStorage.key(i);
                             if (key && (key.startsWith('supervisor_offline_jornada_') || key.startsWith('supervisor_jornada_draft_'))) {
-                                const partes = key.split('_');
-                                const fechaParte = partes[partes.length - 1];
-                                if (fechaParte && fechaParte.length === 8 && fechaParte < limiteStr) {
-                                    localStorage.removeItem(key);
-                                }
+                                localStorage.removeItem(key);
                             }
                         }
                     } catch(e) {}
@@ -3790,6 +3794,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch { }
         }
+
+        private async Task PurgarBorradoresLocalesAntiguos() => await LimpiarTodosLosBorradoresLocales();
 
         private async Task PurgarBorradoresLocales() => await PurgarBorradoresLocalesAntiguos();
 
@@ -4169,9 +4175,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 if (fechaSeleccionada.HasValue && !string.IsNullOrWhiteSpace(currentUserName))
                 {
-                    var json = JsonSerializer.Serialize(empleadosJornada);
-                    await _js.InvokeVoidAsync("localStorage.setItem", KeyBorradorJornada, json);
-                    ultimaHoraGuardadoLocal = DateTime.Now;
+                    if (empleadosJornada.Any())
+                    {
+                        var json = JsonSerializer.Serialize(empleadosJornada);
+                        await _js.InvokeVoidAsync("localStorage.setItem", KeyBorradorJornada, json);
+                        ultimaHoraGuardadoLocal = DateTime.Now;
+                    }
+                    else
+                    {
+                        await _js.InvokeVoidAsync("localStorage.removeItem", KeyBorradorJornada);
+                    }
                 }
             }
             catch (Exception ex)
