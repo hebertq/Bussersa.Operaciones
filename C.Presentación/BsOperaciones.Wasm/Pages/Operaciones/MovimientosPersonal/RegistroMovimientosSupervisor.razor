@@ -626,6 +626,11 @@
                                             </div>
                                         </CardHeaderContent>
                                         <CardHeaderActions>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                           Color="Color.Primary" 
+                                                           Size="Size.Small" 
+                                                           OnClick="@(() => AbrirDialogoEditarAsistencia(emp))" 
+                                                           Title="Editar asistencia y cliente" />
                                             <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                            Color="Color.Error" 
                                                            Size="Size.Small" 
@@ -1137,11 +1142,18 @@
                                     }
                                 </MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
-                                                   Color="Color.Error" 
-                                                   Size="Size.Small" 
-                                                   OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
-                                                   Title="Quitar de la jornada" />
+                                    <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarAsistencia(context))" 
+                                                       Title="Editar asistencia y cliente" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
+                                                       Title="Quitar de la jornada" />
+                                    </MudStack>
                                 </MudTd>
                             }
                             else if (modoVistaGrilla == ModoVistaGrilla.Ubicacion)
@@ -1244,11 +1256,18 @@
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
-                                                   Color="Color.Error" 
-                                                   Size="Size.Small" 
-                                                   OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
-                                                   Title="Quitar de la jornada" />
+                                    <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarAsistencia(context))" 
+                                                       Title="Editar asistencia y cliente" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
+                                                       Title="Quitar de la jornada" />
+                                    </MudStack>
                                 </MudTd>
                             }
                             else
@@ -1425,11 +1444,18 @@
                                     }
                                 </MudTd>
                                 <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
-                                                   Color="Color.Error" 
-                                                   Size="Size.Small" 
-                                                   OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
-                                                   Title="Quitar de la jornada" />
+                                    <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                                       Color="Color.Primary" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => AbrirDialogoEditarAsistencia(context))" 
+                                                       Title="Editar asistencia y cliente" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
+                                                       Color="Color.Error" 
+                                                       Size="Size.Small" 
+                                                       OnClick="@(() => EliminarEmpleadoDeJornada(context))" 
+                                                       Title="Quitar de la jornada" />
+                                    </MudStack>
                                 </MudTd>
                             }
                         </RowTemplate>

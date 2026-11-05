@@ -282,15 +282,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string clienteActivoAsistencias = string.Empty;
         protected string clienteActivoPlantilla = string.Empty;
 
-        protected List<string> ListaClientesAsistencia
+                protected List<string> ListaClientesAsistencia
         {
             get
             {
+                var lista = new List<string>();
                 if (NombresMisClientes.Any())
                 {
-                    return NombresMisClientes.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    lista.AddRange(NombresMisClientes);
                 }
-                var lista = new List<string>();
+                // Si hay colaboradores en la jornada asignados a otro cliente (ej. un préstamo o movimiento),
+                // incluir ese cliente en las pestañas para que el supervisor pueda verlo y gestionarlo
                 foreach (var c in empleadosJornada.Select(e => e.Cliente?.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)))
                 {
                     if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
@@ -1877,6 +1879,82 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             finally
             {
                 estaGuardando = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task AbrirDialogoEditarAsistencia(EmpleadoJornadaItem item)
+        {
+            var clientesDisponibles = ListaClientesAsistencia
+                .Union(NombresMisClientes)
+                .Union(operacionesList.Select(o => o.nombre))
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(c => c)
+                .ToList();
+
+            var parameters = new DialogParameters
+            {
+                ["ItemOriginal"] = item,
+                ["OperacionesDisponibles"] = operacionesList,
+                ["ClientesSugeridos"] = clientesDisponibles,
+                ["AreasPorCliente"] = areasPorCliente,
+                ["CargosDisponibles"] = cargosDisponibles,
+                ["ClientesAsignadosSupervisor"] = NombresMisClientes
+            };
+
+            var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+            var dialog = await _dialogService.ShowAsync<DialogEditarColaboradorAsistencia>("Editar Asistencia de Colaborador", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is EmpleadoJornadaItem modificado)
+            {
+                string clienteAnterior = item.Cliente;
+                string nuevoCliente = modificado.Cliente;
+
+                item.Cliente = nuevoCliente;
+                item.Area = modificado.Area;
+                item.Puesto = modificado.Puesto;
+                item.TipoEmpleado = modificado.TipoEmpleado;
+                item.ClienteOrigenNomina = modificado.ClienteOrigenNomina;
+                item.Asistio = modificado.Asistio;
+                item.HoraEntrada = modificado.HoraEntrada;
+                item.HoraSalida = modificado.HoraSalida;
+                item.TiempoComida = modificado.TiempoComida;
+                item.VtcoTrasp = modificado.VtcoTrasp;
+                item.VtcoAlim = modificado.VtcoAlim;
+                item.BonoBnc = modificado.BonoBnc;
+                item.Bnc = modificado.Bnc;
+                item.Observaciones = modificado.Observaciones;
+                item.TurnoNombre = modificado.TurnoNombre;
+                item.Modificado = true;
+
+                if (!string.Equals(clienteAnterior, nuevoCliente, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(item.ClienteOrigenNomina))
+                    {
+                        item.ClienteOrigenNomina = clienteAnterior;
+                    }
+                    if (string.Equals(item.TipoEmpleado, "Permanente", StringComparison.OrdinalIgnoreCase))
+                    {
+                        item.TipoEmpleado = "Prestamo";
+                    }
+                }
+
+                AplicarReglasViaticosEnMemoria(item);
+                ValidarConflictosHorarios(out _);
+                ActualizarGruposConsolidadosInterno(false);
+                await AutoGuardarBorradorLocal();
+
+                if (!string.Equals(clienteAnterior, nuevoCliente, StringComparison.OrdinalIgnoreCase))
+                {
+                    _snackbar.Add($"Colaborador {item.NombreEmpleado} asignado a {nuevoCliente} (Préstamo).", Severity.Success);
+                }
+                else
+                {
+                    _snackbar.Add($"Asistencia de {item.NombreEmpleado} actualizada.", Severity.Success);
+                }
+
                 StateHasChanged();
             }
         }
