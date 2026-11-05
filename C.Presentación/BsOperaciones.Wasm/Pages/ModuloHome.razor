@@ -1,0 +1,310 @@
+@page "/operaciones"
+@page "/asistencias"
+@page "/nomina"
+@page "/comercial"
+@page "/supervision"
+@page "/admon"
+@page "/modulo/{Clave}"
+@using System.Security.Claims
+@using BsOperaciones.Services
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ModuloNavigationService ModuloNavService
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-2 pb-12">
+    @* Barra de navegación y migas de pan con botón volver al lanzador *@
+    <div class="d-flex align-center justify-space-between mb-4">
+        <div class="d-flex align-center gap-2">
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="@(() => NavigationManager.NavigateTo("/index"))"
+                       Style="font-weight: 700; text-transform: none; font-size: 0.9rem;">
+                Volver a Módulos
+            </MudButton>
+            <span class="text-muted" style="opacity: 0.4;">/</span>
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Style="font-weight: 800; letter-spacing: 0.5px;">
+                @(moduloActual?.Titulo?.ToUpperInvariant() ?? "MÓDULO")
+            </MudText>
+        </div>
+
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   StartIcon="@Icons.Material.Filled.Apps"
+                   OnClick="@(() => NavigationManager.NavigateTo("/index"))"
+                   Style="border-radius: 20px; font-weight: 600; text-transform: none;">
+            Lanzador de Módulos
+        </MudButton>
+    </div>
+
+    @if (moduloActual == null)
+    {
+        <div class="d-flex flex-column align-center justify-center py-16">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" Class="mb-3" />
+            <MudText Typo="Typo.body2" Class="text-muted">Cargando información del módulo...</MudText>
+        </div>
+    }
+    else
+    {
+        @* Hero Banner Principal del Módulo con Colores Corporativos Bussersa *@
+        <div class="bussersa-module-hero mb-6">
+            <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
+                <div class="d-flex align-center gap-4">
+                    <div class="bussersa-hero-icon-card" style="background: @moduloActual.ColorFondoGradiente;">
+                        <MudIcon Icon="@moduloActual.Icono" Style="color: #ffffff; font-size: 2.8rem;" />
+                    </div>
+                    <div>
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <span class="bussersa-hero-badge">SISTEMA BUSSERSA</span>
+                            <span class="bussersa-hero-counter">@herramientasPermitidas.Count funciones habilitadas</span>
+                        </div>
+                        <h1 class="bussersa-hero-title">@moduloActual.Titulo</h1>
+                        <p class="bussersa-hero-desc">@moduloActual.DescripcionLarga</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Cabecera de Funciones Disponibles *@
+        <div class="mb-4">
+            <MudText Typo="Typo.h6" Style="font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif;">
+                Funciones Disponibles de @moduloActual.Titulo
+            </MudText>
+            <MudText Typo="Typo.caption" Class="text-muted">
+                Seleccione la función a la que desea ingresar para comenzar a trabajar
+            </MudText>
+        </div>
+
+        @if (!herramientasPermitidas.Any())
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-4 rounded-xl">
+                Su usuario no cuenta con pantallas asignadas para este módulo. Comuníquese con el administrador del sistema.
+            </MudAlert>
+        }
+        else
+        {
+            <div class="bussersa-tools-grid">
+                @foreach (var tool in herramientasPermitidas)
+                {
+                    <div class="bussersa-tool-card" @onclick="@(() => NavigationManager.NavigateTo(tool.Ruta))">
+                        <div class="d-flex align-start justify-space-between mb-3">
+                            <div class="bussersa-tool-icon" style="background: @(tool.Color + "15"); border: 1px solid @(tool.Color + "30");">
+                                <MudIcon Icon="@tool.Icono" Style="@($"color: {tool.Color}; font-size: 2.3rem;")" />
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(tool.Badge))
+                            {
+                                <span class="bussersa-tool-badge">@tool.Badge</span>
+                            }
+                        </div>
+
+                        <h3 class="bussersa-tool-title">@tool.Titulo</h3>
+                        <p class="bussersa-tool-desc">@tool.Subtitulo</p>
+
+                        <div class="bussersa-tool-action">
+                            <span>Ingresar</span>
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</MudContainer>
+
+<style>
+    /* Hero Banner Corporativo Bussersa */
+    .bussersa-module-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 65%, #1e3a8a 100%);
+        border-radius: 20px;
+        padding: 2rem 2.2rem;
+        color: #ffffff;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+        border-bottom: 4px solid var(--mud-palette-secondary);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .bussersa-hero-icon-card {
+        width: 76px;
+        height: 76px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        flex-shrink: 0;
+    }
+
+    .bussersa-hero-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        padding: 3px 8px;
+        background: var(--mud-palette-secondary);
+        color: #ffffff;
+        border-radius: 12px;
+    }
+
+    .bussersa-hero-counter {
+        font-size: 0.72rem;
+        color: #cbd5e1;
+        font-weight: 600;
+    }
+
+    .bussersa-hero-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.85rem;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.3px;
+        color: #ffffff;
+    }
+
+    .bussersa-hero-desc {
+        margin: 4px 0 0 0;
+        font-size: 0.9rem;
+        color: #94a3b8;
+        max-width: 750px;
+        line-height: 1.4;
+    }
+
+    /* Grilla de Tarjetas de Herramientas */
+    .bussersa-tools-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .bussersa-tool-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        position: relative;
+    }
+
+    .mud-theme-dark .bussersa-tool-card {
+        background: #1e293b !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .bussersa-tool-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 26px -6px rgba(15, 23, 42, 0.12);
+        border-color: var(--mud-palette-secondary);
+    }
+
+    .bussersa-tool-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.25s ease;
+    }
+
+    .bussersa-tool-card:hover .bussersa-tool-icon {
+        transform: scale(1.08);
+    }
+
+    .bussersa-tool-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        background: rgba(37, 99, 235, 0.1);
+        color: #2563eb;
+        border-radius: 10px;
+    }
+
+    .bussersa-tool-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0 0 6px 0;
+    }
+
+    .mud-theme-dark .bussersa-tool-title {
+        color: #f8fafc !important;
+    }
+
+    .bussersa-tool-desc {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin: 0 0 16px 0;
+        line-height: 1.45;
+        flex: 1;
+    }
+
+    .mud-theme-dark .bussersa-tool-desc {
+        color: #94a3b8 !important;
+    }
+
+    .bussersa-tool-action {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--mud-palette-secondary);
+        transition: gap 0.2s ease;
+    }
+
+    .bussersa-tool-card:hover .bussersa-tool-action {
+        gap: 8px;
+    }
+</style>
+
+@code {
+    [Parameter] public string? Clave { get; set; }
+
+    private ModuloAppItem? moduloActual = null;
+    private List<ModuloHerramientaItem> herramientasPermitidas = new();
+    private ClaimsPrincipal? user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+        CargarModulo();
+    }
+
+    protected override void OnParametersSet()
+    {
+        CargarModulo();
+    }
+
+    private void CargarModulo()
+    {
+        string relative = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).ToLowerInvariant().Trim();
+        if (relative.StartsWith("/")) relative = relative.Substring(1);
+
+        string claveBuscar = !string.IsNullOrWhiteSpace(Clave) ? Clave.ToLowerInvariant() : "";
+
+        if (string.IsNullOrWhiteSpace(claveBuscar))
+        {
+            if (relative.StartsWith("operaciones")) claveBuscar = "operaciones";
+            else if (relative.StartsWith("asistencias") || relative.StartsWith("asistencia")) claveBuscar = "asistencias";
+            else if (relative.StartsWith("nomina")) claveBuscar = "nomina";
+            else if (relative.StartsWith("comercial")) claveBuscar = "comercial";
+            else if (relative.StartsWith("supervision") || relative.StartsWith("admon/supervision")) claveBuscar = "supervision";
+            else if (relative.StartsWith("admon")) claveBuscar = "admon";
+        }
+
+        moduloActual = ModuloNavService.TodosLosModulos.FirstOrDefault(m => m.Clave == claveBuscar);
+
+        if (moduloActual != null && user != null)
+        {
+            herramientasPermitidas = ModuloNavService.ObtenerHerramientasPermitidas(user, moduloActual);
+        }
+    }
+}

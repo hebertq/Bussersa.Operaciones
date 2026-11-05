@@ -46,6 +46,11 @@
 
         <MudDivider Class="my-1" />
 
+        @* Acceso directo al Inicio del Módulo *@
+        <MudNavLink Icon="@Icons.Material.Filled.Dashboard" Href="@moduloActual.RutaPrincipal" Match="NavLinkMatch.All" Style="font-weight: 700;">
+            Inicio de @moduloActual.Titulo
+        </MudNavLink>
+
         @* Submenús del Módulo Seleccionado ÚNICAMENTE *@
         @if (moduloActual.Clave == "operaciones")
         {

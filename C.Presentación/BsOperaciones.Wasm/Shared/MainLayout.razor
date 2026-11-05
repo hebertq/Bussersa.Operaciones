@@ -9,12 +9,16 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    @* --- BARRA SUPERIOR (APPBAR ESTILO ODOO) --- *@
+    @* --- BARRA SUPERIOR (APPBAR BUSSERSA) --- *@
     <MudAppBar Elevation="0" Color="Color.Default" Dense="true" Class="mud-appbar">
-        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Title="Alternar Menú" />
+        @* Botón de Menú hamburguesa solo visible dentro de un módulo *@
+        @if (moduloActual != null)
+        {
+            <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Title="Alternar Menú Lateral" />
+        }
         
-        @* Botón Odoo App Switcher para regresar al lanzador principal *@
-        <MudTooltip Text="Lanzador de Módulos (Odoo App Switcher)">
+        @* Botón Odoo App Switcher para regresar al lanzador principal de módulos *@
+        <MudTooltip Text="Lanzador de Módulos Bussersa">
             <MudIconButton Icon="@Icons.Material.Filled.Apps" 
                            Color="Color.Primary" 
                            OnClick="@IrAInicioModulos" 
@@ -31,7 +35,7 @@
                 @if (moduloActual != null)
                 {
                     <span class="mx-2 text-muted-appbar" style="font-size: 1.1rem; font-weight: 300;">•</span>
-                    <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Style="font-weight: 700; letter-spacing: 0.5px;">
+                    <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Style="font-weight: 800; letter-spacing: 0.5px;">
                         @moduloActual.Titulo.ToUpperInvariant()
                     </MudText>
                 }
@@ -39,10 +43,10 @@
         </div>
         <MudSpacer />
 
-        @* Punto de Estado En Línea estilo Odoo *@
+        @* Punto de Estado En Línea *@
         <div class="d-none d-md-flex align-center mr-3" title="Sistema en línea y sincronizado">
-            <span class="odoo-status-dot mr-1"></span>
-            <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.7rem; font-weight: 600;">EN LÍNEA</MudText>
+            <span class="bussersa-status-dot mr-1"></span>
+            <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.7rem; font-weight: 700;">EN LÍNEA</MudText>
         </div>
 
         @* Botón de Instalación PWA en Barra Superior *@
@@ -72,31 +76,35 @@
     </MudAppBar>
 
     @* --- MENÚ LATERAL (DRAWER CONTEXTUAL) --- *@
-    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Mini" Class="border-light mud-drawer">
-        <MudDrawerHeader Class="pa-4 d-flex align-center justify-space-between">
-            @if (_drawerOpen)
-            {
-                <div class="d-flex align-center gap-2">
-                    <MudIcon Icon="@(moduloActual?.Icono ?? Icons.Material.Outlined.Business)" Color="Color.Primary" Size="Size.Small" />
-                    <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem; font-family: 'Outfit';">
-                        @(moduloActual?.Titulo?.ToUpperInvariant() ?? "BUSSERSA APPS")
-                    </MudText>
-                </div>
-            }
-            else
-            {
-                <MudIcon Icon="@(moduloActual?.Icono ?? Icons.Material.Outlined.Business)" Color="Color.Primary" />
-            }
-        </MudDrawerHeader>
+    @* Solo se muestra cuando se está dentro de un módulo, oculto en el lanzador principal /index *@
+    @if (moduloActual != null)
+    {
+        <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Mini" Class="border-light mud-drawer">
+            <MudDrawerHeader Class="pa-4 d-flex align-center justify-space-between">
+                @if (_drawerOpen)
+                {
+                    <div class="d-flex align-center gap-2">
+                        <MudIcon Icon="@moduloActual.Icono" Color="Color.Primary" Size="Size.Small" />
+                        <MudText Typo="Typo.overline" Color="Color.Primary" Style="font-weight: 900; font-size: 0.75rem; font-family: 'Outfit';">
+                            @moduloActual.Titulo.ToUpperInvariant()
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudIcon Icon="@moduloActual.Icono" Color="Color.Primary" />
+                }
+            </MudDrawerHeader>
 
-        @* COMPONENTE NAVMENU *@
-        <NavMenu />
-    </MudDrawer>
+            @* COMPONENTE NAVMENU *@
+            <NavMenu />
+        </MudDrawer>
+    }
 
     @* --- CONTENIDO PRINCIPAL --- *@
     <MudMainContent Style="min-height: 100vh;">
         <div class="page-transition">
-            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-6 pb-16">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-4 pb-12">
                 @Body
             </MudContainer>
         </div>
@@ -128,12 +136,12 @@
 
     .text-muted-appbar {
         color: var(--mud-palette-text-secondary) !important;
-        opacity: 0.8;
+        opacity: 0.85;
     }
 
-    .odoo-status-dot {
-        width: 9px;
-        height: 9px;
+    .bussersa-status-dot {
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background-color: #10b981;
         box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
@@ -275,9 +283,9 @@
     {
         PaletteLight = new PaletteLight()
         {
-            Primary = "#0f172a",         // Slate 900
-            Secondary = "#f97316",       // Orange 500
-            AppbarBackground = "rgba(255, 255, 255, 0.8)", // Glassmorphic white
+            Primary = "#0f172a",         // Slate 900 / Deep Navy Bussersa
+            Secondary = "#f97316",       // Orange 500 / Bussersa Orange
+            AppbarBackground = "rgba(255, 255, 255, 0.9)", // Glassmorphic white
             AppbarText = "#0f172a",      // Slate 900
             Background = "#f8fafc",      // Slate 50
             Surface = "#ffffff",         // White cards
@@ -297,7 +305,7 @@
         {
             Primary = "#38bdf8",         // Sky 400
             Secondary = "#f97316",       // Orange 500
-            AppbarBackground = "rgba(15, 23, 42, 0.8)", // Glassmorphic dark slate
+            AppbarBackground = "rgba(15, 23, 42, 0.9)", // Glassmorphic dark slate
             AppbarText = "#f8fafc",      // Slate 50
             Background = "#0b0f19",      // Deep Rich Dark
             Surface = "#111827",         // Gray 900
@@ -315,7 +323,7 @@
         },
         LayoutProperties = new LayoutProperties()
         {
-            DefaultBorderRadius = "16px" // Much rounder, premium look
+            DefaultBorderRadius = "16px"
         },
         Typography = new Typography()
         {

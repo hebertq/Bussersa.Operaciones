@@ -8,363 +8,346 @@ using Modelo.Entidades;
 
 namespace BsOperaciones.Services
 {
+    public class ModuloHerramientaItem
+    {
+        public string Titulo { get; set; } = string.Empty;
+        public string Subtitulo { get; set; } = string.Empty;
+        public string Icono { get; set; } = string.Empty;
+        public string Ruta { get; set; } = string.Empty;
+        public int MenuResourceId { get; set; }
+        public string Color { get; set; } = "#2563eb";
+        public string Badge { get; set; } = string.Empty;
+    }
+
     public class ModuloAppItem
     {
         public string Clave { get; set; } = string.Empty;
         public string Titulo { get; set; } = string.Empty;
         public string Subtitulo { get; set; } = string.Empty;
+        public string DescripcionLarga { get; set; } = string.Empty;
         public string Icono { get; set; } = string.Empty;
-        public string IconColor { get; set; } = "#2563eb";
+        public string IconColor { get; set; } = "#0f172a";
         public string ColorFondoGradiente { get; set; } = string.Empty;
-        public string ColorSombra { get; set; } = "rgba(0,0,0,0.12)";
+        public string ColorSombra { get; set; } = "rgba(15, 23, 42, 0.12)";
         public string RutaPrincipal { get; set; } = string.Empty;
         public int MenuResourceId { get; set; }
         public int[] ChildMenuIds { get; set; } = Array.Empty<int>();
         public string[] PrefijosRuta { get; set; } = Array.Empty<string>();
-        public string ColorTexto { get; set; } = "#ffffff";
-        public string BadgeTexto { get; set; } = string.Empty;
-    }
-
-    public class AppTileItem
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Titulo { get; set; } = string.Empty;
-        public string Subtitulo { get; set; } = string.Empty;
-        public string ModuloClave { get; set; } = string.Empty;
-        public string Icono { get; set; } = string.Empty;
-        public string IconColor { get; set; } = "#2563eb";
-        public string Ruta { get; set; } = string.Empty;
-        public int MenuResourceId { get; set; }
-        public bool EsModuloPrincipal { get; set; } = false;
-        public string Categoria { get; set; } = "General";
+        public List<ModuloHerramientaItem> Herramientas { get; set; } = new();
     }
 
     public class ModuloNavigationService
     {
         public List<ModuloAppItem> TodosLosModulos { get; } = new()
         {
+            // 1. MÓDULO OPERACIONES
             new ModuloAppItem
             {
                 Clave = "operaciones",
                 Titulo = "Operaciones",
-                Subtitulo = "Movimientos, Marcadas y Supervisión de Campo",
+                Subtitulo = "Control de campo, asistencias, movimientos y producción",
+                DescripcionLarga = "Gestión centralizada de personal operativo en instalaciones y bodegas de clientes, registro de asistencia móvil, rotación de turnos y cierres de operaciones.",
                 Icono = Icons.Material.Filled.PrecisionManufacturing,
-                IconColor = "#1d4ed8",
-                ColorFondoGradiente = "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)",
-                ColorSombra = "rgba(37, 99, 235, 0.35)",
-                RutaPrincipal = "/operaciones/registro-movimientos-supervisor",
+                IconColor = "#1e3a8a", // Azul Marino Corporativo
+                ColorFondoGradiente = "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)",
+                ColorSombra = "rgba(30, 58, 138, 0.25)",
+                RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
                 ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58 },
-                PrefijosRuta = new[] { "/operaciones" }
+                PrefijosRuta = new[] { "/operaciones" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Movimientos (Tablet)",
+                        Subtitulo = "Registro de asistencia y control de personal en campo por bodega y turno.",
+                        Icono = Icons.Material.Filled.TabletAndroid,
+                        Ruta = "/operaciones/registro-movimientos-supervisor",
+                        MenuResourceId = 55,
+                        Color = "#2563eb",
+                        Badge = "Móvil / Tablet"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Consultar Asistencia",
+                        Subtitulo = "Reporte detallado en tiempo real de asistencias y novedades de colaboradores.",
+                        Icono = Icons.Material.Filled.FactCheck,
+                        Ruta = "/operaciones/consulta-asistencia",
+                        MenuResourceId = 64,
+                        Color = "#0284c7"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Cerrar Marcadas",
+                        Subtitulo = "Cierre operativo de marcadas y preparación para facturación comercial.",
+                        Icono = Icons.Material.Filled.CloseFullscreen,
+                        Ruta = "/operaciones/marcadasxfacturar",
+                        MenuResourceId = 16,
+                        Color = "#0f766e"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Consultar Marcadas",
+                        Subtitulo = "Auditoría e historial de cierres operativos de clientes finalizados.",
+                        Icono = Icons.Material.Filled.FindInPage,
+                        Ruta = "/operaciones/consulta-cierres",
+                        MenuResourceId = 18,
+                        Color = "#4338ca"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Cargar Movimientos",
+                        Subtitulo = "Importación masiva de turnos y asistencias mediante plantillas Excel.",
+                        Icono = Icons.Material.Filled.PostAdd,
+                        Ruta = "/operaciones/movimientos-personal-excel",
+                        MenuResourceId = 56,
+                        Color = "#059669"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Producción Diaria",
+                        Subtitulo = "Control de rendimientos diarios, asignación de asistencia y productos.",
+                        Icono = Icons.Material.Filled.Assignment,
+                        Ruta = "/operaciones/produccion-diaria",
+                        MenuResourceId = 36,
+                        Color = "#d97706"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Rotación de Turnos",
+                        Subtitulo = "Planificación y asignación de roles de turnos operativos para el personal.",
+                        Icono = Icons.Material.Filled.SwapHorizontalCircle,
+                        Ruta = "/operaciones/rotacion-turnos",
+                        MenuResourceId = 37,
+                        Color = "#7c3aed"
+                    }
+                }
             },
+
+            // 2. MÓDULO ASISTENCIAS
             new ModuloAppItem
             {
                 Clave = "asistencias",
                 Titulo = "Asistencias",
-                Subtitulo = "Control de Marcadas y Días Trabajados",
+                Subtitulo = "Control biométrico de marcadas y días laborados",
+                DescripcionLarga = "Módulo de captura, procesamiento y auditoría de marcadas biométricas de personal y cálculo de días laborados por centro de costo.",
                 Icono = Icons.Material.Filled.CalendarMonth,
                 IconColor = "#0284c7",
-                ColorFondoGradiente = "linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)",
-                ColorSombra = "rgba(2, 132, 199, 0.35)",
-                RutaPrincipal = "/asistencias/marcadas",
+                ColorFondoGradiente = "linear-gradient(135deg, #0369a1 0%, #0284c7 100%)",
+                ColorSombra = "rgba(2, 132, 199, 0.25)",
+                RutaPrincipal = "/asistencias",
                 MenuResourceId = 3,
                 ChildMenuIds = new[] { 3, 4, 5, 6 },
-                PrefijosRuta = new[] { "/asistencias", "/asistencia" }
+                PrefijosRuta = new[] { "/asistencias", "/asistencia" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Ingresar Marcadas",
+                        Subtitulo = "Carga y captura de marcadas de asistencia desde relojes biométricos.",
+                        Icono = Icons.Material.Filled.CalendarMonth,
+                        Ruta = "/asistencias/marcadas",
+                        MenuResourceId = 4,
+                        Color = "#0284c7"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Días Trabajados",
+                        Subtitulo = "Resumen, validación y control de días trabajados por colaborador.",
+                        Icono = Icons.Material.Filled.EditCalendar,
+                        Ruta = "/asistencia/diastrabajados",
+                        MenuResourceId = 5,
+                        Color = "#0891b2"
+                    }
+                }
             },
+
+            // 3. MÓDULO NÓMINA
             new ModuloAppItem
             {
                 Clave = "nomina",
                 Titulo = "Nómina",
-                Subtitulo = "Días por Pagar, Conciliación INSS y Cierres",
+                Subtitulo = "Cálculo de días por pagar, conciliación INSS y cierres",
+                DescripcionLarga = "Administración integral de planillas, consolidación de pre-nómina quincenal, reglas de jornadas laborales y conciliación con el INSS.",
                 Icono = Icons.Material.Filled.Payments,
                 IconColor = "#059669",
-                ColorFondoGradiente = "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-                ColorSombra = "rgba(5, 150, 105, 0.35)",
-                RutaPrincipal = "/nomina/diasxpagar",
+                ColorFondoGradiente = "linear-gradient(135deg, #065f46 0%, #059669 100%)",
+                ColorSombra = "rgba(5, 150, 105, 0.25)",
+                RutaPrincipal = "/nomina",
                 MenuResourceId = 8,
                 ChildMenuIds = new[] { 8, 9, 21, 39, 51, 52, 60 },
-                PrefijosRuta = new[] { "/nomina" }
+                PrefijosRuta = new[] { "/nomina" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Días por Pagar",
+                        Subtitulo = "Cálculo consolidado de pre-nómina quincenal y días a pagar al personal.",
+                        Icono = Icons.Material.Filled.RequestQuote,
+                        Ruta = "/nomina/diasxpagar",
+                        MenuResourceId = 9,
+                        Color = "#059669"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Reglas de Horarios",
+                        Subtitulo = "Catálogo de jornadas de trabajo y asignación de reglas por cliente.",
+                        Icono = Icons.Material.Filled.FormatListBulleted,
+                        Ruta = "/nomina/reglas-jornadas",
+                        MenuResourceId = 39,
+                        Color = "#10b981"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Conciliación Factura INSS",
+                        Subtitulo = "Auditoría y conciliación cruzada de empleados cotizantes contra el INSS.",
+                        Icono = Icons.Material.Filled.FactCheck,
+                        Ruta = "/nomina/conciliacion-inss",
+                        MenuResourceId = 60,
+                        Color = "#0d9488"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Cierre de Nóminas Activas",
+                        Subtitulo = "Cierre formal de nóminas activas y mensuales para el procesamiento contable.",
+                        Icono = Icons.Material.Filled.LockClock,
+                        Ruta = "/nomina/cerrar/activa",
+                        MenuResourceId = 12,
+                        Color = "#047857"
+                    }
+                }
             },
+
+            // 4. MÓDULO COMERCIAL
             new ModuloAppItem
             {
                 Clave = "comercial",
                 Titulo = "Comercial",
-                Subtitulo = "Costeo de Servicios, Producción y Rentabilidad",
+                Subtitulo = "Costeo de servicios, presupuestos de personal y rentabilidad",
+                DescripcionLarga = "Herramienta de presupuestación, cotización de tarifas de colaboradores, cálculo de márgenes comerciales y rentabilidad por contrato.",
                 Icono = Icons.Material.Filled.BusinessCenter,
-                IconColor = "#d97706",
-                ColorFondoGradiente = "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
-                ColorSombra = "rgba(217, 119, 6, 0.35)",
-                RutaPrincipal = "/comercial/costeo-personal",
+                IconColor = "#f97316", // Naranja Corporativo Bussersa
+                ColorFondoGradiente = "linear-gradient(135deg, #c2410c 0%, #f97316 100%)",
+                ColorSombra = "rgba(249, 115, 22, 0.25)",
+                RutaPrincipal = "/comercial",
                 MenuResourceId = 26,
                 ChildMenuIds = new[] { 26, 27, 28, 29, 33, 34, 35, 38 },
-                PrefijosRuta = new[] { "/comercial" }
+                PrefijosRuta = new[] { "/comercial" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Costeo de Personal",
+                        Subtitulo = "Simulador y estimador de costos de colaboradores, prestaciones y márgenes.",
+                        Icono = Icons.Material.Filled.Paid,
+                        Ruta = "/comercial/costeo-personal",
+                        MenuResourceId = 26,
+                        Color = "#f97316"
+                    }
+                }
             },
+
+            // 5. MÓDULO SUPERVISIÓN
             new ModuloAppItem
             {
                 Clave = "supervision",
                 Titulo = "Supervisión",
-                Subtitulo = "Áreas del Cliente, Personal y Reglas Viáticos",
+                Subtitulo = "Áreas del cliente, asignación de personal y viáticos",
+                DescripcionLarga = "Administración de sedes y bodegas asignadas a cada supervisor, configuración de reglas de viáticos por ruta y dotación de personal.",
                 Icono = Icons.Material.Filled.SupervisorAccount,
-                IconColor = "#7c3aed",
-                ColorFondoGradiente = "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)",
-                ColorSombra = "rgba(124, 58, 237, 0.35)",
-                RutaPrincipal = "/admon/supervision/areas-cliente",
+                IconColor = "#6366f1",
+                ColorFondoGradiente = "linear-gradient(135deg, #4338ca 0%, #6366f1 100%)",
+                ColorSombra = "rgba(99, 102, 241, 0.25)",
+                RutaPrincipal = "/supervision",
                 MenuResourceId = 61,
                 ChildMenuIds = new[] { 61, 62, 63, 65 },
-                PrefijosRuta = new[] { "/admon/supervision" }
+                PrefijosRuta = new[] { "/supervision", "/admon/supervision" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Áreas del Cliente",
+                        Subtitulo = "Configuración y mapeo de bodegas y sucursales donde opera Bussersa.",
+                        Icono = Icons.Material.Filled.Domain,
+                        Ruta = "/admon/supervision/areas-cliente",
+                        MenuResourceId = 62,
+                        Color = "#6366f1"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Personal por Cliente",
+                        Subtitulo = "Asignación de colaboradores de campo a clientes y supervisores responsables.",
+                        Icono = Icons.Material.Filled.Badge,
+                        Ruta = "/admon/supervision/personal-cliente",
+                        MenuResourceId = 63,
+                        Color = "#8b5cf6"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Reglas de Viáticos",
+                        Subtitulo = "Matriz de cálculo automático de viáticos, transporte y alimentación.",
+                        Icono = Icons.Material.Filled.PriceCheck,
+                        Ruta = "/admon/supervision/reglas-viaticos",
+                        MenuResourceId = 65,
+                        Color = "#a855f7"
+                    }
+                }
             },
+
+            // 6. MÓDULO ADMINISTRACIÓN
             new ModuloAppItem
             {
                 Clave = "admon",
                 Titulo = "Administración",
-                Subtitulo = "Usuarios, Roles y Menús del Sistema",
+                Subtitulo = "Usuarios, roles de seguridad y configuración del sistema",
+                DescripcionLarga = "Panel de control administrativo para la gestión de cuentas, asignación de perfiles de acceso, administración de recursos y parámetros globales.",
                 Icono = Icons.Material.Filled.Settings,
                 IconColor = "#334155",
-                ColorFondoGradiente = "linear-gradient(135deg, #334155 0%, #64748b 100%)",
-                ColorSombra = "rgba(51, 65, 85, 0.35)",
-                RutaPrincipal = "/admon/usuarios",
+                ColorFondoGradiente = "linear-gradient(135deg, #0f172a 0%, #334155 100%)",
+                ColorSombra = "rgba(51, 65, 85, 0.25)",
+                RutaPrincipal = "/admon",
                 MenuResourceId = 22,
                 ChildMenuIds = new[] { 22, 23, 24, 25, 59 },
-                PrefijosRuta = new[] { "/admon" }
-            }
-        };
-
-        public List<AppTileItem> TodosLosTiles { get; } = new()
-        {
-            // Módulos Principales (Estilo Odoo Apps)
-            new AppTileItem
-            {
-                Id = "mod-operaciones",
-                Titulo = "Operaciones",
-                Subtitulo = "Movimientos y Marcadas",
-                ModuloClave = "operaciones",
-                Icono = Icons.Material.Filled.PrecisionManufacturing,
-                IconColor = "#1d4ed8",
-                Ruta = "/operaciones/registro-movimientos-supervisor",
-                MenuResourceId = 15,
-                EsModuloPrincipal = true,
-                Categoria = "Operaciones"
-            },
-            new AppTileItem
-            {
-                Id = "app-tablet",
-                Titulo = "Movimientos (Tablet)",
-                Subtitulo = "Asistencia en Campo",
-                ModuloClave = "operaciones",
-                Icono = Icons.Material.Filled.TabletAndroid,
-                IconColor = "#3b82f6",
-                Ruta = "/operaciones/registro-movimientos-supervisor",
-                MenuResourceId = 55,
-                EsModuloPrincipal = false,
-                Categoria = "Operaciones"
-            },
-            new AppTileItem
-            {
-                Id = "app-consultar-asistencia",
-                Titulo = "Consultar Asistencia",
-                Subtitulo = "Reporte de Asistencias",
-                ModuloClave = "operaciones",
-                Icono = Icons.Material.Filled.FactCheck,
-                IconColor = "#0284c7",
-                Ruta = "/operaciones/consulta-asistencia",
-                MenuResourceId = 64,
-                EsModuloPrincipal = false,
-                Categoria = "Operaciones"
-            },
-            new AppTileItem
-            {
-                Id = "app-cerrar-marcadas",
-                Titulo = "Cerrar Marcadas",
-                Subtitulo = "Cierres por Facturar",
-                ModuloClave = "operaciones",
-                Icono = Icons.Material.Filled.CloseFullscreen,
-                IconColor = "#0ea5e9",
-                Ruta = "/operaciones/marcadasxfacturar",
-                MenuResourceId = 16,
-                EsModuloPrincipal = false,
-                Categoria = "Operaciones"
-            },
-            new AppTileItem
-            {
-                Id = "app-produccion-diaria",
-                Titulo = "Producción Diaria",
-                Subtitulo = "Control de Producción",
-                ModuloClave = "operaciones",
-                Icono = Icons.Material.Filled.Assignment,
-                IconColor = "#6366f1",
-                Ruta = "/operaciones/produccion-diaria",
-                MenuResourceId = 36,
-                EsModuloPrincipal = false,
-                Categoria = "Operaciones"
-            },
-            new AppTileItem
-            {
-                Id = "mod-asistencias",
-                Titulo = "Asistencias",
-                Subtitulo = "Ingreso y Control",
-                ModuloClave = "asistencias",
-                Icono = Icons.Material.Filled.CalendarMonth,
-                IconColor = "#0284c7",
-                Ruta = "/asistencias/marcadas",
-                MenuResourceId = 3,
-                EsModuloPrincipal = true,
-                Categoria = "RRHH"
-            },
-            new AppTileItem
-            {
-                Id = "app-dias-trabajados",
-                Titulo = "Días Trabajados",
-                Subtitulo = "Reporte de Días",
-                ModuloClave = "asistencias",
-                Icono = Icons.Material.Filled.EditCalendar,
-                IconColor = "#06b6d4",
-                Ruta = "/asistencia/diastrabajados",
-                MenuResourceId = 5,
-                EsModuloPrincipal = false,
-                Categoria = "RRHH"
-            },
-            new AppTileItem
-            {
-                Id = "mod-nomina",
-                Titulo = "Nómina",
-                Subtitulo = "Cálculo y Cierres",
-                ModuloClave = "nomina",
-                Icono = Icons.Material.Filled.Payments,
-                IconColor = "#059669",
-                Ruta = "/nomina/diasxpagar",
-                MenuResourceId = 8,
-                EsModuloPrincipal = true,
-                Categoria = "Nómina"
-            },
-            new AppTileItem
-            {
-                Id = "app-dias-pagar",
-                Titulo = "Días por Pagar",
-                Subtitulo = "Planilla y Días",
-                ModuloClave = "nomina",
-                Icono = Icons.Material.Filled.RequestQuote,
-                IconColor = "#10b981",
-                Ruta = "/nomina/diasxpagar",
-                MenuResourceId = 9,
-                EsModuloPrincipal = false,
-                Categoria = "Nómina"
-            },
-            new AppTileItem
-            {
-                Id = "app-conciliacion-inss",
-                Titulo = "Conciliación INSS",
-                Subtitulo = "Factura INSS",
-                ModuloClave = "nomina",
-                Icono = Icons.Material.Filled.RuleFolder,
-                IconColor = "#14b8a6",
-                Ruta = "/nomina/conciliacion-inss",
-                MenuResourceId = 60,
-                EsModuloPrincipal = false,
-                Categoria = "Nómina"
-            },
-            new AppTileItem
-            {
-                Id = "mod-comercial",
-                Titulo = "Comercial",
-                Subtitulo = "Costeo y Rentabilidad",
-                ModuloClave = "comercial",
-                Icono = Icons.Material.Filled.BusinessCenter,
-                IconColor = "#d97706",
-                Ruta = "/comercial/costeo-personal",
-                MenuResourceId = 26,
-                EsModuloPrincipal = true,
-                Categoria = "Comercial"
-            },
-            new AppTileItem
-            {
-                Id = "mod-supervision",
-                Titulo = "Supervisión",
-                Subtitulo = "Áreas y Personal",
-                ModuloClave = "supervision",
-                Icono = Icons.Material.Filled.SupervisorAccount,
-                IconColor = "#7c3aed",
-                Ruta = "/admon/supervision/areas-cliente",
-                MenuResourceId = 61,
-                EsModuloPrincipal = true,
-                Categoria = "Supervisión"
-            },
-            new AppTileItem
-            {
-                Id = "app-areas-cliente",
-                Titulo = "Áreas del Cliente",
-                Subtitulo = "Configuración Áreas",
-                ModuloClave = "supervision",
-                Icono = Icons.Material.Filled.Domain,
-                IconColor = "#8b5cf6",
-                Ruta = "/admon/supervision/areas-cliente",
-                MenuResourceId = 62,
-                EsModuloPrincipal = false,
-                Categoria = "Supervisión"
-            },
-            new AppTileItem
-            {
-                Id = "app-personal-cliente",
-                Titulo = "Personal Cliente",
-                Subtitulo = "Asignación Supervisión",
-                ModuloClave = "supervision",
-                Icono = Icons.Material.Filled.Badge,
-                IconColor = "#a855f7",
-                Ruta = "/admon/supervision/personal-cliente",
-                MenuResourceId = 63,
-                EsModuloPrincipal = false,
-                Categoria = "Supervisión"
-            },
-            new AppTileItem
-            {
-                Id = "app-reglas-viaticos",
-                Titulo = "Reglas Viáticos",
-                Subtitulo = "Matriz de Viáticos",
-                ModuloClave = "supervision",
-                Icono = Icons.Material.Filled.PriceCheck,
-                IconColor = "#c026d3",
-                Ruta = "/admon/supervision/reglas-viaticos",
-                MenuResourceId = 65,
-                EsModuloPrincipal = false,
-                Categoria = "Supervisión"
-            },
-            new AppTileItem
-            {
-                Id = "mod-admon",
-                Titulo = "Ajustes / Admon",
-                Subtitulo = "Usuarios y Seguridad",
-                ModuloClave = "admon",
-                Icono = Icons.Material.Filled.Settings,
-                IconColor = "#334155",
-                Ruta = "/admon/usuarios",
-                MenuResourceId = 22,
-                EsModuloPrincipal = true,
-                Categoria = "Administración"
-            },
-            new AppTileItem
-            {
-                Id = "app-usuarios",
-                Titulo = "Usuarios",
-                Subtitulo = "Gestión de Cuentas",
-                ModuloClave = "admon",
-                Icono = Icons.Material.Filled.People,
-                IconColor = "#475569",
-                Ruta = "/admon/usuarios",
-                MenuResourceId = 23,
-                EsModuloPrincipal = false,
-                Categoria = "Administración"
-            },
-            new AppTileItem
-            {
-                Id = "app-roles",
-                Titulo = "Roles y Grupos",
-                Subtitulo = "Control de Accesos",
-                ModuloClave = "admon",
-                Icono = Icons.Material.Filled.Security,
-                IconColor = "#64748b",
-                Ruta = "/admon/roles",
-                MenuResourceId = 24,
-                EsModuloPrincipal = false,
-                Categoria = "Administración"
+                PrefijosRuta = new[] { "/admon" },
+                Herramientas = new()
+                {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Usuarios",
+                        Subtitulo = "Creación, edición y control de acceso de cuentas de usuario.",
+                        Icono = Icons.Material.Filled.People,
+                        Ruta = "/admon/usuarios",
+                        MenuResourceId = 23,
+                        Color = "#334155"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Roles y Grupos",
+                        Subtitulo = "Configuración de perfiles de usuario y permisos asignados por grupo.",
+                        Icono = Icons.Material.Filled.Security,
+                        Ruta = "/admon/roles",
+                        MenuResourceId = 24,
+                        Color = "#475569"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Menús del Sistema",
+                        Subtitulo = "Administración de recursos, pantallas y árboles de navegación.",
+                        Icono = Icons.Material.Filled.Menu,
+                        Ruta = "/admon/menus",
+                        MenuResourceId = 25,
+                        Color = "#64748b"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Firma de Correo",
+                        Subtitulo = "Generación de firmas electrónicas institucionales para colaboradores.",
+                        Icono = Icons.Material.Filled.Badge,
+                        Ruta = "/admon/firma-correo",
+                        MenuResourceId = 59,
+                        Color = "#f97316"
+                    }
+                }
             }
         };
 
@@ -435,7 +418,7 @@ namespace BsOperaciones.Services
             }
         }
 
-        public bool TienePermisoTile(ClaimsPrincipal? user, AppTileItem tile)
+        public bool TienePermisoHerramienta(ClaimsPrincipal? user, ModuloHerramientaItem herramienta)
         {
             if (user == null || !user.Identity?.IsAuthenticated == true) return false;
 
@@ -454,7 +437,7 @@ namespace BsOperaciones.Services
                 var menus = JsonConvert.DeserializeObject<List<Menus>>(menuClaim);
                 if (menus == null || !menus.Any()) return false;
 
-                return menus.Any(m => m.id == tile.MenuResourceId);
+                return menus.Any(m => m.id == herramienta.MenuResourceId);
             }
             catch
             {
@@ -468,10 +451,10 @@ namespace BsOperaciones.Services
             return TodosLosModulos.Where(m => TienePermiso(user, m)).ToList();
         }
 
-        public List<AppTileItem> ObtenerTilesPermitidos(ClaimsPrincipal? user)
+        public List<ModuloHerramientaItem> ObtenerHerramientasPermitidas(ClaimsPrincipal? user, ModuloAppItem modulo)
         {
-            if (user == null) return new List<AppTileItem>();
-            return TodosLosTiles.Where(t => TienePermisoTile(user, t)).ToList();
+            if (user == null || modulo == null) return new List<ModuloHerramientaItem>();
+            return modulo.Herramientas.Where(h => TienePermisoHerramienta(user, h)).ToList();
         }
 
         public ModuloAppItem? DetectarModuloPorUrl(string? relativeUrl)
@@ -487,11 +470,10 @@ namespace BsOperaciones.Services
                 return null;
             }
 
-            // Excepción específica: /admon/supervision va a Supervisión
-            if (url.StartsWith("admon/supervision"))
+            // Excepción específica: /admon/supervision o /supervision va a Supervisión
+            if (url.StartsWith("admon/supervision") || url.StartsWith("supervision"))
             {
-                return TodosLosModulos.FirstOrDefault(m => m.Clave == "supervision")
-                    ?? TodosLosModulos.FirstOrDefault(m => m.Clave == "admon");
+                return TodosLosModulos.FirstOrDefault(m => m.Clave == "supervision");
             }
 
             foreach (var mod in TodosLosModulos)
@@ -499,7 +481,7 @@ namespace BsOperaciones.Services
                 foreach (var prefijo in mod.PrefijosRuta)
                 {
                     string p = prefijo.ToLowerInvariant().TrimStart('/');
-                    if (url.StartsWith(p))
+                    if (url == p || url.StartsWith(p + "/"))
                     {
                         return mod;
                     }
