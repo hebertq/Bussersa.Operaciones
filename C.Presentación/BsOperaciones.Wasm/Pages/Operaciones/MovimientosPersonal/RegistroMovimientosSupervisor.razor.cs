@@ -1347,36 +1347,36 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 miPlantillaPersonal.Clear();
                 miPlantillaPersonal.AddRange(aConservar);
-                int guardados = 0;
 
-                foreach (var b in unicos)
+                var itemsParaGuardar = unicos.Select(b => new SupervisorPlantillaItemDto
                 {
-                    var item = new SupervisorPlantillaItemDto
-                    {
-                        UsuarioSupervisor = currentUserName,
-                        IdEmpleado = b.IdEmpleado,
-                        CodigoEmpleado = b.CodigoEmpleado,
-                        NombreEmpleado = b.NombreEmpleado,
-                        ClienteDefault = b.ClienteNombre,
-                        AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
-                        PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
-                        TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
-                        HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
-                        HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
-                        TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
-                        VtcoTraspDefault = b.VtcoTraspDefault,
-                        VtcoAlimDefault = b.VtcoAlimDefault,
-                        BonoBncDefault = b.BonoBncDefault,
-                        TipoEmpleado = "Permanente",
-                        Activo = true
-                    };
+                    UsuarioSupervisor = currentUserName,
+                    IdEmpleado = b.IdEmpleado,
+                    CodigoEmpleado = b.CodigoEmpleado,
+                    NombreEmpleado = b.NombreEmpleado,
+                    ClienteDefault = b.ClienteNombre,
+                    AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
+                    PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
+                    TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
+                    HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
+                    HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
+                    TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
+                    VtcoTraspDefault = b.VtcoTraspDefault,
+                    VtcoAlimDefault = b.VtcoAlimDefault,
+                    BonoBncDefault = b.BonoBncDefault,
+                    TipoEmpleado = "Permanente",
+                    Activo = true
+                }).ToList();
 
-                    await _odooService.SaveSupervisorPlantillaItem(item);
-                    miPlantillaPersonal.Add(item);
-                    guardados++;
-                }
-
-                _snackbar.Add($"Se cargaron exitosamente {guardados} colaboradores base de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
+                var reqMasivo = new GuardarSupervisorPlantillaRequest
+                {
+                    Usuario = currentUserName,
+                    Items = itemsParaGuardar
+                };
+                await _odooService.SaveSupervisorPlantillaMasivo(reqMasivo);
+                miPlantillaPersonal.AddRange(itemsParaGuardar);
+                await _js.InvokeVoidAsync("localStorage.setItem", KeyCachePlantilla, JsonSerializer.Serialize(miPlantillaPersonal));
+                _snackbar.Add($"Se cargaron exitosamente {itemsParaGuardar.Count} colaboradores base de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
             }
             catch (Exception ex)
             {
@@ -1443,35 +1443,35 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     return;
                 }
 
-                int agregados = 0;
-                foreach (var b in nuevosPorAgregar)
+                var itemsParaGuardarNuevos = nuevosPorAgregar.Select(b => new SupervisorPlantillaItemDto
                 {
-                    var item = new SupervisorPlantillaItemDto
-                    {
-                        UsuarioSupervisor = currentUserName,
-                        IdEmpleado = b.IdEmpleado,
-                        CodigoEmpleado = b.CodigoEmpleado,
-                        NombreEmpleado = b.NombreEmpleado,
-                        ClienteDefault = b.ClienteNombre,
-                        AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
-                        PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
-                        TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
-                        HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
-                        HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
-                        TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
-                        VtcoTraspDefault = b.VtcoTraspDefault,
-                        VtcoAlimDefault = b.VtcoAlimDefault,
-                        BonoBncDefault = b.BonoBncDefault,
-                        TipoEmpleado = "Permanente",
-                        Activo = true
-                    };
+                    UsuarioSupervisor = currentUserName,
+                    IdEmpleado = b.IdEmpleado,
+                    CodigoEmpleado = b.CodigoEmpleado,
+                    NombreEmpleado = b.NombreEmpleado,
+                    ClienteDefault = b.ClienteNombre,
+                    AreaDefault = !string.IsNullOrWhiteSpace(b.AreaDefault) ? b.AreaDefault : "Operaciones",
+                    PuestoDefault = !string.IsNullOrWhiteSpace(b.PuestoDefault) ? b.PuestoDefault : "6-Operador de almacen",
+                    TurnoDefault = !string.IsNullOrWhiteSpace(b.TurnoDefault) ? b.TurnoDefault : "Diurno",
+                    HoraEntradaDefault = !string.IsNullOrWhiteSpace(b.HoraEntradaDefault) ? b.HoraEntradaDefault : "06:00",
+                    HoraSalidaDefault = !string.IsNullOrWhiteSpace(b.HoraSalidaDefault) ? b.HoraSalidaDefault : "14:00",
+                    TiempoComidaDefault = !string.IsNullOrWhiteSpace(b.TiempoComidaDefault) ? b.TiempoComidaDefault : "1.00",
+                    VtcoTraspDefault = b.VtcoTraspDefault,
+                    VtcoAlimDefault = b.VtcoAlimDefault,
+                    BonoBncDefault = b.BonoBncDefault,
+                    TipoEmpleado = "Permanente",
+                    Activo = true
+                }).ToList();
 
-                    await _odooService.SaveSupervisorPlantillaItem(item);
-                    miPlantillaPersonal.Add(item);
-                    agregados++;
-                }
-
-                _snackbar.Add($"Se actualizaron y agregaron {agregados} nuevos colaboradores de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
+                var reqMasivoNuevos = new GuardarSupervisorPlantillaRequest
+                {
+                    Usuario = currentUserName,
+                    Items = itemsParaGuardarNuevos
+                };
+                await _odooService.SaveSupervisorPlantillaMasivo(reqMasivoNuevos);
+                miPlantillaPersonal.AddRange(itemsParaGuardarNuevos);
+                await _js.InvokeVoidAsync("localStorage.setItem", KeyCachePlantilla, JsonSerializer.Serialize(miPlantillaPersonal));
+                _snackbar.Add($"Se actualizaron y agregaron {itemsParaGuardarNuevos.Count} nuevos colaboradores de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
             }
             catch (Exception ex)
             {
