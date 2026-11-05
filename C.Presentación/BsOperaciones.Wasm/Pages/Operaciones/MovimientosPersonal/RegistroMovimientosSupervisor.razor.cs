@@ -298,7 +298,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 if (!lista.Any())
                 {
-                    lista.AddRange(operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).Select(o => o.nombre));
+                    foreach (var c in miPlantillaPersonal.Select(p => p.ClienteDefault?.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)))
+                    {
+                        if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
+                            lista.Add(c!);
+                    }
                 }
                 return lista.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             }
@@ -337,10 +341,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
                         lista.Add(c!);
-                }
-                if (!lista.Any())
-                {
-                    lista.AddRange(operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).Select(o => o.nombre));
                 }
                 return lista.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             }
@@ -759,13 +759,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 await PurgarBorradoresLocalesAntiguos();
-                await CargarOperaciones();
-                await CargarCatalogoClienteAreas();
                 await CargarMisClientesAsignados();
+                await Task.WhenAll(
+                    CargarOperaciones(),
+                    CargarCatalogoClienteAreas(),
+                    CargarCacheReglasViaticos(),
+                    CargarMiPlantilla(),
+                    CargarTiposAusencias()
+                );
                 await RecuperarOperacionPrevia();
-                await CargarCacheReglasViaticos();
-                await CargarMiPlantilla();
-                await CargarTiposAusencias();
                 await CargarJornadaActual();
             }
             catch (Exception ex)
@@ -1109,6 +1111,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- CLIENTES ASIGNADOS DEL SUPERVISOR ---
         protected async Task CargarMisClientesAsignados()
         {
+            try
+            {
+                var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCacheMisClientes);
+                if (!string.IsNullOrWhiteSpace(cachedJson))
+                {
+                    var cached = JsonSerializer.Deserialize<List<SupervisorClienteDto>>(cachedJson);
+                    if (cached != null && cached.Any())
+                    {
+                        misClientesAsignados = cached;
+                    }
+                }
+            }
+            catch { }
+
             try
             {
                 // 1. Consultar por el identificador actual (email o username, ej: sinsa@bussersa.com)
@@ -1979,13 +1995,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var res = await _odooService.ClonarMovimientosDiaAnterior(req);
                 if (res?.Respuesta != null && !res.Respuesta.ExisteError)
                 {
-                    _snackbar.Add($"Jornada copiada exitosamente de {fechaAyer:dd/MM}.", Severity.Success);
                     await CargarJornadaActual();
-                    foreach (var emp in empleadosJornada)
+                    if (empleadosJornada.Any())
                     {
-                        AplicarReglasViaticosEnMemoria(emp);
+                        _snackbar.Add($"Jornada copiada exitosamente de {fechaAyer:dd/MM} ({empleadosJornada.Count} colaboradores).", Severity.Success);
+                        foreach (var emp in empleadosJornada)
+                        {
+                            AplicarReglasViaticosEnMemoria(emp);
+                        }
+                        ActualizarGruposConsolidados();
                     }
-                    ActualizarGruposConsolidados();
+                    else
+                    {
+                        _snackbar.Add($"No se encontraron registros activos del {fechaAyer:dd/MM} para copiar.", Severity.Info);
+                    }
                 }
                 else
                 {
