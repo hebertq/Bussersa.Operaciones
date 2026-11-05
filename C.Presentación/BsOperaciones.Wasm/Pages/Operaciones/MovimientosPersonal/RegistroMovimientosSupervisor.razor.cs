@@ -160,6 +160,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaCargando = true;
         protected bool estaGuardando = false;
         protected bool estaEnviandoHelpdesk = false;
+        protected bool estaLimpiando = false;
+        protected bool estaEliminando = false;
+        protected string textoOperacionBd = "Procesando operación en base de datos... Por favor, espere.";
+        protected bool estaOperandoEnBd => estaGuardando || estaCargando || cargandoPlantilla || estaEnviandoViaticos || estaEnviandoBonos || estaEnviandoHelpdesk || estaEnviandoAusencias || estaLimpiando || estaEliminando;
         protected int activeTabIndex = 0;
         protected void SetActiveTab(int index)
         {
@@ -215,16 +219,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             get
             {
-                if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
+                string cli = !string.IsNullOrWhiteSpace(filtroClienteGrilla) ? filtroClienteGrilla : ClienteActivoAsistenciasSeguro;
+                if (!string.IsNullOrWhiteSpace(cli))
                 {
-                    // Al seleccionar un cliente, listar las áreas de ese cliente presentes en la jornada o configuradas
                     var areasJornada = empleadosJornada
-                        .Where(x => string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase))
+                        .Where(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase))
                         .Select(x => x.Area?.Trim())
                         .Where(a => !string.IsNullOrWhiteSpace(a))
                         .Select(a => a!);
 
-                    var areasCatalogo = GetAreasParaCliente(filtroClienteGrilla)
+                    var areasCatalogo = GetAreasParaCliente(cli)
                         .Where(a => !string.IsNullOrWhiteSpace(a));
 
                     return areasJornada.Union(areasCatalogo, StringComparer.OrdinalIgnoreCase)
@@ -232,7 +236,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    // Si no hay cliente seleccionado, listar las áreas presentes en la jornada actual
                     return empleadosJornada
                         .Select(x => x.Area?.Trim())
                         .Where(a => !string.IsNullOrWhiteSpace(a))
@@ -274,6 +277,94 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+        // Sub-tabs de Clientes para Asistencias y Mi Personal
+        protected string clienteActivoAsistencias = string.Empty;
+        protected string clienteActivoPlantilla = string.Empty;
+
+        protected List<string> ListaClientesAsistencia
+        {
+            get
+            {
+                var lista = new List<string>();
+                if (NombresMisClientes.Any())
+                {
+                    lista.AddRange(NombresMisClientes);
+                }
+                foreach (var c in empleadosJornada.Select(e => e.Cliente?.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)))
+                {
+                    if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
+                        lista.Add(c!);
+                }
+                if (!lista.Any())
+                {
+                    lista.AddRange(operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).Select(o => o.nombre));
+                }
+                return lista.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
+        protected string ClienteActivoAsistenciasSeguro
+        {
+            get
+            {
+                var clientes = ListaClientesAsistencia;
+                if (string.IsNullOrWhiteSpace(clienteActivoAsistencias) || !clientes.Contains(clienteActivoAsistencias, StringComparer.OrdinalIgnoreCase))
+                {
+                    clienteActivoAsistencias = clientes.FirstOrDefault() ?? "";
+                }
+                return clienteActivoAsistencias;
+            }
+        }
+
+        protected void CambiarClienteAsistencias(string cliente)
+        {
+            clienteActivoAsistencias = cliente;
+            filtroAreaGrilla = null;
+            StateHasChanged();
+        }
+
+        protected List<string> ListaClientesPlantilla
+        {
+            get
+            {
+                var lista = new List<string>();
+                if (NombresMisClientes.Any())
+                {
+                    lista.AddRange(NombresMisClientes);
+                }
+                foreach (var c in miPlantillaPersonal.Select(p => p.ClienteDefault?.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)))
+                {
+                    if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
+                        lista.Add(c!);
+                }
+                if (!lista.Any())
+                {
+                    lista.AddRange(operacionesList.Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase)).Select(o => o.nombre));
+                }
+                return lista.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
+        protected string ClienteActivoPlantillaSeguro
+        {
+            get
+            {
+                var clientes = ListaClientesPlantilla;
+                if (string.IsNullOrWhiteSpace(clienteActivoPlantilla) || !clientes.Contains(clienteActivoPlantilla, StringComparer.OrdinalIgnoreCase))
+                {
+                    clienteActivoPlantilla = clientes.FirstOrDefault() ?? "";
+                }
+                return clienteActivoPlantilla;
+            }
+        }
+
+        protected void CambiarClientePlantilla(string cliente)
+        {
+            clienteActivoPlantilla = cliente;
+            filtroAreaPlantilla = null;
+            StateHasChanged();
+        }
 
         // Plantilla Personal del Supervisor (Tab 4)
         protected List<SupervisorPlantillaItemDto> miPlantillaPersonal = new();
@@ -384,16 +475,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             get
             {
-                if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
+                string cli = !string.IsNullOrWhiteSpace(filtroClientePlantilla) ? filtroClientePlantilla : ClienteActivoPlantillaSeguro;
+                if (!string.IsNullOrWhiteSpace(cli))
                 {
-                    // Al seleccionar un cliente, listar las áreas de ese cliente en la plantilla o en catálogo
                     var areasPlantilla = miPlantillaPersonal
-                        .Where(x => string.Equals(x.ClienteDefault, filtroClientePlantilla, StringComparison.OrdinalIgnoreCase))
+                        .Where(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase))
                         .Select(x => x.AreaDefault?.Trim())
                         .Where(a => !string.IsNullOrWhiteSpace(a))
                         .Select(a => a!);
 
-                    var areasCatalogo = GetAreasParaCliente(filtroClientePlantilla)
+                    var areasCatalogo = GetAreasParaCliente(cli)
                         .Where(a => !string.IsNullOrWhiteSpace(a));
 
                     return areasPlantilla.Union(areasCatalogo, StringComparer.OrdinalIgnoreCase)
@@ -401,7 +492,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    // Si no hay cliente seleccionado, listar las áreas presentes en la plantilla
                     return miPlantillaPersonal
                         .Select(x => x.AreaDefault?.Trim())
                         .Where(a => !string.IsNullOrWhiteSpace(a))
@@ -439,9 +529,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 var query = miPlantillaPersonal.AsEnumerable();
 
-                if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
+                string cli = !string.IsNullOrWhiteSpace(filtroClientePlantilla) ? filtroClientePlantilla : ClienteActivoPlantillaSeguro;
+                if (!string.IsNullOrWhiteSpace(cli))
                 {
-                    query = query.Where(x => string.Equals(x.ClienteDefault, filtroClientePlantilla, StringComparison.OrdinalIgnoreCase));
+                    query = query.Where(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (!string.IsNullOrWhiteSpace(filtroAreaPlantilla))
@@ -989,36 +1080,48 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // --- CARGAR DATOS BASE (COPIAR DE LA TABLA MAESTRA DE ADMINISTRACIÓN) ---
-        protected async Task CargarDatosBasePlantilla()
+        protected Task CargarDatosBasePlantilla() => CargarDatosBasePlantilla(ClienteActivoPlantillaSeguro);
+        protected async Task CargarDatosBasePlantilla(string? clienteFiltro)
         {
             try
             {
-                cargandoPlantilla = true;
-
                 if (!misClientesAsignados.Any())
                 {
                     await CargarMisClientesAsignados();
                 }
 
-                if (!NombresMisClientes.Any())
+                string clienteTarget = !string.IsNullOrWhiteSpace(clienteFiltro) ? clienteFiltro : ClienteActivoPlantillaSeguro;
+                var clientesAProcesar = !string.IsNullOrWhiteSpace(clienteTarget) 
+                    ? new List<string> { clienteTarget } 
+                    : NombresMisClientes;
+
+                if (!clientesAProcesar.Any())
                 {
-                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración. Consulta con el administrador para que te asigne tus clientes.", Severity.Warning);
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
                     return;
                 }
 
-                if (miPlantillaPersonal.Any())
+                var plantillaActualCliente = miPlantillaPersonal
+                    .Where(x => clientesAProcesar.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (plantillaActualCliente.Any())
                 {
                     bool? confirm = await _dialogService.ShowMessageBox(
                         "Cargar Datos Base",
-                        $"¿Deseas reemplazar tu plantilla actual ({miPlantillaPersonal.Count} colaboradores) con los datos base de administración de tus clientes ({string.Join(", ", NombresMisClientes)})?",
+                        $"¿Deseas reemplazar tu plantilla de {string.Join(", ", clientesAProcesar)} ({plantillaActualCliente.Count} colaboradores) con los datos base de administración?",
                         yesText: "Sí, Cargar Base",
                         cancelText: "Cancelar");
 
                     if (confirm != true) return;
                 }
 
+                cargandoPlantilla = true;
+                textoOperacionBd = $"Copiando colaboradores base de {string.Join(", ", clientesAProcesar)} a tu plantilla...";
+                StateHasChanged();
+
                 var nuevosBase = new List<PersonalClienteItemDto>();
-                foreach (var cl in NombresMisClientes)
+                foreach (var cl in clientesAProcesar)
                 {
                     var respPersonal = await _odooService.GetPersonalCliente(cliente: cl);
                     if (respPersonal?.Model != null && respPersonal.Model.Any())
@@ -1029,7 +1132,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!nuevosBase.Any())
                 {
-                    _snackbar.Add($"No se encontraron colaboradores en la base de administración para los clientes: {string.Join(", ", NombresMisClientes)}.", Severity.Info);
+                    _snackbar.Add($"No se encontraron colaboradores en la base de administración para: {string.Join(", ", clientesAProcesar)}.", Severity.Info);
                     return;
                 }
 
@@ -1038,13 +1141,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     .Select(g => g.First())
                     .ToList();
 
-                var temporalesYPrestamos = miPlantillaPersonal
-                    .Where(x => string.Equals(x.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase) ||
+                // Mantener los de otros clientes y los préstamos/temporales
+                var aConservar = miPlantillaPersonal
+                    .Where(x => !clientesAProcesar.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase) ||
+                                string.Equals(x.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase) ||
                                 string.Equals(x.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 miPlantillaPersonal.Clear();
-                miPlantillaPersonal.AddRange(temporalesYPrestamos);
+                miPlantillaPersonal.AddRange(aConservar);
                 int guardados = 0;
 
                 foreach (var b in unicos)
@@ -1074,7 +1179,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     guardados++;
                 }
 
-                _snackbar.Add($"Se cargaron exitosamente {guardados} colaboradores base de {string.Join(", ", NombresMisClientes)} a tu plantilla.", Severity.Success);
+                _snackbar.Add($"Se cargaron exitosamente {guardados} colaboradores base de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
             }
             catch (Exception ex)
             {
@@ -1088,25 +1193,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // --- ACTUALIZAR PLANTILLA (AGREGAR NUEVOS REGISTROS DE LA TABLA MAESTRA) ---
-        protected async Task ActualizarPlantillaDesdeBase()
+        protected Task ActualizarPlantillaDesdeBase() => ActualizarPlantillaDesdeBase(ClienteActivoPlantillaSeguro);
+        protected async Task ActualizarPlantillaDesdeBase(string? clienteFiltro)
         {
             try
             {
+                string clienteTarget = !string.IsNullOrWhiteSpace(clienteFiltro) ? clienteFiltro : ClienteActivoPlantillaSeguro;
+                var clientesAProcesar = !string.IsNullOrWhiteSpace(clienteTarget) 
+                    ? new List<string> { clienteTarget } 
+                    : NombresMisClientes;
+
+                if (!clientesAProcesar.Any())
+                {
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
+                    return;
+                }
+
                 cargandoPlantilla = true;
+                textoOperacionBd = $"Actualizando plantilla de {string.Join(", ", clientesAProcesar)} desde administración...";
+                StateHasChanged();
 
                 if (!misClientesAsignados.Any())
                 {
                     await CargarMisClientesAsignados();
                 }
 
-                if (!NombresMisClientes.Any())
-                {
-                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
-                    return;
-                }
-
                 var baseMaestra = new List<PersonalClienteItemDto>();
-                foreach (var cl in NombresMisClientes)
+                foreach (var cl in clientesAProcesar)
                 {
                     var respPersonal = await _odooService.GetPersonalCliente(cliente: cl);
                     if (respPersonal?.Model != null && respPersonal.Model.Any())
@@ -1129,7 +1242,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!nuevosPorAgregar.Any())
                 {
-                    _snackbar.Add($"Tu plantilla ya está al día. No hay nuevos colaboradores en la base de {string.Join(", ", NombresMisClientes)}.", Severity.Info);
+                    _snackbar.Add($"Tu plantilla de {string.Join(", ", clientesAProcesar)} ya está al día. No hay nuevos colaboradores en la base maestra.", Severity.Info);
                     return;
                 }
 
@@ -1161,11 +1274,145 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     agregados++;
                 }
 
-                _snackbar.Add($"Se actualizaron y agregaron {agregados} nuevos colaboradores desde la administración base ({string.Join(", ", nuevosPorAgregar.Take(3).Select(n => $"#{n.CodigoEmpleado} {n.NombreEmpleado}"))}{(nuevosPorAgregar.Count > 3 ? "..." : "")}).", Severity.Success);
+                _snackbar.Add($"Se actualizaron y agregaron {agregados} nuevos colaboradores de {string.Join(", ", clientesAProcesar)} a tu plantilla.", Severity.Success);
             }
             catch (Exception ex)
             {
                 _snackbar.Add($"Error al actualizar plantilla: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoPlantilla = false;
+                StateHasChanged();
+            }
+        }
+
+        // --- PRECARGAR PERSONAL POR CLIENTE CON REGLA DE PRÉSTAMO / MULTICLIENTE ---
+        protected async Task PrecargarPersonalCliente(string cliente)
+        {
+            if (string.IsNullOrWhiteSpace(cliente)) return;
+
+            if (!miPlantillaPersonal.Any())
+            {
+                await CargarMiPlantilla();
+            }
+
+            var plantillaCliente = miPlantillaPersonal
+                .Where(x => string.Equals(x.ClienteDefault, cliente, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (!plantillaCliente.Any())
+            {
+                _snackbar.Add($"No tienes colaboradores configurados en Mi Personal para {cliente}. Puedes agregarlos desde la pestaña 'Mi Personal'.", Severity.Info);
+                return;
+            }
+
+            cargandoPlantilla = true;
+            textoOperacionBd = $"Cargando colaboradores de {cliente} a la jornada...";
+            StateHasChanged();
+
+            try
+            {
+                // 1. Consultar colaboradores que ya tienen turno/horario registrado para este día en cualquier cliente o supervisor
+                Dictionary<int, Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> turnosOcupados = new();
+                try
+                {
+                    var respTurnos = await _odooService.GetTurnosOcupadosFecha(fechaSeleccionada ?? DateTime.Today);
+                    if (respTurnos?.Model != null && respTurnos.Model.Any())
+                    {
+                        turnosOcupados = respTurnos.Model
+                            .Where(t => t.Asistio && t.CodigoEmpleado > 0 && !string.IsNullOrWhiteSpace(t.HoraEntrada) && t.HoraEntrada != "--:--")
+                            .GroupBy(t => t.CodigoEmpleado)
+                            .ToDictionary(g => g.Key, g => g.First());
+                    }
+                }
+                catch { }
+
+                var colaboradoresOmitidosPrestamo = new List<string>();
+                int agregados = 0;
+
+                foreach (var item in plantillaCliente)
+                {
+                    // a) Si ya está en la jornada para este mismo cliente, omitir para no duplicar
+                    if (empleadosJornada.Any(x => x.CodigoEmpleado == item.CodigoEmpleado && string.Equals(x.Cliente, cliente, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    // b) REGLA DE PRÉSTAMO / MULTICLIENTE:
+                    // Si ya está registrado en la jornada con OTRO cliente (ej. como préstamo), NO cargarlo automáticamente
+                    var yaRegistradoEnOtro = empleadosJornada.FirstOrDefault(x => x.CodigoEmpleado == item.CodigoEmpleado && !string.Equals(x.Cliente, cliente, StringComparison.OrdinalIgnoreCase));
+                    if (yaRegistradoEnOtro != null)
+                    {
+                        colaboradoresOmitidosPrestamo.Add($"{item.NombreEmpleado} (#{item.CodigoEmpleado}) en {yaRegistradoEnOtro.Cliente} ({yaRegistradoEnOtro.TurnoNombre} {yaRegistradoEnOtro.HoraEntrada}-{yaRegistradoEnOtro.HoraSalida})");
+                        continue;
+                    }
+
+                    // c) Verificación preventiva en base de datos (otro supervisor u operación)
+                    if (turnosOcupados.TryGetValue(item.CodigoEmpleado, out var turnoExistente))
+                    {
+                        bool esOtroCliente = !string.IsNullOrWhiteSpace(turnoExistente.Cliente) && 
+                            !string.Equals(turnoExistente.Cliente.Trim(), cliente.Trim(), StringComparison.OrdinalIgnoreCase);
+
+                        if (esOtroCliente)
+                        {
+                            colaboradoresOmitidosPrestamo.Add($"{item.NombreEmpleado} (#{item.CodigoEmpleado}) en BD: {turnoExistente.Cliente} ({turnoExistente.HoraEntrada}-{turnoExistente.HoraSalida})");
+                            continue;
+                        }
+                    }
+
+                    string obsPlantilla = string.Empty;
+                    if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(item.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string orig = !string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? item.ClienteOrigenNomina : cliente;
+                        obsPlantilla = $"{item.TipoEmpleado} (Nómina: {orig})";
+                    }
+
+                    empleadosJornada.Add(new EmpleadoJornadaItem
+                    {
+                        Id = 0,
+                        IdEmpleado = item.IdEmpleado,
+                        CodigoEmpleado = item.CodigoEmpleado,
+                        NombreEmpleado = item.NombreEmpleado,
+                        Cliente = cliente,
+                        Area = !string.IsNullOrWhiteSpace(item.AreaDefault) ? item.AreaDefault : "Operaciones",
+                        Puesto = !string.IsNullOrWhiteSpace(item.PuestoDefault) ? item.PuestoDefault : "6-Operador de almacen",
+                        TurnoNombre = !string.IsNullOrWhiteSpace(item.TurnoDefault) ? item.TurnoDefault : "Diurno",
+                        HoraEntrada = !string.IsNullOrWhiteSpace(item.HoraEntradaDefault) ? item.HoraEntradaDefault : "06:00",
+                        HoraSalida = !string.IsNullOrWhiteSpace(item.HoraSalidaDefault) ? item.HoraSalidaDefault : "14:00",
+                        TiempoComida = !string.IsNullOrWhiteSpace(item.TiempoComidaDefault) ? item.TiempoComidaDefault : "1.00",
+                        VtcoTrasp = item.VtcoTraspDefault,
+                        VtcoAlim = item.VtcoAlimDefault,
+                        BonoBnc = item.BonoBncDefault,
+                        TipoEmpleado = !string.IsNullOrWhiteSpace(item.TipoEmpleado) ? item.TipoEmpleado : "Permanente",
+                        ClienteOrigenNomina = LimpiarTextoOdoo(item.ClienteOrigenNomina),
+                        Observaciones = obsPlantilla,
+                        Asistio = true,
+                        Estado = "BORRADOR",
+                        FechaInicioAusencia = fechaSeleccionada ?? DateTime.Today,
+                        FechaFinAusencia = fechaSeleccionada ?? DateTime.Today,
+                        DiasAusencia = 1.0m,
+                        Modificado = true
+                    });
+                    var nuevoEmp = empleadosJornada.Last();
+                    AplicarReglasViaticosEnMemoria(nuevoEmp);
+                    agregados++;
+                }
+
+                if (colaboradoresOmitidosPrestamo.Any())
+                {
+                    _snackbar.Add($"ℹ️ Se omitieron {colaboradoresOmitidosPrestamo.Count} colaborador(es) porque ya están en otro cliente como préstamo o turno previo:\n{string.Join("; ", colaboradoresOmitidosPrestamo)}.\nSi requiere agregarlo en {cliente}, hágalo manualmente con '+ Colaborador'.", Severity.Warning, config => config.VisibleStateDuration = 12000);
+                }
+
+                ActualizarGruposConsolidados();
+                if (agregados > 0)
+                {
+                    _snackbar.Add($"Se cargaron {agregados} colaboradores de {cliente} a la jornada.", Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al cargar colaboradores de {cliente}: {ex.Message}", Severity.Error);
             }
             finally
             {
@@ -1205,13 +1452,53 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
             }
 
+            cargandoPlantilla = true;
+            textoOperacionBd = "Cargando colaboradores de mi plantilla a la jornada...";
+            StateHasChanged();
+
             var existentes = empleadosJornada.Select(x => x.CodigoEmpleado).ToHashSet();
             int agregados = 0;
+
+            // 1. Consultar colaboradores que ya tienen turno/horario registrado para este día en cualquier cliente o supervisor
+            Dictionary<int, Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> turnosOcupados = new();
+            try
+            {
+                var respTurnos = await _odooService.GetTurnosOcupadosFecha(fechaSeleccionada ?? DateTime.Today);
+                if (respTurnos?.Model != null && respTurnos.Model.Any())
+                {
+                    turnosOcupados = respTurnos.Model
+                        .Where(t => t.Asistio && t.CodigoEmpleado > 0 && !string.IsNullOrWhiteSpace(t.HoraEntrada) && t.HoraEntrada != "--:--")
+                        .GroupBy(t => t.CodigoEmpleado)
+                        .ToDictionary(g => g.Key, g => g.First());
+                }
+            }
+            catch
+            {
+                // No interrumpir si la verificación preventiva no responde
+            }
+
+            var colaboradoresOmitidos = new List<string>();
 
             foreach (var item in miPlantillaPersonal)
             {
                 if (!existentes.Contains(item.CodigoEmpleado))
                 {
+                    // REGLA DE NEGOCIO: Si el colaborador YA tiene un turno registrado en esta fecha (en otro cliente o supervisor), NO cargarlo
+                    if (turnosOcupados.TryGetValue(item.CodigoEmpleado, out var turnoExistente))
+                    {
+                        string clienteItem = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase)
+                            ? item.ClienteDefault 
+                            : (NombresMisClientes.FirstOrDefault() ?? "General");
+
+                        bool esOtroCliente = !string.IsNullOrWhiteSpace(turnoExistente.Cliente) && 
+                            !string.Equals(turnoExistente.Cliente.Trim(), clienteItem.Trim(), StringComparison.OrdinalIgnoreCase);
+
+                        if (esOtroCliente || forzarCarga)
+                        {
+                            colaboradoresOmitidos.Add($"{item.NombreEmpleado} (#{item.CodigoEmpleado} - {turnoExistente.Cliente} {turnoExistente.HoraEntrada} a {turnoExistente.HoraSalida})");
+                            continue;
+                        }
+                    }
                     string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase)
                         ? item.ClienteDefault 
                         : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
@@ -1255,7 +1542,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
             }
 
+            if (colaboradoresOmitidos.Any())
+            {
+                _snackbar.Add($"ℹ️ Se omitieron {colaboradoresOmitidos.Count} colaborador(es) porque ya tienen turno registrado en otro cliente para esta fecha: {string.Join(", ", colaboradoresOmitidos)}", Severity.Warning, config => config.VisibleStateDuration = 10000);
+            }
+
             ActualizarGruposConsolidados();
+            cargandoPlantilla = false;
             _snackbar.Add($"Se cargaron {agregados} colaboradores de tu plantilla con sus clientes iniciales.", Severity.Success);
         }
 
@@ -1276,6 +1569,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (confirm != true) return;
 
             estaGuardando = true;
+            textoOperacionBd = "Guardando colaboradores en tu plantilla personal...";
             try
             {
                 var items = empleadosJornada
@@ -1323,6 +1617,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected async Task GuardarItemPlantilla(SupervisorPlantillaItemDto item)
         {
+            estaGuardando = true;
+            textoOperacionBd = $"Guardando configuración de #{item.CodigoEmpleado} {item.NombreEmpleado}...";
             try
             {
                 item.UsuarioSupervisor = currentUserName;
@@ -1369,6 +1665,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             catch (Exception ex)
             {
                 _snackbar.Add($"Error al actualizar: {ex.Message}", Severity.Warning);
+            }
+            finally
+            {
+                estaGuardando = false;
+                StateHasChanged();
             }
         }
 
@@ -1450,6 +1751,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (confirm != true) return;
 
+            estaEliminando = true;
+            textoOperacionBd = $"Eliminando a {item.NombreEmpleado} de la plantilla en base de datos...";
             try
             {
                 await _odooService.DeleteSupervisorPlantillaItem(item.Id, currentUserName);
@@ -1459,6 +1762,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             catch (Exception ex)
             {
                 _snackbar.Add($"Error al remover: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                estaEliminando = false;
+                StateHasChanged();
             }
         }
 
@@ -1476,6 +1784,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (confirm != true) return;
 
             estaCargando = true;
+            textoOperacionBd = "Copiando jornada del día anterior...";
             try
             {
                 var req = new ClonarMovimientosDiaAnteriorRequest
@@ -1530,6 +1839,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             estaGuardando = true;
+            textoOperacionBd = "Guardando jornada y asistencias en base de datos...";
             try
             {
                 var dtos = empleadosJornada.Select(e =>
@@ -1746,7 +2056,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 defaultOp = operacionesList.FirstOrDefault(o => o.id == selectedOperacionId.Value)?.nombre ?? "";
             }
 
-            if (!string.IsNullOrWhiteSpace(filtroClienteGrilla)) { defaultOp = filtroClienteGrilla; } else if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))
+            if (esDesdePlantilla && !string.IsNullOrWhiteSpace(ClienteActivoPlantillaSeguro))
+            {
+                defaultOp = ClienteActivoPlantillaSeguro;
+            }
+            else if (!esDesdePlantilla && !string.IsNullOrWhiteSpace(ClienteActivoAsistenciasSeguro))
+            {
+                defaultOp = ClienteActivoAsistenciasSeguro;
+            }
+            else if (!string.IsNullOrWhiteSpace(filtroClienteGrilla)) 
+            { 
+                defaultOp = filtroClienteGrilla; 
+            } 
+            else if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "Administración", StringComparison.OrdinalIgnoreCase))
             {
                 if (NombresMisClientes.Any())
                 {
@@ -2010,7 +2332,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (confirm == null) return;
 
-                estaCargando = true;
+                estaLimpiando = true;
+                textoOperacionBd = confirm == false ? "Borrando asistencias de la base de datos..." : "Limpiando grilla de pantalla...";
                 try
                 {
                     if (confirm == false) // El usuario eligió expresamente borrar de BD
@@ -2040,6 +2363,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 finally
                 {
+                    estaLimpiando = false;
                     estaCargando = false;
                 }
             }
@@ -2929,6 +3253,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (confirm != true) return;
 
+                estaEliminando = true;
+                textoOperacionBd = $"Eliminando a {item.NombreEmpleado} de la base de datos...";
                 try
                 {
                     var resp = await _odooService.DeleteMovimientoPersonalDiario(item.Id);
@@ -2946,6 +3272,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 catch (Exception ex)
                 {
                     _snackbar.Add($"Error al eliminar: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaEliminando = false;
+                    StateHasChanged();
                 }
             }
             else
@@ -2974,9 +3305,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         x.Cliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase));
                 }
 
-                if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
+                string cliAsist = !string.IsNullOrWhiteSpace(filtroClienteGrilla) ? filtroClienteGrilla : ClienteActivoAsistenciasSeguro;
+                if (!string.IsNullOrWhiteSpace(cliAsist))
                 {
-                    query = query.Where(x => string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase));
+                    query = query.Where(x => string.Equals(x.Cliente, cliAsist, StringComparison.OrdinalIgnoreCase));
                 }
 
                 if (!string.IsNullOrWhiteSpace(filtroAreaGrilla))
@@ -3161,6 +3493,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (confirm != true) return;
 
             estaEnviandoHelpdesk = true;
+            textoOperacionBd = "Sincronizando movimientos e incidencias con Helpdesk...";
             try
             {
                 var movimientosRedmine = gruposPendientes.Select(g => new MovimientoPersonalItemDto
@@ -3900,6 +4233,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (confirm != true) return;
 
             estaEnviandoViaticos = true;
+            textoOperacionBd = "Enviando solicitudes de viáticos a Helpdesk...";
             try
             {
                 var movimientosRedmine = gruposConViaticosPendientes.Select(g => 
@@ -4056,6 +4390,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (confirm != true) return;
 
             estaEnviandoBonos = true;
+            textoOperacionBd = "Enviando bonos diarios a Helpdesk RRHH...";
             try
             {
                 var dtos = conBonoPendiente.Select((b, idx) => 

@@ -176,8 +176,20 @@
         <MudButton OnClick="Cancelar" Variant="Variant.Outlined" Color="Color.Default">
             Cancelar
         </MudButton>
-        <MudButton OnClick="Guardar" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">
-            Guardar Cambios
+        <MudButton OnClick="Guardar" 
+                   Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   Disabled="@guardando"
+                   StartIcon="@(guardando ? null : Icons.Material.Filled.Save)">
+            @if (guardando)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                <span>Guardando...</span>
+            }
+            else
+            {
+                <span>Guardar Cambios</span>
+            }
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -321,8 +333,12 @@
 
     private void Cancelar() => MudDialog.Cancel();
 
+    private bool guardando = false;
+
     private void Guardar()
     {
+        if (guardando) return;
+        guardando = true;
         var modificado = new SupervisorPlantillaItemDto
         {
             Id = ItemOriginal.Id,

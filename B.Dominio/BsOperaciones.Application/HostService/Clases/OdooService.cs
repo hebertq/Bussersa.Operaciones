@@ -3879,6 +3879,32 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetTurnosOcupadosFecha(DateTime fecha)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> response = new ListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetTurnosOcupadosFecha", $"fecha={fecha:yyyy-MM-dd}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> ConsultarMovimientosAuditoria(DateTime fechaDesde, DateTime fechaHasta, string? cliente = null, string? area = null, string? usuario = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

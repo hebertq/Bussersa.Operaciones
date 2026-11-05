@@ -401,7 +401,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     row.CreateCell(0).SetCellValue(rowIdx - 3);
                     row.CreateCell(1).SetCellValue(m.Fecha.ToString("yyyy-MM-dd"));
                     row.CreateCell(2).SetCellValue(m.Cliente);
-                    row.CreateCell(3).SetCellValue(!string.IsNullOrWhiteSpace(m.ClienteOrigenNomina) ? m.ClienteOrigenNomina : m.Cliente);
+                    // En cliente nómina solo deben aparecer los que en asistencia estén marcados como préstamos
+                    row.CreateCell(3).SetCellValue(m.EsPrestamo ? (m.ClienteOrigenNomina ?? string.Empty) : string.Empty);
                     row.CreateCell(4).SetCellValue(m.Area);
                     row.CreateCell(5).SetCellValue(m.CodigoEmpleado);
                     row.CreateCell(6).SetCellValue(m.NombreEmpleado);

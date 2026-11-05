@@ -102,7 +102,7 @@ namespace Modelo.ClasesGenericas
                         return match.Groups[1].Value.Trim();
                 }
 
-                return Cliente;
+                return null;
             }
             set => _clienteOrigenNomina = value;
         }

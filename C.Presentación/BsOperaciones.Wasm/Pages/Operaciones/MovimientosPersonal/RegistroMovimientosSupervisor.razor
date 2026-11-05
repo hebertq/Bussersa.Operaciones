@@ -6,6 +6,18 @@
 @using System.Globalization
 @attribute [Authorize]
 <div class="page-container-responsive">
+    @* --- SPINNER / OVERLAY GLOBAL PARA OPERACIONES DE BASE DE DATOS --- *@
+    <MudOverlay Visible="@estaOperandoEnBd" DarkBackground="true" Absolute="false" ZIndex="99999" Class="d-flex flex-column align-center justify-center">
+        <div class="d-flex flex-column align-center pa-6 rounded-xl" style="background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); min-width: 320px; border: 1px solid rgba(255,255,255,0.1);">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-3" />
+            <MudText Typo="Typo.h6" Class="font-bold text-white text-center">
+                @textoOperacionBd
+            </MudText>
+            <MudText Typo="Typo.caption" Class="mt-2 text-center" Style="color: #94a3b8;">
+                Por favor espere un momento...
+            </MudText>
+        </div>
+    </MudOverlay>
     @* --- BARRA SUPERIOR DE CONTROL DE JORNADA --- *@
     <MudPaper Elevation="2" Class="pa-2 pa-sm-3 mb-3 rounded-lg" Style="border-left: 6px solid #f97316;">
         <MudGrid Spacing="2" AlignItems="AlignItems.Center">
@@ -61,19 +73,35 @@
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Error" 
                                Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.DeleteSweep"
-                               Disabled="@(!empleadosJornada.Any())"
+                               StartIcon="@(estaLimpiando ? null : Icons.Material.Filled.DeleteSweep)"
+                               Disabled="@(estaOperandoEnBd || !empleadosJornada.Any())"
                                OnClick="@LimpiarGrillaCompleta"
                                Title="Limpiar toda la grilla de la jornada">
-                        Limpiar
+                        @if (estaLimpiando)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Error" />
+                            <span>Limpiando...</span>
+                        }
+                        else
+                        {
+                            <span>Limpiar</span>
+                        }
                     </MudButton>
                     <MudButton Variant="Variant.Filled" 
                                Color="@(TotalConflictosHorarios > 0 ? Color.Error : (HayCambiosSinGuardar ? Color.Warning : Color.Success))" 
                                Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.Save"
-                               Disabled="@(estaGuardando || estaCargando || !empleadosJornada.Any())"
+                               StartIcon="@(estaGuardando ? null : Icons.Material.Filled.Save)"
+                               Disabled="@(estaOperandoEnBd || !empleadosJornada.Any())"
                                OnClick="@GuardarEnBaseDatos">
-                        @(estaGuardando ? "Guardando..." : (HayCambiosSinGuardar ? $"Guardar en BD ({TotalModificadosSinGuardar + TotalNuevosSinGuardar})" : "Guardar en BD"))
+                        @if (estaGuardando)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                            <span>Guardando en BD...</span>
+                        }
+                        else
+                        {
+                            <span>@(HayCambiosSinGuardar ? $"Guardar en BD ({TotalModificadosSinGuardar + TotalNuevosSinGuardar})" : "Guardar en BD")</span>
+                        }
                     </MudButton>
                 </MudStack>
             </MudItem>
@@ -283,6 +311,28 @@
         <MudTabPanel Text="Asistencias" ToolTip="Asistencias" Icon="@Icons.Material.Filled.TableChart" BadgeData="@TotalPresentes" BadgeColor="Color.Success">
             <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
                 
+                @* --- SUB-TABS POR CLIENTE EN ASISTENCIAS --- *@
+                <div class="client-subtabs-container pa-1 mb-2 rounded-lg d-flex align-center gap-1 flex-wrap">
+                    <span class="text-caption text-secondary fw-bold text-uppercase px-2 d-none d-sm-inline" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        Cliente:
+                    </span>
+                    @foreach (var cli in ListaClientesAsistencia)
+                    {
+                        var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
+                        var countPres = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase) && x.Asistio);
+                        var esActivo = string.Equals(ClienteActivoAsistenciasSeguro, cli, StringComparison.OrdinalIgnoreCase);
+                        <button type="button" 
+                                class="client-tab-pill @(esActivo ? "active" : "")" 
+                                @onclick="@(() => CambiarClienteAsistencias(cli))">
+                            <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Small" Class="mr-1" />
+                            <span class="client-tab-name">@cli</span>
+                            <span class="client-tab-badge @(countCli > 0 ? (countPres == countCli ? "badge-complete" : "badge-partial") : "badge-empty")">
+                                @countPres/@countCli
+                            </span>
+                        </button>
+                    }
+                </div>
+
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-2">
                     <div class="d-flex flex-wrap align-center gap-2" style="flex: 1 1 auto; max-width: 100%;">
@@ -304,6 +354,25 @@
                                    Class="btn-colab-responsive"
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" 
+                                   Color="Color.Dark" 
+                                   Size="Size.Small" 
+                                   StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)"
+                                   Disabled="@estaOperandoEnBd"
+                                   OnClick="@(() => PrecargarPersonalCliente(ClienteActivoAsistenciasSeguro))"
+                                   Class="btn-colab-responsive"
+                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #0f172a; color: white;"
+                                   Title="@($"Cargar colaboradores de tu plantilla de {ClienteActivoAsistenciasSeguro} a la jornada")">
+                            @if (cargandoPlantilla)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                <span>Cargando...</span>
+                            }
+                            else
+                            {
+                                <span>Cargar @ClienteActivoAsistenciasSeguro</span>
+                            }
                         </MudButton>
                     </div>
                         @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
@@ -440,36 +509,59 @@
                         </MudStack>
                     </MudPaper>
                 }
-                @* ESTADO VACÍO CUANDO NO HAY EMPLEADOS *@
-                @if (!empleadosJornada.Any())
+                @* ESTADO VACÍO CUANDO NO HAY EMPLEADOS PARA EL CLIENTE ACTIVO *@
+                @if (!EmpleadosFiltrados.Any())
                 {
                     <MudPaper Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
                               Elevation="0" 
-                              Style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; min-height: 280px;">
-                        <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Large" Color="Color.Warning" Class="mb-3" Style="font-size: 3rem;" />
+                              Style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; min-height: 260px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Color="Color.Warning" Class="mb-3" Style="font-size: 3rem;" />
                         <MudText Typo="Typo.h6" Class="fw-bold text-dark mb-1">
-                            No hay movimientos registrados para esta fecha
+                            No hay movimientos registrados para @ClienteActivoAsistenciasSeguro en esta fecha
                         </MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 500px;">
-                            Puedes precargar los colaboradores activos de la operación o copiar la distribución de ayer.
+                            Puedes cargar los colaboradores de tu plantilla de @ClienteActivoAsistenciasSeguro o agregar colaboradores manualmente.
                         </MudText>
                         <MudStack Row="true" Spacing="2" Class="flex-wrap justify-center">
-                            @if (miPlantillaPersonal.Any())
-                            {
-                                <MudButton Variant="Variant.Filled" 
-                                           Color="Color.Dark" 
-                                           StartIcon="@Icons.Material.Filled.Groups" 
-                                           OnClick="@(() => PrecargarDesdeMiPlantilla(true))"
-                                           Style="text-transform: none; font-weight: 700; background: #0f172a; color: white;">
-                                    CARGAR MI PERSONAL
-                                </MudButton>
-                            }
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Dark" 
+                                       StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)" 
+                                       Disabled="@estaOperandoEnBd"
+                                       OnClick="@(() => PrecargarPersonalCliente(ClienteActivoAsistenciasSeguro))"
+                                       Style="text-transform: none; font-weight: 700; background: #0f172a; color: white;">
+                                @if (cargandoPlantilla)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                    <span>CARGANDO PERSONAL...</span>
+                                }
+                                else
+                                {
+                                    <span>CARGAR PERSONAL DE @ClienteActivoAsistenciasSeguro.ToUpper()</span>
+                                }
+                            </MudButton>
                             <MudButton Variant="Variant.Outlined" 
                                        Color="Color.Warning" 
-                                       StartIcon="@Icons.Material.Filled.ContentCopy" 
+                                       StartIcon="@(estaCargando ? null : Icons.Material.Filled.ContentCopy)" 
+                                       Disabled="@estaOperandoEnBd"
                                        OnClick="@CopiarDeAyer"
                                        Style="text-transform: none; font-weight: 700; border-color: #f97316; color: #ea580c;">
-                                COPIAR JORNADA DE AYER
+                                @if (estaCargando)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Warning" />
+                                    <span>COPIANDO JORNADA...</span>
+                                }
+                                else
+                                {
+                                    <span>COPIAR JORNADA DE AYER</span>
+                                }
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.PersonAdd" 
+                                       Disabled="@estaOperandoEnBd"
+                                       OnClick="@(() => AbrirDialogoAgregarColaborador())"
+                                       Style="text-transform: none; font-weight: 600;">
+                                + Agregar Colaborador Manual
                             </MudButton>
                         </MudStack>
                     </MudPaper>
@@ -540,7 +632,7 @@
                                             <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                            Color="Color.Error" 
                                                            Size="Size.Small" 
-                                                           OnClick="@(() => EliminarEmpleadoDeJornada(emp))" 
+                                                           Disabled="@estaOperandoEnBd" OnClick="@(() => EliminarEmpleadoDeJornada(emp))" 
                                                            Title="Quitar de jornada" />
                                         </CardHeaderActions>
                                     </MudCardHeader>
@@ -731,59 +823,40 @@
                                 </MudTh>
                                 <MudTh Style="min-width: 220px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Colaborador & Ubicación Asignada</span>
-                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                        <span>Colaborador & Área</span>
+                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Disabled="@(!AreasDisponiblesGrilla.Any())">
                                             <ActivatorContent>
-                                                <MudTooltip Text="Filtrar por Cliente o Área" Arrow="true" Placement="Placement.Top">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla) ? Color.Primary : Color.Default)" 
+                                                <MudTooltip Text="Filtrar por Área" Arrow="true" Placement="Placement.Top">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterList" 
+                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroAreaGrilla) ? Color.Info : Color.Default)" 
                                                                    Size="Size.Small" 
                                                                    Class="pa-1"
-                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
+                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroAreaGrilla) ? "background-color: #e0f2fe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
                                                 </MudTooltip>
                                             </ActivatorContent>
                                             <ChildContent>
-                                                <div class="pa-2" style="min-width: 220px;">
-                                                    <div class="text-caption text-secondary fw-bold px-2 py-1">CLIENTES</div>
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(null))"
-                                                                 Icon="@(string.IsNullOrWhiteSpace(filtroClienteGrilla) ? Icons.Material.Filled.Check : null)">
-                                                        Todos los Clientes (@TotalColaboradores)
+                                                <MudMenuItem OnClick="@(() => OnFiltroAreaGrillaChanged(null))"
+                                                             Icon="@(string.IsNullOrWhiteSpace(filtroAreaGrilla) ? Icons.Material.Filled.Check : null)">
+                                                    <b>Todas las Áreas</b>
+                                                </MudMenuItem>
+                                                <MudDivider Class="my-1" />
+                                                @foreach (var a in AreasDisponiblesGrilla)
+                                                {
+                                                    var countA = empleadosJornada.Count(x => 
+                                                        string.Equals(x.Cliente, ClienteActivoAsistenciasSeguro, StringComparison.OrdinalIgnoreCase) &&
+                                                        string.Equals(x.Area, a, StringComparison.OrdinalIgnoreCase));
+                                                    <MudMenuItem OnClick="@(() => OnFiltroAreaGrillaChanged(a))"
+                                                                 Icon="@(string.Equals(filtroAreaGrilla, a, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
+                                                        @a @(countA > 0 ? $"({countA})" : "")
                                                     </MudMenuItem>
-                                                    @foreach (var cli in ClientesDisponiblesGrilla)
-                                                    {
-                                                        var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
-                                                        <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(cli))"
-                                                                     Icon="@(string.Equals(filtroClienteGrilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                            @cli (@countCli)
-                                                        </MudMenuItem>
-                                                    }
-                                                    @if (AreasDisponiblesGrilla.Any())
-                                                    {
-                                                        <MudDivider Class="my-1" />
-                                                        <div class="text-caption text-secondary fw-bold px-2 py-1">ÁREAS</div>
-                                                        <MudMenuItem OnClick="@(() => OnFiltroAreaGrillaChanged(null))"
-                                                                     Icon="@(string.IsNullOrWhiteSpace(filtroAreaGrilla) ? Icons.Material.Filled.Check : null)">
-                                                            Todas las Áreas
-                                                        </MudMenuItem>
-                                                        @foreach (var a in AreasDisponiblesGrilla)
-                                                        {
-                                                            var countA = empleadosJornada.Count(x => 
-                                                                (string.IsNullOrWhiteSpace(filtroClienteGrilla) || string.Equals(x.Cliente, filtroClienteGrilla, StringComparison.OrdinalIgnoreCase)) &&
-                                                                string.Equals(x.Area, a, StringComparison.OrdinalIgnoreCase));
-                                                            <MudMenuItem OnClick="@(() => OnFiltroAreaGrillaChanged(a))"
-                                                                         Icon="@(string.Equals(filtroAreaGrilla, a, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                                @a @(countA > 0 ? $"({countA})" : "")
-                                                            </MudMenuItem>
-                                                        }
-                                                    }
-                                                    @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
-                                                    {
-                                                        <MudDivider Class="my-1" />
-                                                        <MudMenuItem OnClick="LimpiarFiltrosUbicacionGrilla" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                            <span class="text-danger fw-bold">Limpiar filtros</span>
-                                                        </MudMenuItem>
-                                                    }
-                                                </div>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(filtroAreaGrilla))
+                                                {
+                                                    <MudDivider Class="my-1" />
+                                                    <MudMenuItem OnClick="@(() => OnFiltroAreaGrillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
+                                                        <span class="text-danger fw-bold">Limpiar filtro área</span>
+                                                    </MudMenuItem>
+                                                }
                                             </ChildContent>
                                         </MudMenu>
                                     </div>
@@ -818,44 +891,7 @@
                                 <MudTh>Colaborador</MudTh>
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
-                                <MudTh Style="width: 200px;">
-                                    <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Cliente / Operación</span>
-                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                            <ActivatorContent>
-                                                <MudTooltip Text="Filtrar por Cliente" Arrow="true" Placement="Placement.Top">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) ? Color.Primary : Color.Default)" 
-                                                                   Size="Size.Small" 
-                                                                   Class="pa-1"
-                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
-                                                </MudTooltip>
-                                            </ActivatorContent>
-                                            <ChildContent>
-                                                <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(null))"
-                                                             Icon="@(string.IsNullOrWhiteSpace(filtroClienteGrilla) ? Icons.Material.Filled.Check : null)">
-                                                    <b>Todos los Clientes</b> (@TotalColaboradores)
-                                                </MudMenuItem>
-                                                <MudDivider Class="my-1" />
-                                                @foreach (var cli in ClientesDisponiblesGrilla)
-                                                {
-                                                    var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(cli))"
-                                                                 Icon="@(string.Equals(filtroClienteGrilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                        @cli (@countCli)
-                                                    </MudMenuItem>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
-                                                {
-                                                    <MudDivider Class="my-1" />
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                        <span class="text-danger fw-bold">Limpiar filtro cliente</span>
-                                                    </MudMenuItem>
-                                                }
-                                            </ChildContent>
-                                        </MudMenu>
-                                    </div>
-                                </MudTh>
+
                                 <MudTh Style="min-width: 180px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Área Operativa</span>
@@ -912,44 +948,7 @@
                                 <MudTh Style="width: 125px;">Estado BD</MudTh>
                                 <MudTh Style="width: 105px;">Asistencia</MudTh>
                                 <MudTh Style="width: 110px; min-width: 110px;">Tipo</MudTh>
-                                <MudTh Style="width: 170px;">
-                                    <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Cliente / Operación</span>
-                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                            <ActivatorContent>
-                                                <MudTooltip Text="Filtrar por Cliente" Arrow="true" Placement="Placement.Top">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) ? Color.Primary : Color.Default)" 
-                                                                   Size="Size.Small" 
-                                                                   Class="pa-1"
-                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroClienteGrilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
-                                                </MudTooltip>
-                                            </ActivatorContent>
-                                            <ChildContent>
-                                                <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(null))"
-                                                             Icon="@(string.IsNullOrWhiteSpace(filtroClienteGrilla) ? Icons.Material.Filled.Check : null)">
-                                                    <b>Todos los Clientes</b> (@TotalColaboradores)
-                                                </MudMenuItem>
-                                                <MudDivider Class="my-1" />
-                                                @foreach (var cli in ClientesDisponiblesGrilla)
-                                                {
-                                                    var countCli = empleadosJornada.Count(x => string.Equals(x.Cliente, cli, StringComparison.OrdinalIgnoreCase));
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(cli))"
-                                                                 Icon="@(string.Equals(filtroClienteGrilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                        @cli (@countCli)
-                                                    </MudMenuItem>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla))
-                                                {
-                                                    <MudDivider Class="my-1" />
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClienteGrillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                        <span class="text-danger fw-bold">Limpiar filtro cliente</span>
-                                                    </MudMenuItem>
-                                                }
-                                            </ChildContent>
-                                        </MudMenu>
-                                    </div>
-                                </MudTh>
+
                                 <MudTh Style="min-width: 170px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Área Operativa</span>
@@ -1033,9 +1032,7 @@
                                         </div>
                                         <div class="d-flex align-center gap-1 mt-1 text-secondary" style="font-size: 0.72rem;">
                                             <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.8rem;" Color="Color.Primary" />
-                                            <b class="text-primary">@context.Cliente</b>
-                                            <span>•</span>
-                                            <span>@context.Area</span>
+                                            <b class="text-primary">@context.Area</b>
                                             <span>•</span>
                                             <span class="text-muted">@context.Puesto</span>
                                         </div>
@@ -1215,19 +1212,7 @@
                                         @(context.Asistio ? "PRESENTE" : "AUSENTE")
                                     </MudChip>
                                 </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               @bind-Value="@context.Cliente" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               SelectedValuesChanged="@(() => OnClienteFilaCambiado(context))">
-                                        @foreach (var op in operacionesList)
-                                        {
-                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudTd>
+
                                 <MudTd>
                                     @{
                                         var areasFila = GetAreasParaCliente(context.Cliente);
@@ -1351,19 +1336,7 @@
                                         <MudSelectItem Value="@("Prestamo")">Préstamo</MudSelectItem>
                                     </MudSelect>
                                 </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               @bind-Value="@context.Cliente" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               SelectedValuesChanged="@(() => OnClienteFilaCambiado(context))">
-                                        @foreach (var op in operacionesList)
-                                        {
-                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudTd>
+
                                 <MudTd>
                                     @{
                                         var areasFilaComp = GetAreasParaCliente(context.Cliente);
@@ -2109,12 +2082,20 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.Payments"
-                                       Disabled="@(estaEnviandoViaticos || TotalGruposViaticosPendientes == 0 || HayCambiosSinGuardar)"
+                                       StartIcon="@(estaEnviandoViaticos ? null : Icons.Material.Filled.Payments)"
+                                       Disabled="@(estaOperandoEnBd || TotalGruposViaticosPendientes == 0 || HayCambiosSinGuardar)"
                                        OnClick="@EnviarViaticosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
                                        Title="@(HayCambiosSinGuardar ? "Debe guardar los viáticos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Operaciones" : (TotalGruposViaticosPendientes == 0 ? "Todas las solicitudes de viáticos ya fueron enviadas a Helpdesk" : "Generar solicitudes de Viáticos (Tracker 27) en Operaciones Helpdesk"))">
-                                @(estaEnviandoViaticos ? "Enviando a Operaciones..." : (TotalGruposViaticosPendientes == 0 ? "Viáticos Sincronizados" : $"Enviar Viáticos ({TotalGruposViaticosPendientes})"))
+                                @if (estaEnviandoViaticos)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                    <span>Enviando a Operaciones...</span>
+                                }
+                                else
+                                {
+                                    <span>@(TotalGruposViaticosPendientes == 0 ? "Viáticos Sincronizados" : $"Enviar Viáticos ({TotalGruposViaticosPendientes})")</span>
+                                }
                             </MudButton>
                         </MudStack>
                     </MudItem>
@@ -2678,12 +2659,20 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.Send"
-                                       Disabled="@(estaEnviandoBonos || TotalBonosPendientes == 0 || HayCambiosSinGuardar)"
+                                       StartIcon="@(estaEnviandoBonos ? null : Icons.Material.Filled.Send)"
+                                       Disabled="@(estaOperandoEnBd || TotalBonosPendientes == 0 || HayCambiosSinGuardar)"
                                        OnClick="@EnviarBonosMasivo"
                                        Style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; font-weight: 700; white-space: nowrap;"
                                        Title="@(HayCambiosSinGuardar ? "Debe guardar los bonos en Base de Datos (clic en GUARDAR EN BD) antes de enviar a RRHH" : (TotalBonosPendientes == 0 ? "Todas las solicitudes de bono ya fueron enviadas a Helpdesk" : "Generar solicitudes de Bono del Día en Helpdesk RRHH (Tracker 11)"))">
-                                @(estaEnviandoBonos ? "Enviando a RRHH..." : (TotalBonosPendientes == 0 ? "Bonos Sincronizados" : $"Enviar Bonos a RRHH ({TotalBonosPendientes})"))
+                                @if (estaEnviandoBonos)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                    <span>Enviando a RRHH...</span>
+                                }
+                                else
+                                {
+                                    <span>@(TotalBonosPendientes == 0 ? "Bonos Sincronizados" : $"Enviar Bonos a RRHH ({TotalBonosPendientes})")</span>
+                                }
                             </MudButton>
                         </MudStack>
                     </MudItem>
@@ -2937,12 +2926,20 @@
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    Size="Size.Large" 
-                                   StartIcon="@Icons.Material.Filled.RocketLaunch"
-                                   Disabled="@(estaEnviandoHelpdesk || TotalGruposMovimientosPendientes == 0 || HayCambiosSinGuardar)"
+                                   StartIcon="@(estaEnviandoHelpdesk ? null : Icons.Material.Filled.RocketLaunch)"
+                                   Disabled="@(estaOperandoEnBd || TotalGruposMovimientosPendientes == 0 || HayCambiosSinGuardar)"
                                    OnClick="@EnviarAHelpdeskMasivo"
                                    Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;"
                                    Title="@(HayCambiosSinGuardar ? "Debe guardar la jornada en Base de Datos (clic en GUARDAR EN BD) antes de enviar a Helpdesk" : (TotalGruposMovimientosPendientes == 0 ? "Todos los grupos de movimiento ya están sincronizados con Helpdesk" : "Sincronizar y generar tickets de Movimientos en Helpdesk"))">
-                            @(estaEnviandoHelpdesk ? "Sincronizando con Helpdesk..." : (TotalGruposMovimientosPendientes == 0 ? "JORNADA SINCRONIZADA" : $"ENVIAR JORNADA A HELPDESK ({TotalGruposMovimientosPendientes})"))
+                            @if (estaEnviandoHelpdesk)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Color="Color.Surface" />
+                                <span>Sincronizando con Helpdesk...</span>
+                            }
+                            else
+                            {
+                                <span>@(TotalGruposMovimientosPendientes == 0 ? "JORNADA SINCRONIZADA" : $"ENVIAR JORNADA A HELPDESK ({TotalGruposMovimientosPendientes})")</span>
+                            }
                         </MudButton>
                     </div>
                 </MudStack>
@@ -3386,6 +3383,27 @@
            ========================================== *@
         <MudTabPanel Text="Mi Personal" ToolTip="Mi Personal" Icon="@Icons.Material.Filled.Badge" BadgeData="@miPlantillaPersonal.Count" BadgeColor="Color.Info">
             <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
+                
+                @* --- SUB-TABS POR CLIENTE EN MI PERSONAL --- *@
+                <div class="client-subtabs-container pa-1 mb-2 rounded-lg d-flex align-center gap-1 flex-wrap">
+                    <span class="text-caption text-secondary fw-bold text-uppercase px-2 d-none d-sm-inline" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                        Cliente:
+                    </span>
+                    @foreach (var cli in ListaClientesPlantilla)
+                    {
+                        var countCli = miPlantillaPersonal.Count(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase));
+                        var esActivo = string.Equals(ClienteActivoPlantillaSeguro, cli, StringComparison.OrdinalIgnoreCase);
+                        <button type="button" 
+                                class="client-tab-pill @(esActivo ? "active" : "")" 
+                                @onclick="@(() => CambiarClientePlantilla(cli))">
+                            <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Small" Class="mr-1" />
+                            <span class="client-tab-name">@cli</span>
+                            <span class="client-tab-badge @(countCli > 0 ? "badge-complete" : "badge-empty")">
+                                @countCli
+                            </span>
+                        </button>
+                    }
+                </div>
                 <MudAlert Severity="Severity.Normal" Class="mb-3" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Info">
                     <div class="d-flex align-center justify-space-between flex-wrap gap-2">
                         <div>
@@ -3442,20 +3460,38 @@
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Primary" 
                                    Size="Size.Small" 
-                                   StartIcon="@Icons.Material.Filled.CloudDownload"
-                                   OnClick="@CargarDatosBasePlantilla"
+                                   StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)"
+                                   Disabled="@estaOperandoEnBd"
+                                   OnClick="@(() => CargarDatosBasePlantilla(ClienteActivoPlantillaSeguro))"
                                    Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #1e3a8a; color: white;"
-                                   Title="Copia la lista de colaboradores maestros de tus clientes asignados desde la tabla de administración">
-                            Cargar Datos Base
+                                   Title="@($"Copia la lista de colaboradores maestros de {ClienteActivoPlantillaSeguro} desde la tabla de administración")">
+                            @if (cargandoPlantilla)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                <span>Cargando Base...</span>
+                            }
+                            else
+                            {
+                                <span>Cargar Base @ClienteActivoPlantillaSeguro</span>
+                            }
                         </MudButton>
                         <MudButton Variant="Variant.Filled" 
                                    Color="Color.Info" 
                                    Size="Size.Small" 
-                                   StartIcon="@Icons.Material.Filled.Sync"
-                                   OnClick="@ActualizarPlantillaDesdeBase"
+                                   StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.Sync)"
+                                   Disabled="@estaOperandoEnBd"
+                                   OnClick="@(() => ActualizarPlantillaDesdeBase(ClienteActivoPlantillaSeguro))"
                                    Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #0284c7; color: white;"
-                                   Title="Compara y agrega nuevos registros de tus clientes desde la tabla maestra de administración">
-                            Actualizar
+                                   Title="@($"Compara y agrega nuevos registros de {ClienteActivoPlantillaSeguro} desde la administración maestra")">
+                            @if (cargandoPlantilla)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                <span>Actualizando...</span>
+                            }
+                            else
+                            {
+                                <span>Actualizar @ClienteActivoPlantillaSeguro</span>
+                            }
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" 
                                    Color="Color.Primary" 
@@ -3506,25 +3542,34 @@
                         </div>
                     </div>
                 </div>
-                @if (!miPlantillaPersonal.Any())
+                @if (!PlantillaFiltrada.Any())
                 {
                     <MudPaper Class="pa-8 my-4 text-center d-flex flex-column align-center justify-center" 
                               Elevation="0" 
                               Style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; min-height: 240px;">
                         <MudIcon Icon="@Icons.Material.Filled.GroupAdd" Size="Size.Large" Color="Color.Primary" Class="mb-3" Style="font-size: 3rem;" />
                         <MudText Typo="Typo.h6" Class="fw-bold text-dark mb-1">
-                            Tu plantilla personal aún está vacía
+                            Tu plantilla de @ClienteActivoPlantillaSeguro aún está vacía
                         </MudText>
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4" Style="max-width: 550px;">
-                            Puedes copiar los colaboradores base de tus clientes asignados @(NombresMisClientes.Any() ? $"({string.Join(", ", NombresMisClientes)})" : "") directamente desde la administración maestra o agregar colaboradores manualmente.
+                            Puedes copiar los colaboradores base de @ClienteActivoPlantillaSeguro directamente desde la administración maestra o agregarlos manualmente.
                         </MudText>
                         <div class="d-flex align-center gap-3 flex-wrap justify-center">
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
-                                       StartIcon="@Icons.Material.Filled.CloudDownload" 
-                                       OnClick="@CargarDatosBasePlantilla"
+                                       StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)" 
+                                       Disabled="@estaOperandoEnBd"
+                                       OnClick="@(() => CargarDatosBasePlantilla(ClienteActivoPlantillaSeguro))"
                                        Style="text-transform: none; font-weight: 700; background: #1e3a8a; color: white;">
-                                Cargar Datos Base @(NombresMisClientes.Any() ? $"({string.Join(", ", NombresMisClientes)})" : "")
+                                @if (cargandoPlantilla)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                                    <span>Cargando Base...</span>
+                                }
+                                else
+                                {
+                                    <span>Cargar Datos Base de @ClienteActivoPlantillaSeguro</span>
+                                }
                             </MudButton>
                             <MudButton Variant="Variant.Outlined" 
                                        Color="Color.Secondary" 
@@ -3573,9 +3618,9 @@
                                         <div class="d-flex flex-column gap-1 mb-2 text-secondary" style="font-size: 0.75rem;">
                                             <div class="d-flex align-center gap-1">
                                                 <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.85rem;" Color="Color.Primary" />
-                                                <b class="text-primary text-truncate">@item.ClienteDefault</b>
+                                                <b class="text-primary text-truncate">@item.AreaDefault</b>
                                                 <span>•</span>
-                                                <span class="text-truncate">@item.AreaDefault</span>
+                                                <span class="text-truncate">@item.PuestoDefault</span>
                                             </div>
                                             <div class="text-truncate text-muted pl-3">
                                                 @item.PuestoDefault
@@ -3666,43 +3711,8 @@
                             {
                                 <MudTh Style="min-width: 220px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Colaborador & Ubicación Asignada</span>
+                                        <span>Colaborador & Área</span>
                                         <div class="d-flex align-center gap-1">
-                                            @* Filtro por Cliente *@
-                                            <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                                <ActivatorContent>
-                                                    <MudTooltip Text="Filtrar por Cliente" Arrow="true" Placement="Placement.Top">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                       Color="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Color.Primary : Color.Default)" 
-                                                                       Size="Size.Small" 
-                                                                       Class="pa-1" 
-                                                                       Style="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
-                                                    </MudTooltip>
-                                                </ActivatorContent>
-                                                <ChildContent>
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" 
-                                                                 Icon="@(string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Icons.Material.Filled.Check : null)">
-                                                        <b>Todos los Clientes</b> (@miPlantillaPersonal.Count)
-                                                    </MudMenuItem>
-                                                    <MudDivider Class="my-1" />
-                                                    @foreach (var cli in ClientesDisponiblesPlantilla)
-                                                    {
-                                                        var countCli = miPlantillaPersonal.Count(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase));
-                                                        <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(cli))" 
-                                                                     Icon="@(string.Equals(filtroClientePlantilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                            @cli (@countCli)
-                                                        </MudMenuItem>
-                                                    }
-                                                    @if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
-                                                    {
-                                                        <MudDivider Class="my-1" />
-                                                        <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                            <span class="text-danger fw-bold">Limpiar filtro cliente</span>
-                                                        </MudMenuItem>
-                                                    }
-                                                </ChildContent>
-                                            </MudMenu>
-
                                             @* Filtro por Área *@
                                             <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Disabled="@(!AreasDisponiblesPlantilla.Any())">
                                                 <ActivatorContent>
@@ -3763,44 +3773,7 @@
                             else if (modoVistaPlantilla == ModoVistaGrilla.Ubicacion)
                             {
                                 <MudTh>Colaborador</MudTh>
-                                <MudTh Style="width: 200px;">
-                                    <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Cliente Asignado</span>
-                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                            <ActivatorContent>
-                                                <MudTooltip Text="Filtrar por Cliente" Arrow="true" Placement="Placement.Top">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Color.Primary : Color.Default)" 
-                                                                   Size="Size.Small" 
-                                                                   Class="pa-1" 
-                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
-                                                </MudTooltip>
-                                            </ActivatorContent>
-                                            <ChildContent>
-                                                <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" 
-                                                             Icon="@(string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Icons.Material.Filled.Check : null)">
-                                                    <b>Todos los Clientes</b> (@miPlantillaPersonal.Count)
-                                                </MudMenuItem>
-                                                <MudDivider Class="my-1" />
-                                                @foreach (var cli in ClientesDisponiblesPlantilla)
-                                                {
-                                                    var countCli = miPlantillaPersonal.Count(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase));
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(cli))" 
-                                                                 Icon="@(string.Equals(filtroClientePlantilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                            @cli (@countCli)
-                                                    </MudMenuItem>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
-                                                {
-                                                    <MudDivider Class="my-1" />
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                        <span class="text-danger fw-bold">Limpiar filtro cliente</span>
-                                                    </MudMenuItem>
-                                                }
-                                            </ChildContent>
-                                        </MudMenu>
-                                    </div>
-                                </MudTh>
+                                
                                 <MudTh Style="min-width: 180px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Área Operativa</span>
@@ -3848,44 +3821,7 @@
                             {
                                 @* ModoVistaGrilla.Completo *@
                                 <MudTh>Colaborador</MudTh>
-                                <MudTh Style="width: 160px;">
-                                    <div class="d-flex align-center justify-space-between gap-1">
-                                        <span>Cliente Asignado</span>
-                                        <MudMenu Dense="true" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                            <ActivatorContent>
-                                                <MudTooltip Text="Filtrar por Cliente" Arrow="true" Placement="Placement.Top">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.FilterAlt" 
-                                                                   Color="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Color.Primary : Color.Default)" 
-                                                                   Size="Size.Small" 
-                                                                   Class="pa-1" 
-                                                                   Style="@(!string.IsNullOrWhiteSpace(filtroClientePlantilla) ? "background-color: #dbeafe; border-radius: 4px;" : "background-color: #eff6ff; border-radius: 4px;")" />
-                                                </MudTooltip>
-                                            </ActivatorContent>
-                                            <ChildContent>
-                                                <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" 
-                                                             Icon="@(string.IsNullOrWhiteSpace(filtroClientePlantilla) ? Icons.Material.Filled.Check : null)">
-                                                    <b>Todos los Clientes</b> (@miPlantillaPersonal.Count)
-                                                </MudMenuItem>
-                                                <MudDivider Class="my-1" />
-                                                @foreach (var cli in ClientesDisponiblesPlantilla)
-                                                {
-                                                    var countCli = miPlantillaPersonal.Count(x => string.Equals(x.ClienteDefault, cli, StringComparison.OrdinalIgnoreCase));
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(cli))" 
-                                                                 Icon="@(string.Equals(filtroClientePlantilla, cli, StringComparison.OrdinalIgnoreCase) ? Icons.Material.Filled.Check : null)">
-                                                            @cli (@countCli)
-                                                    </MudMenuItem>
-                                                }
-                                                @if (!string.IsNullOrWhiteSpace(filtroClientePlantilla))
-                                                {
-                                                    <MudDivider Class="my-1" />
-                                                    <MudMenuItem OnClick="@(() => OnFiltroClientePlantillaChanged(null))" Icon="@Icons.Material.Filled.FilterAltOff">
-                                                        <span class="text-danger fw-bold">Limpiar filtro cliente</span>
-                                                    </MudMenuItem>
-                                                }
-                                            </ChildContent>
-                                        </MudMenu>
-                                    </div>
-                                </MudTh>
+                                
                                 <MudTh Style="min-width: 160px;">
                                     <div class="d-flex align-center justify-space-between gap-1">
                                         <span>Área Operativa</span>
@@ -3961,9 +3897,7 @@
                                         </div>
                                         <div class="d-flex align-center gap-1 mt-1 text-secondary" style="font-size: 0.72rem;">
                                             <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.8rem;" Color="Color.Primary" />
-                                            <b class="text-primary">@context.ClienteDefault</b>
-                                            <span>•</span>
-                                            <span>@context.AreaDefault</span>
+                                            <b class="text-primary">@context.AreaDefault</b>
                                             <span>•</span>
                                             <span class="text-muted">@context.PuestoDefault</span>
                                         </div>
@@ -4052,7 +3986,7 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                        Color="Color.Error" 
                                                        Size="Size.Small" 
-                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Disabled="@estaOperandoEnBd" OnClick="@(() => EliminarItemPlantilla(context))" 
                                                        Title="Quitar de mi plantilla" />
                                     </div>
                                 </MudTd>
@@ -4068,27 +4002,6 @@
                                             @context.NombreEmpleado
                                         </MudText>
                                     </div>
-                                </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               Value="@context.ClienteDefault" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               ValueChanged="@(async (val) => { 
-                                                   context.ClienteDefault = val; 
-                                                   var areasCli = GetAreasParaCliente(val);
-                                                   if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
-                                                   {
-                                                       context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
-                                                   }
-                                                   await GuardarItemPlantilla(context); 
-                                               })">
-                                        @foreach (var op in operacionesList)
-                                        {
-                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                                        }
-                                    </MudSelect>
                                 </MudTd>
                                 <MudTd>
                                     @{
@@ -4139,7 +4052,7 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                        Color="Color.Error" 
                                                        Size="Size.Small" 
-                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Disabled="@estaOperandoEnBd" OnClick="@(() => EliminarItemPlantilla(context))" 
                                                        Title="Quitar de mi plantilla" />
                                     </div>
                                 </MudTd>
@@ -4156,27 +4069,6 @@
                                             @context.NombreEmpleado
                                         </MudText>
                                     </div>
-                                </MudTd>
-                                <MudTd>
-                                    <MudSelect T="string" 
-                                               Value="@context.ClienteDefault" 
-                                               Dense="true" 
-                                               Margin="Margin.Dense" 
-                                               Variant="Variant.Outlined"
-                                               ValueChanged="@(async (val) => { 
-                                                   context.ClienteDefault = val; 
-                                                   var areasCli = GetAreasParaCliente(val);
-                                                   if (!areasCli.Contains(context.AreaDefault, StringComparer.OrdinalIgnoreCase))
-                                                   {
-                                                       context.AreaDefault = areasCli.FirstOrDefault() ?? "Operaciones";
-                                                   }
-                                                   await GuardarItemPlantilla(context); 
-                                               })">
-                                        @foreach (var op in operacionesList)
-                                        {
-                                            <MudSelectItem Value="@op.nombre">@op.nombre</MudSelectItem>
-                                        }
-                                    </MudSelect>
                                 </MudTd>
                                 <MudTd>
                                     @{
@@ -4302,7 +4194,7 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" 
                                                        Color="Color.Error" 
                                                        Size="Size.Small" 
-                                                       OnClick="@(() => EliminarItemPlantilla(context))" 
+                                                       Disabled="@estaOperandoEnBd" OnClick="@(() => EliminarItemPlantilla(context))" 
                                                        Title="Quitar de mi plantilla" />
                                     </div>
                                 </MudTd>
@@ -4821,5 +4713,65 @@
             height: 34px !important;
             width: 34px !important;
         }
+    }
+    /* SUB-TABS POR CLIENTE */
+    .client-subtabs-container {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .client-tab-pill {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd5e1;
+        background: white;
+        color: #334155;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+    }
+    .client-tab-pill:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
+    .client-tab-pill.active {
+        background: #1e3a8a;
+        color: white;
+        border-color: #1e3a8a;
+        box-shadow: 0 2px 6px rgba(30, 58, 138, 0.3);
+    }
+    .client-tab-badge {
+        margin-left: 6px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+    .client-tab-pill.active .client-tab-badge.badge-complete {
+        background: #16a34a;
+        color: white;
+    }
+    .client-tab-pill.active .client-tab-badge.badge-partial {
+        background: #f59e0b;
+        color: white;
+    }
+    .client-tab-pill.active .client-tab-badge.badge-empty {
+        background: rgba(255,255,255,0.25);
+        color: white;
+    }
+    .client-tab-pill:not(.active) .client-tab-badge.badge-complete {
+        background: #dcfce7;
+        color: #15803d;
+    }
+    .client-tab-pill:not(.active) .client-tab-badge.badge-partial {
+        background: #fef3c7;
+        color: #b45309;
+    }
+    .client-tab-pill:not(.active) .client-tab-badge.badge-empty {
+        background: #f1f5f9;
+        color: #64748b;
     }
 </style>
