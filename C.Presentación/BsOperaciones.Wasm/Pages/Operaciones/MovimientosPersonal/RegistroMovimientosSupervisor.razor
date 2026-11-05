@@ -1,4 +1,4 @@
-﻿@page "/operaciones/registro-movimientos-supervisor"
+@page "/operaciones/registro-movimientos-supervisor"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
@@ -74,14 +74,6 @@
                                OnClick="@ExportarExcel"
                                Title="Exportar la jornada del día a archivo Excel (.xlsx)">
                         Excel
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined" 
-                               Color="Color.Info" 
-                               Size="Size.Small" 
-                               StartIcon="@Icons.Material.Filled.PersonAdd"
-                               OnClick="@(() => AbrirDialogoAgregarColaborador())"
-                               Title="Agregar nuevo colaborador a la jornada">
-                        + Colaborador
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" 
                                Color="Color.Error" 
@@ -387,25 +379,6 @@
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
                         </MudButton>
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Dark" 
-                                   Size="Size.Small" 
-                                   StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)"
-                                   Disabled="@estaOperandoEnBd"
-                                   OnClick="@(() => PrecargarPersonalCliente(ClienteActivoAsistenciasSeguro))"
-                                   Class="btn-colab-responsive"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #0f172a; color: white;"
-                                   Title="@($"Cargar colaboradores de tu plantilla de {ClienteActivoAsistenciasSeguro} a la jornada")">
-                            @if (cargandoPlantilla)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
-                                <span>Cargando...</span>
-                            }
-                            else
-                            {
-                                <span>Cargar @ClienteActivoAsistenciasSeguro</span>
-                            }
-                        </MudButton>
                     </div>
                         @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
                         {
@@ -568,7 +541,7 @@
                                 }
                                 else
                                 {
-                                    <span>CARGAR PERSONAL DE @ClienteActivoAsistenciasSeguro.ToUpper()</span>
+                                    <span>CARGAR MI PERSONAL</span>
                                 }
                             </MudButton>
                             <MudButton Variant="Variant.Outlined" 
@@ -586,14 +559,6 @@
                                 {
                                     <span>COPIAR JORNADA DE AYER</span>
                                 }
-                            </MudButton>
-                            <MudButton Variant="Variant.Outlined" 
-                                       Color="Color.Primary" 
-                                       StartIcon="@Icons.Material.Filled.PersonAdd" 
-                                       Disabled="@estaOperandoEnBd"
-                                       OnClick="@(() => AbrirDialogoAgregarColaborador())"
-                                       Style="text-transform: none; font-weight: 600;">
-                                + Agregar Colaborador Manual
                             </MudButton>
                         </MudStack>
                     </MudPaper>
@@ -3490,31 +3455,13 @@
                     </div>
                     <div class="plantilla-actions-toolbar">
                         <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Primary" 
-                                   Size="Size.Small" 
-                                   StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.CloudDownload)"
-                                   Disabled="@estaOperandoEnBd"
-                                   OnClick="@(() => CargarDatosBasePlantilla(ClienteActivoPlantillaSeguro))"
-                                   Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #1e3a8a; color: white;"
-                                   Title="@($"Copia la lista de colaboradores maestros de {ClienteActivoPlantillaSeguro} desde la tabla de administración")">
-                            @if (cargandoPlantilla)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
-                                <span>Cargando Base...</span>
-                            }
-                            else
-                            {
-                                <span>Cargar Base @ClienteActivoPlantillaSeguro</span>
-                            }
-                        </MudButton>
-                        <MudButton Variant="Variant.Filled" 
                                    Color="Color.Info" 
                                    Size="Size.Small" 
                                    StartIcon="@(cargandoPlantilla ? null : Icons.Material.Filled.Sync)"
                                    Disabled="@estaOperandoEnBd"
                                    OnClick="@(() => ActualizarPlantillaDesdeBase(ClienteActivoPlantillaSeguro))"
                                    Style="white-space: nowrap; height: 36px; text-transform: none; font-weight: 700; background: #0284c7; color: white;"
-                                   Title="@($"Compara y agrega nuevos registros de {ClienteActivoPlantillaSeguro} desde la administración maestra")">
+                                   Title="Compara y agrega nuevos registros desde la administración maestra">
                             @if (cargandoPlantilla)
                             {
                                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
@@ -3522,7 +3469,7 @@
                             }
                             else
                             {
-                                <span>Actualizar @ClienteActivoPlantillaSeguro</span>
+                                <span>Actualizar</span>
                             }
                         </MudButton>
                         <MudButton Variant="Variant.Outlined" 
@@ -3600,15 +3547,8 @@
                                 }
                                 else
                                 {
-                                    <span>Cargar Datos Base de @ClienteActivoPlantillaSeguro</span>
+                                    <span>Cargar Datos Base</span>
                                 }
-                            </MudButton>
-                            <MudButton Variant="Variant.Outlined" 
-                                       Color="Color.Secondary" 
-                                       StartIcon="@Icons.Material.Filled.PersonAdd" 
-                                       OnClick="@(() => AbrirDialogoAgregarColaborador(esDesdePlantilla: true))"
-                                       Style="text-transform: none; font-weight: 600;">
-                                + Agregar Colaborador Manual
                             </MudButton>
                         </div>
                     </MudPaper>
