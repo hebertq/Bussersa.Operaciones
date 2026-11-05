@@ -18,6 +18,19 @@
             </MudText>
         </div>
     </MudOverlay>
+    @* --- BANNER DE MODO OFFLINE (BODEGA) --- *@
+    @if (!esModoOnline)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3 py-1 px-3 rounded-lg" Icon="@Icons.Material.Filled.WifiOff" Style="background-color: #ea580c; color: white;">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                <span><b>MODO OFFLINE (BODEGA ACTIVO):</b> No hay señal de internet. Puedes hacer el recorrido por las áreas y marcar la asistencia de tu personal con total normalidad; todos tus cambios se están guardando en la memoria de este dispositivo. Al terminar, busca un lugar con buena señal y presiona <b>Guardar en BD</b>.</span>
+                @if (ultimaHoraGuardadoLocal.HasValue)
+                {
+                    <span style="font-size: 0.75rem; opacity: 0.95;" class="font-monospace">Respaldo local: @ultimaHoraGuardadoLocal.Value.ToString("hh:mm:ss tt")</span>
+                }
+            </div>
+        </MudAlert>
+    }
     @* --- BARRA SUPERIOR DE CONTROL DE JORNADA --- *@
     <MudPaper Elevation="2" Class="pa-2 pa-sm-3 mb-3 rounded-lg" Style="border-left: 6px solid #f97316;">
         <MudGrid Spacing="2" AlignItems="AlignItems.Center">
@@ -157,6 +170,25 @@
                 </MudChip>
                 </MudStack>
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap user-status-stack">
+                @* Indicador de Conectividad en Tiempo Real *@
+                @if (!esModoOnline)
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.WifiOff" Style="background: #ea580c; color: white; font-weight: 700;" Title="Sin señal de internet en bodega. Cambios guardados en memoria local.">
+                        OFFLINE (BODEGA)
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Wifi" Title="Conectado a internet">
+                        EN LÍNEA
+                    </MudChip>
+                }
+                @if (ultimaHoraGuardadoLocal.HasValue)
+                {
+                    <MudChip T="string" Color="Color.Default" Variant="Variant.Text" Size="Size.Small" Icon="@Icons.Material.Filled.SdStorage" Style="font-size: 0.72rem; color: #64748b;" Title="@($"Último respaldo local en dispositivo guardado a las {ultimaHoraGuardadoLocal.Value:hh:mm:ss tt}")">
+                        Caché: @ultimaHoraGuardadoLocal.Value.ToString("hh:mm tt")
+                    </MudChip>
+                }
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Person" Class="chip-supervisor-responsive">
                     <span class="d-none d-sm-inline">Supervisor:&nbsp;</span><b>@(string.IsNullOrWhiteSpace(currentUserName) ? "Cargando..." : currentUserName)</b>
                 </MudChip>

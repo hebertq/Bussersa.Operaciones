@@ -288,3 +288,18 @@ window.inactivityTracker = {
     }
 };
 
+window.connectivityInterop = {
+    isOnline: function () {
+        return typeof navigator.onLine === 'boolean' ? navigator.onLine : true;
+    },
+    registerListener: function (dotNetHelper) {
+        window.addEventListener('online', function () {
+            try { dotNetHelper.invokeMethodAsync('OnConexionCambiada', true); } catch (e) { }
+        });
+        window.addEventListener('offline', function () {
+            try { dotNetHelper.invokeMethodAsync('OnConexionCambiada', false); } catch (e) { }
+        });
+    }
+};
+
+

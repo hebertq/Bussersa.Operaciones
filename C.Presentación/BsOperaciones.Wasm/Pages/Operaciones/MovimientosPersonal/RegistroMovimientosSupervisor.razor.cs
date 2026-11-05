@@ -146,7 +146,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public bool Sincronizado => TicketViaticoId.HasValue && TicketViaticoId.Value > 0;
     }
 
-    public partial class RegistroMovimientosSupervisor : ComponentBase
+    public partial class RegistroMovimientosSupervisor : ComponentBase, IDisposable
     {
         [Inject] private IOdooService _odooService { get; set; } = null!;
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
@@ -685,8 +685,58 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // Clave de LocalStorage para borrador de seguridad por usuario y fecha
-        private string DraftStorageKey => $"supervisor_jornada_draft_{currentUserName}_{fechaSeleccionada:yyyyMMdd}";
+        // Claves de LocalStorage por usuario para trabajo Offline y Caché local
+        protected bool esModoOnline { get; set; } = true;
+        protected DateTime? ultimaHoraGuardadoLocal { get; set; } = null;
+        private DotNetObjectReference<RegistroMovimientosSupervisor>? dotNetHelper;
+
+        private string KeyBorradorJornada => $"supervisor_offline_jornada_{currentUserName}_{fechaSeleccionada:yyyyMMdd}";
+        private string KeyCachePlantilla => $"supervisor_cache_plantilla_{currentUserName}";
+        private string KeyCacheAreas => $"supervisor_cache_areas_{currentUserName}";
+        private string KeyCacheMisClientes => $"supervisor_cache_mis_clientes_{currentUserName}";
+        private string KeyCacheOperaciones => $"supervisor_cache_operaciones_{currentUserName}";
+        private string KeyCacheReglasViaticos => $"supervisor_cache_reglas_viaticos_{currentUserName}";
+        private string KeyCacheTiposAusencias => "supervisor_cache_tipos_ausencias";
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            await base.OnAfterRenderAsync(firstRender);
+            if (firstRender)
+            {
+                try
+                {
+                    dotNetHelper = DotNetObjectReference.Create(this);
+                    esModoOnline = await _js.InvokeAsync<bool>("connectivityInterop.isOnline");
+                    await _js.InvokeVoidAsync("connectivityInterop.registerListener", dotNetHelper);
+                    StateHasChanged();
+                }
+                catch { }
+            }
+        }
+
+        [JSInvokable]
+        public void OnConexionCambiada(bool online)
+        {
+            esModoOnline = online;
+            if (online)
+            {
+                _snackbar.Add("🟢 Conexión a internet restablecida. Puedes sincronizar tus cambios con la Base de Datos.", Severity.Success, config => config.VisibleStateDuration = 6000);
+            }
+            else
+            {
+                _snackbar.Add("🟡 Modo Offline (Bodega): Sin conexión a internet. Los cambios se están guardando localmente en este dispositivo.", Severity.Warning, config => config.VisibleStateDuration = 6000);
+            }
+            InvokeAsync(StateHasChanged);
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                dotNetHelper?.Dispose();
+            }
+            catch { }
+        }
 
         protected override async Task OnInitializedAsync()
         {
@@ -708,7 +758,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     currentUserName = "Supervisor";
                 }
 
-                await PurgarBorradoresLocales();
+                await PurgarBorradoresLocalesAntiguos();
                 await CargarOperaciones();
                 await CargarCatalogoClienteAreas();
                 await CargarMisClientesAsignados();
@@ -733,15 +783,32 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             try
             {
                 var resp = await _odooService.GetAllCombosHost("Operaciones");
-                if (resp?.Model != null)
+                if (resp?.Model != null && resp.Model.Any())
                 {
                     operacionesList = resp.Model.OrderBy(x => x.id).ToList();
+                    await _js.InvokeVoidAsync("localStorage.setItem", KeyCacheOperaciones, JsonSerializer.Serialize(operacionesList));
+                    return;
                 }
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Warning);
+                Console.WriteLine($"Error al cargar operaciones online: {ex.Message}");
             }
+
+            // Fallback offline desde localStorage
+            try
+            {
+                var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCacheOperaciones);
+                if (!string.IsNullOrWhiteSpace(cachedJson))
+                {
+                    var cached = JsonSerializer.Deserialize<List<Combos>>(cachedJson);
+                    if (cached != null && cached.Any())
+                    {
+                        operacionesList = cached;
+                    }
+                }
+            }
+            catch { }
         }
 
         private async Task RecuperarOperacionPrevia()
@@ -859,7 +926,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             await CargarJornadaActual();
         }
 
-        // --- CARGA DE LA JORNADA (Desde BD o Borrador) ---
+        // --- CARGA DE LA JORNADA (Desde BD o Borrador Offline) ---
         protected async Task CargarJornadaActual()
         {
             if (!fechaSeleccionada.HasValue) return;
@@ -867,12 +934,42 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             estaCargando = true;
             try
             {
-                // 1. Consultar en PostgreSQL todos los registros del usuario actual para esta fecha (todos sus clientes)
-                var resp = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, 0, currentUserName);
-                if (resp?.Model != null && resp.Model.Any())
+                // 1. Comprobar si hay un borrador guardado en este dispositivo para esta fecha
+                bool tieneBorradorLocal = false;
+                List<EmpleadoJornadaItem>? borradorLocal = null;
+                try
+                {
+                    var jsonLocal = await _js.InvokeAsync<string>("localStorage.getItem", KeyBorradorJornada);
+                    if (!string.IsNullOrWhiteSpace(jsonLocal))
+                    {
+                        borradorLocal = JsonSerializer.Deserialize<List<EmpleadoJornadaItem>>(jsonLocal);
+                        tieneBorradorLocal = borradorLocal != null && borradorLocal.Any();
+                        if (tieneBorradorLocal)
+                        {
+                            ultimaHoraGuardadoLocal = DateTime.Now;
+                        }
+                    }
+                }
+                catch { }
+
+                // 2. Intentar consultar en PostgreSQL registros en base de datos
+                bool exitoBd = false;
+                IListResponse<MovimientoPersonalDiarioDto>? resp = null;
+                try
+                {
+                    resp = await _odooService.GetMovimientosPersonalDiario(fechaSeleccionada.Value, 0, currentUserName);
+                    exitoBd = (resp?.Respuesta != null && !resp.Respuesta.ExisteError);
+                }
+                catch (Exception exBd)
+                {
+                    Console.WriteLine($"Sin conexión a BD al cargar jornada: {exBd.Message}");
+                    exitoBd = false;
+                }
+
+                if (exitoBd && resp?.Model != null && resp.Model.Any())
                 {
                     DateTime fRef = fechaSeleccionada ?? DateTime.Today;
-                    empleadosJornada = resp.Model.Select(m =>
+                    var itemsBd = resp.Model.Select(m =>
                     {
                         var entrada = m.HoraEntrada;
                         var salida = m.HoraSalida;
@@ -935,20 +1032,73 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         };
                     }).ToList();
 
-                    _snackbar.Add($"Jornada del {fechaSeleccionada:dd/MM/yyyy} cargada ({empleadosJornada.Count} registros de {currentUserName}).", Severity.Info);
+                    // Fusión inteligente: Si hay un borrador local que contiene registros modificados offline en bodega,
+                    // preservar las ediciones locales para que el supervisor no pierda su recorrido
+                    if (tieneBorradorLocal && borradorLocal != null && borradorLocal.Any(x => x.Modificado || x.Id == 0))
+                    {
+                        foreach (var modLocal in borradorLocal.Where(x => x.Modificado || x.Id == 0))
+                        {
+                            var coincidente = itemsBd.FirstOrDefault(b => 
+                                (modLocal.Id > 0 && b.Id == modLocal.Id) || 
+                                (b.CodigoEmpleado == modLocal.CodigoEmpleado && string.Equals(b.Cliente, modLocal.Cliente, StringComparison.OrdinalIgnoreCase)));
+
+                            if (coincidente != null)
+                            {
+                                coincidente.Asistio = modLocal.Asistio;
+                                coincidente.HoraEntrada = modLocal.HoraEntrada;
+                                coincidente.HoraSalida = modLocal.HoraSalida;
+                                coincidente.TiempoComida = modLocal.TiempoComida;
+                                coincidente.TurnoNombre = modLocal.TurnoNombre;
+                                coincidente.Area = modLocal.Area;
+                                coincidente.Puesto = modLocal.Puesto;
+                                coincidente.VtcoTrasp = modLocal.VtcoTrasp;
+                                coincidente.VtcoAlim = modLocal.VtcoAlim;
+                                coincidente.BonoBnc = modLocal.BonoBnc;
+                                coincidente.TraspAplicaNomina = modLocal.TraspAplicaNomina;
+                                coincidente.AlimAplicaNomina = modLocal.AlimAplicaNomina;
+                                coincidente.TipoAusencia = modLocal.TipoAusencia;
+                                coincidente.Observaciones = modLocal.Observaciones;
+                                coincidente.Modificado = true;
+                            }
+                            else if (modLocal.Id == 0 && !itemsBd.Any(b => b.CodigoEmpleado == modLocal.CodigoEmpleado && string.Equals(b.Cliente, modLocal.Cliente, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                itemsBd.Add(modLocal);
+                            }
+                        }
+                        _snackbar.Add($"Jornada sincronizada con BD preservando tus ediciones locales de bodega ({itemsBd.Count} registros).", Severity.Info);
+                    }
+                    else
+                    {
+                        _snackbar.Add($"Jornada del {fechaSeleccionada:dd/MM/yyyy} cargada de BD ({itemsBd.Count} registros de {currentUserName}).", Severity.Info);
+                    }
+
+                    empleadosJornada = itemsBd;
+                    await AutoGuardarBorradorLocal();
+                }
+                else if (tieneBorradorLocal && borradorLocal != null && borradorLocal.Any())
+                {
+                    empleadosJornada = borradorLocal;
+                    _snackbar.Add($"Modo Offline: jornada cargada desde memoria local del dispositivo ({empleadosJornada.Count} colaboradores).", Severity.Info);
                 }
                 else
                 {
-                    // Si no hay registros guardados en BD para esta fecha, la grilla queda limpia
                     empleadosJornada.Clear();
                 }
 
                 ValidarConflictosHorarios(out _);
-                ActualizarGruposConsolidados();
+                ActualizarGruposConsolidadosInterno(false);
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error al cargar jornada: {ex.Message}", Severity.Error);
+                bool recuperado = await RecuperarBorradorLocal();
+                if (recuperado)
+                {
+                    _snackbar.Add($"Modo Offline: jornada recuperada desde memoria del dispositivo ({empleadosJornada.Count} colaboradores).", Severity.Info);
+                }
+                else
+                {
+                    _snackbar.Add($"Error al cargar jornada: {ex.Message}", Severity.Error);
+                }
             }
             finally
             {
@@ -999,13 +1149,36 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (respSinDom?.Model != null && respSinDom.Model.Any())
                     {
                         misClientesAsignados = respSinDom.Model.Where(c => c.Activo).ToList();
-                        return;
                     }
+                }
+
+                if (misClientesAsignados.Any())
+                {
+                    await _js.InvokeVoidAsync("localStorage.setItem", KeyCacheMisClientes, JsonSerializer.Serialize(misClientesAsignados));
+                    return;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al consultar clientes asignados: {ex.Message}");
+                Console.WriteLine($"Error al consultar clientes asignados online: {ex.Message}");
+            }
+
+            // Fallback offline desde localStorage para Clientes
+            if (!misClientesAsignados.Any())
+            {
+                try
+                {
+                    var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCacheMisClientes);
+                    if (!string.IsNullOrWhiteSpace(cachedJson))
+                    {
+                        var cached = JsonSerializer.Deserialize<List<SupervisorClienteDto>>(cachedJson);
+                        if (cached != null && cached.Any())
+                        {
+                            misClientesAsignados = cached;
+                        }
+                    }
+                }
+                catch { }
             }
         }
 
@@ -1067,15 +1240,39 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             : (x.IdEmpleado > 0 ? $"id_{x.IdEmpleado}" : x.NombreEmpleado.Trim().ToLowerInvariant()))
                         .Select(g => { var p = g.First(); p.ClienteOrigenNomina = LimpiarTextoOdoo(p.ClienteOrigenNomina); return p; })
                         .ToList();
+
+                    if (miPlantillaPersonal.Any())
+                    {
+                        await _js.InvokeVoidAsync("localStorage.setItem", KeyCachePlantilla, JsonSerializer.Serialize(miPlantillaPersonal));
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error al consultar plantilla: {ex.Message}", Severity.Warning);
+                Console.WriteLine($"Error al consultar plantilla online: {ex.Message}");
             }
             finally
             {
                 cargandoPlantilla = false;
+            }
+
+            // Fallback offline para Mi Personal
+            if (!miPlantillaPersonal.Any())
+            {
+                try
+                {
+                    var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCachePlantilla);
+                    if (!string.IsNullOrWhiteSpace(cachedJson))
+                    {
+                        var cached = JsonSerializer.Deserialize<List<SupervisorPlantillaItemDto>>(cachedJson);
+                        if (cached != null && cached.Any())
+                        {
+                            miPlantillaPersonal = cached;
+                            _snackbar.Add($"Plantilla de {miPlantillaPersonal.Count} colaboradores cargada desde memoria local (Modo Offline).", Severity.Info);
+                        }
+                    }
+                }
+                catch { }
             }
         }
 
@@ -1926,7 +2123,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             emp.Estado = "GUARDADO";
                         }
                     }
-                    await LimpiarBorradorLocal();
+                    await AutoGuardarBorradorLocal();
                     _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
 
                     // 2. En segundo plano (sin vaciar la grilla ni mostrar spinner destructivo), sincronizar IDs asignados por BD
@@ -3325,7 +3522,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // --- CONSOLIDADO HELPDESK (Tab 2) ---
-        private void ActualizarGruposConsolidados()
+        private void ActualizarGruposConsolidados() => ActualizarGruposConsolidadosInterno(true);
+
+        private void ActualizarGruposConsolidadosInterno(bool autoGuardar = true)
         {
             // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
             // Garantizar que ningún colaborador ausente conserve tickets de movimientos ni viáticos
@@ -3452,6 +3651,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 .ToList();
 
             gruposConsolidados = grupos;
+            if (autoGuardar)
+            {
+                _ = AutoGuardarBorradorLocal();
+            }
         }
 
         // --- ENVIAR A HELPDESK (REDMINE) ---
@@ -3583,17 +3786,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE ---
-        private async Task PurgarBorradoresLocales()
+        // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE (Conservando días recientes) ---
+        private async Task PurgarBorradoresLocalesAntiguos()
         {
             try
             {
                 await _js.InvokeVoidAsync("eval", @"
                     try {
+                        const limite = new Date();
+                        limite.setDate(limite.getDate() - 7);
+                        const limiteStr = limite.toISOString().slice(0, 10).replace(/-/g, '');
                         for (let i = localStorage.length - 1; i >= 0; i--) {
                             const key = localStorage.key(i);
-                            if (key && (key.startsWith('supervisor_jornada_draft_') || key.includes('jornada_draft'))) {
-                                localStorage.removeItem(key);
+                            if (key && (key.startsWith('supervisor_offline_jornada_') || key.startsWith('supervisor_jornada_draft_'))) {
+                                const partes = key.split('_');
+                                const fechaParte = partes[partes.length - 1];
+                                if (fechaParte && fechaParte.length === 8 && fechaParte < limiteStr) {
+                                    localStorage.removeItem(key);
+                                }
                             }
                         }
                     } catch(e) {}
@@ -3601,6 +3811,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch { }
         }
+
+        private async Task PurgarBorradoresLocales() => await PurgarBorradoresLocalesAntiguos();
 
         protected void OnClienteFilaCambiado(EmpleadoJornadaItem item)
         {
@@ -3683,18 +3895,38 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 cargandoReglasViaticos = true;
                 var resp = await _odooService.GetAllReglasViaticos();
-                if (resp?.Model != null)
+                if (resp?.Model != null && resp.Model.Any())
                 {
                     cacheReglasViaticos = resp.Model.Where(r => r.Activo).ToList();
+                    await _js.InvokeVoidAsync("localStorage.setItem", KeyCacheReglasViaticos, JsonSerializer.Serialize(cacheReglasViaticos));
+                    return;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error cargando cache de reglas de viaticos: {ex.Message}");
+                Console.WriteLine($"Error cargando cache de reglas de viaticos online: {ex.Message}");
             }
             finally
             {
                 cargandoReglasViaticos = false;
+            }
+
+            // Fallback offline para Reglas de Viáticos
+            if (!cacheReglasViaticos.Any())
+            {
+                try
+                {
+                    var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCacheReglasViaticos);
+                    if (!string.IsNullOrWhiteSpace(cachedJson))
+                    {
+                        var cached = JsonSerializer.Deserialize<List<ReglaViaticoDto>>(cachedJson);
+                        if (cached != null && cached.Any())
+                        {
+                            cacheReglasViaticos = cached;
+                        }
+                    }
+                }
+                catch { }
             }
         }
 
@@ -3829,16 +4061,53 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             areasSugeridas = GetAreasParaCliente(op.nombre);
                         }
                     }
+
+                    if (catalogoClienteAreas.Any())
+                    {
+                        await _js.InvokeVoidAsync("localStorage.setItem", KeyCacheAreas, JsonSerializer.Serialize(catalogoClienteAreas));
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error cargando catalogo cliente areas: {ex.Message}");
+                Console.WriteLine($"Error cargando catalogo cliente areas online: {ex.Message}");
             }
             finally
             {
                 cargandoAreas = false;
                 StateHasChanged();
+            }
+
+            // Fallback offline desde localStorage para Áreas
+            if (!catalogoClienteAreas.Any())
+            {
+                try
+                {
+                    var cachedJson = await _js.InvokeAsync<string>("localStorage.getItem", KeyCacheAreas);
+                    if (!string.IsNullOrWhiteSpace(cachedJson))
+                    {
+                        var cached = JsonSerializer.Deserialize<List<ClienteAreaDto>>(cachedJson);
+                        if (cached != null && cached.Any())
+                        {
+                            catalogoClienteAreas = cached;
+                            areasPorCliente.Clear();
+                            foreach (var item in catalogoClienteAreas.Where(x => x.Activo))
+                            {
+                                var cName = item.ClienteNombre?.Trim();
+                                var aName = item.AreaNombre?.Trim();
+                                if (!string.IsNullOrWhiteSpace(cName) && !string.IsNullOrWhiteSpace(aName))
+                                {
+                                    if (!areasPorCliente.ContainsKey(cName))
+                                        areasPorCliente[cName] = new List<string>();
+
+                                    if (!areasPorCliente[cName].Contains(aName, StringComparer.OrdinalIgnoreCase))
+                                        areasPorCliente[cName].Add(aName);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
             }
         }
 
@@ -3915,9 +4184,64 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 .Take(30);
         }
 
-        private async Task GuardarBorradorLocal() => await Task.CompletedTask;
-        private async Task<bool> RecuperarBorradorLocal() => await Task.FromResult(false);
-        private async Task LimpiarBorradorLocal() => await PurgarBorradoresLocales();
+        protected async Task AutoGuardarBorradorLocal()
+        {
+            try
+            {
+                if (fechaSeleccionada.HasValue && !string.IsNullOrWhiteSpace(currentUserName))
+                {
+                    var json = JsonSerializer.Serialize(empleadosJornada);
+                    await _js.InvokeVoidAsync("localStorage.setItem", KeyBorradorJornada, json);
+                    ultimaHoraGuardadoLocal = DateTime.Now;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al autoguardar borrador local: {ex.Message}");
+            }
+        }
+
+        protected async Task<bool> RecuperarBorradorLocal()
+        {
+            try
+            {
+                if (fechaSeleccionada.HasValue && !string.IsNullOrWhiteSpace(currentUserName))
+                {
+                    var json = await _js.InvokeAsync<string>("localStorage.getItem", KeyBorradorJornada);
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        var items = JsonSerializer.Deserialize<List<EmpleadoJornadaItem>>(json);
+                        if (items != null && items.Any())
+                        {
+                            empleadosJornada = items;
+                            ultimaHoraGuardadoLocal = DateTime.Now;
+                            ValidarConflictosHorarios(out _);
+                            ActualizarGruposConsolidadosInterno(false);
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al recuperar borrador local: {ex.Message}");
+            }
+            return false;
+        }
+
+        protected async Task LimpiarBorradorLocal()
+        {
+            try
+            {
+                if (fechaSeleccionada.HasValue && !string.IsNullOrWhiteSpace(currentUserName))
+                {
+                    await _js.InvokeVoidAsync("localStorage.removeItem", KeyBorradorJornada);
+                }
+            }
+            catch { }
+        }
+
+        private async Task GuardarBorradorLocal() => await AutoGuardarBorradorLocal();
 
         protected async Task CargarTiposAusencias()
         {
