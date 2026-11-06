@@ -221,72 +221,35 @@
                 </div>
             </div>
 
-            @* Filtro: Producto *@
-            @if (productosDisponibles.Any())
+            @* --- 3 FILTROS DINÁMICOS ESTANDARIZADOS EN CASCADA --- *@
+            @if (!filtrosDinamicos.Any() || !filtrosDinamicos.Any(f => f.OpcionesDisponibles.Any()))
             {
-                <div class="filter-group mb-2">
-                    <div class="filter-label">PRODUCTO:</div>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var p in productosDisponibles)
-                        {
-                            bool activo = filtroProducto == p;
-                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroProducto(p))">
-                                @p
-                            </button>
-                        }
-                    </div>
-                </div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block my-2">
+                    No hay atributos adicionales que filtrar para este servicio en esta área y turno; selecciona la variante directamente abajo.
+                </MudText>
             }
-
-            @* Filtro: Bandeo *@
-            @if (bandeosDisponibles.Any())
+            else
             {
-                <div class="filter-group mb-2">
-                    <div class="filter-label">BANDEO / PACK:</div>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var b in bandeosDisponibles)
-                        {
-                            bool activo = filtroBandeo == b;
-                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroBandeo(b))">
-                                @b
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
-
-            @* Filtro: Presentación *@
-            @if (presentacionesDisponibles.Any())
-            {
-                <div class="filter-group mb-2">
-                    <div class="filter-label">PRESENTACIÓN:</div>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var pr in presentacionesDisponibles)
-                        {
-                            bool activo = filtroPresentacion == pr;
-                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroPresentacion(pr))">
-                                @pr
-                            </button>
-                        }
-                    </div>
-                </div>
-            }
-
-            @* Filtro: Climatización *@
-            @if (climatizacionesDisponibles.Any())
-            {
-                <div class="filter-group mb-2">
-                    <div class="filter-label">CLIMATIZACIÓN:</div>
-                    <div class="d-flex flex-wrap gap-1">
-                        @foreach (var cl in climatizacionesDisponibles)
-                        {
-                            bool activo = filtroClimatizacion == cl;
-                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroClimatizacion(cl))">
-                                @cl
-                            </button>
-                        }
-                    </div>
-                </div>
+                @for (int i = 0; i < filtrosDinamicos.Count; i++)
+                {
+                    var idx = i;
+                    var filtro = filtrosDinamicos[idx];
+                    if (filtro.OpcionesDisponibles.Any())
+                    {
+                        <div class="filter-group mb-2">
+                            <div class="filter-label">@filtro.Titulo</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var opcion in filtro.OpcionesDisponibles)
+                                {
+                                    bool activo = filtro.ValorSeleccionado.Equals(opcion, StringComparison.OrdinalIgnoreCase);
+                                    <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroDinamico(idx, opcion))">
+                                        @opcion
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             }
         </MudPaper>
 
@@ -932,17 +895,16 @@
     private List<OdooVariantDto> variantesFiltradas = new();
     private OdooVariantDto? varianteSeleccionada;
 
-    // Filtros activos
-    private string filtroProducto = "";
-    private string filtroBandeo = "";
-    private string filtroPresentacion = "";
-    private string filtroClimatizacion = "";
+    // Estandarización de 3 Filtros Dinámicos en Cascada
+    public class NivelFiltroDinamico
+    {
+        public string Clave { get; set; } = string.Empty;
+        public string Titulo { get; set; } = string.Empty;
+        public string ValorSeleccionado { get; set; } = string.Empty;
+        public List<string> OpcionesDisponibles { get; set; } = new();
+    }
 
-    // Opciones para chips
-    private List<string> productosDisponibles = new();
-    private List<string> bandeosDisponibles = new();
-    private List<string> presentacionesDisponibles = new();
-    private List<string> climatizacionesDisponibles = new();
+    private List<NivelFiltroDinamico> filtrosDinamicos = new();
 
     // Formulario de producción
     private decimal cantidadProducida = 0;
@@ -1400,7 +1362,8 @@
         await CargarServiciosPorClienteYSupervisor();
         if (servicioSeleccionado != null && serviciosDisponibles.Any(s => s.TemplateId == servicioSeleccionado.TemplateId))
         {
-            await SeleccionarServicio(servicioSeleccionado);
+            ConfigurarFiltrosDinamicos();
+            ActualizarCascadaFiltros();
         }
         else if (serviciosDisponibles.Any())
         {
@@ -1410,13 +1373,16 @@
         {
             servicioSeleccionado = null;
             varianteSeleccionada = null;
+            filtrosDinamicos.Clear();
+            variantesFiltradas.Clear();
         }
     }
 
     private async Task OnTurnoChanged(string nuevoTurno)
     {
         turnoSeleccionado = nuevoTurno;
-        AplicarFiltros();
+        ConfigurarFiltrosDinamicos();
+        ActualizarCascadaFiltros();
         await Task.CompletedTask;
     }
 
@@ -1437,7 +1403,6 @@
     {
         servicioSeleccionado = serv;
         varianteSeleccionada = null;
-        LimpiarFiltros();
 
         estaCargando = true;
         mensajeCarga = $"Cargando catálogo de {serv.NombreCorto}...";
@@ -1472,8 +1437,8 @@
                 }
 
                 serv.VariantesCount = todasVariantesServicio.Count;
-                ExtraerOpcionesFiltros();
-                AplicarFiltros();
+                ConfigurarFiltrosDinamicos();
+                ActualizarCascadaFiltros();
             }
             else
             {
@@ -1492,8 +1457,8 @@
                     var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
                     todasVariantesServicio = variantesCliente.Any() ? variantesCliente : all;
                     serv.VariantesCount = todasVariantesServicio.Count;
-                    ExtraerOpcionesFiltros();
-                    AplicarFiltros();
+                    ConfigurarFiltrosDinamicos();
+                    ActualizarCascadaFiltros();
                     Snackbar.Add($"Variantes cargadas desde memoria local (offline).", Severity.Info);
                     return;
                 }
@@ -1506,89 +1471,211 @@
             estaCargando = false;
             StateHasChanged();
         }
-    }    private void ExtraerOpcionesFiltros()
+    }
+
+    // --- PRE-FILTRADO Y 3 FILTROS DINÁMICOS ESTANDARIZADOS EN CASCADA ---
+
+    private List<OdooVariantDto> ObtenerVariantesBaseAreaYTurno()
     {
-        var prods = new HashSet<string>();
-        foreach (var v in todasVariantesServicio)
-        {
-            var dict = ParsearAtributos(v.nombre);
-            if (dict.TryGetValue("Producto", out var p)) prods.Add(p);
-        }
-        productosDisponibles = prods.OrderBy(x => x).ToList();
+        if (!todasVariantesServicio.Any()) return new();
 
-        ActualizarOpcionesDependientes();
-    }    private void ActualizarOpcionesDependientes()
+        var q = todasVariantesServicio.AsEnumerable();
+
+        // 1. Pre-filtrar por Área si alguna variante del servicio especifica Área
+        bool plantillaTieneArea = todasVariantesServicio.Any(v => 
+            v.nombre.Contains("Area:", StringComparison.OrdinalIgnoreCase) || 
+            v.nombre.Contains("Área:", StringComparison.OrdinalIgnoreCase));
+
+        if (plantillaTieneArea && !string.IsNullOrWhiteSpace(areaSeleccionada))
+        {
+            var matchArea = q.Where(v => 
+                MatchAtributo(v.nombre, "Area", areaSeleccionada) || 
+                MatchAtributo(v.nombre, "Área", areaSeleccionada)).ToList();
+
+            if (matchArea.Any())
+            {
+                q = matchArea;
+            }
+        }
+
+        // 2. Pre-filtrar por Turno si alguna variante especifica Turno o la configuración del servicio tiene TieneTurno
+        bool plantillaTieneTurno = (servicioSeleccionado != null && configsCliente.Any(c => c.TemplateId == servicioSeleccionado.TemplateId && c.TieneTurno)) ||
+                                   todasVariantesServicio.Any(v => v.nombre.Contains("Turno:", StringComparison.OrdinalIgnoreCase));
+
+        if (plantillaTieneTurno && !string.IsNullOrWhiteSpace(turnoSeleccionado))
+        {
+            var matchTurno = q.Where(v => MatchAtributo(v.nombre, "Turno", turnoSeleccionado)).ToList();
+            if (matchTurno.Any())
+            {
+                q = matchTurno;
+            }
+        }
+
+        return q.ToList();
+    }
+
+    private void ConfigurarFiltrosDinamicos()
     {
-        // 1. Catálogo base para productos
-        var prods = new HashSet<string>();
-        foreach (var v in todasVariantesServicio)
+        var baseVariantes = ObtenerVariantesBaseAreaYTurno();
+        if (!baseVariantes.Any())
+        {
+            filtrosDinamicos.Clear();
+            variantesFiltradas.Clear();
+            varianteSeleccionada = null;
+            return;
+        }
+
+        // Extraer atributos operativos ignorando los que ya están en la cabecera fija
+        var clavesIgnoradas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Cliente", "Empresa", "Area", "Área", "Turno"
+        };
+
+        var clavesPresentes = new List<string>();
+        foreach (var v in baseVariantes)
         {
             var dict = ParsearAtributos(v.nombre);
-            if (dict.TryGetValue("Producto", out var p)) prods.Add(p);
-        }
-        productosDisponibles = prods.OrderBy(x => x).ToList();
-
-        // 2. Filtro sucesivo: Bandeo / Pack (depende del Producto seleccionado)
-        var poolBandeo = todasVariantesServicio.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(filtroProducto))
-        {
-            poolBandeo = poolBandeo.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
-        }
-
-        var bans = new HashSet<string>();
-        foreach (var v in poolBandeo)
-        {
-            var dict = ParsearAtributos(v.nombre);
-            if (dict.TryGetValue("Bandeo", out var b)) bans.Add(b);
-        }
-        bandeosDisponibles = bans.OrderBy(x => x).ToList();
-
-        if (!string.IsNullOrWhiteSpace(filtroBandeo) && !bandeosDisponibles.Contains(filtroBandeo, StringComparer.OrdinalIgnoreCase))
-        {
-            filtroBandeo = "";
+            foreach (var k in dict.Keys)
+            {
+                if (clavesIgnoradas.Contains(k)) continue;
+                if (!clavesPresentes.Any(existente => SonClavesEquivalentes(existente, k)))
+                {
+                    clavesPresentes.Add(k);
+                }
+            }
         }
 
-        // 3. Filtro sucesivo: Presentación (depende de Producto Y de Bandeo si fue seleccionado)
-        var poolPres = poolBandeo;
-        if (!string.IsNullOrWhiteSpace(filtroBandeo))
+        // Estandarizar hasta 3 Filtros en orden lógico y ergonómico:
+        var tresClaves = new List<string>();
+
+        // Filtro 1 (Principal): Producto / Material / Item (o primer atributo disponible)
+        string? clave1 = clavesPresentes.FirstOrDefault(k => SonClavesEquivalentes(k, "Producto") || SonClavesEquivalentes(k, "Material") || SonClavesEquivalentes(k, "Item"))
+                         ?? clavesPresentes.FirstOrDefault();
+        if (clave1 != null) tresClaves.Add(clave1);
+
+        // Filtro 2 (Formato / Medio / Modalidad): Contenedor / Conntenedor / Bandeo / Tipo / Modalidad
+        string? clave2 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)) &&
+                                                             (SonClavesEquivalentes(k, "Contenedor") ||
+                                                              SonClavesEquivalentes(k, "Conntenedor") ||
+                                                              SonClavesEquivalentes(k, "Bandeo") ||
+                                                              SonClavesEquivalentes(k, "Tipo") ||
+                                                              SonClavesEquivalentes(k, "Modalidad")));
+        if (clave2 == null)
         {
-            poolPres = poolPres.Where(v => v.nombre.Contains($"Bandeo: {filtroBandeo}", StringComparison.OrdinalIgnoreCase));
+            clave2 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)));
+        }
+        if (clave2 != null) tresClaves.Add(clave2);
+
+        // Filtro 3 (Detalle / Empaque / Presentación): Presentación / Precentación / Empaque / Climatización / Calibre
+        string? clave3 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)) &&
+                                                             (SonClavesEquivalentes(k, "Presentación") ||
+                                                              SonClavesEquivalentes(k, "Precentación") ||
+                                                              SonClavesEquivalentes(k, "Empaque") ||
+                                                              SonClavesEquivalentes(k, "Climatización") ||
+                                                              SonClavesEquivalentes(k, "Calibre")));
+        if (clave3 == null)
+        {
+            clave3 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)));
+        }
+        if (clave3 != null) tresClaves.Add(clave3);
+
+        // Construir la lista de filtros dinámicos (hasta 3) preservando selecciones previas
+        var nuevosFiltros = new List<NivelFiltroDinamico>();
+        for (int i = 0; i < tresClaves.Count; i++)
+        {
+            string clave = tresClaves[i];
+            string titulo = ObtenerTituloFiltro(clave);
+
+            string valorPrevio = filtrosDinamicos.FirstOrDefault(f => SonClavesEquivalentes(f.Clave, clave))?.ValorSeleccionado ?? "";
+
+            nuevosFiltros.Add(new NivelFiltroDinamico
+            {
+                Clave = clave,
+                Titulo = titulo,
+                ValorSeleccionado = valorPrevio,
+                OpcionesDisponibles = new List<string>()
+            });
         }
 
-        var pres = new HashSet<string>();
-        foreach (var v in poolPres)
-        {
-            var dict = ParsearAtributos(v.nombre);
-            if (dict.TryGetValue("Precentación", out var pr)) pres.Add(pr);
-            if (dict.TryGetValue("Presentación", out var pr2)) pres.Add(pr2);
-        }
-        presentacionesDisponibles = pres.OrderBy(x => x).ToList();
+        filtrosDinamicos = nuevosFiltros;
+    }
 
-        if (!string.IsNullOrWhiteSpace(filtroPresentacion) && !presentacionesDisponibles.Contains(filtroPresentacion, StringComparer.OrdinalIgnoreCase))
+    private void ActualizarCascadaFiltros()
+    {
+        var pool = ObtenerVariantesBaseAreaYTurno();
+
+        for (int i = 0; i < filtrosDinamicos.Count; i++)
         {
-            filtroPresentacion = "";
+            var f = filtrosDinamicos[i];
+
+            // Opciones disponibles para este nivel según el pool actual
+            var ops = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var v in pool)
+            {
+                var val = ObtenerValorAtributo(v.nombre, f.Clave);
+                if (!string.IsNullOrWhiteSpace(val))
+                {
+                    ops.Add(val);
+                }
+            }
+            f.OpcionesDisponibles = ops.OrderBy(x => x).ToList();
+
+            // Si el valor seleccionado previamente ya no está disponible en las opciones, se limpia
+            if (!string.IsNullOrWhiteSpace(f.ValorSeleccionado) && !f.OpcionesDisponibles.Contains(f.ValorSeleccionado, StringComparer.OrdinalIgnoreCase))
+            {
+                f.ValorSeleccionado = "";
+            }
+
+            // Filtrar el pool para el siguiente nivel si este nivel tiene valor seleccionado
+            if (!string.IsNullOrWhiteSpace(f.ValorSeleccionado))
+            {
+                pool = pool.Where(v => MatchAtributo(v.nombre, f.Clave, f.ValorSeleccionado)).ToList();
+            }
         }
 
-        // 4. Filtro sucesivo: Climatización (depende de Producto + Bandeo + Presentación)
-        var poolClim = poolPres;
-        if (!string.IsNullOrWhiteSpace(filtroPresentacion))
+        variantesFiltradas = pool;
+
+        // Si solo queda 1 variante, preseleccionarla automáticamente
+        if (variantesFiltradas.Count == 1)
         {
-            poolClim = poolClim.Where(v => v.nombre.Contains($"Precentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase) ||
-                                           v.nombre.Contains($"Presentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase));
+            varianteSeleccionada = variantesFiltradas[0];
+        }
+        else if (varianteSeleccionada != null && !variantesFiltradas.Any(v => v.id == varianteSeleccionada.id))
+        {
+            varianteSeleccionada = null;
+        }
+    }
+
+    private void ToggleFiltroDinamico(int nivelIndex, string valor)
+    {
+        if (nivelIndex < 0 || nivelIndex >= filtrosDinamicos.Count) return;
+
+        var f = filtrosDinamicos[nivelIndex];
+        if (f.ValorSeleccionado.Equals(valor, StringComparison.OrdinalIgnoreCase))
+        {
+            f.ValorSeleccionado = "";
+        }
+        else
+        {
+            f.ValorSeleccionado = valor;
         }
 
-        var clim = new HashSet<string>();
-        foreach (var v in poolClim)
+        // Cascada sucesiva: al cambiar un nivel superior, limpiamos los niveles inferiores
+        for (int j = nivelIndex + 1; j < filtrosDinamicos.Count; j++)
         {
-            var dict = ParsearAtributos(v.nombre);
-            if (dict.TryGetValue("Climatización", out var cl)) clim.Add(cl);
+            filtrosDinamicos[j].ValorSeleccionado = "";
         }
-        climatizacionesDisponibles = clim.OrderBy(x => x).ToList();
 
-        if (!string.IsNullOrWhiteSpace(filtroClimatizacion) && !climatizacionesDisponibles.Contains(filtroClimatizacion, StringComparer.OrdinalIgnoreCase))
+        ActualizarCascadaFiltros();
+    }
+
+    private void LimpiarFiltros()
+    {
+        foreach (var f in filtrosDinamicos)
         {
-            filtroClimatizacion = "";
+            f.ValorSeleccionado = "";
         }
+        ActualizarCascadaFiltros();
     }
 
     private Dictionary<string, string> ParsearAtributos(string nombre)
@@ -1608,97 +1695,99 @@
         return dict;
     }
 
+    private bool SonClavesEquivalentes(string k1, string k2)
+    {
+        if (string.Equals(k1, k2, StringComparison.OrdinalIgnoreCase)) return true;
+        return NormalizarClave(k1).Equals(NormalizarClave(k2), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string NormalizarClave(string k)
+    {
+        if (string.IsNullOrWhiteSpace(k)) return "";
+        k = k.Trim().ToLowerInvariant();
+        if (k == "área" || k == "area") return "area";
+        if (k == "precentación" || k == "presentación" || k == "presentacion") return "presentacion";
+        if (k == "conntenedor" || k == "contenedor") return "contenedor";
+        return k;
+    }
+
+    private bool MatchAtributo(string nombreVariante, string clave, string valorEsperado)
+    {
+        if (string.IsNullOrWhiteSpace(nombreVariante) || string.IsNullOrWhiteSpace(valorEsperado)) return false;
+        var dict = ParsearAtributos(nombreVariante);
+        foreach (var kvp in dict)
+        {
+            if (SonClavesEquivalentes(kvp.Key, clave))
+            {
+                return kvp.Value.Trim().Equals(valorEsperado.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        return false;
+    }
+
+    private string? ObtenerValorAtributo(string nombreVariante, string clave)
+    {
+        if (string.IsNullOrWhiteSpace(nombreVariante)) return null;
+        var dict = ParsearAtributos(nombreVariante);
+        foreach (var kvp in dict)
+        {
+            if (SonClavesEquivalentes(kvp.Key, clave))
+            {
+                return kvp.Value.Trim();
+            }
+        }
+        return null;
+    }
+
+    private string ObtenerTituloFiltro(string clave)
+    {
+        string norm = NormalizarClave(clave);
+        return norm switch
+        {
+            "producto" => "PRODUCTO:",
+            "contenedor" => "CONTENEDOR:",
+            "bandeo" => "BANDEO / PACK:",
+            "presentacion" => "PRESENTACIÓN:",
+            "tipo" => "TIPO / OPERACIÓN:",
+            "empaque" => "EMPAQUE:",
+            "climatizacion" => "CLIMATIZACIÓN:",
+            _ => clave.ToUpperInvariant() + ":"
+        };
+    }
+
     private string LimpiarNombreVariante(string nombre)
     {
         if (string.IsNullOrWhiteSpace(nombre)) return "";
+
+        var dict = ParsearAtributos(nombre);
+        var partesVisibles = new List<string>();
+
+        var clavesIgnoradas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Cliente", "Empresa", "Area", "Área", "Turno"
+        };
+
+        foreach (var kvp in dict)
+        {
+            if (clavesIgnoradas.Contains(kvp.Key)) continue;
+
+            string claveLimpia = kvp.Key;
+            if (SonClavesEquivalentes(claveLimpia, "Conntenedor")) claveLimpia = "Contenedor";
+            if (SonClavesEquivalentes(claveLimpia, "Precentación")) claveLimpia = "Pres";
+            if (SonClavesEquivalentes(claveLimpia, "Presentación")) claveLimpia = "Pres";
+
+            partesVisibles.Add($"{claveLimpia}: {kvp.Value}");
+        }
+
+        if (partesVisibles.Any())
+        {
+            return string.Join(", ", partesVisibles);
+        }
+
         return nombre.Replace($"Cliente: {operacionSeleccionadaNombre}, ", "", StringComparison.OrdinalIgnoreCase)
                      .Replace("Cliente: CBC Pepsi, ", "", StringComparison.OrdinalIgnoreCase)
                      .Replace("Area: CD, ", "")
                      .Replace("Precentación:", "Pres:");
-    }    private void ToggleFiltroProducto(string prod)
-    {
-        filtroProducto = filtroProducto == prod ? "" : prod;
-        ActualizarOpcionesDependientes();
-        AplicarFiltros();
-    }    private void ToggleFiltroBandeo(string ban)
-    {
-        filtroBandeo = filtroBandeo == ban ? "" : ban;
-        ActualizarOpcionesDependientes();
-        AplicarFiltros();
-    }    private void ToggleFiltroPresentacion(string pres)
-    {
-        filtroPresentacion = filtroPresentacion == pres ? "" : pres;
-        ActualizarOpcionesDependientes();
-        AplicarFiltros();
-    }    private void ToggleFiltroClimatizacion(string clim)
-    {
-        filtroClimatizacion = filtroClimatizacion == clim ? "" : clim;
-        ActualizarOpcionesDependientes();
-        AplicarFiltros();
-    }    private void LimpiarFiltros()
-    {
-        filtroProducto = "";
-        filtroBandeo = "";
-        filtroPresentacion = "";
-        filtroClimatizacion = "";
-        ActualizarOpcionesDependientes();
-        AplicarFiltros();
-    }
-
-    private void AplicarFiltros()
-    {
-        var q = todasVariantesServicio.AsEnumerable();
-
-        if (!string.IsNullOrWhiteSpace(filtroProducto))
-        {
-            q = q.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filtroBandeo))
-        {
-            q = q.Where(v => v.nombre.Contains($"Bandeo: {filtroBandeo}", StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filtroPresentacion))
-        {
-            q = q.Where(v => v.nombre.Contains($"Precentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase) ||
-                             v.nombre.Contains($"Presentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filtroClimatizacion))
-        {
-            q = q.Where(v => v.nombre.Contains($"Climatización: {filtroClimatizacion}", StringComparison.OrdinalIgnoreCase));
-        }        // 1. Filtro por Área si la variante la especifica
-        bool plantillaTieneArea = todasVariantesServicio.Any(v => v.nombre.Contains("Area:", StringComparison.OrdinalIgnoreCase) || v.nombre.Contains("Área:", StringComparison.OrdinalIgnoreCase));
-        if (plantillaTieneArea && !string.IsNullOrWhiteSpace(areaSeleccionada))
-        {
-            var matchArea = q.Where(v => v.nombre.Contains($"Area: {areaSeleccionada}", StringComparison.OrdinalIgnoreCase) ||
-                                         v.nombre.Contains($"Área: {areaSeleccionada}", StringComparison.OrdinalIgnoreCase)).ToList();
-            if (matchArea.Any())
-            {
-                q = matchArea;
-            }
-        }
-
-        // 2. Filtro por Turno si la plantilla tiene Turno configurado o en variante
-        bool plantillaTieneTurno = (servicioSeleccionado != null && configsCliente.Any(c => c.TemplateId == servicioSeleccionado.TemplateId && c.TieneTurno)) ||
-                                   todasVariantesServicio.Any(v => v.nombre.Contains("Turno:", StringComparison.OrdinalIgnoreCase));
-        if (plantillaTieneTurno && !string.IsNullOrWhiteSpace(turnoSeleccionado))
-        {
-            var matchTurno = q.Where(v => v.nombre.Contains($"Turno: {turnoSeleccionado}", StringComparison.OrdinalIgnoreCase)).ToList();
-            if (matchTurno.Any())
-            {
-                q = matchTurno;
-            }
-        }
-
-        variantesFiltradas = q.ToList();
-
-        // Si solo queda 1 variante, preseleccionarla automáticamente
-        if (variantesFiltradas.Count == 1)
-        {
-            varianteSeleccionada = variantesFiltradas[0];
-        }
     }
 
     private void SeleccionarVariante(OdooVariantDto v)
@@ -1747,7 +1836,19 @@
         StateHasChanged();
 
         var dict = ParsearAtributos(varianteSeleccionada!.nombre);
-        string prodName = dict.TryGetValue("Producto", out var p) ? p : varianteSeleccionada.template_name;
+        string prodName = "";
+        if (dict.TryGetValue("Producto", out var p) && !string.IsNullOrWhiteSpace(p))
+        {
+            prodName = p;
+        }
+        else
+        {
+            var primeraOp = dict.FirstOrDefault(k => !SonClavesEquivalentes(k.Key, "Cliente") &&
+                                                     !SonClavesEquivalentes(k.Key, "Empresa") &&
+                                                     !SonClavesEquivalentes(k.Key, "Area") &&
+                                                     !SonClavesEquivalentes(k.Key, "Turno"));
+            prodName = !string.IsNullOrWhiteSpace(primeraOp.Value) ? primeraOp.Value : varianteSeleccionada.template_name;
+        }
 
         var item = new ProduccionDiariaDto
         {
