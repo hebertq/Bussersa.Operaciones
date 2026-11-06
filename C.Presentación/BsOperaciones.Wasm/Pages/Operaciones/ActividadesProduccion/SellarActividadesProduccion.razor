@@ -11,7 +11,7 @@
     </div>
 </MudOverlay>
 
-<div class="d-flex align-center justify-space-between mb-3">
+<div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
     <div>
         <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
             <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
@@ -21,7 +21,34 @@
             Revisión, auditoría y sellado semanal de actividades de producción operativa (bandeo, etiquetado, trasiego, movimientos, etc.) para su facturación comercial en Odoo.
         </MudText>
     </div>
+    <div class="d-flex align-center gap-2">
+        @if (!esModoOnline)
+        {
+            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.WifiOff" Style="background: #ea580c; color: white; font-weight: 700;">
+                OFFLINE
+            </MudChip>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Wifi">
+                EN LÍNEA
+            </MudChip>
+        }
+    </div>
 </div>
+
+@if (!esModoOnline)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3 py-1 px-3 rounded-lg" Icon="@Icons.Material.Filled.WifiOff" Style="background-color: #ea580c; color: white;">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <span><b>MODO OFFLINE (BODEGA ACTIVO):</b> Sin señal de internet. Mostrando los datos guardados en la memoria local de este dispositivo.</span>
+            @if (ultimaCargaLocal.HasValue)
+            {
+                <span style="font-size: 0.75rem; opacity: 0.95;">Último respaldo local: @ultimaCargaLocal.Value.ToString("hh:mm tt")</span>
+            }
+        </div>
+    </MudAlert>
+}
 
 @* --- BARRA DE PESTAÑAS ESTILO APP / TABLET --- *@
 <div class="app-tab-bar-card mb-3">
@@ -337,6 +364,7 @@
                         <MudTh>Estado</MudTh>
                         <MudTh>N° Lote</MudTh>
                         <MudTh>Factura</MudTh>
+                        <MudTh Style="width: 100px; text-align: center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd Style="text-align: center;">
@@ -395,6 +423,27 @@
                             else
                             {
                                 <span class="text-muted">-</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Acciones" Style="text-align: center;">
+                            @if (string.IsNullOrWhiteSpace(context.no_lote) && string.IsNullOrWhiteSpace(context.no_factura) && !context.facturada)
+                            {
+                                <div class="d-flex align-center justify-center gap-1">
+                                    <MudTooltip Text="Editar cantidad / lote">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                       OnClick="@(() => AbrirModalEditar(context))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Eliminar actividad">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                       OnClick="@(() => ConfirmarEliminar(context))" />
+                                    </MudTooltip>
+                                </div>
+                            }
+                            else
+                            {
+                                <MudTooltip Text="Actividad sellada en lote o facturada (Revierta el lote para editar)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Default" />
+                                </MudTooltip>
                             }
                         </MudTd>
                     </RowTemplate>

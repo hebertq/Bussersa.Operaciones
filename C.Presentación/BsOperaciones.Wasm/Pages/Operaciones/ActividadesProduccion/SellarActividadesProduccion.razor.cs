@@ -18,16 +18,22 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 {
-    public partial class SellarActividadesProduccion : ComponentBase
+    public partial class SellarActividadesProduccion : ComponentBase, IDisposable
     {
         [Inject] private IMediator _mediator { get; set; } = null!;
         [Inject] private ISnackbar _snackbar { get; set; } = null!;
         [Inject] private IJSRuntime _jsRuntime { get; set; } = null!;
         [Inject] private IDialogService _dialogService { get; set; } = null!;
         [Inject] private IOdooService _odooService { get; set; } = null!;
+
+        // Estado de conectividad Offline / Online
+        protected bool esModoOnline { get; set; } = true;
+        protected DateTime? ultimaCargaLocal { get; set; }
+        private DotNetObjectReference<SellarActividadesProduccion>? dotNetHelper;
 
         public class ActividadSeleccionableItem
         {
@@ -195,6 +201,46 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             await CargarHistorico();
         }
 
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            await base.OnAfterRenderAsync(firstRender);
+            if (firstRender)
+            {
+                try
+                {
+                    dotNetHelper = DotNetObjectReference.Create(this);
+                    esModoOnline = await _jsRuntime.InvokeAsync<bool>("connectivityInterop.isOnline");
+                    await _jsRuntime.InvokeVoidAsync("connectivityInterop.registerListener", dotNetHelper);
+                    StateHasChanged();
+                }
+                catch { }
+            }
+        }
+
+        [JSInvokable]
+        public void OnConexionCambiada(bool online)
+        {
+            esModoOnline = online;
+            if (online)
+            {
+                _snackbar.Add("🟢 Conexión a internet restablecida.", Severity.Success);
+            }
+            else
+            {
+                _snackbar.Add("🟡 Sin conexión a internet. Modo offline activado.", Severity.Warning);
+            }
+            InvokeAsync(StateHasChanged);
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                dotNetHelper?.Dispose();
+            }
+            catch { }
+        }
+
         protected void SetActiveTab(int index)
         {
             activeTabIndex = index;
@@ -304,33 +350,71 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_sellar_operacion_id", operacionId.ToString());
 
-                // Consultar actividades en el rango semanal para este cliente
-                var response = await _mediator.Send(new GetProduccionDiariaQuery(
-                    fchaInicioSemana,
-                    fchaFinSemana,
-                    operacionId,
-                    null
-                ));
+                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}";
+                List<ProduccionDiariaDto> raw = new();
 
-                if (response.Respuesta.ExisteError)
+                if (esModoOnline)
                 {
-                    _snackbar.Add($"Error al consultar actividades: {response.Respuesta.MensajeError}", Severity.Error);
-                    actividadesList = new();
-                    actividadesSeleccionables = new();
-                    grillaConsolidada = new();
-                }
-                else
-                {
-                    var raw = response.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+                    // Consultar actividades en el rango semanal para este cliente
+                    var response = await _mediator.Send(new GetProduccionDiariaQuery(
+                        fchaInicioSemana,
+                        fchaFinSemana,
+                        operacionId,
+                        null
+                    ));
 
-                    if (soloPendientes)
+                    if (response.Respuesta.ExisteError)
                     {
-                        actividadesList = raw.Where(a => string.IsNullOrWhiteSpace(a.no_lote)).ToList();
+                        // Fallback a caché local si la consulta al API falló
+                        var cached = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", cacheKey);
+                        if (!string.IsNullOrEmpty(cached))
+                        {
+                            raw = JsonSerializer.Deserialize<List<ProduccionDiariaDto>>(cached) ?? new();
+                            _snackbar.Add("Mostrando datos en caché local (offline)", Severity.Info);
+                        }
+                        else
+                        {
+                            _snackbar.Add($"Error al consultar actividades: {response.Respuesta.MensajeError}", Severity.Error);
+                            actividadesList = new();
+                            actividadesSeleccionables = new();
+                            grillaConsolidada = new();
+                            return;
+                        }
                     }
                     else
                     {
-                        actividadesList = raw;
+                        raw = response.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+                        try
+                        {
+                            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", cacheKey, JsonSerializer.Serialize(raw));
+                            ultimaCargaLocal = DateTime.Now;
+                        }
+                        catch { }
                     }
+                }
+                else
+                {
+                    // Modo offline directo
+                    var cached = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", cacheKey);
+                    if (!string.IsNullOrEmpty(cached))
+                    {
+                        raw = JsonSerializer.Deserialize<List<ProduccionDiariaDto>>(cached) ?? new();
+                        _snackbar.Add("Modo Offline: Mostrando datos guardados en este dispositivo.", Severity.Warning);
+                    }
+                    else
+                    {
+                        _snackbar.Add("Modo Offline: No hay registros guardados localmente para esta semana.", Severity.Warning);
+                    }
+                }
+
+                if (soloPendientes)
+                {
+                    actividadesList = raw.Where(a => string.IsNullOrWhiteSpace(a.no_lote)).ToList();
+                }
+                else
+                {
+                    actividadesList = raw;
+                }
 
                     // Mapear a seleccionables con detección de mes
                     actividadesSeleccionables = actividadesList.Select(a =>
@@ -372,7 +456,6 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 
                     // Construir grilla consolidada agrupada
                     ConstruirGrillaConsolidada();
-                }
             }
             catch (Exception ex)
             {
@@ -455,6 +538,127 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                 act.IsSelected = false;
             }
             StateHasChanged();
+        }
+
+        #endregion
+
+        #region Edición y Eliminación de Actividades
+
+        protected async Task AbrirModalEditar(ActividadSeleccionableItem item)
+        {
+            if (item == null) return;
+            if (!string.IsNullOrWhiteSpace(item.no_lote) || !string.IsNullOrWhiteSpace(item.no_factura) || item.facturada)
+            {
+                _snackbar.Add("Esta actividad ya está sellada o facturada y no puede editarse directamente. Revierta el lote si necesita corregirla.", Severity.Warning);
+                return;
+            }
+
+            var editDto = new ProduccionDiariaDto
+            {
+                id = item.id,
+                hoja_servicio = item.hoja_servicio,
+                actividad = item.actividad,
+                cliente = item.cliente,
+                area_cliente = item.area_cliente,
+                fecha_inicio = item.fecha_inicio,
+                fecha_fin = item.fecha_fin,
+                hora_inicio = item.hora_inicio,
+                hora_fin = item.hora_fin,
+                nombre_producto = item.nombre_producto,
+                no_lote = item.no_lote,
+                oc = item.oc,
+                no_marchamo = item.no_marchamo,
+                peso = item.peso,
+                cantidad_producto = item.cantidad_producto,
+                costo_producto = item.costo_producto,
+                servicio_codigo = item.servicio_codigo,
+                servicio_descripcion = item.servicio_descripcion,
+                asignado_a = item.asignado_a,
+                facturada = item.facturada,
+                no_proforma = item.no_proforma,
+                no_factura = item.no_factura,
+                operacion_id = item.operacion_id
+            };
+
+            var parameters = new DialogParameters { ["Actividad"] = editDto };
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+            var dialog = await _dialogService.ShowAsync<DialogEditarActividadProduccion>("Editar Actividad de Producción", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is ProduccionDiariaDto edited)
+            {
+                estaCargando = true;
+                mensajeCarga = "Guardando cambios en la actividad...";
+                StateHasChanged();
+                try
+                {
+                    var resp = await _odooService.UpdateProduccionDiaria(edited);
+                    if (!resp.Respuesta.ExisteError)
+                    {
+                        _snackbar.Add("¡Actividad actualizada correctamente!", Severity.Success);
+                        await ConsultarSemana();
+                    }
+                    else
+                    {
+                        _snackbar.Add($"Error al actualizar: {resp.Respuesta.MensajeError}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al actualizar actividad: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
+        }
+
+        protected async Task ConfirmarEliminar(ActividadSeleccionableItem item)
+        {
+            if (item == null) return;
+            if (!string.IsNullOrWhiteSpace(item.no_lote) || !string.IsNullOrWhiteSpace(item.no_factura) || item.facturada)
+            {
+                _snackbar.Add("No se puede eliminar una actividad que ya está sellada o facturada.", Severity.Warning);
+                return;
+            }
+
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Eliminar Actividad de Producción",
+                $"¿Está seguro de eliminar el registro de '{item.actividad}' ({item.nombre_producto}) con cantidad {item.cantidad_producto:N2} unidades?",
+                yesText: "Sí, Eliminar",
+                cancelText: "Cancelar"
+            );
+
+            if (confirm == true)
+            {
+                estaCargando = true;
+                mensajeCarga = "Eliminando actividad...";
+                StateHasChanged();
+                try
+                {
+                    var resp = await _odooService.DeleteProduccionDiaria(item.id);
+                    if (!resp.Respuesta.ExisteError)
+                    {
+                        _snackbar.Add("Actividad eliminada correctamente.", Severity.Success);
+                        await ConsultarSemana();
+                    }
+                    else
+                    {
+                        _snackbar.Add($"Error al eliminar: {resp.Respuesta.MensajeError}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _snackbar.Add($"Error al eliminar actividad: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
         }
 
         #endregion

@@ -7,11 +7,14 @@
 @using HostService.Interfaces
 @using MediatR
 @using BsOperaciones.Application.Features.Odoo.Queries
+@implements IDisposable
+@using System.Text.Json
 @inject IOdooService OdooService
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <div class="actividades-tablet-container">
     @* --- OVERLAY DE CARGA Y GUARDADO --- *@
@@ -22,6 +25,56 @@
             <MudText Typo="Typo.caption" Class="mt-1 text-center" Style="color: #94a3b8;">Procesando datos en Odoo...</MudText>
         </div>
     </MudOverlay>
+
+    @* --- BANNER Y ESTADO DE CONECTIVIDAD (MODO OFFLINE BODEGA) --- *@
+    @if (!esModoOnline)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3 py-2 px-3 rounded-xl" Icon="@Icons.Material.Filled.WifiOff" Style="background-color: #ea580c; color: white;">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                <div>
+                    <b>MODO OFFLINE (BODEGA ACTIVO):</b> Sin señal de internet. Puedes continuar registrando la producción con total normalidad; los registros se guardan en la memoria local de este dispositivo.
+                </div>
+                @if (pendientesOffline.Any())
+                {
+                    <MudChip T="string" Color="Color.Surface" Size="Size.Small" Style="color: #ea580c; font-weight: 800;">
+                        @pendientesOffline.Count pendientes por sincronizar
+                    </MudChip>
+                }
+            </div>
+        </MudAlert>
+    }
+
+    <div class="d-flex align-center justify-space-between mb-2 flex-wrap gap-2">
+        <div class="d-flex align-center gap-2">
+            @if (!esModoOnline)
+            {
+                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.WifiOff" Style="background: #ea580c; color: white; font-weight: 700;" Title="Sin señal de internet en bodega. Cambios guardados en memoria local.">
+                    OFFLINE (BODEGA)
+                </MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Wifi" Title="Conectado a internet">
+                    EN LÍNEA
+                </MudChip>
+            }
+
+            @if (pendientesOffline.Any())
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           OnClick="SincronizarPendientesOffline"
+                           Disabled="@(!esModoOnline || estaSincronizando)"
+                           Class="fw-bold">
+                    @(estaSincronizando ? "Sincronizando..." : $"Sincronizar Pendientes ({pendientesOffline.Count})")
+                </MudButton>
+            }
+        </div>
+
+        <div class="d-flex align-center gap-1">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" OnClick="@(() => CargarHistorialHoy())" Title="Recargar historial" />
+        </div>
+    </div>
 
     @* --- TABS DE CLIENTES ASIGNADOS AL SUPERVISOR (CON SERVICIOS CONFIGURADOS) --- *@
     @if (clientesPermitidos.Any())
@@ -433,6 +486,7 @@
                             <th>No. Lote</th>
                             <th class="text-end">Cantidad</th>
                             <th class="text-center">Estado</th>
+                            <th class="text-center" style="width: 90px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -449,13 +503,38 @@
                                 <td>@(string.IsNullOrEmpty(reg.no_lote) ? "-" : reg.no_lote)</td>
                                 <td class="text-end fw-bold">@reg.cantidad_producto.ToString("N0")</td>
                                 <td class="text-center">
-                                    @if (!string.IsNullOrEmpty(reg.no_lote))
+                                    @if (reg.id < 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">Offline</span>
+                                    }
+                                    else if (!string.IsNullOrEmpty(reg.no_lote))
                                     {
                                         <span class="badge bg-success">Sellado</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                        <span class="badge bg-info text-dark">Pendiente</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (string.IsNullOrEmpty(reg.no_lote) && !reg.facturada)
+                                    {
+                                        <div class="d-flex align-center justify-center gap-1">
+                                            <MudTooltip Text="Editar cantidad">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                                               OnClick="@(() => AbrirModalEditarTablet(reg))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="Eliminar actividad">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                               OnClick="@(() => ConfirmarEliminarTablet(reg))" />
+                                            </MudTooltip>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="Actividad sellada en lote (Bloqueada para edición)">
+                                            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Default" />
+                                        </MudTooltip>
                                     }
                                 </td>
                             </tr>
@@ -874,6 +953,155 @@
     // Historial del día
     private List<ProduccionDiariaDto> historialHoy = new();
 
+    // Conectividad y Modo Offline (Bodega)
+    private bool esModoOnline = true;
+    private bool estaSincronizando = false;
+    private List<ProduccionDiariaDto> pendientesOffline = new();
+    private DotNetObjectReference<ActividadesProduccionTablet>? dotNetHelper;
+
+    private string KeyOfflineQueue => $"actividades_tablet_offline_{currentUserName}";
+    private string KeyCacheClientes => $"actividades_cache_clientes_{currentUserName}";
+    private string KeyCacheConfigs => $"actividades_cache_configs_{operacionSeleccionadaId}_{currentUserName}";
+    private string KeyCacheHistorial => $"actividades_cache_historial_{operacionSeleccionadaId}_{fechaJornada:yyyyMMdd}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            try
+            {
+                dotNetHelper = DotNetObjectReference.Create(this);
+                esModoOnline = await JSRuntime.InvokeAsync<bool>("connectivityInterop.isOnline");
+                await JSRuntime.InvokeVoidAsync("connectivityInterop.registerListener", dotNetHelper);
+                await CargarColaOfflineDesdeStorage();
+                await CargarHistorialHoy();
+                StateHasChanged();
+            }
+            catch { }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnConexionCambiada(bool online)
+    {
+        esModoOnline = online;
+        if (online)
+        {
+            Snackbar.Add("🟢 Conexión a internet restablecida.", Severity.Success);
+            if (pendientesOffline.Any())
+            {
+                await SincronizarPendientesOffline();
+            }
+        }
+        else
+        {
+            Snackbar.Add("🟡 Modo Offline (Bodega): Sin conexión. Las actividades se guardarán en este dispositivo.", Severity.Warning);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            dotNetHelper?.Dispose();
+        }
+        catch { }
+    }
+
+    private async Task CargarColaOfflineDesdeStorage()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyOfflineQueue);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                pendientesOffline = JsonSerializer.Deserialize<List<ProduccionDiariaDto>>(json) ?? new();
+            }
+            else
+            {
+                pendientesOffline = new();
+            }
+        }
+        catch
+        {
+            pendientesOffline = new();
+        }
+    }
+
+    private async Task GuardarColaOfflineEnStorage()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyOfflineQueue, JsonSerializer.Serialize(pendientesOffline));
+        }
+        catch { }
+    }
+
+    private async Task SincronizarPendientesOffline()
+    {
+        if (!pendientesOffline.Any())
+        {
+            Snackbar.Add("No hay actividades pendientes de sincronizar.", Severity.Info);
+            return;
+        }
+
+        estaSincronizando = true;
+        estaCargando = true;
+        mensajeCarga = $"Sincronizando {pendientesOffline.Count} actividades a Odoo...";
+        StateHasChanged();
+
+        try
+        {
+            // Remover IDs temporales negativos
+            var itemsAEnviar = pendientesOffline.Select(p => new ProduccionDiariaDto
+            {
+                cliente = p.cliente,
+                operacion_id = p.operacion_id,
+                actividad = p.actividad,
+                area_cliente = p.area_cliente,
+                servicio_codigo = p.servicio_codigo,
+                servicio_descripcion = p.servicio_descripcion,
+                nombre_producto = p.nombre_producto,
+                cantidad_producto = p.cantidad_producto,
+                costo_producto = p.costo_producto,
+                fecha_inicio = p.fecha_inicio,
+                fecha_fin = p.fecha_fin,
+                hora_inicio = p.hora_inicio,
+                hora_fin = p.hora_fin,
+                no_lote = p.no_lote,
+                oc = p.oc,
+                asignado_a = p.asignado_a,
+                facturada = false
+            }).ToList();
+
+            var res = await OdooService.ImportarProduccionDiaria(itemsAEnviar);
+            if (!res.Respuesta.ExisteError)
+            {
+                int cant = pendientesOffline.Count;
+                pendientesOffline.Clear();
+                await GuardarColaOfflineEnStorage();
+                Snackbar.Add($"¡{cant} actividades sincronizadas con éxito en Odoo!", Severity.Success);
+                await CargarHistorialHoy();
+            }
+            else
+            {
+                Snackbar.Add($"Error al sincronizar: {res.Respuesta.MensajeError}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión al sincronizar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            estaSincronizando = false;
+            estaCargando = false;
+            StateHasChanged();
+        }
+    }
+
     private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;    
     private async Task CargarClientesPermitidos()
     {
@@ -960,10 +1188,28 @@
                     ServiciosCount = configsActivas.Count(c => c.OperacionId == primerConfig.OperacionId)
                 });
             }
+
+            if (clientesPermitidos.Any())
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheClientes, JsonSerializer.Serialize(clientesPermitidos));
+                }
+                catch { }
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error cargando clientes permitidos: {ex.Message}");
+            try
+            {
+                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheClientes);
+                if (!string.IsNullOrWhiteSpace(cached))
+                {
+                    clientesPermitidos = JsonSerializer.Deserialize<List<ClienteTabItem>>(cached) ?? new();
+                }
+            }
+            catch { }
         }
 
         // Preseleccionar el cliente
@@ -1075,6 +1321,11 @@
             if (res?.Model != null && res.Model.Any())
             {
                 configsCliente = res.Model.ToList();
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheConfigs, JsonSerializer.Serialize(configsCliente));
+                }
+                catch { }
                 
                 serviciosDisponibles = MasterCatalogoServicios
                     .Where(s => configsCliente.Any(c => c.TemplateId == s.TemplateId))
@@ -1093,7 +1344,26 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error cargando configs actividades: {ex.Message}");
-            serviciosDisponibles = MasterCatalogoServicios.ToList();
+            try
+            {
+                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheConfigs);
+                if (!string.IsNullOrWhiteSpace(cached))
+                {
+                    configsCliente = JsonSerializer.Deserialize<List<ClienteActividadConfigDto>>(cached) ?? new();
+                }
+            }
+            catch { }
+
+            if (configsCliente.Any())
+            {
+                serviciosDisponibles = MasterCatalogoServicios
+                    .Where(s => configsCliente.Any(c => c.TemplateId == s.TemplateId))
+                    .ToList();
+            }
+            else
+            {
+                serviciosDisponibles = MasterCatalogoServicios.ToList();
+            }
         }
     }
 
@@ -1179,6 +1449,11 @@
             if (!res.Respuesta.ExisteError && res.Model != null)
             {
                 var all = res.Model.ToList();
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"actividades_cache_var_{serv.TemplateId}", JsonSerializer.Serialize(all));
+                }
+                catch { }
 
                 // Filtrar variantes por cliente automáticamente
                 string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
@@ -1207,6 +1482,23 @@
         }
         catch (Exception ex)
         {
+            try
+            {
+                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", $"actividades_cache_var_{serv.TemplateId}");
+                if (!string.IsNullOrWhiteSpace(cached))
+                {
+                    var all = JsonSerializer.Deserialize<List<OdooVariantDto>>(cached) ?? new();
+                    string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
+                    var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
+                    todasVariantesServicio = variantesCliente.Any() ? variantesCliente : all;
+                    serv.VariantesCount = todasVariantesServicio.Count;
+                    ExtraerOpcionesFiltros();
+                    AplicarFiltros();
+                    Snackbar.Add($"Variantes cargadas desde memoria local (offline).", Severity.Info);
+                    return;
+                }
+            }
+            catch { }
             Snackbar.Add($"Error al consultar variantes: {ex.Message}", Severity.Error);
         }
         finally
@@ -1454,37 +1746,57 @@
         mensajeCarga = "Guardando producción de actividad...";
         StateHasChanged();
 
+        var dict = ParsearAtributos(varianteSeleccionada!.nombre);
+        string prodName = dict.TryGetValue("Producto", out var p) ? p : varianteSeleccionada.template_name;
+
+        var item = new ProduccionDiariaDto
+        {
+            cliente = operacionSeleccionadaNombre,
+            operacion_id = operacionSeleccionadaId,
+            actividad = servicioSeleccionado?.NombreCorto ?? "Actividad de Producción",
+            area_cliente = areaSeleccionada,
+            servicio_codigo = varianteSeleccionada.default_code,
+            servicio_descripcion = varianteSeleccionada.nombre,
+            nombre_producto = prodName,
+            cantidad_producto = cantidadProducida,
+            costo_producto = 0, // Backend aplica automáticamente fixed_price de lista
+            fecha_inicio = fechaJornada.Date,
+            fecha_fin = fechaJornada.Date,
+            hora_inicio = turnoSeleccionado.Contains("Nocturno") ? "19:00" : "07:00",
+            hora_fin = turnoSeleccionado.Contains("Nocturno") ? "07:00" : "19:00",
+            no_lote = string.IsNullOrWhiteSpace(noLote) ? null : noLote.Trim(),
+            oc = string.IsNullOrWhiteSpace(ordenCompra) ? null : ordenCompra.Trim(),
+            asignado_a = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim(),
+            facturada = false
+        };
+
+        if (!esModoOnline)
+        {
+            // MODO OFFLINE: Guardar localmente
+            item.id = -(pendientesOffline.Count + 1);
+            pendientesOffline.Insert(0, item);
+            await GuardarColaOfflineEnStorage();
+
+            Snackbar.Add($"📦 Guardado en Modo Offline (Bodega). Se sincronizará al tener señal ({cantidadProducida:N0} unid).", Severity.Warning);
+
+            cantidadProducida = 0;
+            noLote = "";
+            ordenCompra = "";
+            varianteSeleccionada = null;
+            LimpiarFiltros();
+            await CargarHistorialHoy();
+            estaCargando = false;
+            StateHasChanged();
+            return;
+        }
+
         try
         {
-            var dict = ParsearAtributos(varianteSeleccionada!.nombre);
-            string prodName = dict.TryGetValue("Producto", out var p) ? p : varianteSeleccionada.template_name;
-
-            var item = new ProduccionDiariaDto
-            {
-                cliente = operacionSeleccionadaNombre,
-                operacion_id = operacionSeleccionadaId,
-                actividad = servicioSeleccionado?.NombreCorto ?? "Actividad de Producción",
-                area_cliente = areaSeleccionada,
-                servicio_codigo = varianteSeleccionada.default_code,
-                servicio_descripcion = varianteSeleccionada.nombre,
-                nombre_producto = prodName,
-                cantidad_producto = cantidadProducida,
-                costo_producto = 0, // Backend aplica automáticamente fixed_price de lista
-                fecha_inicio = fechaJornada.Date,
-                fecha_fin = fechaJornada.Date,
-                hora_inicio = turnoSeleccionado.Contains("Nocturno") ? "19:00" : "07:00",
-                hora_fin = turnoSeleccionado.Contains("Nocturno") ? "07:00" : "19:00",
-                no_lote = string.IsNullOrWhiteSpace(noLote) ? null : noLote.Trim(),
-                oc = string.IsNullOrWhiteSpace(ordenCompra) ? null : ordenCompra.Trim(),
-                asignado_a = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim(),
-                facturada = false
-            };
-
             var res = await OdooService.ImportarProduccionDiaria(new List<ProduccionDiariaDto> { item });
             if (!res.Respuesta.ExisteError)
             {
                 Snackbar.Add($"¡Actividad registrada con éxito! {cantidadProducida:N0} unidades de {varianteSeleccionada.default_code}.", Severity.Success);
-                
+
                 // Reiniciar entrada para siguiente actividad
                 cantidadProducida = 0;
                 noLote = "";
@@ -1500,7 +1812,19 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+            // Fallback ante fallo de red: cambiar a modo offline y guardar en memoria
+            esModoOnline = false;
+            item.id = -(pendientesOffline.Count + 1);
+            pendientesOffline.Insert(0, item);
+            await GuardarColaOfflineEnStorage();
+            Snackbar.Add($"Fallo de conexión ({ex.Message}). Actividad guardada localmente en modo offline.", Severity.Warning);
+
+            cantidadProducida = 0;
+            noLote = "";
+            ordenCompra = "";
+            varianteSeleccionada = null;
+            LimpiarFiltros();
+            await CargarHistorialHoy();
         }
         finally
         {
@@ -1513,19 +1837,211 @@
     {
         try
         {
-            var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, operacionSeleccionadaId, null);
-            if (!res.Respuesta.ExisteError && res.Model != null)
+            List<ProduccionDiariaDto> onlineList = new();
+
+            if (esModoOnline)
             {
-                historialHoy = res.Model.OrderByDescending(h => h.id).ToList();
+                var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, operacionSeleccionadaId, null);
+                if (!res.Respuesta.ExisteError && res.Model != null)
+                {
+                    onlineList = res.Model.OrderByDescending(h => h.id).ToList();
+                    try
+                    {
+                        await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheHistorial, JsonSerializer.Serialize(onlineList));
+                    }
+                    catch { }
+                }
             }
             else
             {
-                historialHoy = new();
+                try
+                {
+                    var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheHistorial);
+                    if (!string.IsNullOrWhiteSpace(cached))
+                    {
+                        onlineList = JsonSerializer.Deserialize<List<ProduccionDiariaDto>>(cached) ?? new();
+                    }
+                }
+                catch { }
             }
+
+            var offHoy = pendientesOffline
+                .Where(p => p.fecha_inicio?.Date == fechaJornada.Date && p.operacion_id == operacionSeleccionadaId)
+                .ToList();
+
+            historialHoy = offHoy.Concat(onlineList).ToList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error al cargar historial: {ex.Message}");
+            try
+            {
+                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheHistorial);
+                var onlineList = (!string.IsNullOrWhiteSpace(cached))
+                    ? (JsonSerializer.Deserialize<List<ProduccionDiariaDto>>(cached) ?? new())
+                    : new List<ProduccionDiariaDto>();
+
+                var offHoy = pendientesOffline
+                    .Where(p => p.fecha_inicio?.Date == fechaJornada.Date && p.operacion_id == operacionSeleccionadaId)
+                    .ToList();
+
+                historialHoy = offHoy.Concat(onlineList).ToList();
+            }
+            catch { }
+        }
+    }
+
+    private async Task AbrirModalEditarTablet(ProduccionDiariaDto reg)
+    {
+        if (reg == null) return;
+        if (!string.IsNullOrEmpty(reg.no_lote) || reg.facturada)
+        {
+            Snackbar.Add("No se puede editar una actividad ya sellada o facturada.", Severity.Warning);
+            return;
+        }
+
+        var editDto = new ProduccionDiariaDto
+        {
+            id = reg.id,
+            hoja_servicio = reg.hoja_servicio,
+            actividad = reg.actividad,
+            cliente = reg.cliente,
+            area_cliente = reg.area_cliente,
+            fecha_inicio = reg.fecha_inicio,
+            fecha_fin = reg.fecha_fin,
+            hora_inicio = reg.hora_inicio,
+            hora_fin = reg.hora_fin,
+            nombre_producto = reg.nombre_producto,
+            no_lote = reg.no_lote,
+            oc = reg.oc,
+            no_marchamo = reg.no_marchamo,
+            peso = reg.peso,
+            cantidad_producto = reg.cantidad_producto,
+            costo_producto = reg.costo_producto,
+            servicio_codigo = reg.servicio_codigo,
+            servicio_descripcion = reg.servicio_descripcion,
+            asignado_a = reg.asignado_a,
+            facturada = reg.facturada,
+            operacion_id = reg.operacion_id
+        };
+
+        var parameters = new DialogParameters { ["Actividad"] = editDto };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogEditarActividadProduccion>("Editar Actividad", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is ProduccionDiariaDto edited)
+        {
+            if (edited.id < 0)
+            {
+                // Es registro offline
+                var offItem = pendientesOffline.FirstOrDefault(p => p.id == edited.id);
+                if (offItem != null)
+                {
+                    offItem.cantidad_producto = edited.cantidad_producto;
+                    offItem.no_lote = edited.no_lote;
+                    offItem.oc = edited.oc;
+                    offItem.asignado_a = edited.asignado_a;
+                    await GuardarColaOfflineEnStorage();
+                }
+                var histItem = historialHoy.FirstOrDefault(h => h.id == edited.id);
+                if (histItem != null)
+                {
+                    histItem.cantidad_producto = edited.cantidad_producto;
+                    histItem.no_lote = edited.no_lote;
+                    histItem.oc = edited.oc;
+                    histItem.asignado_a = edited.asignado_a;
+                }
+                Snackbar.Add("Registro offline actualizado correctamente.", Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                // Es registro en base de datos
+                estaCargando = true;
+                mensajeCarga = "Actualizando actividad...";
+                StateHasChanged();
+                try
+                {
+                    var resp = await OdooService.UpdateProduccionDiaria(edited);
+                    if (!resp.Respuesta.ExisteError)
+                    {
+                        Snackbar.Add("Actividad actualizada correctamente.", Severity.Success);
+                        await CargarHistorialHoy();
+                    }
+                    else
+                    {
+                        Snackbar.Add($"Error al actualizar: {resp.Respuesta.MensajeError}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
+        }
+    }
+
+    private async Task ConfirmarEliminarTablet(ProduccionDiariaDto reg)
+    {
+        if (reg == null) return;
+        if (!string.IsNullOrEmpty(reg.no_lote) || reg.facturada)
+        {
+            Snackbar.Add("No se puede eliminar una actividad ya sellada o facturada.", Severity.Warning);
+            return;
+        }
+
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Eliminar Actividad",
+            $"¿Está seguro de eliminar el registro de '{reg.actividad}' ({reg.nombre_producto}) con {reg.cantidad_producto:N0} unidades?",
+            yesText: "Sí, Eliminar",
+            cancelText: "Cancelar"
+        );
+
+        if (confirm == true)
+        {
+            if (reg.id < 0)
+            {
+                // Borrar de la cola offline
+                pendientesOffline.RemoveAll(p => p.id == reg.id);
+                historialHoy.RemoveAll(h => h.id == reg.id);
+                await GuardarColaOfflineEnStorage();
+                Snackbar.Add("Actividad offline eliminada.", Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                estaCargando = true;
+                mensajeCarga = "Eliminando actividad...";
+                StateHasChanged();
+                try
+                {
+                    var resp = await OdooService.DeleteProduccionDiaria(reg.id);
+                    if (!resp.Respuesta.ExisteError)
+                    {
+                        Snackbar.Add("Actividad eliminada correctamente.", Severity.Success);
+                        await CargarHistorialHoy();
+                    }
+                    else
+                    {
+                        Snackbar.Add($"Error al eliminar: {resp.Respuesta.MensajeError}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    estaCargando = false;
+                    StateHasChanged();
+                }
+            }
         }
     }
 }

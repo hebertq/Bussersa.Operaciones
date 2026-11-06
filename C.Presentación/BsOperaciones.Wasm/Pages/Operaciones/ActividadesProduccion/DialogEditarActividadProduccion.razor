@@ -1,0 +1,162 @@
+@using MudBlazor
+@using Modelo.Entidades.Entradas.Odoo
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Primary" Size="Size.Large" />
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Editar Cantidad y Detalles de Actividad</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">ID Registro: @Actividad.id | Código SKU: @Actividad.servicio_codigo</MudText>
+            </div>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex flex-column gap-3">
+            @* Tarjeta Informativa de la Actividad (Solo Lectura) *@
+            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background-color: #f1f5f9; border-left: 4px solid #0284c7;">
+                <div class="d-flex justify-space-between align-center mb-1">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark">
+                        @Actividad.actividad
+                    </MudText>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">
+                        @Actividad.area_cliente
+                    </MudChip>
+                </div>
+                <div class="mb-2" style="font-size: 0.85rem; color: #334155;">
+                    <b>Producto / Variante:</b> @(string.IsNullOrWhiteSpace(Actividad.nombre_producto) ? Actividad.servicio_descripcion : Actividad.nombre_producto)
+                </div>
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2 pt-1 border-top" style="font-size: 0.8rem; color: #64748b;">
+                    <span><b>Fecha:</b> @(Actividad.fecha_inicio?.ToString("dd/MM/yyyy") ?? "-")</span>
+                    <span><b>Turno / Horas:</b> @Actividad.hora_inicio - @Actividad.hora_fin</span>
+                    @if (Actividad.costo_producto > 0)
+                    {
+                        <span><b>Tarifa:</b> $ @Actividad.costo_producto.ToString("N2")</span>
+                    }
+                </div>
+            </MudPaper>
+
+            @* Formulario de Edición de Cantidad y Metadatos *@
+            <MudForm @ref="form" @bind-IsValid="esValido">
+                <MudGrid Spacing="2">
+                    @* Cantidad Producida *@
+                    <MudItem xs="12">
+                        <div class="d-flex flex-column">
+                            <label class="form-label fw-bold mb-1" style="color: #0f172a; font-size: 0.9rem;">
+                                Cantidad Producida (Unidades) <span class="text-danger">*</span>
+                            </label>
+                            <MudNumericField T="decimal" @bind-Value="Actividad.cantidad_producto"
+                                             Min="0.01M" Max="1000000M" Format="N2" Immediate="true"
+                                             Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Required="true" RequiredError="La cantidad debe ser mayor a 0"
+                                             Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Calculate" />
+                        </div>
+
+                        @* Botones Rápidos de Ajuste *@
+                        <div class="d-flex align-center gap-1 mt-2 flex-wrap">
+                            <span class="text-muted small mr-1">Ajuste rápido:</span>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => SumarCantidad(-10))" Disabled="@(Actividad.cantidad_producto <= 10)">-10</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => SumarCantidad(-1))" Disabled="@(Actividad.cantidad_producto <= 1)">-1</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SumarCantidad(1))">+1</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SumarCantidad(10))">+10</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SumarCantidad(50))">+50</MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SumarCantidad(100))">+100</MudButton>
+                        </div>
+                    </MudItem>
+
+                    @* Subtotal Recalculado si hay tarifa *@
+                    @if (Actividad.costo_producto > 0)
+                    {
+                        <MudItem xs="12">
+                            <div class="pa-2 rounded d-flex align-center justify-space-between" style="background: #ecfdf5; border: 1px solid #a7f3d0;">
+                                <span style="font-size: 0.85rem; color: #065f46; font-weight: 600;">Nuevo Subtotal Estimado:</span>
+                                <span style="font-size: 1.05rem; color: #047857; font-weight: 800;">
+                                    $ @((Actividad.cantidad_producto * Actividad.costo_producto).ToString("N2"))
+                                </span>
+                            </div>
+                        </MudItem>
+                    }
+
+                    @* No. Lote / Tarima *@
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Actividad.no_lote"
+                                      Label="No. Lote / Tarima (Opcional)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Placeholder="Ej: LOTE-4890"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.ConfirmationNumber" />
+                    </MudItem>
+
+                    @* Orden de Compra (OC) *@
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Actividad.oc"
+                                      Label="Orden de Compra / OC (Opcional)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Placeholder="Ej: OC-98214"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Description" />
+                    </MudItem>
+
+                    @* Observaciones / Asignado *@
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Actividad.asignado_a"
+                                      Label="Observaciones / Asignado a (Opcional)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Lines="2"
+                                      Placeholder="Detalles o comentarios del supervisor..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Notes" />
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancelar" Color="Color.Secondary">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Guardar" Disabled="@(!esValido || Actividad.cantidad_producto <= 0)">
+            Guardar Cambios
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ProduccionDiariaDto Actividad { get; set; } = new();
+
+    private MudForm? form;
+    private bool esValido = true;
+
+    protected override void OnInitialized()
+    {
+        // Aseguramos una copia local para no mutar el original en caso de cancelación
+        if (Actividad == null)
+        {
+            Actividad = new ProduccionDiariaDto();
+        }
+    }
+
+    private void SumarCantidad(decimal delta)
+    {
+        var nueva = Actividad.cantidad_producto + delta;
+        if (nueva > 0)
+        {
+            Actividad.cantidad_producto = nueva;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Guardar()
+    {
+        if (Actividad.cantidad_producto <= 0) return;
+        MudDialog.Close(DialogResult.Ok(Actividad));
+    }
+}
