@@ -118,10 +118,26 @@ namespace BsOperaciones.Pages.Comercial
                         decimal priceVal = 0;
                         if (colPrice != -1 && row.GetCell(colPrice) != null)
                         {
-                            var priceCellStr = row.GetCell(colPrice).ToString()?.Trim();
-                            if (!string.IsNullOrEmpty(priceCellStr))
+                            var priceCell = row.GetCell(colPrice);
+                            if (priceCell.CellType == CellType.Numeric)
                             {
-                                decimal.TryParse(priceCellStr, out priceVal);
+                                priceVal = Convert.ToDecimal(priceCell.NumericCellValue);
+                            }
+                            else
+                            {
+                                var priceCellStr = priceCell.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(priceCellStr))
+                                {
+                                    priceCellStr = priceCellStr.Replace("$", "").Replace("C$", "").Trim();
+                                    if (decimal.TryParse(priceCellStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var pInv))
+                                    {
+                                        priceVal = pInv;
+                                    }
+                                    else if (decimal.TryParse(priceCellStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.CurrentCulture, out var pCurr))
+                                    {
+                                        priceVal = pCurr;
+                                    }
+                                }
                             }
                         }
 
