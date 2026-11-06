@@ -72,4 +72,28 @@ namespace BsOperaciones.Application.Features.Operaciones.Handlers
         public async Task<IListResponse<HistoricoAsignacionProduccionDto>> Handle(GetHistoricoAsignacionesProduccionQuery request, CancellationToken cancellationToken)
             => await _odooService.GetHistoricoAsignacionesProduccion(request.OperacionId, request.Anio);
     }
+
+    public class SellarLoteActividadesHandler : IRequestHandler<SellarLoteActividadesCommand, IResponse>
+    {
+        private readonly IOdooService _odooService;
+        public SellarLoteActividadesHandler(IOdooService odooService) => _odooService = odooService;
+        public async Task<IResponse> Handle(SellarLoteActividadesCommand request, CancellationToken cancellationToken)
+            => await _odooService.SellarLoteActividades(request.Request);
+    }
+
+    public class DesellarLoteActividadesHandler : IRequestHandler<DesellarLoteActividadesCommand, IResponse>
+    {
+        private readonly IOdooService _odooService;
+        public DesellarLoteActividadesHandler(IOdooService odooService) => _odooService = odooService;
+        public async Task<IResponse> Handle(DesellarLoteActividadesCommand request, CancellationToken cancellationToken)
+            => await _odooService.DesellarLoteActividades(request.NumeroLote);
+    }
+
+    public class GetHistoricoLotesActividadesHandler : IRequestHandler<GetHistoricoLotesActividadesQuery, IListResponse<HistoricoLoteActividadesDto>>
+    {
+        private readonly IOdooService _odooService;
+        public GetHistoricoLotesActividadesHandler(IOdooService odooService) => _odooService = odooService;
+        public async Task<IListResponse<HistoricoLoteActividadesDto>> Handle(GetHistoricoLotesActividadesQuery request, CancellationToken cancellationToken)
+            => await _odooService.GetHistoricoLotesActividades(request.OperacionId, request.Anio);
+    }
 }

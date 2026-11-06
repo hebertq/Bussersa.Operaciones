@@ -1,9 +1,13 @@
+﻿@page "/operaciones/actividades-tablet"
 @page "/operaciones/actividades-produccion"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
+@using MediatR
+@using BsOperaciones.Application.Features.Odoo.Queries
 @inject IOdooService OdooService
+@inject IMediator Mediator
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
@@ -51,18 +55,22 @@
                 <MudSelect T="string" Label="Área" @bind-Value="areaSeleccionada" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                     <MudSelectItem Value="@("CD")">CD</MudSelectItem>
                     <MudSelectItem Value="@("Sum")">Sum</MudSelectItem>
+                    <MudSelectItem Value="@("Construcción")">Construcción</MudSelectItem>
+                    <MudSelectItem Value="@("Planta")">Planta</MudSelectItem>
                 </MudSelect>
             </MudItem>
 
-            @* Cliente Seleccionado *@
+            @* Selector de Empresa / Operación Dinámico *@
             <MudItem xs="12" sm="12" md="4" Class="d-flex justify-sm-end align-center gap-2">
-                <div class="d-flex align-center px-3 py-2 rounded-lg" style="background: #eff6ff; border: 1px solid #bfdbfe;">
-                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Class="mr-2" />
-                    <div>
-                        <div style="font-size: 0.7rem; font-weight: 700; color: #1e40af; text-transform: uppercase;">Cliente Activo</div>
-                        <div style="font-size: 0.95rem; font-weight: 800; color: #1e3a8a;">CBC PEPSI (Op. 27)</div>
-                    </div>
-                </div>
+                <MudSelect T="int" Label="Empresa / Operación" Value="@operacionSeleccionadaId" ValueChanged="@OnOperacionChanged"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business"
+                           Style="min-width: 240px; font-weight: 700; background-color: #eff6ff;">
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -83,15 +91,15 @@
             @foreach (var serv in serviciosDisponibles)
             {
                 bool isSelected = servicioSeleccionado?.TemplateId == serv.TemplateId;
-                <MudItem xs="12" sm="4">
+                <MudItem xs="12" sm="4" md="3">
                     <div class="service-card @(isSelected ? "selected" : "")" @onclick="@(() => SeleccionarServicio(serv))">
                         <div class="d-flex align-center gap-3">
                             <div class="service-icon-box @(isSelected ? "selected" : "")">
                                 <MudIcon Icon="@serv.Icono" Size="Size.Medium" />
                             </div>
-                            <div class="flex-grow-1">
-                                <div class="service-title">@serv.NombreCorto</div>
-                                <div class="service-subtitle">@serv.Descripcion</div>
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <div class="service-title text-truncate">@serv.NombreCorto</div>
+                                <div class="service-subtitle text-truncate">@serv.Descripcion</div>
                                 <div class="service-count">@serv.VariantesCount variantes</div>
                             </div>
                             @if (isSelected)
@@ -128,64 +136,64 @@
             @if (productosDisponibles.Any())
             {
                 <div class="filter-group mb-2">
-                    <div class="filter-label">🧃 PRODUCTO:</div>
+                    <div class="filter-label">PRODUCTO:</div>
                     <div class="d-flex flex-wrap gap-1">
-                        @foreach (var prod in productosDisponibles)
+                        @foreach (var p in productosDisponibles)
                         {
-                            bool sel = filtroProducto == prod;
-                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroProducto(prod))">
-                                @prod
+                            bool activo = filtroProducto == p;
+                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroProducto(p))">
+                                @p
                             </button>
                         }
                     </div>
                 </div>
             }
 
-            @* Filtro: Bandeo (Si aplica) *@
+            @* Filtro: Bandeo *@
             @if (bandeosDisponibles.Any())
             {
                 <div class="filter-group mb-2">
-                    <div class="filter-label">📦 BANDEO / PACK:</div>
+                    <div class="filter-label">BANDEO / PACK:</div>
                     <div class="d-flex flex-wrap gap-1">
-                        @foreach (var ban in bandeosDisponibles)
+                        @foreach (var b in bandeosDisponibles)
                         {
-                            bool sel = filtroBandeo == ban;
-                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroBandeo(ban))">
-                                @ban
+                            bool activo = filtroBandeo == b;
+                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroBandeo(b))">
+                                @b
                             </button>
                         }
                     </div>
                 </div>
             }
 
-            @* Filtro: Presentación (Si aplica) *@
+            @* Filtro: Presentación *@
             @if (presentacionesDisponibles.Any())
             {
                 <div class="filter-group mb-2">
-                    <div class="filter-label">🧴 PRESENTACIÓN:</div>
+                    <div class="filter-label">PRESENTACIÓN:</div>
                     <div class="d-flex flex-wrap gap-1">
-                        @foreach (var pres in presentacionesDisponibles)
+                        @foreach (var pr in presentacionesDisponibles)
                         {
-                            bool sel = filtroPresentacion == pres;
-                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroPresentacion(pres))">
-                                @pres
+                            bool activo = filtroPresentacion == pr;
+                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroPresentacion(pr))">
+                                @pr
                             </button>
                         }
                     </div>
                 </div>
             }
 
-            @* Filtro: Climatización (Para etiquetado si aplica) *@
+            @* Filtro: Climatización *@
             @if (climatizacionesDisponibles.Any())
             {
                 <div class="filter-group mb-2">
-                    <div class="filter-label">❄️ CLIMATIZACIÓN:</div>
+                    <div class="filter-label">CLIMATIZACIÓN:</div>
                     <div class="d-flex flex-wrap gap-1">
-                        @foreach (var clim in climatizacionesDisponibles)
+                        @foreach (var cl in climatizacionesDisponibles)
                         {
-                            bool sel = filtroClimatizacion == clim;
-                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroClimatizacion(clim))">
-                                @clim
+                            bool activo = filtroClimatizacion == cl;
+                            <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroClimatizacion(cl))">
+                                @cl
                             </button>
                         }
                     </div>
@@ -193,108 +201,83 @@
             }
         </MudPaper>
 
-        @* --- PASO 3: SELECCIONAR VARIANTE EXACTA --- *@
+        @* --- PASO 3: SELECCIONAR LA VARIANTE ESPECÍFICA --- *@
         <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff;">
             <div class="d-flex align-center justify-space-between mb-2">
                 <div class="d-flex align-center gap-2">
                     <span class="step-badge">3</span>
-                    <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Variante de Servicio</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Selecciona la Variante Exacta</MudText>
                 </div>
                 @if (varianteSeleccionada != null)
                 {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Check">
-                        Código: @varianteSeleccionada.default_code
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Check">
+                        @varianteSeleccionada.default_code
                     </MudChip>
                 }
             </div>
 
             @if (varianteSeleccionada != null)
             {
-                @* Tarjeta Destacada de Variante Seleccionada (SIN PRECIOS) *@
-                <div class="selected-variant-banner">
-                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                <div class="selected-variant-banner mb-3">
+                    <div class="d-flex align-center justify-space-between">
                         <div>
-                            <div class="d-flex align-center gap-2">
-                                <span class="badge-code">@varianteSeleccionada.default_code</span>
-                                <span class="fw-bold text-white fs-6">@servicioSeleccionado.NombreCorto</span>
-                            </div>
-                            <div class="text-white-50 small mt-1">
-                                @varianteSeleccionada.nombre
-                            </div>
+                            <div class="variant-sku">SKU: @varianteSeleccionada.default_code</div>
+                            <div class="variant-fullname">@varianteSeleccionada.nombre</div>
                         </div>
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Inherit" OnClick="@(() => varianteSeleccionada = null)" Style="color: white; border-color: rgba(255,255,255,0.4);">
-                            Cambiar
-                        </MudButton>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => varianteSeleccionada = null)" Color="Color.Default" />
                     </div>
                 </div>
             }
-            else
-            {
-                <div class="variants-scroll-container">
-                    @if (!variantesFiltradas.Any())
+
+            <div class="variants-scroll-container">
+                <MudGrid Spacing="1">
+                    @foreach (var v in variantesFiltradas)
                     {
-                        <div class="pa-4 text-center text-muted">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-1" />
-                            <div>No hay variantes que coincidan con la combinación de filtros seleccionada.</div>
-                            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@LimpiarFiltros" Class="mt-2">Limpiar Filtros</MudButton>
-                        </div>
-                    }
-                    else
-                    {
-                        <MudGrid Spacing="1">
-                            @foreach (var v in variantesFiltradas.Take(30))
-                            {
-                                <MudItem xs="12" sm="6" md="4">
-                                    <div class="variant-item-card" @onclick="@(() => SeleccionarVariante(v))">
-                                        <div class="d-flex justify-space-between align-center mb-1">
-                                            <span class="variant-code">@v.default_code</span>
-                                            <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" Color="Color.Default" />
-                                        </div>
-                                        <div class="variant-desc">@LimpiarNombreVariante(v.nombre)</div>
-                                    </div>
-                                </MudItem>
-                            }
-                        </MudGrid>
-                        @if (variantesFiltradas.Count > 30)
-                        {
-                            <div class="text-center pa-2 text-muted small">
-                                Mostrando 30 de @variantesFiltradas.Count variantes. Usa los filtros de arriba para acotar la selección.
+                        bool isSel = varianteSeleccionada?.id == v.id;
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="variant-item-card @(isSel ? "selected" : "")" @onclick="@(() => SeleccionarVariante(v))">
+                                <div class="d-flex align-center justify-space-between">
+                                    <span class="variant-code">@v.default_code</span>
+                                    @if (isSel)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
+                                    }
+                                </div>
+                                <div class="variant-desc">@LimpiarNombreVariante(v.nombre)</div>
                             </div>
-                        }
+                        </MudItem>
                     }
-                </div>
-            }
+                </MudGrid>
+            </div>
         </MudPaper>
 
-        @* --- PASO 4: INGRESO TÁCTIL DE CANTIDAD Y DATOS --- *@
-        <MudPaper Elevation="2" Class="pa-4 mb-3 rounded-xl border" Style="background: #ffffff; border-color: #cbd5e1;">
+        @* --- PASO 4: CAPTURA DE CANTIDAD Y GUARDADO (PRECIOS OCULTOS) --- *@
+        <MudPaper Elevation="2" Class="pa-4 mb-4 rounded-xl border" Style="background: #ffffff; border-left: 6px solid #10b981;">
             <div class="d-flex align-center gap-2 mb-3">
-                <span class="step-badge">4</span>
-                <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Ingreso de Producción</MudText>
+                <span class="step-badge" style="background: #10b981;">4</span>
+                <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Ingresar Cantidad Producida</MudText>
             </div>
 
             <MudGrid Spacing="3">
-                @* Display Numérico y Botonera Rápida *@
+                @* Teclado Numérico y Display de Cantidad *@
                 <MudItem xs="12" md="6">
-                    <div class="quantity-input-box mb-3">
-                        <label class="quantity-label">CANTIDAD PRODUCIDA:</label>
-                        <div class="d-flex align-center justify-center gap-2 my-2">
-                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Size="Size.Large" Color="Color.Error" OnClick="@(() => RestarCantidad(1))" Disabled="@(cantidadProducida <= 0)" />
-                            <input type="number" class="quantity-display" @bind="cantidadProducida" @bind:event="oninput" min="0" step="1" />
-                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Size="Size.Large" Color="Color.Success" OnClick="@(() => SumarCantidad(1))" />
+                    <div class="quantity-input-box">
+                        <div class="quantity-label">CANTIDAD PRODUCIDA (UNIDADES):</div>
+                        <div class="d-flex align-center justify-center my-2">
+                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircleOutline" Size="Size.Large" Color="Color.Error" OnClick="@(() => RestarCantidad(1))" />
+                            <input type="number" class="quantity-display mx-2" @bind="cantidadProducida" @bind:event="oninput" min="0" />
+                            <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline" Size="Size.Large" Color="Color.Success" OnClick="@(() => SumarCantidad(1))" />
                         </div>
-                        <div class="text-muted text-center small">Unidades / Cajas completadas en este turno</div>
-                    </div>
 
-                    @* Botones de Incremento Rápido de 1 Toque *@
-                    <div class="quick-add-grid">
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(10))">+10</button>
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(50))">+50</button>
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(100))">+100</button>
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(250))">+250</button>
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(500))">+500</button>
-                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(1000))">+1,000</button>
-                        <button type="button" class="quick-btn reset" @onclick="@(() => cantidadProducida = 0)">Borrar (0)</button>
+                        <div class="quick-add-grid mt-3">
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(10))">+10</button>
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(25))">+25</button>
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(50))">+50</button>
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(100))">+100</button>
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(250))">+250</button>
+                            <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(500))">+500</button>
+                            <button type="button" class="quick-btn reset" @onclick="@(() => cantidadProducida = 0)">RESET (0)</button>
+                        </div>
                     </div>
                 </MudItem>
 
@@ -347,7 +330,7 @@
             <div class="d-flex align-center gap-2">
                 <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" />
                 <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">
-                    Actividades Registradas Hoy (@fechaJornada.ToString("dd/MM/yyyy"))
+                    Actividades Registradas Hoy (@fechaJornada.ToString("dd/MM/yyyy")) - @operacionSeleccionadaNombre
                 </MudText>
             </div>
             <div class="d-flex align-center gap-2">
@@ -391,11 +374,11 @@
                                 <td>@reg.area_cliente</td>
                                 <td>@reg.hora_inicio - @reg.hora_fin</td>
                                 <td>@(string.IsNullOrEmpty(reg.no_lote) ? "-" : reg.no_lote)</td>
-                                <td class="text-end fw-bold fs-6 text-primary">@reg.cantidad_producto.ToString("N0")</td>
+                                <td class="text-end fw-bold">@reg.cantidad_producto.ToString("N0")</td>
                                 <td class="text-center">
-                                    @if (reg.facturada)
+                                    @if (!string.IsNullOrEmpty(reg.no_lote))
                                     {
-                                        <span class="badge bg-success">Facturada</span>
+                                        <span class="badge bg-success">Sellado</span>
                                     }
                                     else
                                     {
@@ -413,49 +396,52 @@
 
 <style>
     .actividades-tablet-container {
-        font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+        padding: 12px;
+        max-width: 1200px;
+        margin: 0 auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     .step-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
         border-radius: 50%;
         background: #f97316;
         color: white;
         font-weight: 800;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* Tarjetas de Servicio */
     .service-card {
         background: #f8fafc;
         border: 2px solid #e2e8f0;
-        border-radius: 14px;
-        padding: 12px 14px;
+        border-radius: 12px;
+        padding: 10px 14px;
         cursor: pointer;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         user-select: none;
     }
 
     .service-card:hover {
-        border-color: #cbd5e1;
         transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-color: #cbd5e1;
+        background: #f1f5f9;
     }
 
     .service-card.selected {
         background: #fff7ed;
         border-color: #f97316;
-        box-shadow: 0 4px 12px -2px rgba(249, 115, 22, 0.25);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
     }
 
     .service-icon-box {
         width: 44px;
         height: 44px;
-        border-radius: 12px;
+        border-radius: 10px;
         background: #e2e8f0;
         color: #475569;
         display: flex;
@@ -470,14 +456,14 @@
     }
 
     .service-title {
-        font-weight: 700;
-        font-size: 0.95rem;
+        font-weight: 800;
+        font-size: 0.92rem;
         color: #0f172a;
         line-height: 1.2;
     }
 
     .service-subtitle {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         color: #64748b;
         margin-top: 2px;
     }
@@ -529,21 +515,23 @@
 
     /* Banner de Variante Seleccionada */
     .selected-variant-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-        border-radius: 12px;
-        padding: 14px 18px;
-        color: white;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 10px;
+        padding: 10px 14px;
     }
 
-    .badge-code {
-        background: #f97316;
-        color: white;
+    .variant-sku {
+        font-family: monospace;
         font-weight: 800;
+        color: #047857;
+        font-size: 0.95rem;
+    }
+
+    .variant-fullname {
         font-size: 0.8rem;
-        padding: 3px 8px;
-        border-radius: 6px;
-        letter-spacing: 0.5px;
+        color: #065f46;
+        margin-top: 2px;
     }
 
     .badge-code-sm {
@@ -684,8 +672,7 @@
 </style>
 
 @code {
-    // Modelos Locales
-    public class ServicioPepsiInfo
+    public class ServicioInfoItem
     {
         public int TemplateId { get; set; }
         public string NombreCorto { get; set; } = string.Empty;
@@ -701,36 +688,29 @@
     private string turnoSeleccionado = "Diurno";
     private string areaSeleccionada = "CD";
 
-    // Servicios CBC Pepsi
-    private List<ServicioPepsiInfo> serviciosDisponibles = new()
+    // Selector Dinámico de Empresa
+    private int operacionSeleccionadaId = 27;
+    private string operacionSeleccionadaNombre = "CBC Pepsi";
+    private List<Combos> operacionesList = new();
+
+    // Plantillas de Servicio Disponibles en Odoo
+    private List<ServicioInfoItem> serviciosDisponibles = new()
     {
-        new ServicioPepsiInfo
-        {
-            TemplateId = 840,
-            NombreCorto = "Bandeo de Productos",
-            Descripcion = "Empaquetado y armado de packs (2p, 6p, 12p, etc.)",
-            Icono = Icons.Material.Filled.TakeoutDining,
-            VariantesCount = 75
-        },
-        new ServicioPepsiInfo
-        {
-            TemplateId = 839,
-            NombreCorto = "Servicio de Etiquetado",
-            Descripcion = "Etiquetado manual o mecánico de bultos y productos",
-            Icono = Icons.Material.Filled.Sell,
-            VariantesCount = 54
-        },
-        new ServicioPepsiInfo
-        {
-            TemplateId = 843,
-            NombreCorto = "Trasiego de Productos",
-            Descripcion = "Carga, descarga y trasiego de materias primas",
-            Icono = Icons.Material.Filled.PublishedWithChanges,
-            VariantesCount = 10
-        }
+        new ServicioInfoItem { TemplateId = 840, NombreCorto = "Bandeo de Productos", Descripcion = "Empaquetado y armado de packs (2p, 6p, 12p, etc.)", Icono = Icons.Material.Filled.TakeoutDining },
+        new ServicioInfoItem { TemplateId = 839, NombreCorto = "Servicio de Etiquetado", Descripcion = "Etiquetado de bultos y productos (Seco, Frío)", Icono = Icons.Material.Filled.Sell },
+        new ServicioInfoItem { TemplateId = 843, NombreCorto = "Trasiego de Productos", Descripcion = "Carga, descarga y trasiego de materias primas", Icono = Icons.Material.Filled.PublishedWithChanges },
+        new ServicioInfoItem { TemplateId = 844, NombreCorto = "Desarme y Paletizado", Descripcion = "Desarme, paletizado y excedente de paletizantes", Icono = Icons.Material.Filled.Inventory },
+        new ServicioInfoItem { TemplateId = 845, NombreCorto = "Movimientos Varios", Descripcion = "Movimientos entre contenedores y cuartos fríos", Icono = Icons.Material.Filled.MoveToInbox },
+        new ServicioInfoItem { TemplateId = 837, NombreCorto = "Armado de Productos", Descripcion = "Armado de ofertas, packs y combos", Icono = Icons.Material.Filled.Build },
+        new ServicioInfoItem { TemplateId = 853, NombreCorto = "Prelimpia de Productos", Descripcion = "Prelimpia y selección (Maíz, Cacao, Café)", Icono = Icons.Material.Filled.CleaningServices },
+        new ServicioInfoItem { TemplateId = 847, NombreCorto = "Emplanchado / Desemplanchado", Descripcion = "Emplanchado y desemplanchado de productos", Icono = Icons.Material.Filled.TableRows },
+        new ServicioInfoItem { TemplateId = 12, NombreCorto = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores", Icono = Icons.Material.Filled.LocalShipping },
+        new ServicioInfoItem { TemplateId = 838, NombreCorto = "Destrucción de Mermas", Descripcion = "Destrucción de mermas y productos no conformes", Icono = Icons.Material.Filled.DeleteSweep },
+        new ServicioInfoItem { TemplateId = 852, NombreCorto = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines", Icono = Icons.Material.Filled.CleaningServices },
+        new ServicioInfoItem { TemplateId = 836, NombreCorto = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado", Icono = Icons.Material.Filled.AutoAwesome }
     };
 
-    private ServicioPepsiInfo? servicioSeleccionado;
+    private ServicioInfoItem? servicioSeleccionado;
     private List<OdooVariantDto> todasVariantesServicio = new();
     private List<OdooVariantDto> variantesFiltradas = new();
     private OdooVariantDto? varianteSeleccionada;
@@ -760,12 +740,66 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Seleccionar por defecto Bandeo de Productos
+        try
+        {
+            var regop = await Mediator.Send(new GetAllCombosQuery("Operaciones"));
+            if (!regop.Respuesta.ExisteError && regop.Model != null)
+            {
+                operacionesList = regop.Model.OrderBy(c => c.nombre).ToList();
+            }
+        }
+        catch { }
+
+        try
+        {
+            var guardado = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "actividades_tablet_cliente_id");
+            if (int.TryParse(guardado, out int opId) && operacionesList.Any(o => o.id == opId))
+            {
+                operacionSeleccionadaId = opId;
+            }
+            else if (operacionesList.Any(o => o.id == 27))
+            {
+                operacionSeleccionadaId = 27;
+            }
+            else if (operacionesList.Any())
+            {
+                operacionSeleccionadaId = operacionesList.First().id;
+            }
+        }
+        catch
+        {
+            if (operacionesList.Any()) operacionSeleccionadaId = operacionesList.First().id;
+        }
+
+        ActualizarNombreOperacion();
         await SeleccionarServicio(serviciosDisponibles[0]);
         await CargarHistorialHoy();
     }
 
-    private async Task SeleccionarServicio(ServicioPepsiInfo serv)
+    private async Task OnOperacionChanged(int nuevoId)
+    {
+        operacionSeleccionadaId = nuevoId;
+        ActualizarNombreOperacion();
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_tablet_cliente_id", nuevoId.ToString());
+        }
+        catch { }
+
+        if (servicioSeleccionado != null)
+        {
+            await SeleccionarServicio(servicioSeleccionado);
+        }
+        await CargarHistorialHoy();
+    }
+
+    private void ActualizarNombreOperacion()
+    {
+        var op = operacionesList.FirstOrDefault(o => o.id == operacionSeleccionadaId);
+        operacionSeleccionadaNombre = op?.nombre ?? "Operación #" + operacionSeleccionadaId;
+    }
+
+    private async Task SeleccionarServicio(ServicioInfoItem serv)
     {
         servicioSeleccionado = serv;
         varianteSeleccionada = null;
@@ -780,7 +814,24 @@
             var res = await OdooService.GetProductVariants(serv.TemplateId);
             if (!res.Respuesta.ExisteError && res.Model != null)
             {
-                todasVariantesServicio = res.Model.ToList();
+                var all = res.Model.ToList();
+
+                // Filtrar variantes por cliente automáticamente
+                string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
+                var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
+
+                if (variantesCliente.Any())
+                {
+                    todasVariantesServicio = variantesCliente;
+                }
+                else
+                {
+                    // Si el cliente no tiene nombre exacto en variantes, intentar con palabras clave
+                    string[] palabras = nombreCliente.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    var matchFuzzy = all.Where(v => palabras.Any(p => p.Length > 3 && v.nombre.ToLowerInvariant().Contains(p))).ToList();
+                    todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : all;
+                }
+
                 serv.VariantesCount = todasVariantesServicio.Count;
                 ExtraerOpcionesFiltros();
                 AplicarFiltros();
@@ -844,8 +895,8 @@
     private string LimpiarNombreVariante(string nombre)
     {
         if (string.IsNullOrWhiteSpace(nombre)) return "";
-        // Eliminar 'Cliente: CBC Pepsi, ' para ahorrar espacio
-        return nombre.Replace("Cliente: CBC Pepsi, ", "")
+        return nombre.Replace($"Cliente: {operacionSeleccionadaNombre}, ", "", StringComparison.OrdinalIgnoreCase)
+                     .Replace("Cliente: CBC Pepsi, ", "", StringComparison.OrdinalIgnoreCase)
                      .Replace("Area: CD, ", "")
                      .Replace("Precentación:", "Pres:");
     }
@@ -979,9 +1030,9 @@
 
             var item = new ProduccionDiariaDto
             {
-                cliente = "CBC Pepsi",
-                operacion_id = 27,
-                actividad = servicioSeleccionado?.NombreCorto ?? "Bandeo de Productos",
+                cliente = operacionSeleccionadaNombre,
+                operacion_id = operacionSeleccionadaId,
+                actividad = servicioSeleccionado?.NombreCorto ?? "Actividad de Producción",
                 area_cliente = areaSeleccionada,
                 servicio_codigo = varianteSeleccionada.default_code,
                 servicio_descripcion = varianteSeleccionada.nombre,
@@ -1001,7 +1052,7 @@
             var res = await OdooService.ImportarProduccionDiaria(new List<ProduccionDiariaDto> { item });
             if (!res.Respuesta.ExisteError)
             {
-                Snackbar.Add($"✅ ¡Actividad registrada con éxito! {cantidadProducida:N0} unidades de {varianteSeleccionada.default_code}.", Severity.Success);
+                Snackbar.Add($"¡Actividad registrada con éxito! {cantidadProducida:N0} unidades de {varianteSeleccionada.default_code}.", Severity.Success);
                 
                 // Reiniciar entrada para siguiente actividad
                 cantidadProducida = 0;
@@ -1009,17 +1060,16 @@
                 ordenCompra = "";
                 varianteSeleccionada = null;
                 LimpiarFiltros();
-
                 await CargarHistorialHoy();
             }
             else
             {
-                Snackbar.Add($"Error al registrar: {res.Respuesta.MensajeError}", Severity.Error);
+                Snackbar.Add($"Error al guardar producción: {res.Respuesta.MensajeError}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Excepción al guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -1032,7 +1082,7 @@
     {
         try
         {
-            var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, 27, null);
+            var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, operacionSeleccionadaId, null);
             if (!res.Respuesta.ExisteError && res.Model != null)
             {
                 historialHoy = res.Model.OrderByDescending(h => h.id).ToList();
@@ -1042,10 +1092,9 @@
                 historialHoy = new();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            historialHoy = new();
+            Console.WriteLine($"Error al cargar historial: {ex.Message}");
         }
-        StateHasChanged();
     }
 }

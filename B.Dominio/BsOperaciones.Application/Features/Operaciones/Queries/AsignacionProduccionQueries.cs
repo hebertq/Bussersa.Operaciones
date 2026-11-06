@@ -10,4 +10,5 @@ namespace BsOperaciones.Application.Features.Operaciones.Queries
     public record GetMarcadasSemanalesAsignacionQuery(int OperacionId, DateTime Inicio, DateTime Fin, bool SoloPendientes = false, bool ExcluirSupervisores = true, string? SupervisoresExcluidos = null, bool AplicarReglas = true) : IRequest<IListResponse<MarcadaAsistenciaProduccionDto>>;
     public record GetGrillaProduccionSemanalQuery(int OperacionId, DateTime Inicio, DateTime Fin, bool SoloPendientes = false, bool ExcluirSupervisores = true, string? SupervisoresExcluidos = null, bool AplicarReglas = true) : IRequest<IListResponse<GrillaProduccionSemanalDto>>;
     public record GetHistoricoAsignacionesProduccionQuery(int OperacionId, int Anio) : IRequest<IListResponse<HistoricoAsignacionProduccionDto>>;
+    public record GetHistoricoLotesActividadesQuery(int OperacionId, int Anio) : IRequest<IListResponse<HistoricoLoteActividadesDto>>;
 }

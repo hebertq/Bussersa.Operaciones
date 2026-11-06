@@ -104,4 +104,25 @@ namespace Modelo.Entidades.Operaciones
         public string LoteMesAnterior { get; set; } = string.Empty;
         public string LoteMesActual { get; set; } = string.Empty;
     }
+
+    public class SellarLoteActividadesRequest
+    {
+        public List<int> ids { get; set; } = new();
+        public string numero_lote { get; set; } = string.Empty;
+        public int usuario_id { get; set; }
+    }
+
+    public class HistoricoLoteActividadesDto
+    {
+        public string numero_lote { get; set; } = string.Empty;
+        public string cliente { get; set; } = string.Empty;
+        public int operacion_id { get; set; }
+        public DateTime fecha_min { get; set; }
+        public DateTime fecha_max { get; set; }
+        public long total_actividades { get; set; }
+        public decimal total_cantidad { get; set; }
+        public decimal total_monto { get; set; }
+        public bool facturada { get; set; }
+        public string? no_factura { get; set; }
+    }
 }

@@ -1,0 +1,511 @@
+@page "/operaciones/sellar-actividades"
+@using MudBlazor
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Operaciones
+@using Modelo.ClasesGenericas
+
+<MudOverlay Visible="estaCargando" DarkBackground="true" Absolute="false" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        <MudText Typo="Typo.h6" Color="Color.Surface" Class="mt-3">@mensajeCarga</MudText>
+    </div>
+</MudOverlay>
+
+<div class="d-flex align-center justify-space-between mb-3">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" />
+            SELLAR LOTE DE ACTIVIDADES DE PRODUCCIÓN
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Revisión, auditoría y sellado semanal de actividades de producción operativa (bandeo, etiquetado, trasiego, movimientos, etc.) para su facturación comercial en Odoo.
+        </MudText>
+    </div>
+</div>
+
+@* --- BARRA DE PESTAÑAS ESTILO APP / TABLET --- *@
+<div class="app-tab-bar-card mb-3">
+    <div class="app-tab-grid cols-2">
+        <button type="button" 
+                class="app-tab-item @(activeTabIndex == 0 ? "active" : "")" 
+                @onclick="() => SetActiveTab(0)"
+                title="Generación Semanal y Sellado">
+            <div class="app-tab-icon-wrap">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarViewWeek" />
+                @if (actividadesList != null && actividadesList.Any())
+                {
+                    <span class="app-tab-badge badge-primary">@actividadesList.Count</span>
+                }
+            </div>
+            <div class="app-tab-label-wrap">
+                <span class="app-tab-label">Generación Semanal y Sellado</span>
+            </div>
+        </button>
+
+        <button type="button" 
+                class="app-tab-item @(activeTabIndex == 1 ? "active" : "")" 
+                @onclick="() => SetActiveTab(1)"
+                title="Trazabilidad y Lotes Sellados">
+            <div class="app-tab-icon-wrap">
+                <MudIcon Icon="@Icons.Material.Filled.History" />
+                @if (historicoLotesList != null && historicoLotesList.Any())
+                {
+                    <span class="app-tab-badge badge-secondary">@historicoLotesList.Count</span>
+                }
+            </div>
+            <div class="app-tab-label-wrap">
+                <span class="app-tab-label">Trazabilidad y Lotes Sellados</span>
+            </div>
+        </button>
+    </div>
+</div>
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4" 
+         KeepPanelsAlive="true" Class="tablet-tabs" @bind-ActivePanelIndex="@activeTabIndex">
+
+    @* ==========================================
+       PESTAÑA 1: GENERACIÓN SEMANAL Y SELLADO
+       ========================================== *@
+    <MudTabPanel Text="Generación Semanal y Sellado">
+        @* Panel de Filtros *@
+        <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" sm="12" md="4">
+                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionId"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="0">Seleccione un cliente / operación...</MudSelectItem>
+                        @foreach (var op in OperacionesConfiguradas)
+                        {
+                            <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="12" md="4" Class="d-flex align-center gap-1">
+                    <MudTooltip Text="Semana Anterior">
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Primary" OnClick="SemanaAnterior" Size="Size.Small" />
+                    </MudTooltip>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="SemanaActual" Class="px-2">
+                        Esta Semana
+                    </MudButton>
+                    <MudTooltip Text="Semana Siguiente">
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Primary" OnClick="SemanaSiguiente" Size="Size.Small" />
+                    </MudTooltip>
+                    <div class="ml-2">
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                            @fchaInicioSemana.ToString("dd/MM/yyyy") - @fchaFinSemana.ToString("dd/MM/yyyy")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Semana ISO @numeroSemana del @fchaInicioSemana.Year
+                        </MudText>
+                    </div>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
+                    <MudSwitch T="bool" @bind-Value="soloPendientes" Color="Color.Warning" Label="Solo Pendientes" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConsultarSemana" FullWidth="true"
+                               Disabled="@(operacionId <= 0 || estaCargando)" StartIcon="@Icons.Material.Filled.Search" Style="height: 40px;">
+                        CONSULTAR
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @* Alerta de Semana Encajonada *@
+        @if (EsSemanaEncajonada)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Icon="@Icons.Material.Filled.DateRange">
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                    <div>
+                        <b>Semana Encajonada (Mes Dividido):</b> Contiene días de 
+                        <b>@NombreMesAnterior (@PeriodoMesAnteriorTexto)</b> y <b>@NombreMesActual (@PeriodoMesActualTexto)</b>.
+                        Se generarán los lotes separados por corte mensual para asegurar la correcta facturación y cierre contable.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled">
+                            @NombreMesAnterior: @TotalCantidadMesAnterior.ToString("N0") u ($ @TotalMontoMesAnterior.ToString("N2"))
+                        </MudChip>
+                        <MudChip T="string" Color="Color.Dark" Size="Size.Small" Variant="Variant.Filled">
+                            @NombreMesActual: @TotalCantidadMesActual.ToString("N0") u ($ @TotalMontoMesActual.ToString("N2"))
+                        </MudChip>
+                    </div>
+                </div>
+            </MudAlert>
+        }
+
+        @* Tarjetas KPI *@
+        @if (actividadesList != null && actividadesList.Any())
+        {
+            <MudGrid Spacing="2" Class="mb-4">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-3 d-flex align-center justify-space-between" Style="background-color: #e0f2fe; border-left: 5px solid #0284c7; border-radius: 8px;">
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">TOTAL REGISTROS</MudText>
+                            <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #0369a1;">@TotalRegistros</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Style="color: #0284c7;" />
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-3 d-flex align-center justify-space-between" Style="background-color: #ffedd5; border-left: 5px solid #f97316; border-radius: 8px;">
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">UNIDADES PRODUCIDAS</MudText>
+                            <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #c2410c;">@TotalCantidadProducida.ToString("N0")</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Large" Style="color: #f97316;" />
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-3 d-flex align-center justify-space-between" Style="background-color: #dcfce7; border-left: 5px solid #16a34a; border-radius: 8px;">
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">SUBTOTAL FACTURABLE</MudText>
+                            <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #15803d;">$ @TotalSubtotalFacturable.ToString("N2")</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Large" Style="color: #16a34a;" />
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-3 d-flex align-center justify-space-between" Style="background-color: #f3e8ff; border-left: 5px solid #9333ea; border-radius: 8px;">
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">ESTADO DEL SELLADO</MudText>
+                            <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #7e22ce;">
+                                @TotalPendientes Pend. / @TotalSelladas Sell.
+                            </MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.LockClock" Size="Size.Large" Style="color: #9333ea;" />
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+
+        @* Barra de Acciones *@
+        <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <MudText Typo="Typo.subtitle1" Class="fw-bold">
+                    Resumen Consolidado de Actividades
+                </MudText>
+                @if (grillaConsolidada != null)
+                {
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@GrillaFiltrada.Count() líneas consolidadas</MudChip>
+                }
+
+                @if (EsSemanaEncajonada)
+                {
+                    <div class="d-flex align-center gap-1 ml-2">
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "TODOS" ? Color.Primary : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "TODOS"; StateHasChanged(); })" Size="Size.Small">
+                            Todos (@actividadesList.Count)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "MES_ANTERIOR" ? Color.Warning : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "MES_ANTERIOR" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "MES_ANTERIOR"; StateHasChanged(); })" Size="Size.Small">
+                            @NombreMesAnterior (@PeriodoMesAnteriorTexto)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroPeriodoCorte == "MES_ACTUAL" ? Color.Info : Color.Default)"
+                                 Variant="@(filtroPeriodoCorte == "MES_ACTUAL" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => { filtroPeriodoCorte = "MES_ACTUAL"; StateHasChanged(); })" Size="Size.Small">
+                            @NombreMesActual (@PeriodoMesActualTexto)
+                        </MudChip>
+                    </div>
+                }
+            </div>
+            <div class="d-flex align-center gap-2 flex-wrap">
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportarExcel" Disabled="@(actividadesList == null || !actividadesList.Any())">
+                    Exportar Excel
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Lock"
+                           OnClick="AbrirModalSellarLote" Disabled="@(actividadesSeleccionables == null || !actividadesSeleccionables.Any(a => a.IsSelected && string.IsNullOrWhiteSpace(a.no_lote)))">
+                    Sellar Lote (@(actividadesSeleccionables?.Count(a => a.IsSelected && string.IsNullOrWhiteSpace(a.no_lote)) ?? 0))
+                </MudButton>
+            </div>
+        </div>
+
+        @* Tabla 1: Resumen Consolidado Semanal *@
+        <MudTable Items="@GrillaFiltrada" RowsPerPage="15" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1" Class="mb-4">
+            <HeaderContent>
+                <MudTh>Corte / Período</MudTh>
+                <MudTh>Servicio / Actividad</MudTh>
+                <MudTh>SKU Odoo</MudTh>
+                <MudTh>Área</MudTh>
+                <MudTh Style="text-align: right;">Tarifa ($)</MudTh>
+                <MudTh Style="text-align: right;">Cantidad Producida</MudTh>
+                <MudTh Style="text-align: right;">Total Facturable ($)</MudTh>
+                <MudTh Style="text-align: center;">Registros</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Corte">
+                    @if (context.EsMesAnterior)
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                            @context.PeriodoMes
+                        </MudChip>
+                    }
+                    else if (EsSemanaEncajonada)
+                    {
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined" Class="fw-bold" Style="font-size: 11px;">
+                            @context.PeriodoMes
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <span style="font-size: 11px; color: #64748b;">@context.PeriodoMes</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Actividad">
+                    <b>@context.Actividad</b>
+                    @if (!string.IsNullOrWhiteSpace(context.NombreProducto) && context.NombreProducto != context.Actividad)
+                    {
+                        <div style="font-size: 11px; color: #64748b;">@context.NombreProducto</div>
+                    }
+                </MudTd>
+                <MudTd DataLabel="SKU">
+                    <code>@context.ServicioCodigo</code>
+                </MudTd>
+                <MudTd DataLabel="Área">
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@context.AreaCliente</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Tarifa" Style="text-align: right;">$ @context.TarifaVenta.ToString("N2")</MudTd>
+                <MudTd DataLabel="Cantidad" Style="text-align: right;"><b>@context.CantidadTotal.ToString("N2")</b></MudTd>
+                <MudTd DataLabel="Total Venta" Style="text-align: right; font-weight: bold; color: #16a34a;">
+                    $ @context.SubtotalFacturable.ToString("N2")
+                </MudTd>
+                <MudTd DataLabel="Registros" Style="text-align: center;">@context.CantidadRegistros</MudTd>
+            </RowTemplate>
+            <FooterContent>
+                <MudTh Class="fw-bold" colspan="5">TOTALES SEMANA</MudTh>
+                <MudTh Class="fw-bold" Style="text-align: right;">@TotalCantidadProducida.ToString("N2")</MudTh>
+                <MudTh Class="fw-bold" Style="text-align: right; color: #16a34a;">$ @TotalSubtotalFacturable.ToString("N2")</MudTh>
+                <MudTh Class="fw-bold" Style="text-align: center;">@TotalRegistros</MudTh>
+            </FooterContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 15, 25, 50, 100 }"
+                               RowsPerPageString="Líneas por página:"
+                               InfoFormat="{first_item}-{last_item} de {all_items}" />
+            </PagerContent>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Class="pa-4 text-center">
+                    No se encontraron actividades registradas para esta semana o no se han cargado desde la tablet.
+                </MudText>
+            </NoRecordsContent>
+        </MudTable>
+
+        @* Detalle Individual de Actividades *@
+        <MudExpansionPanels MultiExpansion="true" Elevation="1" Class="mt-4">
+            <MudExpansionPanel Text="@($"Detalle Individual de Actividades ({actividadesSeleccionables.Count} registros - {actividadesSeleccionables.Count(a => string.IsNullOrWhiteSpace(a.no_lote))} pendientes)")" Expanded="true">
+                <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
+                    <div class="d-flex align-center gap-2 flex-wrap">
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="SeleccionarTodasPendientes" StartIcon="@Icons.Material.Filled.SelectAll">
+                            Seleccionar Pendientes
+                        </MudButton>
+                        @if (EsSemanaEncajonada)
+                        {
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning" OnClick="SeleccionarMesAnterior">
+                                Sel. @NombreMesAnterior
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" OnClick="SeleccionarMesActual">
+                                Sel. @NombreMesActual
+                            </MudButton>
+                        }
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="DeseleccionarTodas" StartIcon="@Icons.Material.Filled.Deselect">
+                            Deseleccionar Todo
+                        </MudButton>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @actividadesSeleccionables.Count(a => a.IsSelected) actividades seleccionadas
+                        </MudText>
+                    </div>
+                    <MudTextField @bind-Value="filtroDetalle" Placeholder="Buscar actividad, SKU o área..."
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined" Immediate="true" Style="max-width: 300px;" />
+                </div>
+
+                <MudTable Items="@DetalleFiltrado" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh Style="width: 50px; text-align: center;">Sel</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Actividad</MudTh>
+                        <MudTh>Variante / Producto</MudTh>
+                        <MudTh>Área</MudTh>
+                        <MudTh>SKU Odoo</MudTh>
+                        <MudTh Style="text-align: right;">Cantidad</MudTh>
+                        <MudTh Style="text-align: right;">Tarifa ($)</MudTh>
+                        <MudTh Style="text-align: right;">Subtotal ($)</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>N° Lote</MudTh>
+                        <MudTh>Factura</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd Style="text-align: center;">
+                            @if (string.IsNullOrWhiteSpace(context.no_lote))
+                            {
+                                <MudCheckBox T="bool" @bind-Value="context.IsSelected" Color="Color.Primary" Dense="true" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Fecha">@(context.fecha_inicio?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
+                        <MudTd DataLabel="Actividad"><b>@context.actividad</b></MudTd>
+                        <MudTd DataLabel="Variante" Style="font-size: 11px; max-width: 250px;">
+                            @context.nombre_producto
+                        </MudTd>
+                        <MudTd DataLabel="Área">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@context.area_cliente</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="SKU"><code>@context.servicio_codigo</code></MudTd>
+                        <MudTd DataLabel="Cantidad" Style="text-align: right;"><b>@context.cantidad_producto.ToString("N2")</b></MudTd>
+                        <MudTd DataLabel="Tarifa" Style="text-align: right;">$ @context.costo_producto.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Subtotal" Style="text-align: right; font-weight: bold; color: #16a34a;">
+                            $ @((context.cantidad_producto * context.costo_producto).ToString("N2"))
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            @if (!string.IsNullOrWhiteSpace(context.no_lote))
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Lock">SELLADO</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.HourglassEmpty">PENDIENTE</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Lote">
+                            @if (!string.IsNullOrWhiteSpace(context.no_lote))
+                            {
+                                <code>@context.no_lote</code>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Factura">
+                            @if (!string.IsNullOrWhiteSpace(context.no_factura))
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">@context.no_factura</MudChip>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(context.no_proforma))
+                            {
+                                <span style="font-size: 11px;">@context.no_proforma</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 15, 25, 50, 100 }"
+                                       RowsPerPageString="Registros por página:"
+                                       InfoFormat="{first_item}-{last_item} de {all_items}" />
+                    </PagerContent>
+                </MudTable>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    </MudTabPanel>
+
+    @* ==========================================
+       PESTAÑA 2: TRAZABILIDAD Y LOTES SELLADOS
+       ========================================== *@
+    <MudTabPanel Text="Trazabilidad y Lotes Sellados" Icon="@Icons.Material.Filled.History">
+        <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+            Esta sección audita los lotes de actividades sellados para facturación comercial en Odoo. Permite consultar el desglose de cada lote o <b>revertir el sellado</b> si requiere correcciones, siempre y cuando no esté facturado.
+        </MudAlert>
+
+        <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" sm="5">
+                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="historicoClienteId"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="0">Todas las operaciones configuradas...</MudSelectItem>
+                        @foreach (var op in OperacionesConfiguradas)
+                        {
+                            <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="3">
+                    <MudSelect T="int" Label="Año" @bind-Value="historicoAnio" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                        <MudSelectItem Value="2026">2026</MudSelectItem>
+                        <MudSelectItem Value="2025">2025</MudSelectItem>
+                        <MudSelectItem Value="2024">2024</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CargarHistorico" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Refresh" Style="height: 40px;">
+                        CONSULTAR HISTÓRICO
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudTable Items="@historicoLotesList" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="1">
+            <HeaderContent>
+                <MudTh>N° Lote</MudTh>
+                <MudTh>Cliente</MudTh>
+                <MudTh>Rango de Fechas</MudTh>
+                <MudTh Style="text-align: right;">Total Actividades</MudTh>
+                <MudTh Style="text-align: right;">Cantidad Producida</MudTh>
+                <MudTh Style="text-align: right;">Total Venta ($)</MudTh>
+                <MudTh Style="text-align: center;">Facturada</MudTh>
+                <MudTh>Factura Odoo</MudTh>
+                <MudTh Style="text-align: center;">Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Lote">
+                    <code>@context.numero_lote</code>
+                </MudTd>
+                <MudTd DataLabel="Cliente">@context.cliente</MudTd>
+                <MudTd DataLabel="Rango">
+                    @context.fecha_min.ToString("dd/MM/yyyy") - @context.fecha_max.ToString("dd/MM/yyyy")
+                </MudTd>
+                <MudTd DataLabel="Actividades" Style="text-align: right;">@context.total_actividades</MudTd>
+                <MudTd DataLabel="Cantidad" Style="text-align: right; font-weight: bold;">@context.total_cantidad.ToString("N2")</MudTd>
+                <MudTd DataLabel="Total Venta" Style="text-align: right; font-weight: bold; color: #16a34a;">
+                    $ @context.total_monto.ToString("N2")
+                </MudTd>
+                <MudTd DataLabel="Facturada" Style="text-align: center;">
+                    @if (context.facturada)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">Facturada</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">Pendiente</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Factura">
+                    @(string.IsNullOrWhiteSpace(context.no_factura) ? "-" : context.no_factura)
+                </MudTd>
+                <MudTd DataLabel="Acciones" Style="text-align: center;">
+                    <div class="d-flex align-center justify-center gap-1">
+                        @if (!context.facturada)
+                        {
+                            <MudTooltip Text="Revertir lote (Desellar actividades)">
+                                <MudIconButton Icon="@Icons.Material.Filled.Undo" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DesellarLote(context.numero_lote))" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudTooltip Text="Lote facturado comercialmente (Protegido)">
+                                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Default" Size="Size.Small" />
+                            </MudTooltip>
+                        }
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Class="pa-4 text-center">
+                    No hay historial de lotes de actividades sellados para este año/cliente.
+                </MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudTabPanel>
+
+</MudTabs>

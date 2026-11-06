@@ -9,4 +9,6 @@ namespace BsOperaciones.Application.Features.Operaciones.Commands
     public record DeleteCatalogoServicioPuestoAreaCommand(int Id) : IRequest<IResponse>;
     public record AsignarMarcadasProduccionCommand(AsignarMarcadasProduccionRequest Request) : IRequest<IResponse>;
     public record DesasignarMarcadasProduccionCommand(string NumeroAsignacion) : IRequest<IResponse>;
+    public record SellarLoteActividadesCommand(SellarLoteActividadesRequest Request) : IRequest<IResponse>;
+    public record DesellarLoteActividadesCommand(string NumeroLote) : IRequest<IResponse>;
 }

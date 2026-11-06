@@ -3823,6 +3823,85 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IResponse> SellarLoteActividades(Modelo.Entidades.Operaciones.SellarLoteActividadesRequest request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SellarLoteActividades");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> DesellarLoteActividades(string numeroLote)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/DesellarLoteActividades", $"numeroLote={Uri.EscapeDataString(numeroLote ?? "")}");
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.HistoricoLoteActividadesDto>> GetHistoricoLotesActividades(int operacionId, int anio)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<Modelo.Entidades.Operaciones.HistoricoLoteActividadesDto> response = new ListResponse<Modelo.Entidades.Operaciones.HistoricoLoteActividadesDto>();
+            try
+            {
+                string queryString = $"operacionId={operacionId}&anio={anio}";
+                var requestUrl = CreateRequestUri("Operaciones/GetHistoricoLotesActividades", queryString);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.HistoricoLoteActividadesDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<string>> GetAreasOperacion(int operacionId)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

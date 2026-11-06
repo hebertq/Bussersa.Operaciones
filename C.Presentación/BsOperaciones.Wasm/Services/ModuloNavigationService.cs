@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -53,7 +53,7 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {
@@ -123,10 +123,19 @@ namespace BsOperaciones.Services
                     },
                     new ModuloHerramientaItem
                     {
+                        Titulo = "Sellar Actividades",
+                        Subtitulo = "Sellado semanal de producción de actividades para facturación comercial en Odoo.",
+                        Icono = Icons.Material.Filled.FactCheck,
+                        Ruta = "/operaciones/sellar-actividades",
+                        MenuResourceId = 69,
+                        Color = "#0d9488"
+                    },
+                    new ModuloHerramientaItem
+                    {
                         Titulo = "Actividades (Tablet)",
-                        Subtitulo = "Registro táctil de producción por variante y servicio (Pepsi / CBC).",
+                        Subtitulo = "Registro táctil de producción por variante y servicio.",
                         Icono = Icons.Material.Filled.TouchApp,
-                        Ruta = "/operaciones/actividades-produccion",
+                        Ruta = "/operaciones/actividades-tablet",
                         MenuResourceId = 67,
                         Color = "#ea580c",
                         Badge = "Tablet / Táctil"
@@ -416,7 +425,7 @@ namespace BsOperaciones.Services
                 // 2. Operaciones (15) o cualquiera de sus accesos
                 if (modulo.Clave == "operaciones")
                 {
-                    return menus.Any(m => m.id == 15 || m.id == 55 || m.id == 64 || m.id == 16 || m.id == 18 || m.id == 56 || m.id == 36);
+                    return menus.Any(m => m.id == 15 || m.id == 55 || m.id == 64 || m.id == 16 || m.id == 18 || m.id == 56 || m.id == 36 || m.id == 67 || m.id == 69);
                 }
 
                 // 3. Asistencias (3)
