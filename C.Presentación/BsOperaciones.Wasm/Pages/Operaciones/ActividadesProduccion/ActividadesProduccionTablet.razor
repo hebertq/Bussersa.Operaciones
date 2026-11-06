@@ -1950,12 +1950,16 @@
             prodName = !string.IsNullOrWhiteSpace(primeraOp.Value) ? primeraOp.Value : varianteSeleccionada.template_name;
         }
 
+        string areaFinal = ObtenerValorAtributo(varianteSeleccionada.nombre, "Area") 
+                        ?? ObtenerValorAtributo(varianteSeleccionada.nombre, "Área") 
+                        ?? areaSeleccionada;
+
         var item = new ProduccionDiariaDto
         {
             cliente = operacionSeleccionadaNombre,
             operacion_id = operacionSeleccionadaId,
             actividad = servicioSeleccionado?.NombreCorto ?? "Actividad de Producción",
-            area_cliente = areaSeleccionada,
+            area_cliente = !string.IsNullOrWhiteSpace(areaFinal) ? areaFinal : areaSeleccionada,
             servicio_codigo = varianteSeleccionada.default_code,
             servicio_descripcion = varianteSeleccionada.nombre,
             nombre_producto = prodName,
