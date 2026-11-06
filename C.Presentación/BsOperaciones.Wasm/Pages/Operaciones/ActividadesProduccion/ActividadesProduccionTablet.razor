@@ -235,6 +235,23 @@
                 </div>
             }
 
+            @if (!variantesFiltradas.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="my-3 rounded-xl border">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <div>
+                            <MudText Typo="Typo.body2" Class="fw-bold">No se encontraron variantes para la combinación de filtros seleccionada.</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                El producto seleccionado no cuenta con esa presentación o bandeo específico. Pruebe seleccionando otra opción o limpie los filtros.
+                            </MudText>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="LimpiarFiltros" StartIcon="@Icons.Material.Filled.FilterAltOff">
+                            Limpiar Filtros
+                        </MudButton>
+                    </div>
+                </MudAlert>
+            }
+
             <div class="variants-scroll-container">
                 <MudGrid Spacing="1">
                     @foreach (var v in variantesFiltradas)
@@ -315,6 +332,26 @@
                         </div>
 
                         @* Botón de Guardado Grande Táctil *@
+                        @if (!PuedeGuardar)
+                        {
+                            <div class="pa-2 mb-2 rounded-lg text-center" style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 0.8rem; font-weight: 600;">
+                                @if (varianteSeleccionada == null)
+                                {
+                                    <span>⚠️ Seleccione una variante en el Paso 3 para continuar.</span>
+                                }
+                                else if (cantidadProducida <= 0)
+                                {
+                                    <span>⚠️ Ingrese una cantidad producida mayor a 0.</span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="pa-2 mb-2 rounded-lg text-center" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-size: 0.8rem; font-weight: 700;">
+                                ✓ Listo: @varianteSeleccionada.default_code (@cantidadProducida.ToString("N0") unid.)
+                            </div>
+                        }
+
                         <button type="button" class="submit-action-btn @(PuedeGuardar ? "ready" : "disabled")" @onclick="GuardarProduccion" disabled="@(!PuedeGuardar)">
                             <div class="d-flex align-center justify-center gap-2">
                                 <MudIcon Icon="@Icons.Material.Filled.Save" Size="Size.Large" />
@@ -979,29 +1016,56 @@
             estaCargando = false;
             StateHasChanged();
         }
-    }
-
-    private void ExtraerOpcionesFiltros()
+    }    private void ExtraerOpcionesFiltros()
     {
         var prods = new HashSet<string>();
-        var bans = new HashSet<string>();
-        var pres = new HashSet<string>();
-        var clim = new HashSet<string>();
-
         foreach (var v in todasVariantesServicio)
         {
             var dict = ParsearAtributos(v.nombre);
             if (dict.TryGetValue("Producto", out var p)) prods.Add(p);
+        }
+        productosDisponibles = prods.OrderBy(x => x).ToList();
+
+        ActualizarOpcionesDependientes();
+    }
+
+    private void ActualizarOpcionesDependientes()
+    {
+        var pool = todasVariantesServicio.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(filtroProducto))
+        {
+            pool = pool.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var bans = new HashSet<string>();
+        var pres = new HashSet<string>();
+        var clim = new HashSet<string>();
+
+        foreach (var v in pool)
+        {
+            var dict = ParsearAtributos(v.nombre);
             if (dict.TryGetValue("Bandeo", out var b)) bans.Add(b);
             if (dict.TryGetValue("Precentación", out var pr)) pres.Add(pr);
             if (dict.TryGetValue("Presentación", out var pr2)) pres.Add(pr2);
             if (dict.TryGetValue("Climatización", out var cl)) clim.Add(cl);
         }
 
-        productosDisponibles = prods.OrderBy(x => x).ToList();
         bandeosDisponibles = bans.OrderBy(x => x).ToList();
         presentacionesDisponibles = pres.OrderBy(x => x).ToList();
         climatizacionesDisponibles = clim.OrderBy(x => x).ToList();
+
+        if (!string.IsNullOrWhiteSpace(filtroBandeo) && !bandeosDisponibles.Contains(filtroBandeo, StringComparer.OrdinalIgnoreCase))
+        {
+            filtroBandeo = "";
+        }
+        if (!string.IsNullOrWhiteSpace(filtroPresentacion) && !presentacionesDisponibles.Contains(filtroPresentacion, StringComparer.OrdinalIgnoreCase))
+        {
+            filtroPresentacion = "";
+        }
+        if (!string.IsNullOrWhiteSpace(filtroClimatizacion) && !climatizacionesDisponibles.Contains(filtroClimatizacion, StringComparer.OrdinalIgnoreCase))
+        {
+            filtroClimatizacion = "";
+        }
     }
 
     private Dictionary<string, string> ParsearAtributos(string nombre)
@@ -1028,11 +1092,10 @@
                      .Replace("Cliente: CBC Pepsi, ", "", StringComparison.OrdinalIgnoreCase)
                      .Replace("Area: CD, ", "")
                      .Replace("Precentación:", "Pres:");
-    }
-
-    private void ToggleFiltroProducto(string prod)
+    }    private void ToggleFiltroProducto(string prod)
     {
         filtroProducto = filtroProducto == prod ? "" : prod;
+        ActualizarOpcionesDependientes();
         AplicarFiltros();
     }
 
@@ -1052,14 +1115,13 @@
     {
         filtroClimatizacion = filtroClimatizacion == clim ? "" : clim;
         AplicarFiltros();
-    }
-
-    private void LimpiarFiltros()
+    }    private void LimpiarFiltros()
     {
         filtroProducto = "";
         filtroBandeo = "";
         filtroPresentacion = "";
         filtroClimatizacion = "";
+        ActualizarOpcionesDependientes();
         AplicarFiltros();
     }
 
