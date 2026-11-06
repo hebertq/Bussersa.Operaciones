@@ -237,9 +237,22 @@
                     if (filtro.OpcionesDisponibles.Any())
                     {
                         <div class="filter-group mb-2">
-                            <div class="filter-label">@filtro.Titulo</div>
+                            <div class="d-flex align-center justify-space-between flex-wrap gap-1">
+                                <div class="filter-label">@filtro.Titulo</div>
+                                @if (filtro.OpcionesDisponibles.Count > 8)
+                                {
+                                    <div class="filter-search-box">
+                                        <input type="text" class="filter-search-input" placeholder="🔍 Buscar..." 
+                                               @bind="filtro.BusquedaRapida" @bind:event="oninput" />
+                                        @if (!string.IsNullOrWhiteSpace(filtro.BusquedaRapida))
+                                        {
+                                            <button type="button" class="btn-clear-search" @onclick="@(() => filtro.BusquedaRapida = "")">✕</button>
+                                        }
+                                    </div>
+                                }
+                            </div>
                             <div class="d-flex flex-wrap gap-1">
-                                @foreach (var opcion in filtro.OpcionesDisponibles)
+                                @foreach (var opcion in filtro.OpcionesVisibles)
                                 {
                                     bool activo = filtro.ValorSeleccionado.Equals(opcion, StringComparison.OrdinalIgnoreCase);
                                     <button type="button" class="filter-chip @(activo ? "active" : "")" @onclick="@(() => ToggleFiltroDinamico(idx, opcion))">
@@ -628,6 +641,34 @@
         box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
     }
 
+    .filter-search-box {
+        display: inline-flex;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 1px 6px;
+    }
+
+    .filter-search-input {
+        border: none;
+        background: transparent;
+        font-size: 0.75rem;
+        outline: none;
+        color: #1e293b;
+        width: 110px;
+    }
+
+    .btn-clear-search {
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 0.75rem;
+        cursor: pointer;
+        padding: 0 2px;
+        font-weight: bold;
+    }
+
     /* Banner de Variante Seleccionada */
     .selected-variant-banner {
         background: #ecfdf5;
@@ -901,7 +942,13 @@
         public string Clave { get; set; } = string.Empty;
         public string Titulo { get; set; } = string.Empty;
         public string ValorSeleccionado { get; set; } = string.Empty;
+        public string BusquedaRapida { get; set; } = string.Empty;
         public List<string> OpcionesDisponibles { get; set; } = new();
+
+        public IEnumerable<string> OpcionesVisibles =>
+            string.IsNullOrWhiteSpace(BusquedaRapida)
+                ? OpcionesDisponibles
+                : OpcionesDisponibles.Where(o => o.Contains(BusquedaRapida, StringComparison.OrdinalIgnoreCase));
     }
 
     private List<NivelFiltroDinamico> filtrosDinamicos = new();
@@ -1545,39 +1592,77 @@
             }
         }
 
-        // Estandarizar hasta 3 Filtros en orden lógico y ergonómico:
+        // Evaluar si existe atributo de 'Tipo' u 'Operación'
+        bool tieneTipoOperacion = clavesPresentes.Any(k => 
+            SonClavesEquivalentes(k, "Tipo") || 
+            SonClavesEquivalentes(k, "Operacion") || 
+            SonClavesEquivalentes(k, "Operación"));
+
         var tresClaves = new List<string>();
 
-        // Filtro 1 (Principal): Producto / Material / Item (o primer atributo disponible)
-        string? clave1 = clavesPresentes.FirstOrDefault(k => SonClavesEquivalentes(k, "Producto") || SonClavesEquivalentes(k, "Material") || SonClavesEquivalentes(k, "Item"))
-                         ?? clavesPresentes.FirstOrDefault();
-        if (clave1 != null) tresClaves.Add(clave1);
-
-        // Filtro 2 (Formato / Medio / Modalidad): Contenedor / Conntenedor / Bandeo / Tipo / Modalidad
-        string? clave2 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)) &&
-                                                             (SonClavesEquivalentes(k, "Contenedor") ||
-                                                              SonClavesEquivalentes(k, "Conntenedor") ||
-                                                              SonClavesEquivalentes(k, "Bandeo") ||
-                                                              SonClavesEquivalentes(k, "Tipo") ||
-                                                              SonClavesEquivalentes(k, "Modalidad")));
-        if (clave2 == null)
+        if (tieneTipoOperacion)
         {
-            clave2 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)));
-        }
-        if (clave2 != null) tresClaves.Add(clave2);
+            // CASO CON TIPO DE OPERACIÓN (ej: Carga y Descarga, Trasiego):
+            // Nivel 1: TIPO / OPERACIÓN (pocas opciones: 2 a 4 botones; filtra primero para reducir el universo de productos)
+            string? claveTipo = clavesPresentes.FirstOrDefault(k => 
+                SonClavesEquivalentes(k, "Tipo") || 
+                SonClavesEquivalentes(k, "Operacion") || 
+                SonClavesEquivalentes(k, "Operación"));
+            if (claveTipo != null) tresClaves.Add(claveTipo);
 
-        // Filtro 3 (Detalle / Empaque / Presentación): Presentación / Precentación / Empaque / Climatización / Calibre
-        string? clave3 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)) &&
-                                                             (SonClavesEquivalentes(k, "Presentación") ||
-                                                              SonClavesEquivalentes(k, "Precentación") ||
-                                                              SonClavesEquivalentes(k, "Empaque") ||
-                                                              SonClavesEquivalentes(k, "Climatización") ||
-                                                              SonClavesEquivalentes(k, "Calibre")));
-        if (clave3 == null)
-        {
-            clave3 = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)));
+            // Nivel 2: PRODUCTO (los productos se reducen drásticamente según la operación elegida en Nivel 1)
+            string? claveProd = clavesPresentes.FirstOrDefault(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)) &&
+                                                                   (SonClavesEquivalentes(k, "Producto") || 
+                                                                    SonClavesEquivalentes(k, "Material") || 
+                                                                    SonClavesEquivalentes(k, "Item")));
+            if (claveProd != null) tresClaves.Add(claveProd);
+
+            // Nivel 3: CONTENEDOR > BANDEO > PRESENTACIÓN > EMPAQUE
+            // Priorizando aquellos que tengan más de 1 opción real distinta (evitando que N/A opaque a Contenedor)
+            var restantes = clavesPresentes.Where(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)))
+                                           .OrderByDescending(k => ContarValoresDistintos(baseVariantes, k))
+                                           .ToList();
+
+            string? clave3 = restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Contenedor") || SonClavesEquivalentes(k, "Conntenedor"))
+                             ?? restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Presentación") || SonClavesEquivalentes(k, "Precentación"))
+                             ?? restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Bandeo"))
+                             ?? restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Empaque"))
+                             ?? restantes.FirstOrDefault();
+            if (clave3 != null) tresClaves.Add(clave3);
         }
-        if (clave3 != null) tresClaves.Add(clave3);
+        else
+        {
+            // CASO SIN TIPO DE OPERACIÓN (ej: Bandeo de Productos):
+            // Nivel 1: PRODUCTO
+            string? claveProd = clavesPresentes.FirstOrDefault(k => 
+                SonClavesEquivalentes(k, "Producto") || 
+                SonClavesEquivalentes(k, "Material") || 
+                SonClavesEquivalentes(k, "Item"))
+                ?? clavesPresentes.FirstOrDefault();
+            if (claveProd != null) tresClaves.Add(claveProd);
+
+            // Nivel 2: BANDEO / PACK > CONTENEDOR > FORMATO
+            var restantes = clavesPresentes.Where(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k))).ToList();
+            string? clave2 = restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Bandeo") ||
+                                                           SonClavesEquivalentes(k, "Contenedor") ||
+                                                           SonClavesEquivalentes(k, "Conntenedor") ||
+                                                           SonClavesEquivalentes(k, "Formato"))
+                             ?? restantes.FirstOrDefault();
+            if (clave2 != null) tresClaves.Add(clave2);
+
+            // Nivel 3: PRESENTACIÓN > EMPAQUE > CLIMATIZACIÓN (ordenado por diversidad de valores)
+            restantes = clavesPresentes.Where(k => !tresClaves.Any(c => SonClavesEquivalentes(c, k)))
+                                       .OrderByDescending(k => ContarValoresDistintos(baseVariantes, k))
+                                       .ToList();
+
+            string? clave3 = restantes.FirstOrDefault(k => SonClavesEquivalentes(k, "Presentación") ||
+                                                           SonClavesEquivalentes(k, "Precentación") ||
+                                                           SonClavesEquivalentes(k, "Empaque") ||
+                                                           SonClavesEquivalentes(k, "Climatización") ||
+                                                           SonClavesEquivalentes(k, "Calibre"))
+                             ?? restantes.FirstOrDefault();
+            if (clave3 != null) tresClaves.Add(clave3);
+        }
 
         // Construir la lista de filtros dinámicos (hasta 3) preservando selecciones previas
         var nuevosFiltros = new List<NivelFiltroDinamico>();
@@ -1598,6 +1683,20 @@
         }
 
         filtrosDinamicos = nuevosFiltros;
+    }
+
+    private int ContarValoresDistintos(List<OdooVariantDto> variantes, string clave)
+    {
+        var valores = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in variantes)
+        {
+            var val = ObtenerValorAtributo(v.nombre, clave);
+            if (!string.IsNullOrWhiteSpace(val) && !val.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+            {
+                valores.Add(val);
+            }
+        }
+        return valores.Count;
     }
 
     private void ActualizarCascadaFiltros()
@@ -1674,6 +1773,7 @@
         foreach (var f in filtrosDinamicos)
         {
             f.ValorSeleccionado = "";
+            f.BusquedaRapida = "";
         }
         ActualizarCascadaFiltros();
     }
