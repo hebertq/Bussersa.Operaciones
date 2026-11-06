@@ -53,7 +53,7 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {

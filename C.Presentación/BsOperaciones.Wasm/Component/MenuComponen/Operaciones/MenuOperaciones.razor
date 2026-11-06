@@ -3,8 +3,10 @@
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
         <MudNavGroup Title="Operaciones" Icon="@Icons.Material.Filled.Wash" Expanded="true">
-            <MenuItem MenuId="16" Name="Cerrar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
-            <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
+            <MudNavGroup Title="Marcadas" Icon="@Icons.Material.Filled.Fingerprint" Expanded="false">
+                <MenuItem MenuId="16" Name="Cerrar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
+                <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
+            </MudNavGroup>
             <MenuItem MenuId="55" Name="Movimientos (Tablet)" Url="/operaciones/registro-movimientos-supervisor" IconName="@Icons.Material.Filled.TabletAndroid" />
             <MenuItem MenuId="56" Name="Cargar Movimientos" Url="/operaciones/movimientos-personal-excel" IconName="@Icons.Material.Filled.PostAdd" />
             <MenuItem MenuId="64" Name="Consultar Asistencia" Url="/operaciones/consulta-asistencia" IconName="@Icons.Material.Filled.FactCheck" />
