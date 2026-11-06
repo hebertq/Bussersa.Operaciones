@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Bussersa - Calculador de Nómina Odoo",
+  "version": "1.0.0",
+  "description": "Calcula nóminas por lote en Odoo de forma automática (1 a 1 con temporizador) usando la computadora local sin sobrecargar el servidor.",
+  "permissions": [
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://admin.bussersa.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://admin.bussersa.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

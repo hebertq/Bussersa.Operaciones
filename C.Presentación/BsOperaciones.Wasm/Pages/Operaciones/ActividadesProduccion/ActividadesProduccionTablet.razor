@@ -1,0 +1,1051 @@
+@page "/operaciones/actividades-produccion"
+@layout TabletLayout
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<div class="actividades-tablet-container">
+    @* --- OVERLAY DE CARGA Y GUARDADO --- *@
+    <MudOverlay Visible="@estaCargando" DarkBackground="true" Absolute="false" ZIndex="99999" Class="d-flex flex-column align-center justify-center">
+        <div class="d-flex flex-column align-center pa-6 rounded-xl" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); min-width: 300px; border: 1px solid rgba(255,255,255,0.15);">
+            <MudProgressCircular Color="Color.Warning" Size="Size.Large" Indeterminate="true" Class="mb-3" />
+            <MudText Typo="Typo.h6" Class="font-bold text-white text-center">@mensajeCarga</MudText>
+            <MudText Typo="Typo.caption" Class="mt-1 text-center" Style="color: #94a3b8;">Procesando datos en Odoo...</MudText>
+        </div>
+    </MudOverlay>
+
+    @* --- CABECERA DE JORNADA Y CLIENTE --- *@
+    <MudPaper Elevation="2" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff; border-color: #e2e8f0; border-left: 6px solid #f97316;">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+            @* Navegación de Fecha *@
+            <MudItem xs="12" sm="6" md="4">
+                <div class="d-flex align-center gap-1">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Medium" OnClick="@(() => CambiarFecha(-1))" Title="Día anterior" />
+                    <MudDatePicker Label="Fecha de Producción" 
+                                   Date="@fechaJornada" 
+                                   DateChanged="@OnFechaChanged"
+                                   DateFormat="dd/MM/yyyy" 
+                                   Variant="Variant.Outlined" 
+                                   Margin="Margin.Dense" 
+                                   Class="flex-grow-1" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Medium" OnClick="@(() => CambiarFecha(1))" Title="Día siguiente" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SetFechaHoy())" Class="fw-bold">HOY</MudButton>
+                </div>
+            </MudItem>
+
+            @* Selector de Turno *@
+            <MudItem xs="6" sm="3" md="2">
+                <MudSelect T="string" Label="Turno" @bind-Value="turnoSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem Value="@("Diurno")">☀️ Diurno</MudSelectItem>
+                    <MudSelectItem Value="@("Nocturno")">🌙 Nocturno</MudSelectItem>
+                    <MudSelectItem Value="@("H extras / Domingos / Feraidos")">⚡ Extra / Feriado</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            @* Selector de Área *@
+            <MudItem xs="6" sm="3" md="2">
+                <MudSelect T="string" Label="Área" @bind-Value="areaSeleccionada" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem Value="@("CD")">CD</MudSelectItem>
+                    <MudSelectItem Value="@("Sum")">Sum</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            @* Cliente Seleccionado *@
+            <MudItem xs="12" sm="12" md="4" Class="d-flex justify-sm-end align-center gap-2">
+                <div class="d-flex align-center px-3 py-2 rounded-lg" style="background: #eff6ff; border: 1px solid #bfdbfe;">
+                    <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Color="Color.Primary" Class="mr-2" />
+                    <div>
+                        <div style="font-size: 0.7rem; font-weight: 700; color: #1e40af; text-transform: uppercase;">Cliente Activo</div>
+                        <div style="font-size: 0.95rem; font-weight: 800; color: #1e3a8a;">CBC PEPSI (Op. 27)</div>
+                    </div>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* --- PASO 1: SELECCIONAR SERVICIO PRINCIPAL --- *@
+    <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff;">
+        <div class="d-flex align-center justify-space-between mb-2">
+            <div class="d-flex align-center gap-2">
+                <span class="step-badge">1</span>
+                <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Selecciona el Servicio</MudText>
+            </div>
+            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text" Class="fw-bold">
+                @(servicioSeleccionado?.NombreCorto ?? "Ninguno")
+            </MudChip>
+        </div>
+
+        <MudGrid Spacing="2">
+            @foreach (var serv in serviciosDisponibles)
+            {
+                bool isSelected = servicioSeleccionado?.TemplateId == serv.TemplateId;
+                <MudItem xs="12" sm="4">
+                    <div class="service-card @(isSelected ? "selected" : "")" @onclick="@(() => SeleccionarServicio(serv))">
+                        <div class="d-flex align-center gap-3">
+                            <div class="service-icon-box @(isSelected ? "selected" : "")">
+                                <MudIcon Icon="@serv.Icono" Size="Size.Medium" />
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="service-title">@serv.NombreCorto</div>
+                                <div class="service-subtitle">@serv.Descripcion</div>
+                                <div class="service-count">@serv.VariantesCount variantes</div>
+                            </div>
+                            @if (isSelected)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Warning" />
+                            }
+                        </div>
+                    </div>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudPaper>
+
+    @* --- PASO 2: FILTROS TÁCTILES POR ATRIBUTOS DE LA VARIANTE --- *@
+    @if (servicioSeleccionado != null)
+    {
+        <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff;">
+            <div class="d-flex align-center justify-space-between mb-2">
+                <div class="d-flex align-center gap-2">
+                    <span class="step-badge">2</span>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Filtrar Atributos de la Actividad</MudText>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default" OnClick="@LimpiarFiltros" StartIcon="@Icons.Material.Filled.FilterAltOff">
+                        Limpiar Filtros
+                    </MudButton>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled">
+                        @variantesFiltradas.Count variantes encontradas
+                    </MudChip>
+                </div>
+            </div>
+
+            @* Filtro: Producto *@
+            @if (productosDisponibles.Any())
+            {
+                <div class="filter-group mb-2">
+                    <div class="filter-label">🧃 PRODUCTO:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var prod in productosDisponibles)
+                        {
+                            bool sel = filtroProducto == prod;
+                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroProducto(prod))">
+                                @prod
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Filtro: Bandeo (Si aplica) *@
+            @if (bandeosDisponibles.Any())
+            {
+                <div class="filter-group mb-2">
+                    <div class="filter-label">📦 BANDEO / PACK:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var ban in bandeosDisponibles)
+                        {
+                            bool sel = filtroBandeo == ban;
+                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroBandeo(ban))">
+                                @ban
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Filtro: Presentación (Si aplica) *@
+            @if (presentacionesDisponibles.Any())
+            {
+                <div class="filter-group mb-2">
+                    <div class="filter-label">🧴 PRESENTACIÓN:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var pres in presentacionesDisponibles)
+                        {
+                            bool sel = filtroPresentacion == pres;
+                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroPresentacion(pres))">
+                                @pres
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* Filtro: Climatización (Para etiquetado si aplica) *@
+            @if (climatizacionesDisponibles.Any())
+            {
+                <div class="filter-group mb-2">
+                    <div class="filter-label">❄️ CLIMATIZACIÓN:</div>
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var clim in climatizacionesDisponibles)
+                        {
+                            bool sel = filtroClimatizacion == clim;
+                            <button type="button" class="filter-chip @(sel ? "active" : "")" @onclick="@(() => ToggleFiltroClimatizacion(clim))">
+                                @clim
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </MudPaper>
+
+        @* --- PASO 3: SELECCIONAR VARIANTE EXACTA --- *@
+        <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff;">
+            <div class="d-flex align-center justify-space-between mb-2">
+                <div class="d-flex align-center gap-2">
+                    <span class="step-badge">3</span>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Variante de Servicio</MudText>
+                </div>
+                @if (varianteSeleccionada != null)
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Check">
+                        Código: @varianteSeleccionada.default_code
+                    </MudChip>
+                }
+            </div>
+
+            @if (varianteSeleccionada != null)
+            {
+                @* Tarjeta Destacada de Variante Seleccionada (SIN PRECIOS) *@
+                <div class="selected-variant-banner">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <div>
+                            <div class="d-flex align-center gap-2">
+                                <span class="badge-code">@varianteSeleccionada.default_code</span>
+                                <span class="fw-bold text-white fs-6">@servicioSeleccionado.NombreCorto</span>
+                            </div>
+                            <div class="text-white-50 small mt-1">
+                                @varianteSeleccionada.nombre
+                            </div>
+                        </div>
+                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Inherit" OnClick="@(() => varianteSeleccionada = null)" Style="color: white; border-color: rgba(255,255,255,0.4);">
+                            Cambiar
+                        </MudButton>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="variants-scroll-container">
+                    @if (!variantesFiltradas.Any())
+                    {
+                        <div class="pa-4 text-center text-muted">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-1" />
+                            <div>No hay variantes que coincidan con la combinación de filtros seleccionada.</div>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@LimpiarFiltros" Class="mt-2">Limpiar Filtros</MudButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudGrid Spacing="1">
+                            @foreach (var v in variantesFiltradas.Take(30))
+                            {
+                                <MudItem xs="12" sm="6" md="4">
+                                    <div class="variant-item-card" @onclick="@(() => SeleccionarVariante(v))">
+                                        <div class="d-flex justify-space-between align-center mb-1">
+                                            <span class="variant-code">@v.default_code</span>
+                                            <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" Color="Color.Default" />
+                                        </div>
+                                        <div class="variant-desc">@LimpiarNombreVariante(v.nombre)</div>
+                                    </div>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                        @if (variantesFiltradas.Count > 30)
+                        {
+                            <div class="text-center pa-2 text-muted small">
+                                Mostrando 30 de @variantesFiltradas.Count variantes. Usa los filtros de arriba para acotar la selección.
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </MudPaper>
+
+        @* --- PASO 4: INGRESO TÁCTIL DE CANTIDAD Y DATOS --- *@
+        <MudPaper Elevation="2" Class="pa-4 mb-3 rounded-xl border" Style="background: #ffffff; border-color: #cbd5e1;">
+            <div class="d-flex align-center gap-2 mb-3">
+                <span class="step-badge">4</span>
+                <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">Ingreso de Producción</MudText>
+            </div>
+
+            <MudGrid Spacing="3">
+                @* Display Numérico y Botonera Rápida *@
+                <MudItem xs="12" md="6">
+                    <div class="quantity-input-box mb-3">
+                        <label class="quantity-label">CANTIDAD PRODUCIDA:</label>
+                        <div class="d-flex align-center justify-center gap-2 my-2">
+                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Size="Size.Large" Color="Color.Error" OnClick="@(() => RestarCantidad(1))" Disabled="@(cantidadProducida <= 0)" />
+                            <input type="number" class="quantity-display" @bind="cantidadProducida" @bind:event="oninput" min="0" step="1" />
+                            <MudIconButton Icon="@Icons.Material.Filled.AddCircle" Size="Size.Large" Color="Color.Success" OnClick="@(() => SumarCantidad(1))" />
+                        </div>
+                        <div class="text-muted text-center small">Unidades / Cajas completadas en este turno</div>
+                    </div>
+
+                    @* Botones de Incremento Rápido de 1 Toque *@
+                    <div class="quick-add-grid">
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(10))">+10</button>
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(50))">+50</button>
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(100))">+100</button>
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(250))">+250</button>
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(500))">+500</button>
+                        <button type="button" class="quick-btn" @onclick="@(() => SumarCantidad(1000))">+1,000</button>
+                        <button type="button" class="quick-btn reset" @onclick="@(() => cantidadProducida = 0)">Borrar (0)</button>
+                    </div>
+                </MudItem>
+
+                @* Datos complementarios y Botón Principal *@
+                <MudItem xs="12" md="6">
+                    <div class="d-flex flex-column gap-3 h-100 justify-space-between">
+                        <div>
+                            <MudTextField Label="No. Lote / Tarima (Opcional)" 
+                                          @bind-Value="noLote" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Placeholder="Ej: LOTE-2611-A" 
+                                          HelperText="Código o número de lote impreso en tarima" />
+
+                            <MudTextField Label="Orden de Compra / OC (Opcional)" 
+                                          @bind-Value="ordenCompra" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Class="mt-2"
+                                          Placeholder="Ej: OC-8849" />
+
+                            <MudTextField Label="Observaciones / Cuadrilla" 
+                                          @bind-Value="observaciones" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Class="mt-2"
+                                          Lines="2"
+                                          Placeholder="Supervisor a cargo, novedades o equipo de trabajo..." />
+                        </div>
+
+                        @* Botón de Guardado Grande Táctil *@
+                        <button type="button" class="submit-action-btn @(PuedeGuardar ? "ready" : "disabled")" @onclick="GuardarProduccion" disabled="@(!PuedeGuardar)">
+                            <div class="d-flex align-center justify-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Save" Size="Size.Large" />
+                                <div>
+                                    <div style="font-size: 1.15rem; font-weight: 800; line-height: 1.1;">REGISTRAR ACTIVIDAD</div>
+                                    <div style="font-size: 0.75rem; opacity: 0.85;">Guardar en Producción Diaria (Odoo)</div>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
+
+    @* --- RESUMEN DEL DÍA / ACTIVIDADES YA REGISTRADAS --- *@
+    <MudPaper Elevation="1" Class="pa-3 rounded-xl border" Style="background: #ffffff;">
+        <div class="d-flex align-center justify-space-between mb-3">
+            <div class="d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Primary" />
+                <MudText Typo="Typo.subtitle1" Class="fw-bold" Style="color: #0f172a;">
+                    Actividades Registradas Hoy (@fechaJornada.ToString("dd/MM/yyyy"))
+                </MudText>
+            </div>
+            <div class="d-flex align-center gap-2">
+                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">
+                    Total: @historialHoy.Sum(h => h.cantidad_producto).ToString("N0") unidades
+                </MudChip>
+                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" OnClick="@CargarHistorialHoy" Title="Refrescar lista" />
+            </div>
+        </div>
+
+        @if (!historialHoy.Any())
+        {
+            <div class="pa-4 text-center text-muted">
+                No hay actividades de producción registradas para esta fecha y turno todavía.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Servicio / Actividad</th>
+                            <th>Código</th>
+                            <th>Área</th>
+                            <th>Turno</th>
+                            <th>No. Lote</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var reg in historialHoy)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">@reg.actividad</div>
+                                    <div class="text-muted small">@reg.nombre_producto</div>
+                                </td>
+                                <td><span class="badge-code-sm">@reg.servicio_codigo</span></td>
+                                <td>@reg.area_cliente</td>
+                                <td>@reg.hora_inicio - @reg.hora_fin</td>
+                                <td>@(string.IsNullOrEmpty(reg.no_lote) ? "-" : reg.no_lote)</td>
+                                <td class="text-end fw-bold fs-6 text-primary">@reg.cantidad_producto.ToString("N0")</td>
+                                <td class="text-center">
+                                    @if (reg.facturada)
+                                    {
+                                        <span class="badge bg-success">Facturada</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+</div>
+
+<style>
+    .actividades-tablet-container {
+        font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+    }
+
+    .step-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #f97316;
+        color: white;
+        font-weight: 800;
+        font-size: 0.85rem;
+    }
+
+    /* Tarjetas de Servicio */
+    .service-card {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+    }
+
+    .service-card:hover {
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .service-card.selected {
+        background: #fff7ed;
+        border-color: #f97316;
+        box-shadow: 0 4px 12px -2px rgba(249, 115, 22, 0.25);
+    }
+
+    .service-icon-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #e2e8f0;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .service-icon-box.selected {
+        background: #f97316;
+        color: white;
+    }
+
+    .service-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    .service-subtitle {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .service-count {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #f97316;
+        margin-top: 2px;
+    }
+
+    /* Chips de Filtro Táctil */
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .filter-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-chip {
+        background: #f1f5f9;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+
+    .filter-chip:hover {
+        background: #e2e8f0;
+    }
+
+    .filter-chip.active {
+        background: #1e3a8a;
+        color: white;
+        border-color: #1e3a8a;
+        box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
+    }
+
+    /* Banner de Variante Seleccionada */
+    .selected-variant-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        border-radius: 12px;
+        padding: 14px 18px;
+        color: white;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+    }
+
+    .badge-code {
+        background: #f97316;
+        color: white;
+        font-weight: 800;
+        font-size: 0.8rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-code-sm {
+        background: #e2e8f0;
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+
+    /* Grilla de Variantes */
+    .variants-scroll-container {
+        max-height: 280px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .variant-item-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .variant-item-card:hover {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        transform: translateY(-1px);
+    }
+
+    .variant-code {
+        font-family: monospace;
+        font-weight: 700;
+        font-size: 0.75rem;
+        color: #2563eb;
+    }
+
+    .variant-desc {
+        font-size: 0.75rem;
+        color: #334155;
+        line-height: 1.2;
+    }
+
+    /* Cuadro de Cantidad Táctil */
+    .quantity-input-box {
+        background: #f8fafc;
+        border: 2px dashed #cbd5e1;
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .quantity-label {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #475569;
+        letter-spacing: 0.5px;
+    }
+
+    .quantity-display {
+        font-size: 2.5rem;
+        font-weight: 900;
+        color: #0f172a;
+        text-align: center;
+        width: 180px;
+        border: none;
+        background: transparent;
+        border-bottom: 3px solid #f97316;
+        outline: none;
+    }
+
+    /* Botones de Incremento Rápido */
+    .quick-add-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .quick-btn {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        padding: 10px 4px;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #1e293b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+
+    .quick-btn:hover {
+        background: #e2e8f0;
+    }
+
+    .quick-btn:active {
+        transform: scale(0.96);
+    }
+
+    .quick-btn.reset {
+        grid-column: span 2;
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #fca5a5;
+    }
+
+    /* Botón Principal de Envío */
+    .submit-action-btn {
+        width: 100%;
+        border: none;
+        border-radius: 14px;
+        padding: 16px 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+
+    .submit-action-btn.ready {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+    }
+
+    .submit-action-btn.ready:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 25px -4px rgba(16, 185, 129, 0.5);
+    }
+
+    .submit-action-btn.disabled {
+        background: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+    }
+</style>
+
+@code {
+    // Modelos Locales
+    public class ServicioPepsiInfo
+    {
+        public int TemplateId { get; set; }
+        public string NombreCorto { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public string Icono { get; set; } = string.Empty;
+        public int VariantesCount { get; set; }
+    }
+
+    private bool estaCargando = false;
+    private string mensajeCarga = "Cargando catálogo...";
+
+    private DateTime fechaJornada = DateTime.Today;
+    private string turnoSeleccionado = "Diurno";
+    private string areaSeleccionada = "CD";
+
+    // Servicios CBC Pepsi
+    private List<ServicioPepsiInfo> serviciosDisponibles = new()
+    {
+        new ServicioPepsiInfo
+        {
+            TemplateId = 840,
+            NombreCorto = "Bandeo de Productos",
+            Descripcion = "Empaquetado y armado de packs (2p, 6p, 12p, etc.)",
+            Icono = Icons.Material.Filled.TakeoutDining,
+            VariantesCount = 75
+        },
+        new ServicioPepsiInfo
+        {
+            TemplateId = 839,
+            NombreCorto = "Servicio de Etiquetado",
+            Descripcion = "Etiquetado manual o mecánico de bultos y productos",
+            Icono = Icons.Material.Filled.Sell,
+            VariantesCount = 54
+        },
+        new ServicioPepsiInfo
+        {
+            TemplateId = 843,
+            NombreCorto = "Trasiego de Productos",
+            Descripcion = "Carga, descarga y trasiego de materias primas",
+            Icono = Icons.Material.Filled.PublishedWithChanges,
+            VariantesCount = 10
+        }
+    };
+
+    private ServicioPepsiInfo? servicioSeleccionado;
+    private List<OdooVariantDto> todasVariantesServicio = new();
+    private List<OdooVariantDto> variantesFiltradas = new();
+    private OdooVariantDto? varianteSeleccionada;
+
+    // Filtros activos
+    private string filtroProducto = "";
+    private string filtroBandeo = "";
+    private string filtroPresentacion = "";
+    private string filtroClimatizacion = "";
+
+    // Opciones para chips
+    private List<string> productosDisponibles = new();
+    private List<string> bandeosDisponibles = new();
+    private List<string> presentacionesDisponibles = new();
+    private List<string> climatizacionesDisponibles = new();
+
+    // Formulario de producción
+    private decimal cantidadProducida = 0;
+    private string noLote = "";
+    private string ordenCompra = "";
+    private string observaciones = "";
+
+    // Historial del día
+    private List<ProduccionDiariaDto> historialHoy = new();
+
+    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Seleccionar por defecto Bandeo de Productos
+        await SeleccionarServicio(serviciosDisponibles[0]);
+        await CargarHistorialHoy();
+    }
+
+    private async Task SeleccionarServicio(ServicioPepsiInfo serv)
+    {
+        servicioSeleccionado = serv;
+        varianteSeleccionada = null;
+        LimpiarFiltros();
+
+        estaCargando = true;
+        mensajeCarga = $"Cargando catálogo de {serv.NombreCorto}...";
+        StateHasChanged();
+
+        try
+        {
+            var res = await OdooService.GetProductVariants(serv.TemplateId);
+            if (!res.Respuesta.ExisteError && res.Model != null)
+            {
+                todasVariantesServicio = res.Model.ToList();
+                serv.VariantesCount = todasVariantesServicio.Count;
+                ExtraerOpcionesFiltros();
+                AplicarFiltros();
+            }
+            else
+            {
+                Snackbar.Add($"No se pudieron cargar las variantes: {res.Respuesta.MensajeError}", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al consultar variantes: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            estaCargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ExtraerOpcionesFiltros()
+    {
+        var prods = new HashSet<string>();
+        var bans = new HashSet<string>();
+        var pres = new HashSet<string>();
+        var clim = new HashSet<string>();
+
+        foreach (var v in todasVariantesServicio)
+        {
+            var dict = ParsearAtributos(v.nombre);
+            if (dict.TryGetValue("Producto", out var p)) prods.Add(p);
+            if (dict.TryGetValue("Bandeo", out var b)) bans.Add(b);
+            if (dict.TryGetValue("Precentación", out var pr)) pres.Add(pr);
+            if (dict.TryGetValue("Presentación", out var pr2)) pres.Add(pr2);
+            if (dict.TryGetValue("Climatización", out var cl)) clim.Add(cl);
+        }
+
+        productosDisponibles = prods.OrderBy(x => x).ToList();
+        bandeosDisponibles = bans.OrderBy(x => x).ToList();
+        presentacionesDisponibles = pres.OrderBy(x => x).ToList();
+        climatizacionesDisponibles = clim.OrderBy(x => x).ToList();
+    }
+
+    private Dictionary<string, string> ParsearAtributos(string nombre)
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(nombre)) return dict;
+
+        var partes = nombre.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var parte in partes)
+        {
+            var kv = parte.Split(new[] { ": " }, 2, StringSplitOptions.None);
+            if (kv.Length == 2)
+            {
+                dict[kv[0].Trim()] = kv[1].Trim();
+            }
+        }
+        return dict;
+    }
+
+    private string LimpiarNombreVariante(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre)) return "";
+        // Eliminar 'Cliente: CBC Pepsi, ' para ahorrar espacio
+        return nombre.Replace("Cliente: CBC Pepsi, ", "")
+                     .Replace("Area: CD, ", "")
+                     .Replace("Precentación:", "Pres:");
+    }
+
+    private void ToggleFiltroProducto(string prod)
+    {
+        filtroProducto = filtroProducto == prod ? "" : prod;
+        AplicarFiltros();
+    }
+
+    private void ToggleFiltroBandeo(string ban)
+    {
+        filtroBandeo = filtroBandeo == ban ? "" : ban;
+        AplicarFiltros();
+    }
+
+    private void ToggleFiltroPresentacion(string pres)
+    {
+        filtroPresentacion = filtroPresentacion == pres ? "" : pres;
+        AplicarFiltros();
+    }
+
+    private void ToggleFiltroClimatizacion(string clim)
+    {
+        filtroClimatizacion = filtroClimatizacion == clim ? "" : clim;
+        AplicarFiltros();
+    }
+
+    private void LimpiarFiltros()
+    {
+        filtroProducto = "";
+        filtroBandeo = "";
+        filtroPresentacion = "";
+        filtroClimatizacion = "";
+        AplicarFiltros();
+    }
+
+    private void AplicarFiltros()
+    {
+        var q = todasVariantesServicio.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(filtroProducto))
+        {
+            q = q.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filtroBandeo))
+        {
+            q = q.Where(v => v.nombre.Contains($"Bandeo: {filtroBandeo}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filtroPresentacion))
+        {
+            q = q.Where(v => v.nombre.Contains($"Precentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase) ||
+                             v.nombre.Contains($"Presentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filtroClimatizacion))
+        {
+            q = q.Where(v => v.nombre.Contains($"Climatización: {filtroClimatizacion}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Filtro de Turno si coincide
+        if (!string.IsNullOrWhiteSpace(turnoSeleccionado))
+        {
+            var matchTurno = q.Where(v => v.nombre.Contains($"Turno: {turnoSeleccionado}", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matchTurno.Any())
+            {
+                q = matchTurno;
+            }
+        }
+
+        variantesFiltradas = q.ToList();
+
+        // Si solo queda 1 variante, preseleccionarla automáticamente
+        if (variantesFiltradas.Count == 1)
+        {
+            varianteSeleccionada = variantesFiltradas[0];
+        }
+    }
+
+    private void SeleccionarVariante(OdooVariantDto v)
+    {
+        varianteSeleccionada = v;
+        Snackbar.Add($"Variante seleccionada: {v.default_code}", Severity.Info);
+    }
+
+    private void SumarCantidad(decimal delta)
+    {
+        cantidadProducida += delta;
+    }
+
+    private void RestarCantidad(decimal delta)
+    {
+        cantidadProducida = Math.Max(0, cantidadProducida - delta);
+    }
+
+    private void CambiarFecha(int dias)
+    {
+        fechaJornada = fechaJornada.AddDays(dias);
+        _ = CargarHistorialHoy();
+    }
+
+    private void SetFechaHoy()
+    {
+        fechaJornada = DateTime.Today;
+        _ = CargarHistorialHoy();
+    }
+
+    private void OnFechaChanged(DateTime? dt)
+    {
+        if (dt.HasValue)
+        {
+            fechaJornada = dt.Value;
+            _ = CargarHistorialHoy();
+        }
+    }
+
+    private async Task GuardarProduccion()
+    {
+        if (!PuedeGuardar) return;
+
+        estaCargando = true;
+        mensajeCarga = "Guardando producción de actividad...";
+        StateHasChanged();
+
+        try
+        {
+            var dict = ParsearAtributos(varianteSeleccionada!.nombre);
+            string prodName = dict.TryGetValue("Producto", out var p) ? p : varianteSeleccionada.template_name;
+
+            var item = new ProduccionDiariaDto
+            {
+                cliente = "CBC Pepsi",
+                operacion_id = 27,
+                actividad = servicioSeleccionado?.NombreCorto ?? "Bandeo de Productos",
+                area_cliente = areaSeleccionada,
+                servicio_codigo = varianteSeleccionada.default_code,
+                servicio_descripcion = varianteSeleccionada.nombre,
+                nombre_producto = prodName,
+                cantidad_producto = cantidadProducida,
+                costo_producto = 0, // Backend aplica automáticamente fixed_price de lista
+                fecha_inicio = fechaJornada.Date,
+                fecha_fin = fechaJornada.Date,
+                hora_inicio = turnoSeleccionado.Contains("Nocturno") ? "19:00" : "07:00",
+                hora_fin = turnoSeleccionado.Contains("Nocturno") ? "07:00" : "19:00",
+                no_lote = string.IsNullOrWhiteSpace(noLote) ? null : noLote.Trim(),
+                oc = string.IsNullOrWhiteSpace(ordenCompra) ? null : ordenCompra.Trim(),
+                asignado_a = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim(),
+                facturada = false
+            };
+
+            var res = await OdooService.ImportarProduccionDiaria(new List<ProduccionDiariaDto> { item });
+            if (!res.Respuesta.ExisteError)
+            {
+                Snackbar.Add($"✅ ¡Actividad registrada con éxito! {cantidadProducida:N0} unidades de {varianteSeleccionada.default_code}.", Severity.Success);
+                
+                // Reiniciar entrada para siguiente actividad
+                cantidadProducida = 0;
+                noLote = "";
+                ordenCompra = "";
+                varianteSeleccionada = null;
+                LimpiarFiltros();
+
+                await CargarHistorialHoy();
+            }
+            else
+            {
+                Snackbar.Add($"Error al registrar: {res.Respuesta.MensajeError}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Excepción al guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            estaCargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarHistorialHoy()
+    {
+        try
+        {
+            var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, 27, null);
+            if (!res.Respuesta.ExisteError && res.Model != null)
+            {
+                historialHoy = res.Model.OrderByDescending(h => h.id).ToList();
+            }
+            else
+            {
+                historialHoy = new();
+            }
+        }
+        catch
+        {
+            historialHoy = new();
+        }
+        StateHasChanged();
+    }
+}

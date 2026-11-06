@@ -53,7 +53,7 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {
@@ -111,6 +111,25 @@ namespace BsOperaciones.Services
                         Ruta = "/operaciones/produccion-diaria",
                         MenuResourceId = 36,
                         Color = "#d97706"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Sellar Asistencias",
+                        Subtitulo = "Agrupación y sellado de lotes de horas laboradas por cuadrilla.",
+                        Icono = Icons.Material.Filled.AssignmentTurnedIn,
+                        Ruta = "/operaciones/asistencia-produccion",
+                        MenuResourceId = 57,
+                        Color = "#0284c7"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Actividades (Tablet)",
+                        Subtitulo = "Registro táctil de producción por variante y servicio (Pepsi / CBC).",
+                        Icono = Icons.Material.Filled.TouchApp,
+                        Ruta = "/operaciones/actividades-produccion",
+                        MenuResourceId = 67,
+                        Color = "#ea580c",
+                        Badge = "Tablet / Táctil"
                     },
                     new ModuloHerramientaItem
                     {

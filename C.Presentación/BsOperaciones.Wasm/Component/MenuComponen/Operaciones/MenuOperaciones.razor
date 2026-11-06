@@ -12,7 +12,10 @@
                 <Authorized>
                     <MudNavGroup Title="Producción" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
                         <MenuItem MenuId="36" Name="Producción Diaria" Url="/operaciones/produccion-diaria" IconName="@Icons.Material.Filled.Assignment" />
-                        <MenuItem MenuId="57" Name="Asignar Asistencia" Url="/operaciones/asistencia-produccion" IconName="@Icons.Material.Filled.AssignmentTurnedIn" />
+                        <MudNavGroup Title="Sellar Lote" Icon="@Icons.Material.Filled.FactCheck" Expanded="false">
+                            <MenuItem MenuId="57" Name="Asistencias" Url="/operaciones/asistencia-produccion" IconName="@Icons.Material.Filled.AssignmentTurnedIn" />
+                            <MenuItem MenuId="67" Name="Actividades" Url="/operaciones/actividades-produccion" IconName="@Icons.Material.Filled.TouchApp" />
+                        </MudNavGroup>
                         <MenuItem MenuId="54" Name="Productos Adicionales" Url="/operaciones/productos-adicionales" IconName="@Icons.Material.Filled.FormatListBulleted" />
                         <MenuItem MenuId="58" Name="Asociar Clientes" Url="/operaciones/asociacion-clientes" IconName="@Icons.Material.Filled.MergeType" />
                     </MudNavGroup>
