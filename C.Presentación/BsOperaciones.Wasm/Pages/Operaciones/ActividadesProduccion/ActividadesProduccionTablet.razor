@@ -23,6 +23,42 @@
         </div>
     </MudOverlay>
 
+    @* --- TABS DE CLIENTES ASIGNADOS AL SUPERVISOR (CON SERVICIOS CONFIGURADOS) --- *@
+    @if (clientesPermitidos.Any())
+    {
+        <div class="client-tabs-bar mb-3 pa-2 rounded-xl border d-flex align-center gap-2 flex-wrap" style="background: #ffffff; border-color: #e2e8f0;">
+            <div class="d-flex align-center gap-1 px-3 py-1" style="border-right: 2px solid #e2e8f0;">
+                <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Small" Color="Color.Primary" />
+                <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #64748b; letter-spacing: 0.5px;">Clientes:</MudText>
+            </div>
+            <div class="d-flex align-center gap-2 flex-wrap">
+                @foreach (var c in clientesPermitidos)
+                {
+                    bool isSelected = c.OperacionId == operacionSeleccionadaId;
+                    <button type="button" class="client-tab-btn @(isSelected ? "active" : "")" @onclick="@(() => OnOperacionChanged(c.OperacionId))">
+                        <div class="d-flex align-center gap-2">
+                            <span class="client-name">@c.ClienteNombre</span>
+                            <span class="client-badge">@c.ServiciosCount @(c.ServiciosCount == 1 ? "servicio" : "servicios")</span>
+                        </div>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+    else if (!estaCargando)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3 rounded-xl border">
+            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                <div>
+                    <MudText Typo="Typo.body2" Class="fw-bold">No tienes clientes con actividades de producción configuradas.</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Configura las plantillas de servicios en <strong>Supervisión &gt; Actividades por Cliente</strong> y verifica que el cliente esté asignado en <strong>Personal por Cliente</strong>.
+                    </MudText>
+                </div>
+            </div>
+        </MudAlert>
+    }
+
     @* --- CABECERA DE JORNADA Y CLIENTE --- *@
     <MudPaper Elevation="2" Class="pa-3 mb-3 rounded-xl border" Style="background: #ffffff; border-color: #e2e8f0; border-left: 6px solid #f97316;">
         <MudGrid Spacing="2" AlignItems="AlignItems.Center">
@@ -66,17 +102,11 @@
                 </MudSelect>
             </MudItem>
 
-            @* Selector de Empresa / Operación Dinámico *@
+            @* Indicador del Cliente Seleccionado en Tabs *@
             <MudItem xs="12" sm="12" md="4" Class="d-flex justify-sm-end align-center gap-2">
-                <MudSelect T="int" Label="Empresa / Operación" Value="@operacionSeleccionadaId" ValueChanged="@OnOperacionChanged"
-                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
-                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business"
-                           Style="min-width: 240px; font-weight: 700; background-color: #eff6ff;">
-                    @foreach (var op in operacionesList)
-                    {
-                        <MudSelectItem Value="@op.id">@op.nombre</MudSelectItem>
-                    }
-                </MudSelect>
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="fw-bold" Icon="@Icons.Material.Filled.Business">
+                    @operacionSeleccionadaNombre
+                </MudChip>
             </MudItem>
         </MudGrid>
     </MudPaper>
@@ -712,11 +742,67 @@
         color: #94a3b8;
         cursor: not-allowed;
     }
+
+    /* Tabs de Clientes */
+    .client-tabs-bar {
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .client-tab-btn {
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+        color: #334155;
+    }
+
+    .client-tab-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    .client-tab-btn.active {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        border-color: #1e3a8a;
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .client-tab-btn .client-name {
+        font-weight: 800;
+        font-size: 0.95rem;
+    }
+
+    .client-tab-btn .client-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.08);
+    }
+
+    .client-tab-btn.active .client-badge {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
 </style>
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    public class ClienteTabItem
+    {
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public int ServiciosCount { get; set; }
+    }
 
     public class ServicioInfoItem
     {
@@ -741,6 +827,7 @@
     private int operacionSeleccionadaId = 27;
     private string operacionSeleccionadaNombre = "CBC Pepsi";
     private List<Combos> operacionesList = new();
+    private List<ClienteTabItem> clientesPermitidos = new();
 
     // Plantillas de Servicio Maestro
     private static readonly List<ServicioInfoItem> MasterCatalogoServicios = new()
@@ -787,7 +874,110 @@
     // Historial del día
     private List<ProduccionDiariaDto> historialHoy = new();
 
-    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;    protected override async Task OnInitializedAsync()
+    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;    
+    private async Task CargarClientesPermitidos()
+    {
+        clientesPermitidos.Clear();
+        try
+        {
+            // 1. Obtener todas las configuraciones de servicios activas en Odoo
+            var respConfigs = await OdooService.GetClienteActividadesConfig(0, null, null);
+            var configsActivas = (respConfigs?.Model != null)
+                ? respConfigs.Model.Where(c => c.Activo).ToList()
+                : new List<ClienteActividadConfigDto>();
+
+            // 2. Obtener los clientes asignados a este supervisor en "Clientes por Supervisor"
+            var respSup = await OdooService.GetSupervisorClientes(currentUserName, "");
+            var asignaciones = (respSup?.Model != null)
+                ? respSup.Model.Where(s => s.Activo).ToList()
+                : new List<SupervisorClienteDto>();
+
+            bool esAdmin = currentUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
+                           currentUserName.Equals("admin@bussersa.com", StringComparison.OrdinalIgnoreCase) ||
+                           currentUserName.Equals("hquintero", StringComparison.OrdinalIgnoreCase);
+
+            var clientesCandidatos = new Dictionary<int, string>();
+
+            if (asignaciones.Any())
+            {
+                foreach (var a in asignaciones)
+                {
+                    if (a.OperacionId.HasValue && a.OperacionId.Value > 0)
+                    {
+                        if (!clientesCandidatos.ContainsKey(a.OperacionId.Value))
+                        {
+                            clientesCandidatos[a.OperacionId.Value] = a.ClienteNombre;
+                        }
+                    }
+                }
+            }
+            
+            if (!clientesCandidatos.Any() || esAdmin)
+            {
+                // Para admin o si no hay clientes en tbl_bs_supervisor_cliente, incluir clientes con servicios configurados
+                foreach (var c in configsActivas)
+                {
+                    if (!clientesCandidatos.ContainsKey(c.OperacionId))
+                    {
+                        clientesCandidatos[c.OperacionId] = c.ClienteNombre;
+                    }
+                }
+            }
+
+            // 3. VALIDAR: Solo incluir los clientes que TENGAN servicios configurados para este supervisor
+            foreach (var kvp in clientesCandidatos)
+            {
+                int opId = kvp.Key;
+                string cNombre = kvp.Value;
+
+                var serviciosDelCliente = configsActivas.Where(c => 
+                    c.OperacionId == opId && 
+                    (c.SupervisorUsuario == "*" || 
+                     c.SupervisorUsuario.Equals(currentUserName, StringComparison.OrdinalIgnoreCase) ||
+                     currentUserName.StartsWith(c.SupervisorUsuario, StringComparison.OrdinalIgnoreCase) ||
+                     esAdmin)
+                ).ToList();
+
+                if (serviciosDelCliente.Any())
+                {
+                    clientesPermitidos.Add(new ClienteTabItem
+                    {
+                        OperacionId = opId,
+                        ClienteNombre = cNombre,
+                        ServiciosCount = serviciosDelCliente.Select(s => s.TemplateId).Distinct().Count()
+                    });
+                }
+            }
+
+            // Fallback de seguridad si aún no hay asignación pero hay configuraciones
+            if (!clientesPermitidos.Any() && configsActivas.Any())
+            {
+                var primerConfig = configsActivas.First();
+                clientesPermitidos.Add(new ClienteTabItem
+                {
+                    OperacionId = primerConfig.OperacionId,
+                    ClienteNombre = primerConfig.ClienteNombre,
+                    ServiciosCount = configsActivas.Count(c => c.OperacionId == primerConfig.OperacionId)
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando clientes permitidos: {ex.Message}");
+        }
+
+        // Preseleccionar el cliente
+        if (clientesPermitidos.Any())
+        {
+            if (!clientesPermitidos.Any(c => c.OperacionId == operacionSeleccionadaId))
+            {
+                operacionSeleccionadaId = clientesPermitidos.First().OperacionId;
+            }
+            ActualizarNombreOperacion();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
     {
         try
         {
@@ -830,6 +1020,7 @@
             if (operacionesList.Any()) operacionSeleccionadaId = operacionesList.First().id;
         }
 
+        await CargarClientesPermitidos();
         ActualizarNombreOperacion();
         await CargarAreasCliente();
         await CargarServiciosPorClienteYSupervisor();
@@ -961,6 +1152,13 @@
 
     private void ActualizarNombreOperacion()
     {
+        var tab = clientesPermitidos.FirstOrDefault(o => o.OperacionId == operacionSeleccionadaId);
+        if (tab != null)
+        {
+            operacionSeleccionadaNombre = tab.ClienteNombre;
+            return;
+        }
+
         var op = operacionesList.FirstOrDefault(o => o.id == operacionSeleccionadaId);
         operacionSeleccionadaNombre = op?.nombre ?? "Operación #" + operacionSeleccionadaId;
     }
@@ -1027,41 +1225,74 @@
         productosDisponibles = prods.OrderBy(x => x).ToList();
 
         ActualizarOpcionesDependientes();
-    }
-
-    private void ActualizarOpcionesDependientes()
+    }    private void ActualizarOpcionesDependientes()
     {
-        var pool = todasVariantesServicio.AsEnumerable();
+        // 1. Catálogo base para productos
+        var prods = new HashSet<string>();
+        foreach (var v in todasVariantesServicio)
+        {
+            var dict = ParsearAtributos(v.nombre);
+            if (dict.TryGetValue("Producto", out var p)) prods.Add(p);
+        }
+        productosDisponibles = prods.OrderBy(x => x).ToList();
+
+        // 2. Filtro sucesivo: Bandeo / Pack (depende del Producto seleccionado)
+        var poolBandeo = todasVariantesServicio.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(filtroProducto))
         {
-            pool = pool.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
+            poolBandeo = poolBandeo.Where(v => v.nombre.Contains($"Producto: {filtroProducto}", StringComparison.OrdinalIgnoreCase));
         }
 
         var bans = new HashSet<string>();
-        var pres = new HashSet<string>();
-        var clim = new HashSet<string>();
-
-        foreach (var v in pool)
+        foreach (var v in poolBandeo)
         {
             var dict = ParsearAtributos(v.nombre);
             if (dict.TryGetValue("Bandeo", out var b)) bans.Add(b);
-            if (dict.TryGetValue("Precentación", out var pr)) pres.Add(pr);
-            if (dict.TryGetValue("Presentación", out var pr2)) pres.Add(pr2);
-            if (dict.TryGetValue("Climatización", out var cl)) clim.Add(cl);
         }
-
         bandeosDisponibles = bans.OrderBy(x => x).ToList();
-        presentacionesDisponibles = pres.OrderBy(x => x).ToList();
-        climatizacionesDisponibles = clim.OrderBy(x => x).ToList();
 
         if (!string.IsNullOrWhiteSpace(filtroBandeo) && !bandeosDisponibles.Contains(filtroBandeo, StringComparer.OrdinalIgnoreCase))
         {
             filtroBandeo = "";
         }
+
+        // 3. Filtro sucesivo: Presentación (depende de Producto Y de Bandeo si fue seleccionado)
+        var poolPres = poolBandeo;
+        if (!string.IsNullOrWhiteSpace(filtroBandeo))
+        {
+            poolPres = poolPres.Where(v => v.nombre.Contains($"Bandeo: {filtroBandeo}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var pres = new HashSet<string>();
+        foreach (var v in poolPres)
+        {
+            var dict = ParsearAtributos(v.nombre);
+            if (dict.TryGetValue("Precentación", out var pr)) pres.Add(pr);
+            if (dict.TryGetValue("Presentación", out var pr2)) pres.Add(pr2);
+        }
+        presentacionesDisponibles = pres.OrderBy(x => x).ToList();
+
         if (!string.IsNullOrWhiteSpace(filtroPresentacion) && !presentacionesDisponibles.Contains(filtroPresentacion, StringComparer.OrdinalIgnoreCase))
         {
             filtroPresentacion = "";
         }
+
+        // 4. Filtro sucesivo: Climatización (depende de Producto + Bandeo + Presentación)
+        var poolClim = poolPres;
+        if (!string.IsNullOrWhiteSpace(filtroPresentacion))
+        {
+            poolClim = poolClim.Where(v => v.nombre.Contains($"Precentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase) ||
+                                           v.nombre.Contains($"Presentación: {filtroPresentacion}", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var clim = new HashSet<string>();
+        foreach (var v in poolClim)
+        {
+            var dict = ParsearAtributos(v.nombre);
+            if (dict.TryGetValue("Climatización", out var cl)) clim.Add(cl);
+        }
+        climatizacionesDisponibles = clim.OrderBy(x => x).ToList();
+
         if (!string.IsNullOrWhiteSpace(filtroClimatizacion) && !climatizacionesDisponibles.Contains(filtroClimatizacion, StringComparer.OrdinalIgnoreCase))
         {
             filtroClimatizacion = "";
@@ -1097,23 +1328,20 @@
         filtroProducto = filtroProducto == prod ? "" : prod;
         ActualizarOpcionesDependientes();
         AplicarFiltros();
-    }
-
-    private void ToggleFiltroBandeo(string ban)
+    }    private void ToggleFiltroBandeo(string ban)
     {
         filtroBandeo = filtroBandeo == ban ? "" : ban;
+        ActualizarOpcionesDependientes();
         AplicarFiltros();
-    }
-
-    private void ToggleFiltroPresentacion(string pres)
+    }    private void ToggleFiltroPresentacion(string pres)
     {
         filtroPresentacion = filtroPresentacion == pres ? "" : pres;
+        ActualizarOpcionesDependientes();
         AplicarFiltros();
-    }
-
-    private void ToggleFiltroClimatizacion(string clim)
+    }    private void ToggleFiltroClimatizacion(string clim)
     {
         filtroClimatizacion = filtroClimatizacion == clim ? "" : clim;
+        ActualizarOpcionesDependientes();
         AplicarFiltros();
     }    private void LimpiarFiltros()
     {
