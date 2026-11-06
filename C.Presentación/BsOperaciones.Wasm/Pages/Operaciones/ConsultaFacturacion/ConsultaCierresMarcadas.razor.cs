@@ -205,7 +205,7 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
         protected bool EsSupervisor(ReporteCierreMarcadasDetalle item)
         {
             if (item == null) return false;
-            return supervisoresIds.Contains(item.id_empleado);
+            return ConciliacionSinsaStrategy.EsSupervisor(item, supervisoresIds);
         }
 
         protected async Task AbrirModalSupervisores()

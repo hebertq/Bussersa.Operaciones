@@ -175,8 +175,8 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(5, 150, 105, 0.25)",
                 RutaPrincipal = "/nomina",
                 MenuResourceId = 8,
-                ChildMenuIds = new[] { 8, 9, 21, 39, 51, 52, 60 },
-                PrefijosRuta = new[] { "/nomina" },
+                ChildMenuIds = new[] { 8, 9, 21, 39, 51, 52, 60, 30, 31, 32 },
+                PrefijosRuta = new[] { "/nomina", "/rrhh" },
                 Herramientas = new()
                 {
                     new ModuloHerramientaItem
@@ -214,6 +214,24 @@ namespace BsOperaciones.Services
                         Ruta = "/nomina/cerrar/activa",
                         MenuResourceId = 12,
                         Color = "#047857"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Descriptores de Puesto",
+                        Subtitulo = "Gestión de descriptores de puesto, funciones, requisitos y competencias.",
+                        Icono = Icons.Material.Filled.Assignment,
+                        Ruta = "/rrhh/descriptores",
+                        MenuResourceId = 31,
+                        Color = "#0284c7"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Matriz de Descriptores",
+                        Subtitulo = "Comparación y visualización matricial de descriptores por puesto.",
+                        Icono = Icons.Material.Filled.TableChart,
+                        Ruta = "/rrhh/matriz-descriptores",
+                        MenuResourceId = 32,
+                        Color = "#0891b2"
                     }
                 }
             },
@@ -388,10 +406,10 @@ namespace BsOperaciones.Services
                     return menus.Any(m => m.id == 3 || m.id == 4 || m.id == 5);
                 }
 
-                // 4. Nómina (8 o 9 o 60)
+                // 4. Nómina (8 o 9 o 60 o 30 o 31 o 32)
                 if (modulo.Clave == "nomina")
                 {
-                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 60);
+                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 60 || m.id == 30 || m.id == 31 || m.id == 32);
                 }
 
                 // 5. Comercial (26 o 27 o 33)

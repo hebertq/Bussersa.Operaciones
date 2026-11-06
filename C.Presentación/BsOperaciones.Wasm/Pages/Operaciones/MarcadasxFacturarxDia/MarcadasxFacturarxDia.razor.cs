@@ -557,14 +557,17 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
 
         protected async Task ConfirmarCierre()
         {
-            var listaCierre = PayLoadListFiltrada;
+            // En la base de datos de cierre (tbl_bs_cierre_asistencia_diaria) DEBE quedar el registro
+            // completo incluyendo supervisores para efectos de indicadores y métricas internas.
+            var listaCierreDb = PayLoadList;
+            var listaCierreFacturable = PayLoadListFiltrada;
             int totalExcluidos = excluirSupervisores ? CantidadSupervisoresExcluidos : 0;
             decimal horasExcluidas = excluirSupervisores ? TotalHorasSupervisoresExcluidas : 0;
 
-            string mensajeAlerta = $"¿Desea cerrar {listaCierre.Count} registros facturables?";
+            string mensajeAlerta = $"¿Desea cerrar las marcadas? Se guardarán {listaCierreDb.Count} registros en la tabla de cierre.";
             if (totalExcluidos > 0)
             {
-                mensajeAlerta += $"\n\n🛡️ REGLA SUPERVISORES: Se excluyen {totalExcluidos} marcaciones ({horasExcluidas:N2}h asumidas por Bussersa).";
+                mensajeAlerta += $"\n\n🛡️ REGLA SUPERVISORES: {listaCierreFacturable.Count} facturables al cliente y {totalExcluidos} registros de supervisión ({horasExcluidas:N2}h asumidas por Bussersa para indicadores).";
             }
             if (TieneConciliacion)
             {
@@ -579,7 +582,7 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
             }
 
             bool? result = await DialogService.ShowMessageBox("Confirmar Cierre de Marcadas", mensajeAlerta, yesText: "Confirmar Cierre", cancelText: "Cancelar");
-            if (result == true) await EjecutarCierreMarcadas(listaCierre);
+            if (result == true) await EjecutarCierreMarcadas(listaCierreDb);
         }
 
         protected async Task EjecutarCierreMarcadas(List<DiasTrabajadosAreas>? listaACerrar = null)
@@ -587,11 +590,11 @@ namespace BsOperaciones.Pages.Operaciones.MarcadasxFacturarxDia
             isloaddata = true;
             try
             {
-                var items = listaACerrar ?? PayLoadListFiltrada;
+                var items = listaACerrar ?? PayLoadList;
                 var response = await _mediator.Send(new AddCierreMarcadasCommand(items, operacion));
                 if (!response.Respuesta.ExisteError)
                 {
-                    Snackbar.Add($"Cierre exitoso ({items.Count} registros cerrados).", Severity.Success);
+                    Snackbar.Add($"Cierre exitoso ({items.Count} registros guardados en tabla de cierre).", Severity.Success);
                     PayLoadList.Clear();
                     LimpiarConciliacionSilencioso();
                     BotonEnabled = true;

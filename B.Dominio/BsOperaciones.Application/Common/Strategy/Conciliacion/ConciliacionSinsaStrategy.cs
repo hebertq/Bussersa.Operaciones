@@ -486,9 +486,44 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
             return resultado;
         }
 
+        public static bool EsCargoOperativoCobrable(string? cargo)
+        {
+            if (string.IsNullOrWhiteSpace(cargo)) return false;
+
+            // Si contiene explícitamente SUPERVISOR/A, no es un rol puramente operativo
+            if (cargo.IndexOf("SUPERVISOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("SUPERVISORA", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            // Si viene informado como Operador de almacén u otro puesto operativo directo, es cobrable
+            if (cargo.IndexOf("OPERADOR DE ALMACEN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("OPERADOR DE ALMACÉN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("OPERARIO DE ALMACEN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("OPERARIO DE ALMACÉN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("OPERADOR", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("OPERARIO", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("ALMACEN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("ALMACÉN", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("MONTACARGA", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("HOLLER", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                cargo.IndexOf("CONDUCTOR", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public static bool EsSupervisor(DiasTrabajadosAreas b, HashSet<int>? ids = null)
         {
             if (b == null) return false;
+
+            // Si viene informado en el movimiento como Operador de almacén (u operativo cobrable),
+            // NO se debe excluir aunque sea supervisor por catálogo o nombre: prestó funciones operativas cobrables.
+            if (EsCargoOperativoCobrable(b.cargo)) return false;
+
             if (ids != null && ids.Contains(b.id)) return true;
 
             string cargo = b.cargo ?? "";
@@ -518,6 +553,11 @@ namespace BsOperaciones.Application.Common.Strategy.Conciliacion
         public static bool EsSupervisor(ReporteCierreMarcadasDetalle b, HashSet<int>? ids = null)
         {
             if (b == null) return false;
+
+            // Si viene informado en el movimiento como Operador de almacén (u operativo cobrable),
+            // NO se debe excluir aunque sea supervisor por catálogo o nombre: prestó funciones operativas cobrables.
+            if (EsCargoOperativoCobrable(b.cargo)) return false;
+
             if (ids != null && ids.Contains(b.id_empleado)) return true;
 
             string cargo = b.cargo ?? "";
