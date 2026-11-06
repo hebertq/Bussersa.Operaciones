@@ -3928,6 +3928,89 @@ namespace HostService.Clases
             return response;
         }
 
+        
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>> GetClienteActividadesConfig(int operacionId, string? areaNombre = null, string? supervisorUsuario = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>();
+            try
+            {
+                var queryParams = $"operacionId={operacionId}";
+                if (!string.IsNullOrWhiteSpace(areaNombre)) queryParams += $"&areaNombre={Uri.EscapeDataString(areaNombre)}";
+                if (!string.IsNullOrWhiteSpace(supervisorUsuario)) queryParams += $"&supervisorUsuario={Uri.EscapeDataString(supervisorUsuario)}";
+
+                var requestUrl = CreateRequestUri("Operaciones/GetClienteActividadesConfig", queryParams);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> GuardarClienteActividadConfig(Modelo.Entidades.Operaciones.ClienteActividadConfigDto dto)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GuardarClienteActividadConfig");
+                var registro = await PostAsync(requestUrl, dto);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> EliminarClienteActividadConfig(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/EliminarClienteActividadConfig/{id}");
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId = 0, string usuario = "")
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

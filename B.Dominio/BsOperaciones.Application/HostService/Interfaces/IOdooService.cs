@@ -189,6 +189,9 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.ClienteAreaDto>> GetAllClienteAreas();
         Task<IResponse> GuardarClienteArea(Modelo.ClasesGenericas.GuardarClienteAreaRequest request);
         Task<IResponse> EliminarClienteArea(int id);
+        Task<IListResponse<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>> GetClienteActividadesConfig(int operacionId, string? areaNombre = null, string? supervisorUsuario = null);
+        Task<IResponse> GuardarClienteActividadConfig(Modelo.Entidades.Operaciones.ClienteActividadConfigDto dto);
+        Task<IResponse> EliminarClienteActividadConfig(int id);
 
         // --- MOVIMIENTOS DE PERSONAL DIARIO (TABLET) ---
         Task<IListResponse<Modelo.ClasesGenericas.MovimientoPersonalDiarioDto>> GetMovimientosPersonalDiario(DateTime fecha, int operacionId = 0, string usuario = "");

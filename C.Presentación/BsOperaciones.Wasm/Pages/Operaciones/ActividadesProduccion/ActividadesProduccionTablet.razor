@@ -1,7 +1,8 @@
-﻿@page "/operaciones/actividades-tablet"
+@page "/operaciones/actividades-tablet"
 @page "/operaciones/actividades-produccion"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Operaciones
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
 @using MediatR
@@ -39,24 +40,29 @@
                     <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Medium" OnClick="@(() => CambiarFecha(1))" Title="Día siguiente" />
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="@(() => SetFechaHoy())" Class="fw-bold">HOY</MudButton>
                 </div>
-            </MudItem>
-
-            @* Selector de Turno *@
+            </MudItem>            @* Selector de Turno *@
             <MudItem xs="6" sm="3" md="2">
-                <MudSelect T="string" Label="Turno" @bind-Value="turnoSeleccionado" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                <MudSelect T="string" Label="Turno" Value="turnoSeleccionado" ValueChanged="OnTurnoChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                     <MudSelectItem Value="@("Diurno")">☀️ Diurno</MudSelectItem>
                     <MudSelectItem Value="@("Nocturno")">🌙 Nocturno</MudSelectItem>
                     <MudSelectItem Value="@("H extras / Domingos / Feraidos")">⚡ Extra / Feriado</MudSelectItem>
                 </MudSelect>
             </MudItem>
 
-            @* Selector de Área *@
+            @* Selector de Área Dinámica del Cliente *@
             <MudItem xs="6" sm="3" md="2">
-                <MudSelect T="string" Label="Área" @bind-Value="areaSeleccionada" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
-                    <MudSelectItem Value="@("CD")">CD</MudSelectItem>
-                    <MudSelectItem Value="@("Sum")">Sum</MudSelectItem>
-                    <MudSelectItem Value="@("Construcción")">Construcción</MudSelectItem>
-                    <MudSelectItem Value="@("Planta")">Planta</MudSelectItem>
+                <MudSelect T="string" Label="Área" Value="areaSeleccionada" ValueChanged="OnAreaChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    @if (areasClienteList.Any())
+                    {
+                        @foreach (var a in areasClienteList)
+                        {
+                            <MudSelectItem Value="@a">@a</MudSelectItem>
+                        }
+                    }
+                    else
+                    {
+                        <MudSelectItem Value="@("CD")">CD</MudSelectItem>
+                    }
                 </MudSelect>
             </MudItem>
 
@@ -672,6 +678,9 @@
 </style>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
     public class ServicioInfoItem
     {
         public int TemplateId { get; set; }
@@ -681,20 +690,23 @@
         public int VariantesCount { get; set; }
     }
 
+    private string currentUserName = "Admin";
     private bool estaCargando = false;
     private string mensajeCarga = "Cargando catálogo...";
 
     private DateTime fechaJornada = DateTime.Today;
     private string turnoSeleccionado = "Diurno";
     private string areaSeleccionada = "CD";
+    private List<string> areasClienteList = new();
+    private List<ClienteActividadConfigDto> configsCliente = new();
 
     // Selector Dinámico de Empresa
     private int operacionSeleccionadaId = 27;
     private string operacionSeleccionadaNombre = "CBC Pepsi";
     private List<Combos> operacionesList = new();
 
-    // Plantillas de Servicio Disponibles en Odoo
-    private List<ServicioInfoItem> serviciosDisponibles = new()
+    // Plantillas de Servicio Maestro
+    private static readonly List<ServicioInfoItem> MasterCatalogoServicios = new()
     {
         new ServicioInfoItem { TemplateId = 840, NombreCorto = "Bandeo de Productos", Descripcion = "Empaquetado y armado de packs (2p, 6p, 12p, etc.)", Icono = Icons.Material.Filled.TakeoutDining },
         new ServicioInfoItem { TemplateId = 839, NombreCorto = "Servicio de Etiquetado", Descripcion = "Etiquetado de bultos y productos (Seco, Frío)", Icono = Icons.Material.Filled.Sell },
@@ -709,6 +721,8 @@
         new ServicioInfoItem { TemplateId = 852, NombreCorto = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines", Icono = Icons.Material.Filled.CleaningServices },
         new ServicioInfoItem { TemplateId = 836, NombreCorto = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado", Icono = Icons.Material.Filled.AutoAwesome }
     };
+
+    private List<ServicioInfoItem> serviciosDisponibles = MasterCatalogoServicios.ToList();
 
     private ServicioInfoItem? servicioSeleccionado;
     private List<OdooVariantDto> todasVariantesServicio = new();
@@ -736,10 +750,18 @@
     // Historial del día
     private List<ProduccionDiariaDto> historialHoy = new();
 
-    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;
-
-    protected override async Task OnInitializedAsync()
+    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;    protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var auth = await AuthStateTask;
+                currentUserName = auth.User?.Identity?.Name ?? "Admin";
+            }
+        }
+        catch { }
+
         try
         {
             var regop = await Mediator.Send(new GetAllCombosQuery("Operaciones"));
@@ -772,8 +794,79 @@
         }
 
         ActualizarNombreOperacion();
-        await SeleccionarServicio(serviciosDisponibles[0]);
+        await CargarAreasCliente();
+        await CargarServiciosPorClienteYSupervisor();
+
+        if (serviciosDisponibles.Any())
+        {
+            await SeleccionarServicio(serviciosDisponibles[0]);
+        }
         await CargarHistorialHoy();
+    }
+
+    private async Task CargarAreasCliente()
+    {
+        try
+        {
+            var res = await OdooService.GetAreasOperacion(operacionSeleccionadaId);
+            if (res?.Model != null && res.Model.Any())
+            {
+                areasClienteList = res.Model
+                    .Select(a => a.Trim())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(s => s)
+                    .ToList();
+            }
+            else
+            {
+                areasClienteList = new List<string> { "CD" };
+            }
+        }
+        catch
+        {
+            areasClienteList = new List<string> { "CD" };
+        }
+
+        if (!areasClienteList.Contains(areaSeleccionada, StringComparer.OrdinalIgnoreCase))
+        {
+            areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
+        }
+    }
+
+    private async Task CargarServiciosPorClienteYSupervisor()
+    {
+        try
+        {
+            string? supFilter = (currentUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) || 
+                                 currentUserName.Equals("admin@bussersa.com", StringComparison.OrdinalIgnoreCase) ||
+                                 currentUserName.Equals("hquintero", StringComparison.OrdinalIgnoreCase))
+                                ? null : currentUserName;
+
+            var res = await OdooService.GetClienteActividadesConfig(operacionSeleccionadaId, areaSeleccionada, supFilter);
+            if (res?.Model != null && res.Model.Any())
+            {
+                configsCliente = res.Model.ToList();
+                
+                serviciosDisponibles = MasterCatalogoServicios
+                    .Where(s => configsCliente.Any(c => c.TemplateId == s.TemplateId))
+                    .ToList();
+
+                if (!serviciosDisponibles.Any())
+                {
+                    serviciosDisponibles = MasterCatalogoServicios.ToList();
+                }
+            }
+            else
+            {
+                serviciosDisponibles = MasterCatalogoServicios.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando configs actividades: {ex.Message}");
+            serviciosDisponibles = MasterCatalogoServicios.ToList();
+        }
     }
 
     private async Task OnOperacionChanged(int nuevoId)
@@ -786,11 +879,47 @@
         }
         catch { }
 
-        if (servicioSeleccionado != null)
+        await CargarAreasCliente();
+        await CargarServiciosPorClienteYSupervisor();
+
+        if (serviciosDisponibles.Any())
+        {
+            await SeleccionarServicio(serviciosDisponibles[0]);
+        }
+        else
+        {
+            servicioSeleccionado = null;
+            varianteSeleccionada = null;
+            todasVariantesServicio.Clear();
+            variantesFiltradas.Clear();
+        }
+        await CargarHistorialHoy();
+    }
+
+    private async Task OnAreaChanged(string nuevaArea)
+    {
+        areaSeleccionada = nuevaArea;
+        await CargarServiciosPorClienteYSupervisor();
+        if (servicioSeleccionado != null && serviciosDisponibles.Any(s => s.TemplateId == servicioSeleccionado.TemplateId))
         {
             await SeleccionarServicio(servicioSeleccionado);
         }
-        await CargarHistorialHoy();
+        else if (serviciosDisponibles.Any())
+        {
+            await SeleccionarServicio(serviciosDisponibles[0]);
+        }
+        else
+        {
+            servicioSeleccionado = null;
+            varianteSeleccionada = null;
+        }
+    }
+
+    private async Task OnTurnoChanged(string nuevoTurno)
+    {
+        turnoSeleccionado = nuevoTurno;
+        AplicarFiltros();
+        await Task.CompletedTask;
     }
 
     private void ActualizarNombreOperacion()
@@ -957,10 +1086,22 @@
         if (!string.IsNullOrWhiteSpace(filtroClimatizacion))
         {
             q = q.Where(v => v.nombre.Contains($"Climatización: {filtroClimatizacion}", StringComparison.OrdinalIgnoreCase));
+        }        // 1. Filtro por Área si la variante la especifica
+        bool plantillaTieneArea = todasVariantesServicio.Any(v => v.nombre.Contains("Area:", StringComparison.OrdinalIgnoreCase) || v.nombre.Contains("Área:", StringComparison.OrdinalIgnoreCase));
+        if (plantillaTieneArea && !string.IsNullOrWhiteSpace(areaSeleccionada))
+        {
+            var matchArea = q.Where(v => v.nombre.Contains($"Area: {areaSeleccionada}", StringComparison.OrdinalIgnoreCase) ||
+                                         v.nombre.Contains($"Área: {areaSeleccionada}", StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matchArea.Any())
+            {
+                q = matchArea;
+            }
         }
 
-        // Filtro de Turno si coincide
-        if (!string.IsNullOrWhiteSpace(turnoSeleccionado))
+        // 2. Filtro por Turno si la plantilla tiene Turno configurado o en variante
+        bool plantillaTieneTurno = (servicioSeleccionado != null && configsCliente.Any(c => c.TemplateId == servicioSeleccionado.TemplateId && c.TieneTurno)) ||
+                                   todasVariantesServicio.Any(v => v.nombre.Contains("Turno:", StringComparison.OrdinalIgnoreCase));
+        if (plantillaTieneTurno && !string.IsNullOrWhiteSpace(turnoSeleccionado))
         {
             var matchTurno = q.Where(v => v.nombre.Contains($"Turno: {turnoSeleccionado}", StringComparison.OrdinalIgnoreCase)).ToList();
             if (matchTurno.Any())

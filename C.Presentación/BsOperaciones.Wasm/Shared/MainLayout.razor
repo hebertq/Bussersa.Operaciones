@@ -63,16 +63,33 @@
             <MudIcon Icon="@Icons.Material.Outlined.Notifications" Color="Color.Inherit" />
         </MudBadge>
         
-        @* Píldora de Perfil del Usuario Logueado *@
-        <div class="d-flex align-center ml-2 py-1 px-3 profile-pill">
-            <div class="d-flex flex-column align-end mr-3 d-none d-md-flex">
-                <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1.1; font-weight: 700;">@_userDisplayName</MudText>
-                <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">@_userRoleName</MudText>
-            </div>
-            <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled" Style="font-weight: 700; font-size: 0.75rem;">
-                @_userInitials
-            </MudAvatar>
-        </div>
+        @* Píldora de Perfil del Usuario Logueado con Menú Desplegable *@
+        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true" Class="ml-2">
+            <ActivatorContent>
+                <div class="d-flex align-center py-1 px-3 profile-pill cursor-pointer" style="cursor: pointer;" title="Opciones de Cuenta">
+                    <div class="d-flex flex-column align-end mr-3 d-none d-md-flex">
+                        <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1.1; font-weight: 700;">@_userDisplayName</MudText>
+                        <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">@_userRoleName</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled" Style="font-weight: 700; font-size: 0.75rem;">
+                        @_userInitials
+                    </MudAvatar>
+                </div>
+            </ActivatorContent>
+            <ChildContent>
+                <div class="px-4 py-2 border-b">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">@_userDisplayName</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@_userRoleName</MudText>
+                </div>
+                <MudMenuItem Icon="@Icons.Material.Filled.Apps" OnClick="@IrAInicioModulos">
+                    Lanzador de Módulos
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="@LogoutManual">
+                    <MudText Color="Color.Error" Style="font-weight: 600;">Cerrar Sesión</MudText>
+                </MudMenuItem>
+            </ChildContent>
+        </MudMenu>
     </MudAppBar>
 
     @* --- MENÚ LATERAL (DRAWER CONTEXTUAL) --- *@
@@ -159,6 +176,7 @@
     [Inject] AuthenticationStateProvider AuthStateProvider { get; set; }
     [Inject] NavigationManager NavigationManager { get; set; }
     [Inject] ModuloNavigationService ModuloNavService { get; set; }
+    [Inject] private Modelo.Interfaces.IUserInfo _iuser { get; set; } = default!;
 
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
@@ -270,6 +288,18 @@
             await customAuth.MarkUserAsLoggedOut();
             NavigationManager.NavigateTo("Login", true);
         }
+    }
+
+    private async Task LogoutManual()
+    {
+        if (AuthStateProvider is CustomAuthenticationStateProvider customAuth)
+        {
+            await customAuth.MarkUserAsLoggedOut();
+        }
+        _iuser.SetUserInfo(new Modelo.Admin.User());
+        _iuser.SetMenu(0);
+        _iuser.SetPermisos(new Modelo.Entidades.Menus());
+        NavigationManager.NavigateTo("", true);
     }
 
     public void Dispose()

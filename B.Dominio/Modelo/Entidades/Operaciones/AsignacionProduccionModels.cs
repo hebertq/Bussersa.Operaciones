@@ -125,4 +125,20 @@ namespace Modelo.Entidades.Operaciones
         public bool facturada { get; set; }
         public string? no_factura { get; set; }
     }
+
+    public class ClienteActividadConfigDto
+    {
+        public int Id { get; set; }
+        public int OperacionId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string AreaNombre { get; set; } = "*";
+        public int TemplateId { get; set; }
+        public string TemplateNombre { get; set; } = string.Empty;
+        public string SupervisorUsuario { get; set; } = "*";
+        public string SupervisorNombre { get; set; } = "Todos";
+        public bool TieneTurno { get; set; }
+        public bool Activo { get; set; } = true;
+        public DateTime? FechaCreacion { get; set; }
+        public string? Usuario { get; set; }
+    }
 }

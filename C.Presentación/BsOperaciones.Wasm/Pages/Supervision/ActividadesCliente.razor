@@ -1,0 +1,531 @@
+@page "/admon/supervision/actividades-cliente"
+@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Operaciones
+@using Modelo.Admin
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@attribute [Authorize]
+@inject IOdooService _odooService
+@inject ISnackbar _snackbar
+@inject IDialogService _dialogService
+@inject NavigationManager _navigationManager
+
+<PageTitle>Actividades por Cliente - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-6">
+    @* --- CABECERA Y BREADCRUMBS --- *@
+    <div class="d-flex align-center justify-space-between mb-3 flex-wrap gap-2">
+        <div>
+            <MudBreadcrumbs Items="_breadcrumbItems" Separator=">" Class="pa-0 mb-1" />
+            <MudText Typo="Typo.h5" Class="fw-bold text-primary">
+                <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" />
+                Configuración de Actividades por Cliente y Supervisor
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Define las plantillas de servicio de Odoo asignadas a cada cliente, área operativa y supervisor, indicando si requieren filtro por turno.
+            </MudText>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Domain"
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/areas-cliente"))">
+                Áreas del Cliente
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Badge"
+                       OnClick="@(() => _navigationManager.NavigateTo("/admon/supervision/personal-cliente"))">
+                Personal por Cliente
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.TouchApp"
+                       OnClick="@(() => _navigationManager.NavigateTo("/operaciones/actividades-tablet"))">
+                Actividades Tablet
+            </MudButton>
+        </div>
+    </div>
+
+    @* --- FORMULARIO DE REGISTRO / ASIGNACIÓN --- *@
+    <MudPaper Class="pa-4 mb-4 rounded-lg" Elevation="2" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+        <MudText Typo="Typo.subtitle1" Class="fw-bold mb-3 text-primary">
+            <MudIcon Icon="@Icons.Material.Filled.AddCircle" Size="Size.Small" Class="mr-1" />
+            Asignar Plantilla de Servicio a Cliente y Supervisor
+        </MudText>
+        
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+            @* 1. Cliente / Operación *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?" Label="Cliente / Operación *" Value="nuevoClienteOpId" ValueChanged="OnClienteSeleccionadoChanged"
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione Cliente --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        <MudSelectItem T="int?" Value="@op.id">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* 2. Área del Cliente *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Área Operativa *" @bind-Value="nuevaAreaNombre"
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined"
+                           Disabled="@(!nuevoClienteOpId.HasValue)">
+                    <MudSelectItem T="string" Value="@("*")">★ Todas las Áreas (*)</MudSelectItem>
+                    @foreach (var a in areasDelClienteNuevo)
+                    {
+                        <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* 3. Supervisor Asignado *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Supervisor Responsable *" @bind-Value="nuevoSupervisorUsuario"
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@("*")">★ Todos los Supervisores (*)</MudSelectItem>
+                    @foreach (var sup in supervisoresList)
+                    {
+                        string supLabel = $"{sup.nombres} {sup.apellidos} ({sup.username})";
+                        <MudSelectItem T="string" Value="@sup.username">@supLabel</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* 4. Plantilla de Servicio de Odoo *@
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?" Label="Plantilla de Servicio (Odoo) *" Value="nuevoTemplateId" ValueChanged="OnPlantillaSeleccionadaChanged"
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione Servicio --</MudSelectItem>
+                    @foreach (var p in CatalogoPlantillasOdoo)
+                    {
+                        <MudSelectItem T="int?" Value="@p.TemplateId">@p.Nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* 5. Checkbox Turno & Botón Guardar *@
+            <MudItem xs="12" sm="6" md="4" Class="d-flex align-center">
+                <MudCheckBox @bind-Value="nuevoTieneTurno" Color="Color.Primary" Dense="true">
+                    <MudText Typo="Typo.body2" Class="fw-bold">
+                        ¿Maneja Turno? (Filtra por Diurno / Nocturno)
+                    </MudText>
+                </MudCheckBox>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="8" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium" 
+                           StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarAsignacion" 
+                           Disabled="@guardando" Style="min-width: 180px;">
+                    @(guardando ? "Guardando..." : "Guardar Asignación")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @* --- FILTROS Y TABLA DE ASIGNACIONES --- *@
+    <MudPaper Class="pa-4 rounded-lg" Elevation="2">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?" Label="Filtrar por Cliente" @bind-Value="filtroClienteId" 
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Todos los Clientes --</MudSelectItem>
+                    @foreach (var op in operacionesList)
+                    {
+                        int c = listaConfiguraciones.Count(x => x.OperacionId == op.id);
+                        <MudSelectItem T="int?" Value="@op.id">@op.nombre (@c)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Filtrar por Supervisor" @bind-Value="filtroSupervisorUsuario" 
+                           Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="string" Value="@((string?)null)">-- Todos los Supervisores --</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("*")">★ Aplica a Todos (*)</MudSelectItem>
+                    @foreach (var sup in supervisoresList)
+                    {
+                        <MudSelectItem T="string" Value="@sup.username">@sup.nombres (@sup.username)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="8" md="4">
+                <MudTextField @bind-Value="filtroTexto" Placeholder="Buscar por servicio, cliente o área..." 
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true" />
+            </MudItem>
+
+            <MudItem xs="12" sm="4" md="2" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small" 
+                           StartIcon="@Icons.Material.Filled.Refresh" OnClick="@CargarDatos" Disabled="@cargando">
+                    Actualizar
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        @if (cargando)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else
+        {
+            <MudTable Items="@ConfiguracionesFiltradas" Dense="true" Hover="true" Striped="true" Elevation="0" Class="rounded-lg" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width: 200px;">Cliente / Operación</MudTh>
+                    <MudTh Style="width: 140px;">Área</MudTh>
+                    <MudTh>Plantilla de Servicio (Odoo)</MudTh>
+                    <MudTh Style="width: 200px;">Supervisor</MudTh>
+                    <MudTh Style="width: 140px; text-align: center;">Maneja Turno</MudTh>
+                    <MudTh Style="width: 140px;">Registrado</MudTh>
+                    <MudTh Style="width: 80px; text-align: center;">Acción</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
+                            @context.ClienteNombre
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@(context.AreaNombre == "*" ? Icons.Material.Filled.Star : Icons.Material.Filled.Place)" 
+                                     Size="Size.Small" Class="mr-1 text-secondary" />
+                            <MudText Typo="Typo.body2" Class="fw-bold">
+                                @(context.AreaNombre == "*" ? "Todas (*)" : context.AreaNombre)
+                            </MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd>
+                        <div>
+                            <MudText Typo="Typo.body2" Class="fw-bold text-dark">
+                                @context.TemplateNombre
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Template ID: @context.TemplateId
+                            </MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd>
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@(context.SupervisorUsuario == "*" ? Icons.Material.Filled.Groups : Icons.Material.Filled.Person)" 
+                                     Size="Size.Small" Class="mr-1 text-primary" />
+                            <div>
+                                <MudText Typo="Typo.body2">
+                                    @(context.SupervisorUsuario == "*" ? "Todos los supervisores" : context.SupervisorNombre)
+                                </MudText>
+                                @if (context.SupervisorUsuario != "*")
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @context.SupervisorUsuario
+                                    </MudText>
+                                }
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        @if (context.TieneTurno)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">
+                                ☀️/🌙 Con Turno
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">
+                                Sin Turno
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <MudText Typo="Typo.caption" Class="d-block text-secondary">
+                            @(string.IsNullOrWhiteSpace(context.Usuario) ? "Sistema" : context.Usuario)
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(context.FechaCreacion.HasValue ? context.FechaCreacion.Value.ToString("dd/MM/yyyy") : "-")
+                        </MudText>
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Size="Size.Small" 
+                                       OnClick="@(() => EliminarAsignacion(context))" Title="Eliminar asignación" />
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }" InfoFormat="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthStateTask { get; set; } = default!;
+
+    public class ServicioTemplateItem
+    {
+        public int TemplateId { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+    }
+
+    private static readonly List<ServicioTemplateItem> CatalogoPlantillasOdoo = new()
+    {
+        new ServicioTemplateItem { TemplateId = 840, Nombre = "Bandeo de Productos", Descripcion = "Empaquetado y armado de packs" },
+        new ServicioTemplateItem { TemplateId = 839, Nombre = "Servicio de Etiquetado", Descripcion = "Etiquetado de bultos y productos" },
+        new ServicioTemplateItem { TemplateId = 843, Nombre = "Trasiego de Productos", Descripcion = "Carga, descarga y trasiego de materias primas" },
+        new ServicioTemplateItem { TemplateId = 844, Nombre = "Desarme y Paletizado", Descripcion = "Desarme, paletizado y excedente de paletizantes" },
+        new ServicioTemplateItem { TemplateId = 845, Nombre = "Movimientos Varios", Descripcion = "Movimientos entre contenedores y cuartos fríos" },
+        new ServicioTemplateItem { TemplateId = 837, Nombre = "Armado de Productos", Descripcion = "Armado de ofertas, packs y combos" },
+        new ServicioTemplateItem { TemplateId = 853, Nombre = "Prelimpia de Productos", Descripcion = "Prelimpia y selección (Maíz, Cacao, Café)" },
+        new ServicioTemplateItem { TemplateId = 847, Nombre = "Emplanchado / Desemplanchado", Descripcion = "Emplanchado y desemplanchado de productos" },
+        new ServicioTemplateItem { TemplateId = 12,  Nombre = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores" },
+        new ServicioTemplateItem { TemplateId = 838, Nombre = "Destrucción de Mermas", Descripcion = "Destrucción de mermas y productos no conformes" },
+        new ServicioTemplateItem { TemplateId = 852, Nombre = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines" },
+        new ServicioTemplateItem { TemplateId = 836, Nombre = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado" }
+    };
+
+    private string currentUserName = "Admin";
+    private bool cargando = false;
+    private bool guardando = false;
+
+    private List<BreadcrumbItem> _breadcrumbItems = new()
+    {
+        new BreadcrumbItem("Inicio", href: "/"),
+        new BreadcrumbItem("Supervisión", href: null, disabled: true),
+        new BreadcrumbItem("Actividades por Cliente", href: null, disabled: true)
+    };
+
+    // Catálogos
+    private List<Combos> operacionesList = new();
+    private List<User> supervisoresList = new();
+    private List<ClienteActividadConfigDto> listaConfiguraciones = new();
+    private List<string> areasDelClienteNuevo = new();
+
+    // Formulario Nuevo
+    private int? nuevoClienteOpId;
+    private string nuevaAreaNombre = "*";
+    private string nuevoSupervisorUsuario = "*";
+    private int? nuevoTemplateId;
+    private string nuevoTemplateNombre = "";
+    private bool nuevoTieneTurno = false;
+
+    // Filtros
+    private int? filtroClienteId;
+    private string? filtroSupervisorUsuario;
+    private string? filtroTexto;
+
+    private IEnumerable<ClienteActividadConfigDto> ConfiguracionesFiltradas
+    {
+        get
+        {
+            var list = listaConfiguraciones.AsEnumerable();
+
+            if (filtroClienteId.HasValue && filtroClienteId.Value > 0)
+            {
+                list = list.Where(x => x.OperacionId == filtroClienteId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroSupervisorUsuario))
+            {
+                list = list.Where(x => x.SupervisorUsuario.Equals(filtroSupervisorUsuario, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            {
+                var term = filtroTexto.Trim().ToLowerInvariant();
+                list = list.Where(x => (x.ClienteNombre != null && x.ClienteNombre.ToLowerInvariant().Contains(term)) ||
+                                       (x.TemplateNombre != null && x.TemplateNombre.ToLowerInvariant().Contains(term)) ||
+                                       (x.AreaNombre != null && x.AreaNombre.ToLowerInvariant().Contains(term)) ||
+                                       (x.SupervisorNombre != null && x.SupervisorNombre.ToLowerInvariant().Contains(term)) ||
+                                       (x.SupervisorUsuario != null && x.SupervisorUsuario.ToLowerInvariant().Contains(term)));
+            }
+
+            return list.OrderBy(x => x.ClienteNombre).ThenBy(x => x.AreaNombre).ThenBy(x => x.TemplateNombre);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (AuthStateTask != null)
+            {
+                var authState = await AuthStateTask;
+                currentUserName = authState.User?.Identity?.Name ?? "Admin";
+            }
+        }
+        catch { }
+
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            var taskOp = _odooService.GetAllCombosHost("Operaciones");
+            var taskUsers = _odooService.GetUsers();
+            var taskConfigs = _odooService.GetClienteActividadesConfig(0, null, null);
+
+            await Task.WhenAll(taskOp, taskUsers, taskConfigs);
+
+            if (taskOp.Result?.Model != null)
+            {
+                operacionesList = taskOp.Result.Model.OrderBy(o => o.nombre).ToList();
+            }
+
+            if (taskUsers.Result?.Model != null)
+            {
+                supervisoresList = taskUsers.Result.Model.OrderBy(u => u.nombres).ToList();
+            }
+
+            if (taskConfigs.Result?.Model != null)
+            {
+                listaConfiguraciones = taskConfigs.Result.Model.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnClienteSeleccionadoChanged(int? clienteId)
+    {
+        nuevoClienteOpId = clienteId;
+        areasDelClienteNuevo.Clear();
+        nuevaAreaNombre = "*";
+
+        if (clienteId.HasValue && clienteId.Value > 0)
+        {
+            try
+            {
+                var respAreas = await _odooService.GetAreasOperacion(clienteId.Value);
+                if (respAreas?.Model != null)
+                {
+                    areasDelClienteNuevo = respAreas.Model
+                        .Select(a => a.Trim())
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(s => s)
+                        .ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando áreas: {ex.Message}");
+            }
+        }
+    }
+
+    private void OnPlantillaSeleccionadaChanged(int? tempId)
+    {
+        nuevoTemplateId = tempId;
+        if (tempId.HasValue)
+        {
+            var p = CatalogoPlantillasOdoo.FirstOrDefault(x => x.TemplateId == tempId.Value);
+            nuevoTemplateNombre = p?.Nombre ?? $"Servicio #{tempId.Value}";
+        }
+        else
+        {
+            nuevoTemplateNombre = "";
+        }
+    }
+
+    private async Task GuardarAsignacion()
+    {
+        if (!nuevoClienteOpId.HasValue || nuevoClienteOpId.Value <= 0)
+        {
+            _snackbar.Add("Debe seleccionar un cliente.", Severity.Warning);
+            return;
+        }
+
+        if (!nuevoTemplateId.HasValue || nuevoTemplateId.Value <= 0)
+        {
+            _snackbar.Add("Debe seleccionar una plantilla de servicio.", Severity.Warning);
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            var cliente = operacionesList.FirstOrDefault(x => x.id == nuevoClienteOpId.Value);
+            string cNombre = cliente?.nombre ?? $"Cliente #{nuevoClienteOpId.Value}";
+
+            string sNombre = "Todos";
+            if (nuevoSupervisorUsuario != "*")
+            {
+                var sup = supervisoresList.FirstOrDefault(u => u.username.Equals(nuevoSupervisorUsuario, StringComparison.OrdinalIgnoreCase));
+                sNombre = sup != null ? $"{sup.nombres} {sup.apellidos}".Trim() : nuevoSupervisorUsuario;
+            }
+
+            var dto = new ClienteActividadConfigDto
+            {
+                OperacionId = nuevoClienteOpId.Value,
+                ClienteNombre = cNombre,
+                AreaNombre = string.IsNullOrWhiteSpace(nuevaAreaNombre) ? "*" : nuevaAreaNombre.Trim(),
+                TemplateId = nuevoTemplateId.Value,
+                TemplateNombre = nuevoTemplateNombre,
+                SupervisorUsuario = nuevoSupervisorUsuario,
+                SupervisorNombre = sNombre,
+                TieneTurno = nuevoTieneTurno,
+                Activo = true,
+                Usuario = currentUserName
+            };
+
+            var res = await _odooService.GuardarClienteActividadConfig(dto);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Servicio '{nuevoTemplateNombre}' asignado exitosamente a '{cNombre}'.", Severity.Success);
+                
+                // Reiniciar selección de plantilla
+                nuevoTemplateId = null;
+                nuevoTemplateNombre = "";
+                nuevoTieneTurno = false;
+
+                // Recargar tabla
+                var taskConfigs = await _odooService.GetClienteActividadesConfig(0, null, null);
+                if (taskConfigs?.Model != null)
+                {
+                    listaConfiguraciones = taskConfigs.Model.ToList();
+                }
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar asignación.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task EliminarAsignacion(ClienteActividadConfigDto item)
+    {
+        bool? confirm = await _dialogService.ShowMessageBox(
+            "Eliminar Asignación de Actividad",
+            $"¿Está seguro de eliminar la plantilla '{item.TemplateNombre}' asignada al cliente '{item.ClienteNombre}' (Área: {item.AreaNombre})?",
+            yesText: "Sí, Eliminar", cancelText: "Cancelar");
+
+        if (confirm == true)
+        {
+            var res = await _odooService.EliminarClienteActividadConfig(item.Id);
+            if (res?.Respuesta?.ExisteError == false)
+            {
+                _snackbar.Add($"Asignación de '{item.TemplateNombre}' eliminada.", Severity.Info);
+                listaConfiguraciones.RemoveAll(x => x.Id == item.Id);
+                StateHasChanged();
+            }
+            else
+            {
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar.", Severity.Error);
+            }
+        }
+    }
+}

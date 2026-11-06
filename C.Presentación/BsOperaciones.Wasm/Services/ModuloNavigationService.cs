@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -306,7 +306,7 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(99, 102, 241, 0.25)",
                 RutaPrincipal = "/supervision",
                 MenuResourceId = 61,
-                ChildMenuIds = new[] { 61, 62, 63, 65 },
+                ChildMenuIds = new[] { 61, 62, 63, 65, 70 },
                 PrefijosRuta = new[] { "/supervision", "/admon/supervision" },
                 Herramientas = new()
                 {
@@ -336,6 +336,15 @@ namespace BsOperaciones.Services
                         Ruta = "/admon/supervision/reglas-viaticos",
                         MenuResourceId = 65,
                         Color = "#a855f7"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Actividades por Cliente",
+                        Subtitulo = "Plantillas de servicios y actividades asignadas por cliente, área y supervisor.",
+                        Icono = Icons.Material.Filled.Category,
+                        Ruta = "/admon/supervision/actividades-cliente",
+                        MenuResourceId = 70,
+                        Color = "#ec4899"
                     }
                 }
             },
@@ -419,7 +428,7 @@ namespace BsOperaciones.Services
                 // 1. Supervisión (61) o cualquiera de sus submódulos
                 if (modulo.Clave == "supervision")
                 {
-                    return menus.Any(m => m.id == 61 || m.id == 62 || m.id == 63 || m.id == 65);
+                    return menus.Any(m => m.id == 61 || m.id == 62 || m.id == 63 || m.id == 65 || m.id == 70);
                 }
 
                 // 2. Operaciones (15) o cualquiera de sus accesos
