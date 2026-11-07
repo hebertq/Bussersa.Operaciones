@@ -4647,6 +4647,40 @@ namespace HostService.Clases
             return response;
         }
 
+        public async Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var request = new Modelo.ClasesGenericas.UpdateSupervisorClienteModulosRequest
+                {
+                    Id = id,
+                    AplicaHoras = aplicaHoras,
+                    AplicaActividades = aplicaActividades
+                };
+                var requestUrl = CreateRequestUri("Operaciones/UpdateSupervisorClienteModulos");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                {
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
 
         public async Task<IListResponse<Modelo.ClasesGenericas.PlantillaClienteTurnoDto>> GetPlantillaClienteTurnos(string cliente = "")
         {

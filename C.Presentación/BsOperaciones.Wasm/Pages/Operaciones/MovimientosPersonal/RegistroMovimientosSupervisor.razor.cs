@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -282,9 +282,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Lista de grupos consolidados para Helpdesk (Tab 2)
         protected List<ConsolidadoHelpdeskItem> gruposConsolidados = new();
 
-        // Clientes Asignados al Supervisor (desde tbl_bs_supervisor_cliente)
+        // Clientes Asignados al Supervisor (desde tbl_bs_supervisor_cliente con AplicaHoras activado)
         protected List<SupervisorClienteDto> misClientesAsignados = new();
         protected List<string> NombresMisClientes => misClientesAsignados
+            .Where(c => c.AplicaHoras)
             .Select(c => c.ClienteNombre?.Trim())
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1156,7 +1157,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var resp = await _odooService.GetSupervisorClientes(usuario: currentUserName);
                 if (resp?.Model != null && resp.Model.Any())
                 {
-                    misClientesAsignados = resp.Model.Where(c => c.Activo).ToList();
+                    misClientesAsignados = resp.Model.Where(c => c.Activo && c.AplicaHoras).ToList();
                     return;
                 }
 
@@ -1166,7 +1167,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     var respId = await _odooService.GetSupervisorClientes(usuario: _userInfo.UserId.ToString());
                     if (respId?.Model != null && respId.Model.Any())
                     {
-                        misClientesAsignados = respId.Model.Where(c => c.Activo).ToList();
+                        misClientesAsignados = respId.Model.Where(c => c.Activo && c.AplicaHoras).ToList();
                         return;
                     }
                 }
@@ -1177,7 +1178,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     var respUser = await _odooService.GetSupervisorClientes(usuario: _userInfo.UserName);
                     if (respUser?.Model != null && respUser.Model.Any())
                     {
-                        misClientesAsignados = respUser.Model.Where(c => c.Activo).ToList();
+                        misClientesAsignados = respUser.Model.Where(c => c.Activo && c.AplicaHoras).ToList();
                         return;
                     }
                 }
@@ -1189,7 +1190,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     var respSinDom = await _odooService.GetSupervisorClientes(usuario: userSinDominio);
                     if (respSinDom?.Model != null && respSinDom.Model.Any())
                     {
-                        misClientesAsignados = respSinDom.Model.Where(c => c.Activo).ToList();
+                        misClientesAsignados = respSinDom.Model.Where(c => c.Activo && c.AplicaHoras).ToList();
                     }
                 }
 

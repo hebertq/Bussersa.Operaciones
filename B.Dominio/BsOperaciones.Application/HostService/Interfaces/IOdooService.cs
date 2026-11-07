@@ -218,6 +218,7 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>> GetSupervisorClientes(string usuario = "", string cliente = "");
         Task<IResponse> SaveSupervisorCliente(Modelo.ClasesGenericas.GuardarSupervisorClienteRequest request);
         Task<IResponse> DeleteSupervisorCliente(int id);
+        Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades);
 
         // --- PLANTILLA DE REQUERIMIENTOS / TURNOS DEL CLIENTE (PRECARGA EXCEL / SHEETS) ---
         Task<IListResponse<Modelo.ClasesGenericas.PlantillaClienteTurnoDto>> GetPlantillaClienteTurnos(string cliente = "");

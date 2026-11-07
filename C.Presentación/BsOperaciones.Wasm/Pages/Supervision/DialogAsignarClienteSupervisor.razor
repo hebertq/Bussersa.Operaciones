@@ -65,6 +65,34 @@
                     </MudSelect>
                 </MudItem>
 
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase d-block mb-1" Style="color: #64748b; letter-spacing: 0.5px;">
+                        Módulos Permitidos para este Cliente:
+                    </MudText>
+                    <MudPaper Outlined="true" Class="pa-2 rounded-lg" Style="background: #f8fafc; border-color: #cbd5e1;">
+                        <MudStack Row="true" Spacing="3" Class="align-center flex-wrap">
+                            <MudCheckBox @bind-Value="aplicaHoras" Color="Color.Primary" Dense="true">
+                                <div class="d-flex align-center gap-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Color="Color.Primary" />
+                                    <span class="fw-bold" style="font-size: 13px;">Horas (Asistencia)</span>
+                                </div>
+                            </MudCheckBox>
+                            <MudCheckBox @bind-Value="aplicaActividades" Color="Color.Success" Dense="true">
+                                <div class="d-flex align-center gap-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Small" Color="Color.Success" />
+                                    <span class="fw-bold" style="font-size: 13px;">Actividades (Producción)</span>
+                                </div>
+                            </MudCheckBox>
+                        </MudStack>
+                    </MudPaper>
+                    @if (!aplicaHoras && !aplicaActividades)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error" Class="d-block mt-1">
+                            * Debe seleccionar al menos un módulo (Horas o Actividades).
+                        </MudText>
+                    }
+                </MudItem>
+
                 @if (!string.IsNullOrWhiteSpace(MensajeError))
                 {
                     <MudItem xs="12">
@@ -105,6 +133,8 @@
 
     private string usuarioSeleccionado = string.Empty;
     private string clienteSeleccionado = string.Empty;
+    private bool aplicaHoras = true;
+    private bool aplicaActividades = true;
     private string MensajeError = string.Empty;
 
     protected override void OnInitialized()
@@ -127,6 +157,12 @@
         if (string.IsNullOrWhiteSpace(clienteSeleccionado))
         {
             MensajeError = "Seleccione un cliente.";
+            return;
+        }
+
+        if (!aplicaHoras && !aplicaActividades)
+        {
+            MensajeError = "Debe marcar al menos un módulo (Horas o Actividades).";
             return;
         }
 
@@ -156,6 +192,8 @@
             UsuarioId = user?.id,
             UsuarioEmail = !string.IsNullOrWhiteSpace(emailUser) ? emailUser : null,
             NombreSupervisor = user != null ? $"{user.nombres} {user.apellidos}".Trim() : string.Empty,
+            AplicaHoras = aplicaHoras,
+            AplicaActividades = aplicaActividades,
             UsuarioCreacion = string.Empty
         };
 

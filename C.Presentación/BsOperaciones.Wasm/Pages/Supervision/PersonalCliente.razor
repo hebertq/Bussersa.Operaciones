@@ -1155,16 +1155,47 @@
                                         Clientes Asignados:
                                     </MudText>
 
-                                    <div class="d-flex flex-wrap gap-1 mb-3">
+                                    <div class="d-flex flex-column gap-2 mb-3">
                                         @foreach (var asignacion in grupo)
                                         {
-                                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium"
-                                                     Class="fw-bold" Style="border-color: #93c5fd; background-color: #f0fdf4;"
-                                                     Icon="@Icons.Material.Filled.Business"
-                                                     OnClose="@(() => EliminarAsignacionSupervisorCliente(asignacion))"
-                                                     CloseIcon="@Icons.Material.Filled.Close">
-                                                @asignacion.ClienteNombre
-                                            </MudChip>
+                                            <div class="d-flex align-center justify-space-between px-2 py-1 rounded-lg" 
+                                                 style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                                                <div class="d-flex align-center gap-1 text-truncate mr-2" style="max-width: 48%;">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Primary" />
+                                                    <span class="fw-bold text-truncate" style="font-size: 13px; color: #1e293b;" title="@asignacion.ClienteNombre">
+                                                        @asignacion.ClienteNombre
+                                                    </span>
+                                                </div>
+
+                                                <div class="d-flex align-center gap-1">
+                                                    <!-- Toggle Horas -->
+                                                    <MudTooltip Text="@(asignacion.AplicaHoras ? "Habilitado en Asistencia y Movimientos (Horas). Clic para desactivar." : "Deshabilitado en Asistencia. Clic para activar.")">
+                                                        <button type="button" @onclick="@(() => ToggleModuloAsignacion(asignacion, true, !asignacion.AplicaHoras))"
+                                                                class="px-2 py-0 rounded-pill d-flex align-center gap-1"
+                                                                style="border: 1px solid @(asignacion.AplicaHoras ? "#2563eb" : "#cbd5e1"); background: @(asignacion.AplicaHoras ? "#eff6ff" : "#ffffff"); color: @(asignacion.AplicaHoras ? "#1e40af" : "#64748b"); font-size: 11px; font-weight: 600; cursor: pointer; height: 24px;">
+                                                            <MudIcon Icon="@(asignacion.AplicaHoras ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                                                     Size="Size.Small" Style="font-size: 12px;" />
+                                                            <span>Horas</span>
+                                                        </button>
+                                                    </MudTooltip>
+
+                                                    <!-- Toggle Actividades -->
+                                                    <MudTooltip Text="@(asignacion.AplicaActividades ? "Habilitado en Actividades de Producción. Clic para desactivar." : "Deshabilitado en Actividades. Clic para activar.")">
+                                                        <button type="button" @onclick="@(() => ToggleModuloAsignacion(asignacion, false, !asignacion.AplicaActividades))"
+                                                                class="px-2 py-0 rounded-pill d-flex align-center gap-1"
+                                                                style="border: 1px solid @(asignacion.AplicaActividades ? "#16a34a" : "#cbd5e1"); background: @(asignacion.AplicaActividades ? "#f0fdf4" : "#ffffff"); color: @(asignacion.AplicaActividades ? "#166534" : "#64748b"); font-size: 11px; font-weight: 600; cursor: pointer; height: 24px;">
+                                                            <MudIcon Icon="@(asignacion.AplicaActividades ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                                                     Size="Size.Small" Style="font-size: 12px;" />
+                                                            <span>Actividades</span>
+                                                        </button>
+                                                    </MudTooltip>
+
+                                                    <!-- Botón Desvincular -->
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error"
+                                                                   OnClick="@(() => EliminarAsignacionSupervisorCliente(asignacion))"
+                                                                   Title="Desvincular cliente" Style="padding: 2px;" />
+                                                </div>
+                                            </div>
                                         }
                                     </div>
                                 </div>
@@ -1196,6 +1227,8 @@
                             <MudTh Style="font-weight: 700; color: #475569;">ID / Usuario</MudTh>
                             <MudTh Style="font-weight: 700; color: #475569;">Correo</MudTh>
                             <MudTh Style="font-weight: 700; color: #475569;">Cliente / Operación</MudTh>
+                            <MudTh Style="text-align: center; font-weight: 700; color: #475569;">Horas</MudTh>
+                            <MudTh Style="text-align: center; font-weight: 700; color: #475569;">Actividades</MudTh>
                             <MudTh Style="width: 150px; font-weight: 700; color: #475569;">Fecha Asignación</MudTh>
                             <MudTh Style="width: 90px; text-align: center; font-weight: 700; color: #475569;">Acción</MudTh>
                         </HeaderContent>
@@ -1231,6 +1264,24 @@
                                     <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
                                     @context.ClienteNombre
                                 </MudChip>
+                            </MudTd>
+                            <MudTd Class="text-center">
+                                <button type="button" @onclick="@(() => ToggleModuloAsignacion(context, true, !context.AplicaHoras))"
+                                        class="px-2 py-0 rounded-pill d-inline-flex align-center gap-1"
+                                        style="border: 1px solid @(context.AplicaHoras ? "#2563eb" : "#cbd5e1"); background: @(context.AplicaHoras ? "#eff6ff" : "#ffffff"); color: @(context.AplicaHoras ? "#1e40af" : "#64748b"); font-size: 11px; font-weight: 600; cursor: pointer; height: 22px;">
+                                    <MudIcon Icon="@(context.AplicaHoras ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                             Size="Size.Small" Style="font-size: 12px;" />
+                                    <span>@(context.AplicaHoras ? "Sí" : "No")</span>
+                                </button>
+                            </MudTd>
+                            <MudTd Class="text-center">
+                                <button type="button" @onclick="@(() => ToggleModuloAsignacion(context, false, !context.AplicaActividades))"
+                                        class="px-2 py-0 rounded-pill d-inline-flex align-center gap-1"
+                                        style="border: 1px solid @(context.AplicaActividades ? "#16a34a" : "#cbd5e1"); background: @(context.AplicaActividades ? "#f0fdf4" : "#ffffff"); color: @(context.AplicaActividades ? "#166534" : "#64748b"); font-size: 11px; font-weight: 600; cursor: pointer; height: 22px;">
+                                    <MudIcon Icon="@(context.AplicaActividades ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.RadioButtonUnchecked)" 
+                                             Size="Size.Small" Style="font-size: 12px;" />
+                                    <span>@(context.AplicaActividades ? "Sí" : "No")</span>
+                                </button>
                             </MudTd>
                             <MudTd>
                                 <span class="text-secondary" style="font-size: 12px;">@(context.FechaCreacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")</span>
@@ -2034,6 +2085,36 @@
                 _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al asignar cliente a supervisor.", Severity.Error);
             }
         }
+    }
+
+    private async Task ToggleModuloAsignacion(SupervisorClienteDto item, bool esHoras, bool nuevoValor)
+    {
+        bool nuevoHoras = esHoras ? nuevoValor : item.AplicaHoras;
+        bool nuevoAct = !esHoras ? nuevoValor : item.AplicaActividades;
+
+        if (!nuevoHoras && !nuevoAct)
+        {
+            _snackbar.Add("Debe mantener activo al menos un mÃ³dulo (Horas o Actividades) para este cliente.", Severity.Warning);
+            return;
+        }
+
+        item.AplicaHoras = nuevoHoras;
+        item.AplicaActividades = nuevoAct;
+
+        var res = await _odooService.UpdateSupervisorClienteModulos(item.Id, nuevoHoras, nuevoAct);
+        if (res?.Respuesta?.ExisteError == false)
+        {
+            string modulo = esHoras ? "Horas" : "Actividades";
+            string estado = nuevoValor ? "activado" : "desactivado";
+            _snackbar.Add($"MÃ³dulo {modulo} {estado} para '{item.ClienteNombre}'.", Severity.Success);
+        }
+        else
+        {
+            _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al actualizar mÃ³dulos.", Severity.Error);
+            if (esHoras) item.AplicaHoras = !nuevoValor;
+            else item.AplicaActividades = !nuevoValor;
+        }
+        StateHasChanged();
     }
 
     private async Task EliminarAsignacionSupervisorCliente(SupervisorClienteDto item)

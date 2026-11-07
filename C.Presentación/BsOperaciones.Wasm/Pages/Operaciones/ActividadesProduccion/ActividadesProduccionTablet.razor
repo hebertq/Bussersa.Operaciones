@@ -1135,10 +1135,10 @@
                 ? respConfigs.Model.Where(c => c.Activo).ToList()
                 : new List<ClienteActividadConfigDto>();
 
-            // 2. Obtener los clientes asignados a este supervisor en "Clientes por Supervisor"
+            // 2. Obtener los clientes asignados a este supervisor en "Clientes por Supervisor" (filtrando por AplicaActividades)
             var respSup = await OdooService.GetSupervisorClientes(currentUserName, "");
             var asignaciones = (respSup?.Model != null)
-                ? respSup.Model.Where(s => s.Activo).ToList()
+                ? respSup.Model.Where(s => s.Activo && s.AplicaActividades).ToList()
                 : new List<SupervisorClienteDto>();
 
             bool esAdmin = currentUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
