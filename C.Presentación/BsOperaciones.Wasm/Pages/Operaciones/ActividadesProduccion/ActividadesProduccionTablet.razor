@@ -176,30 +176,41 @@
             </MudChip>
         </div>
 
-        <MudGrid Spacing="2">
-            @foreach (var serv in serviciosDisponibles)
-            {
-                bool isSelected = servicioSeleccionado?.TemplateId == serv.TemplateId;
-                <MudItem xs="12" sm="4" md="3">
-                    <div class="service-card @(isSelected ? "selected" : "")" @onclick="@(() => SeleccionarServicio(serv))">
-                        <div class="d-flex align-center gap-3">
-                            <div class="service-icon-box @(isSelected ? "selected" : "")">
-                                <MudIcon Icon="@serv.Icono" Size="Size.Medium" />
+        @if (!serviciosDisponibles.Any())
+        {
+            <div class="pa-6 text-center" style="color: #64748b;">
+                <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Large" Color="Color.Default" Class="mb-2" />
+                <MudText Typo="Typo.body1" Class="fw-semibold">No hay servicios configurados para el cliente '@operacionSeleccionadaNombre' en el área '@areaSeleccionada'.</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Configura las actividades del cliente en Supervisión &gt; Actividades por Cliente.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                @foreach (var serv in serviciosDisponibles)
+                {
+                    bool isSelected = servicioSeleccionado?.TemplateId == serv.TemplateId;
+                    <MudItem xs="12" sm="4" md="3">
+                        <div class="service-card @(isSelected ? "selected" : "")" @onclick="@(() => SeleccionarServicio(serv))">
+                            <div class="d-flex align-center gap-3">
+                                <div class="service-icon-box @(isSelected ? "selected" : "")">
+                                    <MudIcon Icon="@serv.Icono" Size="Size.Medium" />
+                                </div>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="service-title text-truncate">@serv.NombreCorto</div>
+                                    <div class="service-subtitle text-truncate">@serv.Descripcion</div>
+                                    <div class="service-count">@serv.VariantesCount variantes</div>
+                                </div>
+                                @if (isSelected)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Warning" />
+                                }
                             </div>
-                            <div class="flex-grow-1" style="min-width: 0;">
-                                <div class="service-title text-truncate">@serv.NombreCorto</div>
-                                <div class="service-subtitle text-truncate">@serv.Descripcion</div>
-                                <div class="service-count">@serv.VariantesCount variantes</div>
-                            </div>
-                            @if (isSelected)
-                            {
-                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Warning" />
-                            }
                         </div>
-                    </div>
-                </MudItem>
-            }
-        </MudGrid>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
     </MudPaper>
 
     @* --- PASO 2: FILTROS TÁCTILES POR ATRIBUTOS DE LA VARIANTE --- *@
@@ -905,6 +916,7 @@
     private string areaSeleccionada = "CD";
     private List<string> areasClienteList = new();
     private List<ClienteActividadConfigDto> configsCliente = new();
+    private List<ClienteActividadConfigDto> configsTodasDelCliente = new();
 
     // Selector Dinámico de Empresa
     private int operacionSeleccionadaId = 27;
@@ -1277,8 +1289,7 @@
 
         await CargarClientesPermitidos();
         ActualizarNombreOperacion();
-        await CargarAreasCliente();
-        await CargarServiciosPorClienteYSupervisor();
+        await CargarConfiguracionClienteYAreas();
 
         if (serviciosDisponibles.Any())
         {
@@ -1287,37 +1298,7 @@
         await CargarHistorialHoy();
     }
 
-    private async Task CargarAreasCliente()
-    {
-        try
-        {
-            var res = await OdooService.GetAreasOperacion(operacionSeleccionadaId);
-            if (res?.Model != null && res.Model.Any())
-            {
-                areasClienteList = res.Model
-                    .Select(a => a.Trim())
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(s => s)
-                    .ToList();
-            }
-            else
-            {
-                areasClienteList = new List<string> { "CD" };
-            }
-        }
-        catch
-        {
-            areasClienteList = new List<string> { "CD" };
-        }
-
-        if (!areasClienteList.Contains(areaSeleccionada, StringComparer.OrdinalIgnoreCase))
-        {
-            areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
-        }
-    }
-
-    private async Task CargarServiciosPorClienteYSupervisor()
+    private async Task CargarConfiguracionClienteYAreas()
     {
         try
         {
@@ -1326,53 +1307,134 @@
                                  currentUserName.Equals("hquintero", StringComparison.OrdinalIgnoreCase))
                                 ? null : currentUserName;
 
-            var res = await OdooService.GetClienteActividadesConfig(operacionSeleccionadaId, areaSeleccionada, supFilter);
-            if (res?.Model != null && res.Model.Any())
-            {
-                configsCliente = res.Model.ToList();
-                try
-                {
-                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheConfigs, JsonSerializer.Serialize(configsCliente));
-                }
-                catch { }
-                
-                serviciosDisponibles = MasterCatalogoServicios
-                    .Where(s => configsCliente.Any(c => c.TemplateId == s.TemplateId))
-                    .ToList();
+            // 1. Obtener TODAS las configuraciones del cliente desde el supervisor (sin filtro de área)
+            var resAllConfigs = await OdooService.GetClienteActividadesConfig(operacionSeleccionadaId, null, supFilter);
+            configsTodasDelCliente = (resAllConfigs?.Model != null)
+                ? resAllConfigs.Model.Where(c => c.Activo).ToList()
+                : new List<ClienteActividadConfigDto>();
 
-                if (!serviciosDisponibles.Any())
+            bool clienteTieneConfigs = configsTodasDelCliente.Any();
+            string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
+
+            // 2. Extraer ÚNICAMENTE las áreas reales existentes en las variantes de los servicios configurados
+            var areasReales = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (clienteTieneConfigs)
+            {
+                // a) Si hay áreas explícitas no comodín en la configuración, considerarlas
+                foreach (var c in configsTodasDelCliente)
                 {
-                    serviciosDisponibles = MasterCatalogoServicios.ToList();
+                    if (!string.IsNullOrWhiteSpace(c.AreaNombre) && c.AreaNombre != "*")
+                    {
+                        areasReales.Add(c.AreaNombre.Trim());
+                    }
                 }
+
+                // b) Para las plantillas del cliente, consultar variantes y extraer las áreas reales que tengan variantes de este cliente
+                var templatesConfigurados = configsTodasDelCliente.Select(c => c.TemplateId).Distinct().ToList();
+                foreach (var tId in templatesConfigurados)
+                {
+                    try
+                    {
+                        var resVars = await OdooService.GetProductVariants(tId);
+                        if (!resVars.Respuesta.ExisteError && resVars.Model != null)
+                        {
+                            var varsCliente = resVars.Model
+                                .Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente))
+                                .ToList();
+
+                            // Actualizar conteo de variantes de esta plantilla en MasterCatalogoServicios
+                            var itemMaster = MasterCatalogoServicios.FirstOrDefault(m => m.TemplateId == tId);
+                            if (itemMaster != null)
+                            {
+                                itemMaster.VariantesCount = varsCliente.Count;
+                            }
+
+                            foreach (var v in varsCliente)
+                            {
+                                var a = ObtenerValorAtributo(v.nombre, "Area") ?? ObtenerValorAtributo(v.nombre, "Área");
+                                if (!string.IsNullOrWhiteSpace(a))
+                                {
+                                    areasReales.Add(a.Trim());
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // 3. Establecer la lista final de áreas
+            if (areasReales.Any())
+            {
+                areasClienteList = areasReales.OrderBy(a => a).ToList();
             }
             else
             {
-                serviciosDisponibles = MasterCatalogoServicios.ToList();
+                // Fallback para clientes no configurados
+                try
+                {
+                    var resDb = await OdooService.GetAreasOperacion(operacionSeleccionadaId);
+                    if (resDb?.Model != null && resDb.Model.Any())
+                    {
+                        areasClienteList = resDb.Model
+                            .Select(a => a.Trim())
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(s => s)
+                            .ToList();
+                    }
+                    else
+                    {
+                        areasClienteList = new List<string> { "CD" };
+                    }
+                }
+                catch
+                {
+                    areasClienteList = new List<string> { "CD" };
+                }
             }
+
+            // 4. Seleccionar área por defecto
+            if (!areasClienteList.Contains(areaSeleccionada, StringComparer.OrdinalIgnoreCase))
+            {
+                areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
+            }
+
+            // 5. Filtrar SERVICIOS DISPONIBLES:
+            // ESTRICTAMENTE según la configuración del supervisor para este cliente y área
+            ActualizarServiciosDisponiblesPorArea();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error cargando configs actividades: {ex.Message}");
-            try
-            {
-                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheConfigs);
-                if (!string.IsNullOrWhiteSpace(cached))
-                {
-                    configsCliente = JsonSerializer.Deserialize<List<ClienteActividadConfigDto>>(cached) ?? new();
-                }
-            }
-            catch { }
+            Console.WriteLine($"Error cargando configuración y áreas: {ex.Message}");
+            ActualizarServiciosDisponiblesPorArea();
+        }
+    }
 
-            if (configsCliente.Any())
-            {
-                serviciosDisponibles = MasterCatalogoServicios
-                    .Where(s => configsCliente.Any(c => c.TemplateId == s.TemplateId))
-                    .ToList();
-            }
-            else
-            {
-                serviciosDisponibles = MasterCatalogoServicios.ToList();
-            }
+    private void ActualizarServiciosDisponiblesPorArea()
+    {
+        if (configsTodasDelCliente.Any())
+        {
+            // Filtrar SOLO las configuraciones que aplican a la área actual o comodín '*'
+            var configsArea = configsTodasDelCliente
+                .Where(c => c.AreaNombre == "*" || c.AreaNombre.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            configsCliente = configsArea;
+
+            var templatesValidos = configsArea.Select(c => c.TemplateId).ToHashSet();
+
+            // Solo mostrar los servicios configurados para esta área
+            serviciosDisponibles = MasterCatalogoServicios
+                .Where(s => templatesValidos.Contains(s.TemplateId))
+                .ToList();
+        }
+        else
+        {
+            // Solo si el cliente no tiene ninguna configuración en tbl_bs_cliente_actividades_config
+            configsCliente.Clear();
+            serviciosDisponibles = MasterCatalogoServicios.ToList();
         }
     }
 
@@ -1386,8 +1448,7 @@
         }
         catch { }
 
-        await CargarAreasCliente();
-        await CargarServiciosPorClienteYSupervisor();
+        await CargarConfiguracionClienteYAreas();
 
         if (serviciosDisponibles.Any())
         {
@@ -1406,7 +1467,7 @@
     private async Task OnAreaChanged(string nuevaArea)
     {
         areaSeleccionada = nuevaArea;
-        await CargarServiciosPorClienteYSupervisor();
+        ActualizarServiciosDisponiblesPorArea();
         if (servicioSeleccionado != null && serviciosDisponibles.Any(s => s.TemplateId == servicioSeleccionado.TemplateId))
         {
             ConfigurarFiltrosDinamicos();
@@ -1423,6 +1484,7 @@
             filtrosDinamicos.Clear();
             variantesFiltradas.Clear();
         }
+        await Task.CompletedTask;
     }
 
     private async Task OnTurnoChanged(string nuevoTurno)
@@ -1470,6 +1532,7 @@
                 // Filtrar variantes por cliente automáticamente
                 string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
                 var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
+                bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
 
                 if (variantesCliente.Any())
                 {
@@ -1480,7 +1543,7 @@
                     // Si el cliente no tiene nombre exacto en variantes, intentar con palabras clave
                     string[] palabras = nombreCliente.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                     var matchFuzzy = all.Where(v => palabras.Any(p => p.Length > 3 && v.nombre.ToLowerInvariant().Contains(p))).ToList();
-                    todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : all;
+                    todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
                 }
 
                 serv.VariantesCount = todasVariantesServicio.Count;
@@ -1501,8 +1564,9 @@
                 {
                     var all = JsonSerializer.Deserialize<List<OdooVariantDto>>(cached) ?? new();
                     string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
+                    bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
                     var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
-                    todasVariantesServicio = variantesCliente.Any() ? variantesCliente : all;
+                    todasVariantesServicio = variantesCliente.Any() ? variantesCliente : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
                     serv.VariantesCount = todasVariantesServicio.Count;
                     ConfigurarFiltrosDinamicos();
                     ActualizarCascadaFiltros();
