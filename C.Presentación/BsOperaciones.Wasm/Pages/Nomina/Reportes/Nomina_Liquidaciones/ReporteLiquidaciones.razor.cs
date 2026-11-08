@@ -35,6 +35,35 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
             public string nombre { get; set; } = string.Empty;
         }
 
+        public class SettlementReportExportDto
+        {
+            public string Lote { get; set; } = string.Empty;
+            public string Colaborador { get; set; } = string.Empty;
+            public string Cedula { get; set; } = string.Empty;
+            public string Cliente { get; set; } = string.Empty;
+            public string Fecha_Ingreso { get; set; } = string.Empty;
+            public string Fecha_Salida { get; set; } = string.Empty;
+            public string Fecha_Liquidacion { get; set; } = string.Empty;
+            public decimal Salario_Base { get; set; }
+            public decimal Dias_Laborados { get; set; }
+            public decimal Salario_Ordinario { get; set; }
+            public decimal Horas_Extras { get; set; }
+            public decimal Dias_Vacaciones { get; set; }
+            public decimal Monto_Vacaciones { get; set; }
+            public decimal Dias_Aguinaldo { get; set; }
+            public decimal Monto_Aguinaldo { get; set; }
+            public decimal Dias_Indemnizacion { get; set; }
+            public decimal Monto_Indemnizacion { get; set; }
+            public decimal Otros_Ingresos { get; set; }
+            public decimal Total_Devengado { get; set; }
+            public decimal INSS_Laboral { get; set; }
+            public decimal IR_Laboral { get; set; }
+            public decimal Prestamos { get; set; }
+            public decimal Otras_Deducciones { get; set; }
+            public decimal Total_Deducciones { get; set; }
+            public decimal Total_Neto_Pagar { get; set; }
+        }
+
         protected override async Task OnInitializedAsync()
         {
             int currentYear = DateTime.Now.Year;
@@ -95,7 +124,37 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
             {
                 string periodoNombre = mes > 0 ? $"{anio}_{mes:00}" : $"{anio}_Anual";
                 string nombre = $"Reporte_Liquidaciones_{periodoNombre}";
-                var exceldata = DataExcel.CreateExcel(LiquidacionesList, "Liquidaciones");
+
+                var exportList = LiquidacionesList.Select(x => new SettlementReportExportDto
+                {
+                    Lote = x.lote_nombre,
+                    Colaborador = x.empleado_nombre,
+                    Cedula = x.cedula,
+                    Cliente = x.cliente_nombre,
+                    Fecha_Ingreso = x.fecha_ingreso?.ToString("yyyy-MM-dd") ?? "",
+                    Fecha_Salida = x.fecha_salida?.ToString("yyyy-MM-dd") ?? "",
+                    Fecha_Liquidacion = x.fecha_liquidacion.ToString("yyyy-MM-dd"),
+                    Salario_Base = x.salario_base,
+                    Dias_Laborados = x.dias_laborados,
+                    Salario_Ordinario = x.salario_ordinario_monto,
+                    Horas_Extras = x.horas_extras_monto,
+                    Dias_Vacaciones = x.dias_vacaciones,
+                    Monto_Vacaciones = x.vacaciones_monto,
+                    Dias_Aguinaldo = x.dias_aguinaldo,
+                    Monto_Aguinaldo = x.aguinaldo_monto,
+                    Dias_Indemnizacion = x.dias_indemnizacion,
+                    Monto_Indemnizacion = x.indemnizacion_monto,
+                    Otros_Ingresos = x.otros_ingresos,
+                    Total_Devengado = x.total_devengado,
+                    INSS_Laboral = x.inss_laboral,
+                    IR_Laboral = x.ir_laboral,
+                    Prestamos = x.prestamos_deduccion,
+                    Otras_Deducciones = x.otras_deducciones,
+                    Total_Deducciones = x.total_deducciones,
+                    Total_Neto_Pagar = x.total_neto
+                }).ToList();
+
+                var exceldata = DataExcel.CreateExcel(exportList, "Liquidaciones");
                 string base64Data = Convert.ToBase64String(exceldata.Data);
                 await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"{nombre}.xlsx");
                 Snackbar.Add("Descarga de Excel generada exitosamente.", Severity.Success);

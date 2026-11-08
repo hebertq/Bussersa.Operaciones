@@ -126,7 +126,7 @@
             <MudSpacer />
             <MudIconButton Size="MudBlazor.Size.Small" Icon="@Icons.Material.Outlined.FileDownload" OnClick="@DownloadFile" Color="MudBlazor.Color.Primary" Title="Exportar a Excel" />
             <MudSpacer />
-            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nombre, cédula o lote..." Adornment="MudBlazor.Adornment.Start"
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nombre, cédula, lote o cliente..." Adornment="MudBlazor.Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
         </ToolBarContent>
         <Columns>
@@ -136,10 +136,12 @@
             <PropertyColumn Property="x => x.cliente_nombre" Title="Cliente / Operación" />
             <PropertyColumn Property="x => x.fecha_liquidacion" Title="Fec. Salida" Format="yyyy-MM-dd" />
             <PropertyColumn Property="x => x.salario_base" Title="Salario Base" Format="N2" />
+            <PropertyColumn Property="x => x.dias_laborados" Title="Días Lab." Format="N2" />
+            <PropertyColumn Property="x => x.salario_ordinario_monto" Title="Sal. Ord." Format="N2" />
+            <PropertyColumn Property="x => x.horas_extras_monto" Title="H. Extras" Format="N2" />
             <PropertyColumn Property="x => x.vacaciones_monto" Title="Vacaciones" Format="N2" />
             <PropertyColumn Property="x => x.aguinaldo_monto" Title="Aguinaldo" Format="N2" />
             <PropertyColumn Property="x => x.indemnizacion_monto" Title="Indemnización" Format="N2" />
-            <PropertyColumn Property="x => x.salario_ordinario_monto" Title="Sal. Ord." Format="N2" />
             <PropertyColumn Property="x => x.total_devengado" Title="Total Bruto" Format="N2" />
             <PropertyColumn Property="x => x.inss_laboral" Title="INSS" Format="N2" />
             <PropertyColumn Property="x => x.prestamos_deduccion" Title="Préstamos" Format="N2" />
