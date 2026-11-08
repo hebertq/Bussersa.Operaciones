@@ -6,7 +6,12 @@ using BsOperaciones.Application.Features.Odoo.Queries;
 using Modelo.Entidades.Nomina;
 using Modelo.Interfaces;
 using Utilidades.Interfaces;
-using Utilidades.ClasesGenericas;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
 {
@@ -38,6 +43,7 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
         public class SettlementReportExportDto
         {
             public string Lote { get; set; } = string.Empty;
+            public int No_Empleado { get; set; }
             public string Colaborador { get; set; } = string.Empty;
             public string Cedula { get; set; } = string.Empty;
             public string Cliente { get; set; } = string.Empty;
@@ -128,6 +134,7 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                 var exportList = LiquidacionesList.Select(x => new SettlementReportExportDto
                 {
                     Lote = x.lote_nombre,
+                    No_Empleado = x.no_empleado,
                     Colaborador = x.empleado_nombre,
                     Cedula = x.cedula,
                     Cliente = x.cliente_nombre,
@@ -154,8 +161,91 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                     Total_Neto_Pagar = x.total_neto
                 }).ToList();
 
-                var exceldata = DataExcel.CreateExcel(exportList, "Liquidaciones");
-                string base64Data = Convert.ToBase64String(exceldata.Data);
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                using var pack = new ExcelPackage();
+                var ws = pack.Workbook.Worksheets.Add("Liquidaciones");
+
+                // Encabezados exactos requeridos
+                string[] headers = new[]
+                {
+                    "Lote", "No empleado", "Colaborador", "Cédula", "Cliente",
+                    "Fecha ingreso", "Fecha salida", "Fecha liquidación",
+                    "Salario base", "Días laborados", "Salario ordinario", "Horas extras",
+                    "Días vacaciones", "Monto vacaciones", "Días aguinaldo", "Monto aguinaldo",
+                    "Días indemnización", "Monto indemnización", "Otros ingresos",
+                    "Total devengado", "INSS laboral", "IR laboral", "Préstamos deducción",
+                    "Otras deducciones", "Total deducciones", "Total neto"
+                };
+
+                // Título corporativo
+                ws.Cells["A2:G2"].Merge = true;
+                ws.Cells["A2"].Value = "BUSSERSA - REPORTE DE LIQUIDACIONES";
+                ws.Cells["A2"].Style.Font.Size = 13;
+                ws.Cells["A2"].Style.Font.Bold = true;
+
+                ws.Cells["A3:G3"].Merge = true;
+                ws.Cells["A3"].Value = $"Período: {periodoNombre} | Generado: {DateTime.Now:yyyy-MM-dd HH:mm}";
+                ws.Cells["A3"].Style.Font.Size = 10;
+                ws.Cells["A3"].Style.Font.Italic = true;
+
+                for (int c = 0; c < headers.Length; c++)
+                {
+                    var cell = ws.Cells[4, c + 1];
+                    cell.Value = headers[c];
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(24, 43, 73));
+                    cell.Style.Font.Color.SetColor(System.Drawing.Color.White);
+                    cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                }
+
+                int row = 5;
+                foreach (var item in exportList)
+                {
+                    ws.Cells[row, 1].Value = item.Lote;
+                    ws.Cells[row, 2].Value = item.No_Empleado;
+                    ws.Cells[row, 3].Value = item.Colaborador;
+                    ws.Cells[row, 4].Value = item.Cedula;
+                    ws.Cells[row, 5].Value = item.Cliente;
+                    ws.Cells[row, 6].Value = item.Fecha_Ingreso;
+                    ws.Cells[row, 7].Value = item.Fecha_Salida;
+                    ws.Cells[row, 8].Value = item.Fecha_Liquidacion;
+                    ws.Cells[row, 9].Value = item.Salario_Base;
+                    ws.Cells[row, 10].Value = item.Dias_Laborados;
+                    ws.Cells[row, 11].Value = item.Salario_Ordinario;
+                    ws.Cells[row, 12].Value = item.Horas_Extras;
+                    ws.Cells[row, 13].Value = item.Dias_Vacaciones;
+                    ws.Cells[row, 14].Value = item.Monto_Vacaciones;
+                    ws.Cells[row, 15].Value = item.Dias_Aguinaldo;
+                    ws.Cells[row, 16].Value = item.Monto_Aguinaldo;
+                    ws.Cells[row, 17].Value = item.Dias_Indemnizacion;
+                    ws.Cells[row, 18].Value = item.Monto_Indemnizacion;
+                    ws.Cells[row, 19].Value = item.Otros_Ingresos;
+                    ws.Cells[row, 20].Value = item.Total_Devengado;
+                    ws.Cells[row, 21].Value = item.INSS_Laboral;
+                    ws.Cells[row, 22].Value = item.IR_Laboral;
+                    ws.Cells[row, 23].Value = item.Prestamos;
+                    ws.Cells[row, 24].Value = item.Otras_Deducciones;
+                    ws.Cells[row, 25].Value = item.Total_Deducciones;
+                    ws.Cells[row, 26].Value = item.Total_Neto_Pagar;
+                    row++;
+                }
+
+                if (row > 5)
+                {
+                    // No empleado centrado
+                    ws.Cells[5, 2, row - 1, 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    // Fechas en formato texto garantizado yyyyy-MM-dd
+                    ws.Cells[5, 6, row - 1, 8].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    ws.Cells[5, 6, row - 1, 8].Style.Numberformat.Format = "@";
+                    // Columnas numéricas con formato moneda/número
+                    ws.Cells[5, 9, row - 1, 26].Style.Numberformat.Format = "#,##0.00";
+                }
+
+                ws.Cells[4, 1, Math.Max(5, row - 1), headers.Length].AutoFitColumns();
+
+                byte[] excelBytes = pack.GetAsByteArray();
+                string base64Data = Convert.ToBase64String(excelBytes);
                 await JS.InvokeVoidAsync("downloadFile", "application/xlsx", base64Data, $"{nombre}.xlsx");
                 Snackbar.Add("Descarga de Excel generada exitosamente.", Severity.Success);
             }
@@ -175,7 +265,8 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
             return (x.empleado_nombre?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    (x.cedula?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
                    (x.lote_nombre?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                   (x.cliente_nombre?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+                   (x.cliente_nombre?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                   x.no_empleado.ToString().Contains(_searchString);
         };
     }
 }

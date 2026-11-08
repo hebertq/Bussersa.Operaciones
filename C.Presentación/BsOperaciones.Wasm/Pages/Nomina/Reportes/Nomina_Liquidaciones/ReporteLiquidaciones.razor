@@ -131,10 +131,13 @@
         </ToolBarContent>
         <Columns>
             <PropertyColumn Property="x => x.lote_nombre" Title="Lote / Nómina" />
+            <PropertyColumn Property="x => x.no_empleado" Title="No empleado" />
             <PropertyColumn Property="x => x.empleado_nombre" Title="Colaborador" />
             <PropertyColumn Property="x => x.cedula" Title="Cédula" />
             <PropertyColumn Property="x => x.cliente_nombre" Title="Cliente / Operación" />
-            <PropertyColumn Property="x => x.fecha_liquidacion" Title="Fec. Salida" Format="yyyy-MM-dd" />
+            <PropertyColumn Property="x => x.fecha_ingreso" Title="Fec. Ingreso" Format="yyyy-MM-dd" />
+            <PropertyColumn Property="x => x.fecha_salida" Title="Fec. Salida" Format="yyyy-MM-dd" />
+            <PropertyColumn Property="x => x.fecha_liquidacion" Title="Fec. Liquidación" Format="yyyy-MM-dd" />
             <PropertyColumn Property="x => x.salario_base" Title="Salario Base" Format="N2" />
             <PropertyColumn Property="x => x.dias_laborados" Title="Días Lab." Format="N2" />
             <PropertyColumn Property="x => x.salario_ordinario_monto" Title="Sal. Ord." Format="N2" />

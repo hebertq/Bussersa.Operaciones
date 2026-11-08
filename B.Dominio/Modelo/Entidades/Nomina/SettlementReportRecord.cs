@@ -8,7 +8,7 @@ namespace Modelo.Entidades.Nomina
         public int payslip_id { get; set; }
         public int payslip_run_id { get; set; }
         public string lote_nombre { get; set; } = string.Empty;
-        public int employee_id { get; set; }
+        public int no_empleado { get; set; }
         public string empleado_nombre { get; set; } = string.Empty;
         public string cedula { get; set; } = string.Empty;
         public int contrato_id { get; set; }
@@ -35,8 +35,6 @@ namespace Modelo.Entidades.Nomina
         public decimal otras_deducciones { get; set; }
         public decimal total_deducciones { get; set; }
         public decimal total_neto { get; set; }
-        public decimal inss_patronal { get; set; }
-        public decimal costo_empresa { get; set; }
         public int anio { get; set; }
         public int mes { get; set; }
         public DateTime fecha_cierre { get; set; }
