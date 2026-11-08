@@ -509,7 +509,7 @@
                 allSlips = await callOdooRpc('hr.payslip', 'search_read', [
                     [['payslip_run_id', '=', batchId]]
                 ], {
-                    fields: ['id', 'name', 'number', 'employee_id', 'state', 'net_wage'],
+                    fields: ['id', 'name', 'number', 'employee_id', 'state'],
                     order: 'id asc'
                 });
 
@@ -642,10 +642,18 @@
                 const secs = remainingSec % 60;
                 progressEta.textContent = `Tiempo restante: ${mins > 0 ? `${mins}m ` : ''}${secs}s`;
 
-                // Ejecutar compute_sheet
+                // Ejecutar compute_sheet (con fallback a action_compute_sheet)
                 try {
                     const slipStart = Date.now();
-                    await callOdooRpc('hr.payslip', 'compute_sheet', [[slip.id]]);
+                    try {
+                        await callOdooRpc('hr.payslip', 'compute_sheet', [[slip.id]]);
+                    } catch (rpcErr) {
+                        if (rpcErr && rpcErr.message && (rpcErr.message.includes('object has no attribute') || rpcErr.message.includes('compute_sheet'))) {
+                            await callOdooRpc('hr.payslip', 'action_compute_sheet', [[slip.id]]);
+                        } else {
+                            throw rpcErr;
+                        }
+                    }
                     const durationSec = ((Date.now() - slipStart) / 1000).toFixed(1);
 
                     successCount++;
