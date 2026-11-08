@@ -60,6 +60,9 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
             public decimal Monto_Aguinaldo { get; set; }
             public decimal Dias_Indemnizacion { get; set; }
             public decimal Monto_Indemnizacion { get; set; }
+            public decimal Viatico_Transporte { get; set; }
+            public decimal Viatico_Alimentacion { get; set; }
+            public decimal Viatico_Combustible { get; set; }
             public decimal Otros_Ingresos { get; set; }
             public decimal Total_Devengado { get; set; }
             public decimal INSS_Laboral { get; set; }
@@ -151,6 +154,9 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                     Monto_Aguinaldo = x.aguinaldo_monto,
                     Dias_Indemnizacion = x.dias_indemnizacion,
                     Monto_Indemnizacion = x.indemnizacion_monto,
+                    Viatico_Transporte = x.viatico_transporte,
+                    Viatico_Alimentacion = x.viatico_alimentacion,
+                    Viatico_Combustible = x.viatico_combustible,
                     Otros_Ingresos = x.otros_ingresos,
                     Total_Devengado = x.total_devengado,
                     INSS_Laboral = x.inss_laboral,
@@ -172,7 +178,8 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                     "Fecha ingreso", "Fecha salida", "Fecha liquidación",
                     "Salario base", "Días laborados", "Salario ordinario", "Horas extras",
                     "Días vacaciones", "Monto vacaciones", "Días aguinaldo", "Monto aguinaldo",
-                    "Días indemnización", "Monto indemnización", "Otros ingresos",
+                    "Días indemnización", "Monto indemnización",
+                    "Viático transporte", "Viático alimentación", "Viático combustible", "Otros ingresos",
                     "Total devengado", "INSS laboral", "IR laboral", "Préstamos deducción",
                     "Otras deducciones", "Total deducciones", "Total neto"
                 };
@@ -220,14 +227,17 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                     ws.Cells[row, 16].Value = item.Monto_Aguinaldo;
                     ws.Cells[row, 17].Value = item.Dias_Indemnizacion;
                     ws.Cells[row, 18].Value = item.Monto_Indemnizacion;
-                    ws.Cells[row, 19].Value = item.Otros_Ingresos;
-                    ws.Cells[row, 20].Value = item.Total_Devengado;
-                    ws.Cells[row, 21].Value = item.INSS_Laboral;
-                    ws.Cells[row, 22].Value = item.IR_Laboral;
-                    ws.Cells[row, 23].Value = item.Prestamos;
-                    ws.Cells[row, 24].Value = item.Otras_Deducciones;
-                    ws.Cells[row, 25].Value = item.Total_Deducciones;
-                    ws.Cells[row, 26].Value = item.Total_Neto_Pagar;
+                    ws.Cells[row, 19].Value = item.Viatico_Transporte;
+                    ws.Cells[row, 20].Value = item.Viatico_Alimentacion;
+                    ws.Cells[row, 21].Value = item.Viatico_Combustible;
+                    ws.Cells[row, 22].Value = item.Otros_Ingresos;
+                    ws.Cells[row, 23].Value = item.Total_Devengado;
+                    ws.Cells[row, 24].Value = item.INSS_Laboral;
+                    ws.Cells[row, 25].Value = item.IR_Laboral;
+                    ws.Cells[row, 26].Value = item.Prestamos;
+                    ws.Cells[row, 27].Value = item.Otras_Deducciones;
+                    ws.Cells[row, 28].Value = item.Total_Deducciones;
+                    ws.Cells[row, 29].Value = item.Total_Neto_Pagar;
                     row++;
                 }
 
@@ -235,11 +245,11 @@ namespace BsOperaciones.Pages.Nomina.Reportes.Nomina_Liquidaciones
                 {
                     // No empleado centrado
                     ws.Cells[5, 2, row - 1, 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                    // Fechas en formato texto garantizado yyyyy-MM-dd
+                    // Fechas en formato texto garantizado yyyy-MM-dd
                     ws.Cells[5, 6, row - 1, 8].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                     ws.Cells[5, 6, row - 1, 8].Style.Numberformat.Format = "@";
                     // Columnas numéricas con formato moneda/número
-                    ws.Cells[5, 9, row - 1, 26].Style.Numberformat.Format = "#,##0.00";
+                    ws.Cells[5, 9, row - 1, 29].Style.Numberformat.Format = "#,##0.00";
                 }
 
                 ws.Cells[4, 1, Math.Max(5, row - 1), headers.Length].AutoFitColumns();

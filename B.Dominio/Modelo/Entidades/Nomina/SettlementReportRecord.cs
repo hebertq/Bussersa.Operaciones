@@ -27,6 +27,9 @@ namespace Modelo.Entidades.Nomina
         public decimal aguinaldo_monto { get; set; }
         public decimal dias_indemnizacion { get; set; }
         public decimal indemnizacion_monto { get; set; }
+        public decimal viatico_transporte { get; set; }
+        public decimal viatico_alimentacion { get; set; }
+        public decimal viatico_combustible { get; set; }
         public decimal otros_ingresos { get; set; }
         public decimal total_devengado { get; set; }
         public decimal inss_laboral { get; set; }
