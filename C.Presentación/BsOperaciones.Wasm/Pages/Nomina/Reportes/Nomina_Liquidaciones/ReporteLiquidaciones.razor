@@ -1,0 +1,153 @@
+@using Modelo.Entidades.Nomina
+
+@* Overlay de Carga Corporativo *@
+<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
+    <div class="d-flex flex-column align-center">
+        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
+        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Cargando liquidaciones...</MudText>
+    </div>
+</MudOverlay>
+
+<MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
+    <!-- Panel de Filtros -->
+    <MudPaper Elevation="0" Class="pa-6 mb-6 glass-card card-lift">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Outlined.ReceiptLong" Class="mr-2" />
+            Reporte Histórico de Liquidaciones Cerradas
+        </MudText>
+
+        <MudGrid Spacing="3" Class="align-center">
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Año" @bind-Value="anio" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem T="int" Value="0">Todos los Años</MudSelectItem>
+                    @foreach (var year in YearsList)
+                    {
+                        <MudSelectItem T="int" Value="@year">@year</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="2">
+                <MudSelect T="int" Label="Mes" @bind-Value="mes" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem T="int" Value="0">Todos los Meses</MudSelectItem>
+                    <MudSelectItem T="int" Value="1">ENERO</MudSelectItem>
+                    <MudSelectItem T="int" Value="2">FEBRERO</MudSelectItem>
+                    <MudSelectItem T="int" Value="3">MARZO</MudSelectItem>
+                    <MudSelectItem T="int" Value="4">ABRIL</MudSelectItem>
+                    <MudSelectItem T="int" Value="5">MAYO</MudSelectItem>
+                    <MudSelectItem T="int" Value="6">JUNIO</MudSelectItem>
+                    <MudSelectItem T="int" Value="7">JULIO</MudSelectItem>
+                    <MudSelectItem T="int" Value="8">AGOSTO</MudSelectItem>
+                    <MudSelectItem T="int" Value="9">SEPTIEMBRE</MudSelectItem>
+                    <MudSelectItem T="int" Value="10">OCTUBRE</MudSelectItem>
+                    <MudSelectItem T="int" Value="11">NOVIEMBRE</MudSelectItem>
+                    <MudSelectItem T="int" Value="12">DICIEMBRE</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="int" Label="Cliente / Operación" @bind-Value="clienteId" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem T="int" Value="0">Todos los Clientes</MudSelectItem>
+                    @foreach (var cl in ClientesList)
+                    {
+                        <MudSelectItem T="int" Value="@cl.id">@cl.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnConsultar" FullWidth="true" Disabled="@isloaddata" Style="height: 40px;">
+                    @(isloaddata ? "Buscando..." : "CONSULTAR")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Tarjetas de Resumen KPI -->
+    @if (LiquidacionesList.Any())
+    {
+        <MudGrid Class="mb-6" Spacing="3">
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-kpi-card" Elevation="0">
+                    <div class="d-flex align-center">
+                        <MudAvatar Color="Color.Primary" Class="mr-3" Variant="Variant.Filled">
+                            <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.caption" Class="text-muted">Total Liquidados</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700;">@LiquidacionesList.Count</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-kpi-card" Elevation="0">
+                    <div class="d-flex align-center">
+                        <MudAvatar Color="Color.Info" Class="mr-3" Variant="Variant.Filled">
+                            <MudIcon Icon="@Icons.Material.Filled.BeachAccess" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.caption" Class="text-muted">Total Vacaciones</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700;">C$ @LiquidacionesList.Sum(x => x.vacaciones_monto).ToString("N2")</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-kpi-card" Elevation="0">
+                    <div class="d-flex align-center">
+                        <MudAvatar Color="Color.Warning" Class="mr-3" Variant="Variant.Filled">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.caption" Class="text-muted">Total Indemnizaciones</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700;">C$ @LiquidacionesList.Sum(x => x.indemnizacion_monto).ToString("N2")</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-kpi-card" Elevation="0">
+                    <div class="d-flex align-center">
+                        <MudAvatar Color="Color.Success" Class="mr-3" Variant="Variant.Filled">
+                            <MudIcon Icon="@Icons.Material.Filled.Payments" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.caption" Class="text-muted">Total Neto Desembolsado</MudText>
+                            <MudText Typo="Typo.h6" Style="font-weight: 700; color: #10b981;">C$ @LiquidacionesList.Sum(x => x.total_neto).ToString("N2")</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+
+    <!-- Tabla Detallada -->
+    <MudDataGrid T="SettlementReportRecord" Items="@LiquidacionesList" SortMode="MudBlazor.SortMode.Multiple" Filterable="true" Dense="true" Elevation="0" QuickFilter="@_quickFilter">
+        <ToolBarContent>
+            <MudText Typo="MudBlazor.Typo.h6">Detalle de Liquidaciones</MudText>
+            <MudSpacer />
+            <MudIconButton Size="MudBlazor.Size.Small" Icon="@Icons.Material.Outlined.FileDownload" OnClick="@DownloadFile" Color="MudBlazor.Color.Primary" Title="Exportar a Excel" />
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Buscar por nombre, cédula o lote..." Adornment="MudBlazor.Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.lote_nombre" Title="Lote / Nómina" />
+            <PropertyColumn Property="x => x.empleado_nombre" Title="Colaborador" />
+            <PropertyColumn Property="x => x.cedula" Title="Cédula" />
+            <PropertyColumn Property="x => x.cliente_nombre" Title="Cliente / Operación" />
+            <PropertyColumn Property="x => x.fecha_liquidacion" Title="Fec. Salida" Format="yyyy-MM-dd" />
+            <PropertyColumn Property="x => x.salario_base" Title="Salario Base" Format="N2" />
+            <PropertyColumn Property="x => x.vacaciones_monto" Title="Vacaciones" Format="N2" />
+            <PropertyColumn Property="x => x.aguinaldo_monto" Title="Aguinaldo" Format="N2" />
+            <PropertyColumn Property="x => x.indemnizacion_monto" Title="Indemnización" Format="N2" />
+            <PropertyColumn Property="x => x.salario_ordinario_monto" Title="Sal. Ord." Format="N2" />
+            <PropertyColumn Property="x => x.total_devengado" Title="Total Bruto" Format="N2" />
+            <PropertyColumn Property="x => x.inss_laboral" Title="INSS" Format="N2" />
+            <PropertyColumn Property="x => x.prestamos_deduccion" Title="Préstamos" Format="N2" />
+            <PropertyColumn Property="x => x.total_deducciones" Title="Total Deduc." Format="N2" />
+            <PropertyColumn Property="x => x.total_neto" Title="Neto a Pagar" Format="N2" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="SettlementReportRecord" />
+        </PagerContent>
+    </MudDataGrid>
+</MudContainer>

@@ -48,6 +48,34 @@ namespace HostService.Clases
 
             return response;
         }
+
+        public async Task<IListResponse<SettlementReportRecord>> GetReporteLiquidaciones(int anio, int mes, int clienteId)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IListResponse<SettlementReportRecord> response = new ListResponse<SettlementReportRecord>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"OdQuery/GetReporteLiquidaciones/{anio}/{mes}/{clienteId}");
+                var registro = await GetAsync(requestUrl);
+
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<SettlementReportRecord>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetError(ex.Message, ErrorType.Servicio, metodo);
+            }
+
+            return response;
+        }
         public async Task<IListResponse<Combos>> GetAllCombosHost(string combo)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";

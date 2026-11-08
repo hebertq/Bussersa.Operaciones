@@ -13,6 +13,7 @@ namespace HostService.Interfaces
     public interface IOdooService
     {
         Task<IListResponse<PayrollMonthRecord>> GetAllNominaMensualCierre(int AnioMes);
+        Task<IListResponse<SettlementReportRecord>> GetReporteLiquidaciones(int anio, int mes, int clienteId);
         Task<IListResponse<Combos>> GetAllCombosHost(string combo);
         Task<IListResponse<DiaFeriado>> GetAllDiasFeriados();
         Task<IResponse> Crudferiado(DiaFeriado model, int op);
