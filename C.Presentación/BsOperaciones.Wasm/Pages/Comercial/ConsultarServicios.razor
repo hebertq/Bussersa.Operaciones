@@ -108,9 +108,9 @@
                         </div>
                     </ToolBarContent>
                     <HeaderContent>
-                        <MudTh>Código SKU (Referencia)</MudTh>
-                        <MudTh>Características (Atributos)</MudTh>
-                        <MudTh Style="text-align: right; width: 220px;">Precio de Lista Odoo (C$)</MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OdooVariantDto, object>(x => x.default_code)">Código SKU (Referencia)</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<OdooVariantDto, object>(x => x.nombre)">Características (Atributos)</MudTableSortLabel></MudTh>
+                        <MudTh Style="text-align: right; width: 220px;"><MudTableSortLabel SortBy="new Func<OdooVariantDto, object>(x => x.precio)">Precio de Lista Odoo (C$)</MudTableSortLabel></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Código SKU" Class="font-bold">
