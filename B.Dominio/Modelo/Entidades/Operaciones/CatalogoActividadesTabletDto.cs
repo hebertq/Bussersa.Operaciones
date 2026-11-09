@@ -5,16 +5,25 @@ namespace Modelo.Entidades.Operaciones
 {
     public class CatalogoActividadesTabletDto
     {
-        public List<ClienteTabItemDto> Clientes { get; set; } = new();
-        public List<ClienteActividadConfigDto> Configuraciones { get; set; } = new();
-        public List<OdooVariantDto> Variantes { get; set; } = new();
+        public List<ClienteCatalogoDto> Clientes { get; set; } = new();
     }
 
-    public class ClienteTabItemDto
+    public class ClienteCatalogoDto
     {
-        public int OperacionId { get; set; }
-        public string ClienteNombre { get; set; } = string.Empty;
-        public int ServiciosCount { get; set; }
-        public List<string> Areas { get; set; } = new();
+        public int operacion_id { get; set; }
+        public string cliente_nombre { get; set; } = string.Empty;
+        public List<string> areas { get; set; } = new();
+        public int servicios_count { get; set; }
+        public List<ServicioCatalogoDto> servicios { get; set; } = new();
+    }
+
+    public class ServicioCatalogoDto
+    {
+        public int template_id { get; set; }
+        public string template_nombre { get; set; } = string.Empty;
+        public string area_nombre { get; set; } = string.Empty;
+        public bool tiene_turno { get; set; }
+        public int variantes_count { get; set; }
+        public List<OdooVariantDto> variantes { get; set; } = new();
     }
 }

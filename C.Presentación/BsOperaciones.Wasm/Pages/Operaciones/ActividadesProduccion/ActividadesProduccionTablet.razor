@@ -1,7 +1,7 @@
-@page "/operaciones/actividades-tablet"
+﻿@page "/operaciones/actividades-tablet"
 @page "/operaciones/actividades-produccion"
 @layout TabletLayout
-@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Entidades.Operaciones
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
@@ -913,7 +913,7 @@
         background: rgba(255, 255, 255, 0.25);
         color: #ffffff;
     }
-
+
 </style>
 
 @code {
@@ -934,6 +934,9 @@
         public string Descripcion { get; set; } = string.Empty;
         public string Icono { get; set; } = string.Empty;
         public int VariantesCount { get; set; }
+        public string AreaNombre { get; set; } = "*";
+        public bool TieneTurno { get; set; }
+        public List<OdooVariantDto> Variantes { get; set; } = new();
     }
 
     private string currentUserName = "Admin";
@@ -944,13 +947,11 @@
     private string turnoSeleccionado = "Diurno";
     private string areaSeleccionada = "CD";
     private List<string> areasClienteList = new();
-    private List<ClienteActividadConfigDto> configsCliente = new();
-    private List<ClienteActividadConfigDto> configsTodasDelCliente = new();
 
     // Selector Dinámico de Empresa
     private int operacionSeleccionadaId = 27;
     private string operacionSeleccionadaNombre = "CBC Pepsi";
-    private List<Combos> operacionesList = new();
+    private List<Combos> operacionesList = new();
     private List<ClienteTabItem> clientesPermitidos = new();
 
     // Plantillas de Servicio Maestro
@@ -967,7 +968,10 @@
         new ServicioInfoItem { TemplateId = 12, NombreCorto = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores", Icono = Icons.Material.Filled.LocalShipping },
         new ServicioInfoItem { TemplateId = 838, NombreCorto = "Destrucción de Mermas", Descripcion = "Destrucción de mermas y productos no conformes", Icono = Icons.Material.Filled.DeleteSweep },
         new ServicioInfoItem { TemplateId = 852, NombreCorto = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines", Icono = Icons.Material.Filled.CleaningServices },
-        new ServicioInfoItem { TemplateId = 836, NombreCorto = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado", Icono = Icons.Material.Filled.AutoAwesome }
+        new ServicioInfoItem { TemplateId = 836, NombreCorto = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado", Icono = Icons.Material.Filled.AutoAwesome },
+        new ServicioInfoItem { TemplateId = 865, NombreCorto = "Armado de Exportaciones", Descripcion = "Armado y preparación de bultos de exportación", Icono = Icons.Material.Filled.FlightTakeoff },
+        new ServicioInfoItem { TemplateId = 866, NombreCorto = "Devolución de Productos", Descripcion = "Gestión y revisión de producto retornado", Icono = Icons.Material.Filled.AssignmentReturn },
+        new ServicioInfoItem { TemplateId = 867, NombreCorto = "Revisión de Productos", Descripcion = "Inspección de calidad y revisión", Icono = Icons.Material.Filled.FactCheck }
     };
 
     private List<ServicioInfoItem> serviciosDisponibles = MasterCatalogoServicios.ToList();
@@ -1195,9 +1199,9 @@
         // 1. Mapear clientes permitidos desde la memoria
         clientesPermitidos = catalogoCompleto.Clientes.Select(c => new ClienteTabItem
         {
-            OperacionId = c.OperacionId,
-            ClienteNombre = c.ClienteNombre,
-            ServiciosCount = c.ServiciosCount
+            OperacionId = c.operacion_id,
+            ClienteNombre = c.cliente_nombre,
+            ServiciosCount = c.servicios_count
         }).ToList();
 
         // 2. Preseleccionar cliente si es necesario
@@ -1273,16 +1277,11 @@
 
     private void AplicarConfiguracionClienteEnMemoria()
     {
-        // 1. Configuraciones activas del cliente actual en memoria
-        configsTodasDelCliente = catalogoCompleto.Configuraciones
-            .Where(c => c.OperacionId == operacionSeleccionadaId && c.Activo)
-            .ToList();
-
-        // 2. Áreas del cliente en memoria
-        var cli = catalogoCompleto.Clientes.FirstOrDefault(c => c.OperacionId == operacionSeleccionadaId);
-        if (cli != null && cli.Areas.Any())
+        var cli = catalogoCompleto.Clientes.FirstOrDefault(c => c.operacion_id == operacionSeleccionadaId);
+        if (cli != null)
         {
-            areasClienteList = cli.Areas.OrderBy(a => a).ToList();
+            operacionSeleccionadaNombre = cli.cliente_nombre;
+            areasClienteList = (cli.areas != null && cli.areas.Any()) ? cli.areas.OrderBy(a => a).ToList() : new List<string> { "CD" };
         }
         else
         {
@@ -1294,30 +1293,37 @@
             areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
         }
 
-        // 3. Filtrar servicios disponibles para esta área
         ActualizarServiciosDisponiblesPorArea();
     }
 
     private void ActualizarServiciosDisponiblesPorArea()
     {
-        if (configsTodasDelCliente.Any())
+        var cli = catalogoCompleto.Clientes.FirstOrDefault(c => c.operacion_id == operacionSeleccionadaId);
+        if (cli != null && cli.servicios != null && cli.servicios.Any())
         {
-            var configsArea = configsTodasDelCliente
-                .Where(c => c.AreaNombre == "*" || c.AreaNombre.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase))
+            var serviciosArea = cli.servicios
+                .Where(s => s.area_nombre == "*" || s.area_nombre.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
-            configsCliente = configsArea;
-
-            var templatesValidos = configsArea.Select(c => c.TemplateId).ToHashSet();
-
-            serviciosDisponibles = MasterCatalogoServicios
-                .Where(s => templatesValidos.Contains(s.TemplateId))
-                .ToList();
+            serviciosDisponibles = serviciosArea.Select(s =>
+            {
+                var master = MasterCatalogoServicios.FirstOrDefault(m => m.TemplateId == s.template_id);
+                return new ServicioInfoItem
+                {
+                    TemplateId = s.template_id,
+                    NombreCorto = master?.NombreCorto ?? s.template_nombre,
+                    Descripcion = master?.Descripcion ?? s.template_nombre,
+                    Icono = master?.Icono ?? Icons.Material.Filled.Inventory2,
+                    VariantesCount = s.variantes_count,
+                    AreaNombre = s.area_nombre,
+                    TieneTurno = s.tiene_turno,
+                    Variantes = s.variantes ?? new()
+                };
+            }).ToList();
         }
         else
         {
-            configsCliente.Clear();
-            serviciosDisponibles = MasterCatalogoServicios.ToList();
+            serviciosDisponibles.Clear();
         }
     }
 
@@ -1406,42 +1412,9 @@
         servicioSeleccionado = serv;
         varianteSeleccionada = null;
 
-        // Obtener variantes desde la memoria (catalogoCompleto)
-        var all = catalogoCompleto.Variantes
-            .Where(v => v.template_id == serv.TemplateId)
-            .ToList();
-
-        if (!all.Any() && esModoOnline)
-        {
-            // Fallback si por alguna razón no vinieron en el catálogo
-            try
-            {
-                var res = await OdooService.GetProductVariants(serv.TemplateId);
-                if (!res.Respuesta.ExisteError && res.Model != null)
-                {
-                    all = res.Model.ToList();
-                    catalogoCompleto.Variantes.AddRange(all);
-                }
-            }
-            catch { }
-        }
-
-        string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
-        var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
-        bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
-
-        if (variantesCliente.Any())
-        {
-            todasVariantesServicio = variantesCliente;
-        }
-        else
-        {
-            string[] palabras = nombreCliente.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var matchFuzzy = all.Where(v => palabras.Any(p => p.Length > 3 && v.nombre.ToLowerInvariant().Contains(p))).ToList();
-            todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
-        }
-
+        todasVariantesServicio = serv.Variantes ?? new();
         serv.VariantesCount = todasVariantesServicio.Count;
+
         ConfigurarFiltrosDinamicos();
         ActualizarCascadaFiltros();
         await Task.CompletedTask;
@@ -1558,7 +1531,7 @@
         }
 
         // 2. Pre-filtrar por Turno si alguna variante especifica Turno o la configuración del servicio tiene TieneTurno
-        bool plantillaTieneTurno = (servicioSeleccionado != null && configsCliente.Any(c => c.TemplateId == servicioSeleccionado.TemplateId && c.TieneTurno)) ||
+        bool plantillaTieneTurno = (servicioSeleccionado?.TieneTurno == true) ||
                                    todasVariantesServicio.Any(v => v.nombre.Contains("Turno:", StringComparison.OrdinalIgnoreCase));
 
         if (plantillaTieneTurno && !string.IsNullOrWhiteSpace(turnoSeleccionado))
