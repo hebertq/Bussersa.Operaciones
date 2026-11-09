@@ -84,27 +84,41 @@
                 </MudButton>
 
                 <MudButton Variant="Variant.Filled" 
-                           Color="@(pendientesOffline.Any() ? Color.Warning : Color.Success)" 
+                           Color="@(pendientesOffline.Any() ? Color.Success : Color.Default)" 
                            Size="Size.Small"
                            StartIcon="@(estaGuardandoEnBd ? null : Icons.Material.Filled.Save)"
                            OnClick="GuardarEnBaseDeDatos"
-                           Disabled="@(estaGuardandoEnBd || !pendientesOffline.Any())"
+                           Disabled="@(!esModoOnline || !pendientesOffline.Any() || estaGuardandoEnBd)"
                            Class="fw-bold"
-                           Title="Guardar en Base de Datos todas las actividades registradas">
+                           Title="@(pendientesOffline.Any() ? "Guardar en Base de Datos todas las actividades registradas" : "No hay actividades pendientes por guardar")">
                     @if (estaGuardandoEnBd)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
                         <span>Guardando en BD...</span>
                     }
+                    else if (pendientesOffline.Any())
+                    {
+                        <span>Guardar en BD (@pendientesOffline.Count)</span>
+                    }
                     else
                     {
-                        <span>@(pendientesOffline.Any() ? $"Guardar en BD ({pendientesOffline.Count})" : "Guardar en BD")</span>
+                        <span>Guardado en BD</span>
                     }
                 </MudButton>
             }
         </div>
     </div>
 
+    @if (estaCargando)
+    {
+        <MudPaper Elevation="0" Class="pa-12 my-6 text-center rounded-xl border d-flex flex-column align-center justify-center" Style="background: #ffffff; min-height: 420px; border-color: #e2e8f0;">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+            <MudText Typo="Typo.h6" Class="fw-bold" Style="color: #1e3a8a;">Cargando actividades de producción...</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Obteniendo catálogo de clientes, servicios y variantes en memoria.</MudText>
+        </MudPaper>
+    }
+    else
+    {
     @* --- TABS DE CLIENTES ASIGNADOS AL SUPERVISOR (CON SERVICIOS CONFIGURADOS) --- *@
     @if (clientesPermitidos.Any())
     {
@@ -519,17 +533,21 @@
                                 <td>@(string.IsNullOrEmpty(reg.no_lote) ? "-" : reg.no_lote)</td>
                                 <td class="text-end fw-bold">@reg.cantidad_producto.ToString("N0")</td>
                                 <td class="text-center">
-                                    @if (reg.id < 0)
+                                    @if (!string.IsNullOrEmpty(reg.no_lote))
                                     {
-                                        <span class="badge bg-warning text-dark">Offline</span>
+                                        <span class="badge bg-primary">Sellado</span>
                                     }
-                                    else if (!string.IsNullOrEmpty(reg.no_lote))
+                                    else if (reg.id < 0)
                                     {
-                                        <span class="badge bg-success">Sellado</span>
+                                        <span class="badge" style="background: #ea580c; color: #ffffff; font-weight: 700;">Pendiente</span>
+                                    }
+                                    else if (pendientesOffline.Any(p => p.id == reg.id))
+                                    {
+                                        <span class="badge" style="background: #0284c7; color: #ffffff; font-weight: 700;">Modificado</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-info text-dark">Pendiente</span>
+                                        <span class="badge bg-success" style="font-weight: 700;">Guardado</span>
                                     }
                                 </td>
                                 <td class="text-center">
@@ -560,6 +578,7 @@
             </div>
         }
     </MudPaper>
+    }
 </div>
 
 <style>
@@ -940,7 +959,7 @@
     }
 
     private string currentUserName = "Admin";
-    private bool estaCargando = false;
+    private bool estaCargando = true;
     private string mensajeCarga = "Cargando catálogo...";
 
     private DateTime fechaJornada = DateTime.Today;
@@ -974,7 +993,7 @@
         new ServicioInfoItem { TemplateId = 867, NombreCorto = "Revisión de Productos", Descripcion = "Inspección de calidad y revisión", Icono = Icons.Material.Filled.FactCheck }
     };
 
-    private List<ServicioInfoItem> serviciosDisponibles = MasterCatalogoServicios.ToList();
+    private List<ServicioInfoItem> serviciosDisponibles = new();
 
     private ServicioInfoItem? servicioSeleccionado;
     private List<OdooVariantDto> todasVariantesServicio = new();
@@ -1452,13 +1471,11 @@
         }
 
         estaGuardandoEnBd = true;
-        estaCargando = true;
-        mensajeCarga = $"Guardando {pendientesOffline.Count} actividades en Base de Datos...";
         StateHasChanged();
 
         try
         {
-            var itemsAEnviar = pendientesOffline.Select(p => new ProduccionDiariaDto
+            var nuevos = pendientesOffline.Where(p => p.id < 0).Select(p => new ProduccionDiariaDto
             {
                 cliente = p.cliente,
                 operacion_id = p.operacion_id,
@@ -1479,18 +1496,41 @@
                 facturada = p.facturada
             }).ToList();
 
-            var res = await OdooService.ImportarProduccionDiaria(itemsAEnviar);
-            if (!res.Respuesta.ExisteError)
+            var modificados = pendientesOffline.Where(p => p.id > 0).ToList();
+
+            bool todoOk = true;
+
+            if (nuevos.Any())
+            {
+                var res = await OdooService.ImportarProduccionDiaria(nuevos);
+                if (res.Respuesta.ExisteError)
+                {
+                    todoOk = false;
+                    Snackbar.Add($"Error al guardar nuevas actividades en BD: {res.Respuesta.MensajeError}", Severity.Error);
+                }
+            }
+
+            if (modificados.Any() && todoOk)
+            {
+                foreach (var mod in modificados)
+                {
+                    var resMod = await OdooService.UpdateProduccionDiaria(mod);
+                    if (resMod.Respuesta.ExisteError)
+                    {
+                        todoOk = false;
+                        Snackbar.Add($"Error al actualizar actividad #{mod.id} en BD: {resMod.Respuesta.MensajeError}", Severity.Error);
+                        break;
+                    }
+                }
+            }
+
+            if (todoOk)
             {
                 int cant = pendientesOffline.Count;
                 pendientesOffline.Clear();
                 await GuardarColaOfflineEnStorage();
-                Snackbar.Add($"¡{cant} actividades guardadas con éxito en la Base de Datos!", Severity.Success);
+                Snackbar.Add($"¡{cant} actividades guardadas en Base de Datos exitosamente!", Severity.Success);
                 await CargarHistorialHoy();
-            }
-            else
-            {
-                Snackbar.Add($"Error al guardar en BD: {res.Respuesta.MensajeError}", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -1960,67 +2000,22 @@
             facturada = false
         };
 
-        if (!esModoOnline)
-        {
-            // MODO OFFLINE: Guardar localmente
-            item.id = -(pendientesOffline.Count + 1);
-            pendientesOffline.Insert(0, item);
-            await GuardarColaOfflineEnStorage();
+        // Guardar SIEMPRE en memoria primero (igual que Movimientos de Personal)
+        item.id = -(pendientesOffline.Count + 1);
+        pendientesOffline.Insert(0, item);
+        await GuardarColaOfflineEnStorage();
 
-            Snackbar.Add($"📦 Guardado en Modo Offline (Bodega). Se sincronizará al tener señal ({cantidadProducida:N0} unid).", Severity.Warning);
+        Snackbar.Add($"Actividad registrada en memoria ({cantidadProducida:N0} unid). Presione 'Guardar en BD' para sincronizar con la base de datos.", Severity.Info);
 
-            cantidadProducida = 0;
-            noLote = "";
-            ordenCompra = "";
-            varianteSeleccionada = null;
-            LimpiarFiltros();
-            await CargarHistorialHoy();
-            estaCargando = false;
-            StateHasChanged();
-            return;
-        }
-
-        try
-        {
-            var res = await OdooService.ImportarProduccionDiaria(new List<ProduccionDiariaDto> { item });
-            if (!res.Respuesta.ExisteError)
-            {
-                Snackbar.Add($"¡Actividad registrada con éxito! {cantidadProducida:N0} unidades de {varianteSeleccionada.default_code}.", Severity.Success);
-
-                // Reiniciar entrada para siguiente actividad
-                cantidadProducida = 0;
-                noLote = "";
-                ordenCompra = "";
-                varianteSeleccionada = null;
-                LimpiarFiltros();
-                await CargarHistorialHoy();
-            }
-            else
-            {
-                Snackbar.Add($"Error al guardar producción: {res.Respuesta.MensajeError}", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Fallback ante fallo de red: cambiar a modo offline y guardar en memoria
-            esModoOnline = false;
-            item.id = -(pendientesOffline.Count + 1);
-            pendientesOffline.Insert(0, item);
-            await GuardarColaOfflineEnStorage();
-            Snackbar.Add($"Fallo de conexión ({ex.Message}). Actividad guardada localmente en modo offline.", Severity.Warning);
-
-            cantidadProducida = 0;
-            noLote = "";
-            ordenCompra = "";
-            varianteSeleccionada = null;
-            LimpiarFiltros();
-            await CargarHistorialHoy();
-        }
-        finally
-        {
-            estaCargando = false;
-            StateHasChanged();
-        }
+        // Reiniciar entrada para siguiente actividad
+        cantidadProducida = 0;
+        noLote = "";
+        ordenCompra = "";
+        varianteSeleccionada = null;
+        LimpiarFiltros();
+        await CargarHistorialHoy();
+        estaCargando = false;
+        StateHasChanged();
     }
 
     private async Task CargarHistorialHoy()
@@ -2147,32 +2142,32 @@
             }
             else
             {
-                // Es registro en base de datos
-                estaCargando = true;
-                mensajeCarga = "Actualizando actividad...";
+                // Es registro que estaba en base de datos: actualizar en memoria y marcar pendiente de sincronizar
+                var histItem = historialHoy.FirstOrDefault(h => h.id == edited.id);
+                if (histItem != null)
+                {
+                    histItem.cantidad_producto = edited.cantidad_producto;
+                    histItem.no_lote = edited.no_lote;
+                    histItem.oc = edited.oc;
+                    histItem.asignado_a = edited.asignado_a;
+                }
+
+                var existingOff = pendientesOffline.FirstOrDefault(p => p.id == edited.id);
+                if (existingOff != null)
+                {
+                    existingOff.cantidad_producto = edited.cantidad_producto;
+                    existingOff.no_lote = edited.no_lote;
+                    existingOff.oc = edited.oc;
+                    existingOff.asignado_a = edited.asignado_a;
+                }
+                else
+                {
+                    pendientesOffline.Add(edited);
+                }
+
+                await GuardarColaOfflineEnStorage();
+                Snackbar.Add("Actividad modificada en memoria. Presione 'Guardar en BD' para sincronizar los cambios.", Severity.Info);
                 StateHasChanged();
-                try
-                {
-                    var resp = await OdooService.UpdateProduccionDiaria(edited);
-                    if (!resp.Respuesta.ExisteError)
-                    {
-                        Snackbar.Add("Actividad actualizada correctamente.", Severity.Success);
-                        await CargarHistorialHoy();
-                    }
-                    else
-                    {
-                        Snackbar.Add($"Error al actualizar: {resp.Respuesta.MensajeError}", Severity.Error);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
-                }
-                finally
-                {
-                    estaCargando = false;
-                    StateHasChanged();
-                }
             }
         }
     }
