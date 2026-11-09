@@ -1,4 +1,4 @@
-﻿@page "/operaciones/actividades-tablet"
+@page "/operaciones/actividades-tablet"
 @page "/operaciones/actividades-produccion"
 @layout TabletLayout
 @using Modelo.Entidades.Entradas.Odoo
@@ -974,24 +974,22 @@
     private List<Combos> operacionesList = new();
     private List<ClienteTabItem> clientesPermitidos = new();
 
-    // Plantillas de Servicio Maestro
+    // Plantillas de Servicio Maestro (Solo plantillas activas en Odoo)
     private static readonly List<ServicioInfoItem> MasterCatalogoServicios = new()
     {
         new ServicioInfoItem { TemplateId = 840, NombreCorto = "Bandeo de Productos", Descripcion = "Empaquetado y armado de packs (2p, 6p, 12p, etc.)", Icono = Icons.Material.Filled.TakeoutDining },
         new ServicioInfoItem { TemplateId = 839, NombreCorto = "Servicio de Etiquetado", Descripcion = "Etiquetado de bultos y productos (Seco, Frío)", Icono = Icons.Material.Filled.Sell },
-        new ServicioInfoItem { TemplateId = 843, NombreCorto = "Trasiego de Productos", Descripcion = "Carga, descarga y trasiego de materias primas", Icono = Icons.Material.Filled.PublishedWithChanges },
         new ServicioInfoItem { TemplateId = 844, NombreCorto = "Desarme y Paletizado", Descripcion = "Desarme, paletizado y excedente de paletizantes", Icono = Icons.Material.Filled.Inventory },
-        new ServicioInfoItem { TemplateId = 845, NombreCorto = "Movimientos Varios", Descripcion = "Movimientos entre contenedores y cuartos fríos", Icono = Icons.Material.Filled.MoveToInbox },
         new ServicioInfoItem { TemplateId = 837, NombreCorto = "Armado de Productos", Descripcion = "Armado de ofertas, packs y combos", Icono = Icons.Material.Filled.Build },
         new ServicioInfoItem { TemplateId = 853, NombreCorto = "Prelimpia de Productos", Descripcion = "Prelimpia y selección (Maíz, Cacao, Café)", Icono = Icons.Material.Filled.CleaningServices },
         new ServicioInfoItem { TemplateId = 847, NombreCorto = "Emplanchado / Desemplanchado", Descripcion = "Emplanchado y desemplanchado de productos", Icono = Icons.Material.Filled.TableRows },
-        new ServicioInfoItem { TemplateId = 12, NombreCorto = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores", Icono = Icons.Material.Filled.LocalShipping },
+        new ServicioInfoItem { TemplateId = 12,  NombreCorto = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores", Icono = Icons.Material.Filled.LocalShipping },
         new ServicioInfoItem { TemplateId = 838, NombreCorto = "Destrucción de Mermas", Descripcion = "Destrucción de mermas y productos no conformes", Icono = Icons.Material.Filled.DeleteSweep },
         new ServicioInfoItem { TemplateId = 852, NombreCorto = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines", Icono = Icons.Material.Filled.CleaningServices },
         new ServicioInfoItem { TemplateId = 836, NombreCorto = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado", Icono = Icons.Material.Filled.AutoAwesome },
-        new ServicioInfoItem { TemplateId = 865, NombreCorto = "Armado de Exportaciones", Descripcion = "Armado y preparación de bultos de exportación", Icono = Icons.Material.Filled.FlightTakeoff },
-        new ServicioInfoItem { TemplateId = 866, NombreCorto = "Devolución de Productos", Descripcion = "Gestión y revisión de producto retornado", Icono = Icons.Material.Filled.AssignmentReturn },
-        new ServicioInfoItem { TemplateId = 867, NombreCorto = "Revisión de Productos", Descripcion = "Inspección de calidad y revisión", Icono = Icons.Material.Filled.FactCheck }
+        new ServicioInfoItem { TemplateId = 846, NombreCorto = "Armado de Exportaciones", Descripcion = "Armado y preparación de bultos de exportación", Icono = Icons.Material.Filled.FlightTakeoff },
+        new ServicioInfoItem { TemplateId = 831, NombreCorto = "Devolución de Productos", Descripcion = "Gestión y revisión de producto retornado", Icono = Icons.Material.Filled.AssignmentReturn },
+        new ServicioInfoItem { TemplateId = 842, NombreCorto = "Revisión de Productos", Descripcion = "Inspección de calidad y revisión", Icono = Icons.Material.Filled.FactCheck }
     };
 
     private List<ServicioInfoItem> serviciosDisponibles = new();
@@ -1333,7 +1331,19 @@
         if (cli != null)
         {
             operacionSeleccionadaNombre = cli.cliente_nombre;
-            areasClienteList = (cli.areas != null && cli.areas.Any()) ? cli.areas.OrderBy(a => a).ToList() : new List<string> { "CD" };
+            areasClienteList = (cli.areas != null && cli.areas.Any()) 
+                ? cli.areas
+                    .Select(a => {
+                        var t = a.Trim();
+                        if (t.Equals("CS CD", StringComparison.OrdinalIgnoreCase)) return "CD";
+                        if (t.Equals("CS Suministro", StringComparison.OrdinalIgnoreCase) || t.Equals("Suministro", StringComparison.OrdinalIgnoreCase)) return "Sum";
+                        return t;
+                    })
+                    .Where(a => !string.IsNullOrWhiteSpace(a))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(a => a)
+                    .ToList() 
+                : new List<string> { "CD" };
         }
         else
         {
@@ -1354,7 +1364,13 @@
         if (cli != null && cli.servicios != null && cli.servicios.Any())
         {
             var serviciosArea = cli.servicios
-                .Where(s => s.area_nombre == "*" || s.area_nombre.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase))
+                .Where(s => {
+                    if (s.area_nombre == "*") return true;
+                    var norm = s.area_nombre.Trim();
+                    if (norm.Equals("CS CD", StringComparison.OrdinalIgnoreCase)) norm = "CD";
+                    else if (norm.Equals("CS Suministro", StringComparison.OrdinalIgnoreCase) || norm.Equals("Suministro", StringComparison.OrdinalIgnoreCase)) norm = "Sum";
+                    return norm.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase);
+                })
                 .ToList();
 
             serviciosDisponibles = serviciosArea.Select(s =>

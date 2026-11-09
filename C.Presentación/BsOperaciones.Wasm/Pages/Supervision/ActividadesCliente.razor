@@ -267,16 +267,17 @@
     {
         new ServicioTemplateItem { TemplateId = 840, Nombre = "Bandeo de Productos", Descripcion = "Empaquetado y armado de packs" },
         new ServicioTemplateItem { TemplateId = 839, Nombre = "Servicio de Etiquetado", Descripcion = "Etiquetado de bultos y productos" },
-        new ServicioTemplateItem { TemplateId = 843, Nombre = "Trasiego de Productos", Descripcion = "Carga, descarga y trasiego de materias primas" },
         new ServicioTemplateItem { TemplateId = 844, Nombre = "Desarme y Paletizado", Descripcion = "Desarme, paletizado y excedente de paletizantes" },
-        new ServicioTemplateItem { TemplateId = 845, Nombre = "Movimientos Varios", Descripcion = "Movimientos entre contenedores y cuartos fríos" },
         new ServicioTemplateItem { TemplateId = 837, Nombre = "Armado de Productos", Descripcion = "Armado de ofertas, packs y combos" },
         new ServicioTemplateItem { TemplateId = 853, Nombre = "Prelimpia de Productos", Descripcion = "Prelimpia y selección (Maíz, Cacao, Café)" },
         new ServicioTemplateItem { TemplateId = 847, Nombre = "Emplanchado / Desemplanchado", Descripcion = "Emplanchado y desemplanchado de productos" },
         new ServicioTemplateItem { TemplateId = 12,  Nombre = "Carga y Descarga", Descripcion = "Carga y descarga de furgones y contenedores" },
         new ServicioTemplateItem { TemplateId = 838, Nombre = "Destrucción de Mermas", Descripcion = "Destrucción de mermas y productos no conformes" },
         new ServicioTemplateItem { TemplateId = 852, Nombre = "Lavado / Limpieza Polines", Descripcion = "Lavado, limpieza y ordenamiento de polines" },
-        new ServicioTemplateItem { TemplateId = 836, Nombre = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado" }
+        new ServicioTemplateItem { TemplateId = 836, Nombre = "Limpieza de Producto", Descripcion = "Limpieza y acondicionamiento de producto terminado" },
+        new ServicioTemplateItem { TemplateId = 846, Nombre = "Armado de Exportaciones", Descripcion = "Armado y preparación de bultos de exportación" },
+        new ServicioTemplateItem { TemplateId = 831, Nombre = "Devolución de Productos", Descripcion = "Gestión y revisión de producto retornado" },
+        new ServicioTemplateItem { TemplateId = 842, Nombre = "Revisión de Productos", Descripcion = "Inspección de calidad y revisión técnica" }
     };
 
     private string currentUserName = "Admin";
@@ -405,7 +406,12 @@
                 if (respAreas?.Model != null)
                 {
                     areasDelClienteNuevo = respAreas.Model
-                        .Select(a => a.Trim())
+                        .Select(a => {
+                            var trimmed = a.Trim();
+                            if (trimmed.Equals("CS CD", StringComparison.OrdinalIgnoreCase)) return "CD";
+                            if (trimmed.Equals("CS Suministro", StringComparison.OrdinalIgnoreCase) || trimmed.Equals("Suministro", StringComparison.OrdinalIgnoreCase)) return "Sum";
+                            return trimmed;
+                        })
                         .Where(s => !string.IsNullOrWhiteSpace(s))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .OrderBy(s => s)
