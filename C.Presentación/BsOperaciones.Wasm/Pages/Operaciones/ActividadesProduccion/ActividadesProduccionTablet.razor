@@ -32,12 +32,12 @@
         <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3 py-2 px-3 rounded-xl" Icon="@Icons.Material.Filled.WifiOff" Style="background-color: #ea580c; color: white;">
             <div class="d-flex align-center justify-space-between flex-wrap gap-2">
                 <div>
-                    <b>MODO OFFLINE (BODEGA ACTIVO):</b> Sin señal de internet. Puedes continuar registrando la producción con total normalidad; los registros se guardan en la memoria local de este dispositivo.
+                    <b>MODO OFFLINE (BODEGA ACTIVO):</b> Sin señal de internet. Puedes continuar registrando la producción con total normalidad; los registros se guardan en la memoria local de este dispositivo. Al tener señal, presiona <b>Guardar en BD</b>.
                 </div>
                 @if (pendientesOffline.Any())
                 {
                     <MudChip T="string" Color="Color.Surface" Size="Size.Small" Style="color: #ea580c; font-weight: 800;">
-                        @pendientesOffline.Count pendientes por sincronizar
+                        @pendientesOffline.Count pendientes por guardar en BD
                     </MudChip>
                 }
             </div>
@@ -58,21 +58,50 @@
                     EN LÍNEA
                 </MudChip>
             }
-
-            @if (pendientesOffline.Any())
-            {
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.CloudUpload"
-                           OnClick="SincronizarPendientesOffline"
-                           Disabled="@(!esModoOnline || estaSincronizando)"
-                           Class="fw-bold">
-                    @(estaSincronizando ? "Sincronizando..." : $"Sincronizar Pendientes ({pendientesOffline.Count})")
-                </MudButton>
-            }
         </div>
 
-        <div class="d-flex align-center gap-1">
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" OnClick="@(() => CargarHistorialHoy())" Title="Recargar historial" />
+        @* BOTONES TÁCTICOS: ACTUALIZAR Y GUARDAR EN BD (VISIBLES SOLO EN LÍNEA) *@
+        <div class="d-flex align-center gap-2">
+            @if (esModoOnline)
+            {
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Small"
+                           StartIcon="@(estaActualizando ? null : Icons.Material.Filled.Refresh)"
+                           OnClick="ActualizarCatalogoEnLinea"
+                           Disabled="estaActualizando"
+                           Class="fw-bold"
+                           Title="Sincronizar clientes, servicios y variantes en una sola consulta indexada">
+                    @if (estaActualizando)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                        <span>Actualizando...</span>
+                    }
+                    else
+                    {
+                        <span>Actualizar</span>
+                    }
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" 
+                           Color="@(pendientesOffline.Any() ? Color.Warning : Color.Success)" 
+                           Size="Size.Small"
+                           StartIcon="@(estaGuardandoEnBd ? null : Icons.Material.Filled.Save)"
+                           OnClick="GuardarEnBaseDeDatos"
+                           Disabled="@(estaGuardandoEnBd || !pendientesOffline.Any())"
+                           Class="fw-bold"
+                           Title="Guardar en Base de Datos todas las actividades registradas">
+                    @if (estaGuardandoEnBd)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" Color="Color.Surface" />
+                        <span>Guardando en BD...</span>
+                    }
+                    else
+                    {
+                        <span>@(pendientesOffline.Any() ? $"Guardar en BD ({pendientesOffline.Count})" : "Guardar en BD")</span>
+                    }
+                </MudButton>
+            }
         </div>
     </div>
 
@@ -1123,117 +1152,55 @@
         }
     }
 
-    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;    
-    private async Task CargarClientesPermitidos()
+    private bool PuedeGuardar => varianteSeleccionada != null && cantidadProducida > 0;
+
+    private CatalogoActividadesTabletDto catalogoCompleto = new();
+    private const string KeyCacheCatalogoCompleto = "actividades_catalogo_completo_v2";
+    private bool estaActualizando = false;
+    private bool estaGuardandoEnBd = false;
+
+    private async Task CargarCatalogoCompleto(bool forzarOnline = false)
     {
-        clientesPermitidos.Clear();
-        try
+        bool cargoOnline = false;
+
+        if (esModoOnline || forzarOnline)
         {
-            // 1. Obtener todas las configuraciones de servicios activas en Odoo
-            var respConfigs = await OdooService.GetClienteActividadesConfig(0, null, null);
-            var configsActivas = (respConfigs?.Model != null)
-                ? respConfigs.Model.Where(c => c.Activo).ToList()
-                : new List<ClienteActividadConfigDto>();
-
-            // 2. Obtener los clientes asignados a este supervisor en "Clientes por Supervisor" (filtrando por AplicaActividades)
-            var respSup = await OdooService.GetSupervisorClientes(currentUserName, "");
-            var asignaciones = (respSup?.Model != null)
-                ? respSup.Model.Where(s => s.Activo && s.AplicaActividades).ToList()
-                : new List<SupervisorClienteDto>();
-
-            bool esAdmin = currentUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) ||
-                           currentUserName.Equals("admin@bussersa.com", StringComparison.OrdinalIgnoreCase) ||
-                           currentUserName.Equals("hquintero", StringComparison.OrdinalIgnoreCase);
-
-            var clientesCandidatos = new Dictionary<int, string>();
-
-            if (asignaciones.Any())
-            {
-                foreach (var a in asignaciones)
-                {
-                    if (a.OperacionId.HasValue && a.OperacionId.Value > 0)
-                    {
-                        if (!clientesCandidatos.ContainsKey(a.OperacionId.Value))
-                        {
-                            clientesCandidatos[a.OperacionId.Value] = a.ClienteNombre;
-                        }
-                    }
-                }
-            }
-            
-            if (!clientesCandidatos.Any() || esAdmin)
-            {
-                // Para admin o si no hay clientes en tbl_bs_supervisor_cliente, incluir clientes con servicios configurados
-                foreach (var c in configsActivas)
-                {
-                    if (!clientesCandidatos.ContainsKey(c.OperacionId))
-                    {
-                        clientesCandidatos[c.OperacionId] = c.ClienteNombre;
-                    }
-                }
-            }
-
-            // 3. VALIDAR: Solo incluir los clientes que TENGAN servicios configurados para este supervisor
-            foreach (var kvp in clientesCandidatos)
-            {
-                int opId = kvp.Key;
-                string cNombre = kvp.Value;
-
-                var serviciosDelCliente = configsActivas.Where(c => 
-                    c.OperacionId == opId && 
-                    (c.SupervisorUsuario == "*" || 
-                     c.SupervisorUsuario.Equals(currentUserName, StringComparison.OrdinalIgnoreCase) ||
-                     currentUserName.StartsWith(c.SupervisorUsuario, StringComparison.OrdinalIgnoreCase) ||
-                     esAdmin)
-                ).ToList();
-
-                if (serviciosDelCliente.Any())
-                {
-                    clientesPermitidos.Add(new ClienteTabItem
-                    {
-                        OperacionId = opId,
-                        ClienteNombre = cNombre,
-                        ServiciosCount = serviciosDelCliente.Select(s => s.TemplateId).Distinct().Count()
-                    });
-                }
-            }
-
-            // Fallback de seguridad si aún no hay asignación pero hay configuraciones
-            if (!clientesPermitidos.Any() && configsActivas.Any())
-            {
-                var primerConfig = configsActivas.First();
-                clientesPermitidos.Add(new ClienteTabItem
-                {
-                    OperacionId = primerConfig.OperacionId,
-                    ClienteNombre = primerConfig.ClienteNombre,
-                    ServiciosCount = configsActivas.Count(c => c.OperacionId == primerConfig.OperacionId)
-                });
-            }
-
-            if (clientesPermitidos.Any())
-            {
-                try
-                {
-                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheClientes, JsonSerializer.Serialize(clientesPermitidos));
-                }
-                catch { }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error cargando clientes permitidos: {ex.Message}");
             try
             {
-                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheClientes);
-                if (!string.IsNullOrWhiteSpace(cached))
+                var res = await OdooService.GetCatalogoActividadesTablet(currentUserName);
+                if (!res.Respuesta.ExisteError && res.Model != null && res.Model.Clientes.Any())
                 {
-                    clientesPermitidos = JsonSerializer.Deserialize<List<ClienteTabItem>>(cached) ?? new();
+                    catalogoCompleto = res.Model;
+                    esModoOnline = true;
+                    cargoOnline = true;
+                    try
+                    {
+                        await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheCatalogoCompleto, JsonSerializer.Serialize(catalogoCompleto));
+                    }
+                    catch { }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando catálogo online: {ex.Message}");
+                cargoOnline = false;
+            }
         }
 
-        // Preseleccionar el cliente
+        if (!cargoOnline)
+        {
+            await CargarDesdeCacheLocal();
+        }
+
+        // 1. Mapear clientes permitidos desde la memoria
+        clientesPermitidos = catalogoCompleto.Clientes.Select(c => new ClienteTabItem
+        {
+            OperacionId = c.OperacionId,
+            ClienteNombre = c.ClienteNombre,
+            ServiciosCount = c.ServiciosCount
+        }).ToList();
+
+        // 2. Preseleccionar cliente si es necesario
         if (clientesPermitidos.Any())
         {
             if (!clientesPermitidos.Any(c => c.OperacionId == operacionSeleccionadaId))
@@ -1241,7 +1208,30 @@
                 operacionSeleccionadaId = clientesPermitidos.First().OperacionId;
             }
             ActualizarNombreOperacion();
+            AplicarConfiguracionClienteEnMemoria();
+
+            if (serviciosDisponibles.Any())
+            {
+                await SeleccionarServicio(serviciosDisponibles[0]);
+            }
         }
+    }
+
+    private async Task CargarDesdeCacheLocal()
+    {
+        try
+        {
+            var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheCatalogoCompleto);
+            if (!string.IsNullOrWhiteSpace(cached))
+            {
+                var bundle = JsonSerializer.Deserialize<CatalogoActividadesTabletDto>(cached);
+                if (bundle != null && bundle.Clientes.Any())
+                {
+                    catalogoCompleto = bundle;
+                }
+            }
+        }
+        catch { }
     }
 
     protected override async Task OnInitializedAsync()
@@ -1269,154 +1259,49 @@
         try
         {
             var guardado = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "actividades_tablet_cliente_id");
-            if (int.TryParse(guardado, out int opId) && operacionesList.Any(o => o.id == opId))
+            if (int.TryParse(guardado, out int opId))
             {
                 operacionSeleccionadaId = opId;
             }
-            else if (operacionesList.Any(o => o.id == 27))
-            {
-                operacionSeleccionadaId = 27;
-            }
-            else if (operacionesList.Any())
-            {
-                operacionSeleccionadaId = operacionesList.First().id;
-            }
         }
-        catch
-        {
-            if (operacionesList.Any()) operacionSeleccionadaId = operacionesList.First().id;
-        }
+        catch { }
 
-        await CargarClientesPermitidos();
-        ActualizarNombreOperacion();
-        await CargarConfiguracionClienteYAreas();
-
-        if (serviciosDisponibles.Any())
-        {
-            await SeleccionarServicio(serviciosDisponibles[0]);
-        }
+        await CargarColaOfflineDesdeStorage();
+        await CargarCatalogoCompleto();
         await CargarHistorialHoy();
     }
 
-    private async Task CargarConfiguracionClienteYAreas()
+    private void AplicarConfiguracionClienteEnMemoria()
     {
-        try
+        // 1. Configuraciones activas del cliente actual en memoria
+        configsTodasDelCliente = catalogoCompleto.Configuraciones
+            .Where(c => c.OperacionId == operacionSeleccionadaId && c.Activo)
+            .ToList();
+
+        // 2. Áreas del cliente en memoria
+        var cli = catalogoCompleto.Clientes.FirstOrDefault(c => c.OperacionId == operacionSeleccionadaId);
+        if (cli != null && cli.Areas.Any())
         {
-            string? supFilter = (currentUserName.Equals("admin", StringComparison.OrdinalIgnoreCase) || 
-                                 currentUserName.Equals("admin@bussersa.com", StringComparison.OrdinalIgnoreCase) ||
-                                 currentUserName.Equals("hquintero", StringComparison.OrdinalIgnoreCase))
-                                ? null : currentUserName;
-
-            // 1. Obtener TODAS las configuraciones del cliente desde el supervisor (sin filtro de área)
-            var resAllConfigs = await OdooService.GetClienteActividadesConfig(operacionSeleccionadaId, null, supFilter);
-            configsTodasDelCliente = (resAllConfigs?.Model != null)
-                ? resAllConfigs.Model.Where(c => c.Activo).ToList()
-                : new List<ClienteActividadConfigDto>();
-
-            bool clienteTieneConfigs = configsTodasDelCliente.Any();
-            string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
-
-            // 2. Extraer ÚNICAMENTE las áreas reales existentes en las variantes de los servicios configurados
-            var areasReales = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (clienteTieneConfigs)
-            {
-                // a) Si hay áreas explícitas no comodín en la configuración, considerarlas
-                foreach (var c in configsTodasDelCliente)
-                {
-                    if (!string.IsNullOrWhiteSpace(c.AreaNombre) && c.AreaNombre != "*")
-                    {
-                        areasReales.Add(c.AreaNombre.Trim());
-                    }
-                }
-
-                // b) Para las plantillas del cliente, consultar variantes y extraer las áreas reales que tengan variantes de este cliente
-                var templatesConfigurados = configsTodasDelCliente.Select(c => c.TemplateId).Distinct().ToList();
-                foreach (var tId in templatesConfigurados)
-                {
-                    try
-                    {
-                        var resVars = await OdooService.GetProductVariants(tId);
-                        if (!resVars.Respuesta.ExisteError && resVars.Model != null)
-                        {
-                            var varsCliente = resVars.Model
-                                .Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente))
-                                .ToList();
-
-                            // Actualizar conteo de variantes de esta plantilla en MasterCatalogoServicios
-                            var itemMaster = MasterCatalogoServicios.FirstOrDefault(m => m.TemplateId == tId);
-                            if (itemMaster != null)
-                            {
-                                itemMaster.VariantesCount = varsCliente.Count;
-                            }
-
-                            foreach (var v in varsCliente)
-                            {
-                                var a = ObtenerValorAtributo(v.nombre, "Area") ?? ObtenerValorAtributo(v.nombre, "Área");
-                                if (!string.IsNullOrWhiteSpace(a))
-                                {
-                                    areasReales.Add(a.Trim());
-                                }
-                            }
-                        }
-                    }
-                    catch { }
-                }
-            }
-
-            // 3. Establecer la lista final de áreas
-            if (areasReales.Any())
-            {
-                areasClienteList = areasReales.OrderBy(a => a).ToList();
-            }
-            else
-            {
-                // Fallback para clientes no configurados
-                try
-                {
-                    var resDb = await OdooService.GetAreasOperacion(operacionSeleccionadaId);
-                    if (resDb?.Model != null && resDb.Model.Any())
-                    {
-                        areasClienteList = resDb.Model
-                            .Select(a => a.Trim())
-                            .Where(s => !string.IsNullOrWhiteSpace(s))
-                            .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .OrderBy(s => s)
-                            .ToList();
-                    }
-                    else
-                    {
-                        areasClienteList = new List<string> { "CD" };
-                    }
-                }
-                catch
-                {
-                    areasClienteList = new List<string> { "CD" };
-                }
-            }
-
-            // 4. Seleccionar área por defecto
-            if (!areasClienteList.Contains(areaSeleccionada, StringComparer.OrdinalIgnoreCase))
-            {
-                areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
-            }
-
-            // 5. Filtrar SERVICIOS DISPONIBLES:
-            // ESTRICTAMENTE según la configuración del supervisor para este cliente y área
-            ActualizarServiciosDisponiblesPorArea();
+            areasClienteList = cli.Areas.OrderBy(a => a).ToList();
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"Error cargando configuración y áreas: {ex.Message}");
-            ActualizarServiciosDisponiblesPorArea();
+            areasClienteList = new List<string> { "CD" };
         }
+
+        if (!areasClienteList.Contains(areaSeleccionada, StringComparer.OrdinalIgnoreCase))
+        {
+            areaSeleccionada = areasClienteList.FirstOrDefault() ?? "CD";
+        }
+
+        // 3. Filtrar servicios disponibles para esta área
+        ActualizarServiciosDisponiblesPorArea();
     }
 
     private void ActualizarServiciosDisponiblesPorArea()
     {
         if (configsTodasDelCliente.Any())
         {
-            // Filtrar SOLO las configuraciones que aplican a la área actual o comodín '*'
             var configsArea = configsTodasDelCliente
                 .Where(c => c.AreaNombre == "*" || c.AreaNombre.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -1425,14 +1310,12 @@
 
             var templatesValidos = configsArea.Select(c => c.TemplateId).ToHashSet();
 
-            // Solo mostrar los servicios configurados para esta área
             serviciosDisponibles = MasterCatalogoServicios
                 .Where(s => templatesValidos.Contains(s.TemplateId))
                 .ToList();
         }
         else
         {
-            // Solo si el cliente no tiene ninguna configuración en tbl_bs_cliente_actividades_config
             configsCliente.Clear();
             serviciosDisponibles = MasterCatalogoServicios.ToList();
         }
@@ -1448,7 +1331,8 @@
         }
         catch { }
 
-        await CargarConfiguracionClienteYAreas();
+        // Navegación 100% en memoria: cero recargas, cero llamadas HTTP, instantáneo
+        AplicarConfiguracionClienteEnMemoria();
 
         if (serviciosDisponibles.Any())
         {
@@ -1461,7 +1345,16 @@
             todasVariantesServicio.Clear();
             variantesFiltradas.Clear();
         }
-        await CargarHistorialHoy();
+
+        // Cargar historial en background sin bloquear la interfaz
+        if (esModoOnline)
+        {
+            _ = CargarHistorialHoy();
+        }
+        else
+        {
+            await CargarHistorialHoy();
+        }
     }
 
     private async Task OnAreaChanged(string nuevaArea)
@@ -1513,72 +1406,127 @@
         servicioSeleccionado = serv;
         varianteSeleccionada = null;
 
+        // Obtener variantes desde la memoria (catalogoCompleto)
+        var all = catalogoCompleto.Variantes
+            .Where(v => v.template_id == serv.TemplateId)
+            .ToList();
+
+        if (!all.Any() && esModoOnline)
+        {
+            // Fallback si por alguna razón no vinieron en el catálogo
+            try
+            {
+                var res = await OdooService.GetProductVariants(serv.TemplateId);
+                if (!res.Respuesta.ExisteError && res.Model != null)
+                {
+                    all = res.Model.ToList();
+                    catalogoCompleto.Variantes.AddRange(all);
+                }
+            }
+            catch { }
+        }
+
+        string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
+        var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
+        bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
+
+        if (variantesCliente.Any())
+        {
+            todasVariantesServicio = variantesCliente;
+        }
+        else
+        {
+            string[] palabras = nombreCliente.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var matchFuzzy = all.Where(v => palabras.Any(p => p.Length > 3 && v.nombre.ToLowerInvariant().Contains(p))).ToList();
+            todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
+        }
+
+        serv.VariantesCount = todasVariantesServicio.Count;
+        ConfigurarFiltrosDinamicos();
+        ActualizarCascadaFiltros();
+        await Task.CompletedTask;
+    }
+
+    private async Task ActualizarCatalogoEnLinea()
+    {
+        if (!esModoOnline) return;
+        estaActualizando = true;
+        StateHasChanged();
+        try
+        {
+            await CargarCatalogoCompleto(forzarOnline: true);
+            await CargarHistorialHoy();
+            Snackbar.Add("¡Catálogo, clientes y servicios actualizados con éxito desde la Base de Datos!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al actualizar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            estaActualizando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GuardarEnBaseDeDatos()
+    {
+        if (!esModoOnline) return;
+        if (!pendientesOffline.Any())
+        {
+            Snackbar.Add("No hay actividades pendientes por guardar en Base de Datos.", Severity.Info);
+            return;
+        }
+
+        estaGuardandoEnBd = true;
         estaCargando = true;
-        mensajeCarga = $"Cargando catálogo de {serv.NombreCorto}...";
+        mensajeCarga = $"Guardando {pendientesOffline.Count} actividades en Base de Datos...";
         StateHasChanged();
 
         try
         {
-            var res = await OdooService.GetProductVariants(serv.TemplateId);
-            if (!res.Respuesta.ExisteError && res.Model != null)
+            var itemsAEnviar = pendientesOffline.Select(p => new ProduccionDiariaDto
             {
-                var all = res.Model.ToList();
-                try
-                {
-                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", $"actividades_cache_var_{serv.TemplateId}", JsonSerializer.Serialize(all));
-                }
-                catch { }
+                cliente = p.cliente,
+                operacion_id = p.operacion_id,
+                actividad = p.actividad,
+                area_cliente = p.area_cliente,
+                servicio_codigo = p.servicio_codigo,
+                servicio_descripcion = p.servicio_descripcion,
+                nombre_producto = p.nombre_producto,
+                cantidad_producto = p.cantidad_producto,
+                costo_producto = p.costo_producto,
+                fecha_inicio = p.fecha_inicio,
+                fecha_fin = p.fecha_fin,
+                hora_inicio = p.hora_inicio,
+                hora_fin = p.hora_fin,
+                no_lote = p.no_lote,
+                oc = p.oc,
+                asignado_a = p.asignado_a,
+                facturada = p.facturada
+            }).ToList();
 
-                // Filtrar variantes por cliente automáticamente
-                string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
-                var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
-                bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
-
-                if (variantesCliente.Any())
-                {
-                    todasVariantesServicio = variantesCliente;
-                }
-                else
-                {
-                    // Si el cliente no tiene nombre exacto en variantes, intentar con palabras clave
-                    string[] palabras = nombreCliente.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    var matchFuzzy = all.Where(v => palabras.Any(p => p.Length > 3 && v.nombre.ToLowerInvariant().Contains(p))).ToList();
-                    todasVariantesServicio = matchFuzzy.Any() ? matchFuzzy : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
-                }
-
-                serv.VariantesCount = todasVariantesServicio.Count;
-                ConfigurarFiltrosDinamicos();
-                ActualizarCascadaFiltros();
+            var res = await OdooService.ImportarProduccionDiaria(itemsAEnviar);
+            if (!res.Respuesta.ExisteError)
+            {
+                int cant = pendientesOffline.Count;
+                pendientesOffline.Clear();
+                await GuardarColaOfflineEnStorage();
+                Snackbar.Add($"¡{cant} actividades guardadas con éxito en la Base de Datos!", Severity.Success);
+                await CargarHistorialHoy();
             }
             else
             {
-                Snackbar.Add($"No se pudieron cargar las variantes: {res.Respuesta.MensajeError}", Severity.Warning);
+                Snackbar.Add($"Error al guardar en BD: {res.Respuesta.MensajeError}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            try
-            {
-                var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", $"actividades_cache_var_{serv.TemplateId}");
-                if (!string.IsNullOrWhiteSpace(cached))
-                {
-                    var all = JsonSerializer.Deserialize<List<OdooVariantDto>>(cached) ?? new();
-                    string nombreCliente = operacionSeleccionadaNombre.Trim().ToLowerInvariant();
-                    bool variantesTienenCliente = all.Any(v => v.nombre.Contains("Cliente:", StringComparison.OrdinalIgnoreCase));
-                    var variantesCliente = all.Where(v => v.nombre.ToLowerInvariant().Contains(nombreCliente)).ToList();
-                    todasVariantesServicio = variantesCliente.Any() ? variantesCliente : (variantesTienenCliente ? new List<OdooVariantDto>() : all);
-                    serv.VariantesCount = todasVariantesServicio.Count;
-                    ConfigurarFiltrosDinamicos();
-                    ActualizarCascadaFiltros();
-                    Snackbar.Add($"Variantes cargadas desde memoria local (offline).", Severity.Info);
-                    return;
-                }
-            }
-            catch { }
-            Snackbar.Add($"Error al consultar variantes: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Error de conexión al guardar en BD: {ex.Message}", Severity.Error);
         }
         finally
         {
+            estaGuardandoEnBd = false;
             estaCargando = false;
             StateHasChanged();
         }

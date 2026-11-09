@@ -1,4 +1,4 @@
-﻿@using BsOperaciones.Application.Extensions
+@using BsOperaciones.Application.Extensions
 
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
@@ -9,6 +9,7 @@
             </MudNavGroup>
             <MenuItem MenuId="55" Name="Movimientos (Tablet)" Url="/operaciones/registro-movimientos-supervisor" IconName="@Icons.Material.Filled.TabletAndroid" />
             <MenuItem MenuId="67" Name="Actividades (Tablet)" Url="/operaciones/actividades-tablet" IconName="@Icons.Material.Filled.TouchApp" />
+            <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/operaciones/entrega-epp">Dotación EPP (Tablet)</MudNavLink>
             <MenuItem MenuId="56" Name="Cargar Movimientos" Url="/operaciones/movimientos-personal-excel" IconName="@Icons.Material.Filled.PostAdd" />
             <MenuItem MenuId="64" Name="Consultar Asistencia" Url="/operaciones/consulta-asistencia" IconName="@Icons.Material.Filled.FactCheck" />
             <AuthorizeView Policy="@Policies.IsMenu" Resource="53" Context="produccionContext">

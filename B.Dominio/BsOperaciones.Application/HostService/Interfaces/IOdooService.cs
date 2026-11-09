@@ -1,4 +1,4 @@
-using Modelo.ClasesGenericas;
+﻿using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Entidades.Nomina;
 using Modelo.Interfaces;
@@ -190,6 +190,7 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.ClienteAreaDto>> GetAllClienteAreas();
         Task<IResponse> GuardarClienteArea(Modelo.ClasesGenericas.GuardarClienteAreaRequest request);
         Task<IResponse> EliminarClienteArea(int id);
+        Task<ISingleResponse<Modelo.Entidades.Operaciones.CatalogoActividadesTabletDto>> GetCatalogoActividadesTablet(string? supervisorUsuario = null);
         Task<IListResponse<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>> GetClienteActividadesConfig(int operacionId, string? areaNombre = null, string? supervisorUsuario = null);
         Task<IResponse> GuardarClienteActividadConfig(Modelo.Entidades.Operaciones.ClienteActividadConfigDto dto);
         Task<IResponse> EliminarClienteActividadConfig(int id);
@@ -236,6 +237,11 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.ReglaViaticoDto>> GetAllReglasViaticos(string cliente = "", string area = "");
         Task<IResponse> GuardarReglaViatico(Modelo.ClasesGenericas.ReglaViaticoDto request);
         Task<IResponse> EliminarReglaViatico(int id);
+
+        // --- GESTIÓN DE EPP Y UNIFORMES ---
+        Task<IListResponse<Modelo.Entidades.Operaciones.EppCatalogoItemDto>> GetCatalogoEpp();
+        Task<IListResponse<Modelo.Entidades.Operaciones.EppEntregaDto>> GetHistorialEntregasEpp(int? empleadoId = null, DateTime? fechaInicio = null, DateTime? fechaFin = null);
+        Task<IResponse> RegistrarEntregaEpp(Modelo.Entidades.Operaciones.EppEntregaDto entrega);
     }
 }
 

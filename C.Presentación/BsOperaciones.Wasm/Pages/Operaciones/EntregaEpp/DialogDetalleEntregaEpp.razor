@@ -1,0 +1,84 @@
+@using Modelo.Entidades.Operaciones
+@using MudBlazor
+
+<MudDialog Style="border-radius: 16px; overflow: hidden; max-width: 600px; width: 100%;">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
+                <MudIcon Icon="@Icons.Material.Filled.Security" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="fw-bold">Detalle de Entrega EPP</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Comprobante digital #@Entrega.Id</MudText>
+            </div>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3" Class="py-2">
+            <MudPaper Outlined="true" Class="pa-3" Style="background-color: var(--mud-palette-background-grey); border-radius: 12px;">
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Colaborador</MudText>
+                        <MudText Typo="Typo.body1" Class="fw-bold">@Entrega.EmpleadoNombre</MudText>
+                        <MudText Typo="Typo.caption">Cód: @Entrega.EmpleadoCodigo</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Fecha de Entrega</MudText>
+                        <MudText Typo="Typo.body1" Class="fw-bold">@Entrega.FechaEntrega.ToString("dd/MM/yyyy hh:mm tt")</MudText>
+                        <MudText Typo="Typo.caption">Entregado por: @Entrega.EntregadoPor</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Equipo / Uniforme</MudText>
+                        <MudText Typo="Typo.body1" Class="fw-bold">@Entrega.ProductoNombre</MudText>
+                        <MudText Typo="Typo.caption">@Entrega.VarianteDescripcion</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Cantidad y Motivo</MudText>
+                        <MudText Typo="Typo.body1" Class="fw-bold">@Entrega.Cantidad unidad(es)</MudText>
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled">@Entrega.Motivo</MudChip>
+                    </MudItem>
+                    @if (!string.IsNullOrWhiteSpace(Entrega.Observaciones))
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Observaciones</MudText>
+                            <MudText Typo="Typo.body2">@Entrega.Observaciones</MudText>
+                        </MudItem>
+                    }
+                    @if (Entrega.StockPickingId.HasValue && Entrega.StockPickingId.Value > 0)
+                    {
+                        <MudItem xs="12">
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.CheckCircle">
+                                Sincronizado en Odoo (Movimiento Stock #@Entrega.StockPickingId)
+                            </MudChip>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+
+            <MudText Typo="Typo.subtitle2" Class="fw-bold mt-2">Firma Digital del Colaborador</MudText>
+            <MudPaper Outlined="true" Class="pa-2 d-flex justify-center align-center" Style="min-height: 160px; background: white; border-radius: 12px;">
+                @if (!string.IsNullOrWhiteSpace(Entrega.FirmaDigital))
+                {
+                    <img src="@Entrega.FirmaDigital" alt="Firma del Colaborador" style="max-height: 140px; max-width: 100%; object-fit: contain;" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Sin firma digital registrada</MudText>
+                }
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Cerrar">Cerrar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public EppEntregaDto Entrega { get; set; } = new();
+
+    private void Cerrar() => MudDialog.Close();
+}

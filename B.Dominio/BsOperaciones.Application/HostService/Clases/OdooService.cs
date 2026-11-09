@@ -1,4 +1,4 @@
-using Blazored.LocalStorage;
+﻿using Blazored.LocalStorage;
 using HostService.ClasesGenericas;
 using HostService.Interfaces;
 using Modelo.ClasesGenericas;
@@ -3957,6 +3957,40 @@ namespace HostService.Clases
         }
 
         
+        
+        public async Task<ISingleResponse<Modelo.Entidades.Operaciones.CatalogoActividadesTabletDto>> GetCatalogoActividadesTablet(string? supervisorUsuario = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.Entidades.Operaciones.CatalogoActividadesTabletDto>();
+            try
+            {
+                var queryParams = string.IsNullOrWhiteSpace(supervisorUsuario) ? "" : $"supervisorUsuario={Uri.EscapeDataString(supervisorUsuario)}";
+                var requestUrl = CreateRequestUri("Operaciones/GetCatalogoActividadesTablet", queryParams);
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerRegistro<Modelo.Entidades.Operaciones.CatalogoActividadesTabletDto>(reg.detail.ToString());
+                    }
+                    else
+                    {
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                }
+                else
+                {
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
         public async Task<IListResponse<Modelo.Entidades.Operaciones.ClienteActividadConfigDto>> GetClienteActividadesConfig(int operacionId, string? areaNombre = null, string? supervisorUsuario = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
@@ -4991,7 +5025,103 @@ namespace HostService.Clases
         }
         #endregion
         #endregion
+    
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.EppCatalogoItemDto>> GetCatalogoEpp()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Entidades.Operaciones.EppCatalogoItemDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetCatalogoEpp");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.EppCatalogoItemDto>(reg.detail.ToString());
+                    }
+                    else
+                    {
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                }
+                else
+                {
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.Entidades.Operaciones.EppEntregaDto>> GetHistorialEntregasEpp(int? empleadoId = null, DateTime? fechaInicio = null, DateTime? fechaFin = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.Entidades.Operaciones.EppEntregaDto>();
+            try
+            {
+                var queryParams = new List<string>();
+                if (empleadoId.HasValue) queryParams.Add($"empleadoId={empleadoId.Value}");
+                if (fechaInicio.HasValue) queryParams.Add($"fechaInicio={fechaInicio.Value:yyyy-MM-dd}");
+                if (fechaFin.HasValue) queryParams.Add($"fechaFin={fechaFin.Value:yyyy-MM-dd}");
+
+                string query = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+                var requestUrl = CreateRequestUri($"Operaciones/GetHistorialEntregasEpp{query}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                    {
+                        response.Model = _Util.ObtenerDato<Modelo.Entidades.Operaciones.EppEntregaDto>(reg.detail.ToString());
+                    }
+                    else
+                    {
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                }
+                else
+                {
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> RegistrarEntregaEpp(Modelo.Entidades.Operaciones.EppEntregaDto entrega)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/RegistrarEntregaEpp");
+                var registro = await PostAsync(requestUrl, entrega);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (!reg.sucess)
+                    {
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                    }
+                }
+                else
+                {
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
     }
 }
-
-
