@@ -18,7 +18,7 @@
 
 <div class="actividades-tablet-container">
     @* --- OVERLAY DE CARGA Y GUARDADO --- *@
-    <MudOverlay Visible="@estaCargando" DarkBackground="true" Absolute="false" ZIndex="99999" Class="d-flex flex-column align-center justify-center">
+    <MudOverlay Visible="@estaBloqueandoAccion" DarkBackground="true" Absolute="false" ZIndex="99999" Class="d-flex flex-column align-center justify-center">
         <div class="d-flex flex-column align-center pa-6 rounded-xl" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); min-width: 300px; border: 1px solid rgba(255,255,255,0.15);">
             <MudProgressCircular Color="Color.Warning" Size="Size.Large" Indeterminate="true" Class="mb-3" />
             <MudText Typo="Typo.h6" Class="font-bold text-white text-center">@mensajeCarga</MudText>
@@ -109,7 +109,7 @@
         </div>
     </div>
 
-    @if (estaCargando)
+    @if (estaCargando && !clientesPermitidos.Any())
     {
         <MudPaper Elevation="0" Class="pa-12 my-6 text-center rounded-xl border d-flex flex-column align-center justify-center" Style="background: #ffffff; min-height: 420px; border-color: #e2e8f0;">
             <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
@@ -960,7 +960,8 @@
 
     private string currentUserName = "Admin";
     private bool estaCargando = true;
-    private string mensajeCarga = "Cargando catálogo...";
+    private bool estaBloqueandoAccion = false;
+    private string mensajeCarga = "Guardando...";
 
     private DateTime fechaJornada = DateTime.Today;
     private string turnoSeleccionado = "Diurno";
@@ -1047,9 +1048,6 @@
                 dotNetHelper = DotNetObjectReference.Create(this);
                 esModoOnline = await JSRuntime.InvokeAsync<bool>("connectivityInterop.isOnline");
                 await JSRuntime.InvokeVoidAsync("connectivityInterop.registerListener", dotNetHelper);
-                await CargarColaOfflineDesdeStorage();
-                await CargarHistorialHoy();
-                StateHasChanged();
             }
             catch { }
         }
@@ -1121,7 +1119,7 @@
         }
 
         estaSincronizando = true;
-        estaCargando = true;
+        estaBloqueandoAccion = true;
         mensajeCarga = $"Sincronizando {pendientesOffline.Count} actividades a Odoo...";
         StateHasChanged();
 
@@ -1170,7 +1168,7 @@
         finally
         {
             estaSincronizando = false;
-            estaCargando = false;
+            estaBloqueandoAccion = false;
             StateHasChanged();
         }
     }
@@ -1182,38 +1180,29 @@
     private bool estaActualizando = false;
     private bool estaGuardandoEnBd = false;
 
-    private async Task CargarCatalogoCompleto(bool forzarOnline = false)
+    private async Task<bool> CargarDesdeCacheLocal()
     {
-        bool cargoOnline = false;
-
-        if (esModoOnline || forzarOnline)
+        try
         {
-            try
+            var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheCatalogoCompleto);
+            if (!string.IsNullOrWhiteSpace(cached))
             {
-                var res = await OdooService.GetCatalogoActividadesTablet(currentUserName);
-                if (!res.Respuesta.ExisteError && res.Model != null && res.Model.Clientes.Any())
+                var bundle = JsonSerializer.Deserialize<CatalogoActividadesTabletDto>(cached);
+                if (bundle != null && bundle.Clientes != null && bundle.Clientes.Any())
                 {
-                    catalogoCompleto = res.Model;
-                    esModoOnline = true;
-                    cargoOnline = true;
-                    try
-                    {
-                        await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheCatalogoCompleto, JsonSerializer.Serialize(catalogoCompleto));
-                    }
-                    catch { }
+                    catalogoCompleto = bundle;
+                    return true;
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error cargando catálogo online: {ex.Message}");
-                cargoOnline = false;
-            }
         }
+        catch { }
+        return false;
+    }
 
-        if (!cargoOnline)
-        {
-            await CargarDesdeCacheLocal();
-        }
+    private void ConfigurarDesdeCatalogoEnMemoria()
+    {
+        if (catalogoCompleto?.Clientes == null || !catalogoCompleto.Clientes.Any())
+            return;
 
         // 1. Mapear clientes permitidos desde la memoria
         clientesPermitidos = catalogoCompleto.Clientes.Select(c => new ClienteTabItem
@@ -1235,26 +1224,45 @@
 
             if (serviciosDisponibles.Any())
             {
-                await SeleccionarServicio(serviciosDisponibles[0]);
+                _ = SeleccionarServicio(serviciosDisponibles[0]);
             }
         }
     }
 
-    private async Task CargarDesdeCacheLocal()
+    private async Task SincronizarCatalogoEnLinea(bool forzar = false)
     {
+        if (!esModoOnline && !forzar) return;
+
         try
         {
-            var cached = await JSRuntime.InvokeAsync<string>("localStorage.getItem", KeyCacheCatalogoCompleto);
-            if (!string.IsNullOrWhiteSpace(cached))
+            var res = await OdooService.GetCatalogoActividadesTablet(currentUserName);
+            if (!res.Respuesta.ExisteError && res.Model != null && res.Model.Clientes != null && res.Model.Clientes.Any())
             {
-                var bundle = JsonSerializer.Deserialize<CatalogoActividadesTabletDto>(cached);
-                if (bundle != null && bundle.Clientes.Any())
+                catalogoCompleto = res.Model;
+                esModoOnline = true;
+                ConfigurarDesdeCatalogoEnMemoria();
+
+                try
                 {
-                    catalogoCompleto = bundle;
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", KeyCacheCatalogoCompleto, JsonSerializer.Serialize(catalogoCompleto));
                 }
+                catch { }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sincronizando catálogo: {ex.Message}");
+            if (!catalogoCompleto.Clientes.Any())
+            {
+                await CargarDesdeCacheLocal();
+                ConfigurarDesdeCatalogoEnMemoria();
+            }
+        }
+    }
+
+    private async Task CargarCatalogoCompleto(bool forzarOnline = false)
+    {
+        await SincronizarCatalogoEnLinea(forzarOnline);
     }
 
     protected override async Task OnInitializedAsync()
@@ -1290,8 +1298,33 @@
         catch { }
 
         await CargarColaOfflineDesdeStorage();
-        await CargarCatalogoCompleto();
-        await CargarHistorialHoy();
+
+        // 1. CARGA INMEDIATA DESDE CACHÉ (0 ms):
+        bool tieneCache = await CargarDesdeCacheLocal();
+        if (tieneCache)
+        {
+            ConfigurarDesdeCatalogoEnMemoria();
+            estaCargando = false;
+            StateHasChanged();
+        }
+
+        // 2. SINCRONIZAR CON BASE DE DATOS EN LÍNEA:
+        try
+        {
+            await SincronizarCatalogoEnLinea();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al inicializar catálogo en línea: {ex.Message}");
+        }
+        finally
+        {
+            estaCargando = false;
+            StateHasChanged();
+        }
+
+        // 3. Historial del día en background:
+        _ = CargarHistorialHoy();
     }
 
     private void AplicarConfiguracionClienteEnMemoria()
@@ -1446,7 +1479,7 @@
         StateHasChanged();
         try
         {
-            await CargarCatalogoCompleto(forzarOnline: true);
+            await SincronizarCatalogoEnLinea(forzar: true);
             await CargarHistorialHoy();
             Snackbar.Add("¡Catálogo, clientes y servicios actualizados con éxito desde la Base de Datos!", Severity.Success);
         }
@@ -1471,6 +1504,8 @@
         }
 
         estaGuardandoEnBd = true;
+        estaBloqueandoAccion = true;
+        mensajeCarga = $"Guardando {pendientesOffline.Count} actividades en Base de Datos...";
         StateHasChanged();
 
         try
@@ -1540,7 +1575,7 @@
         finally
         {
             estaGuardandoEnBd = false;
-            estaCargando = false;
+            estaBloqueandoAccion = false;
             StateHasChanged();
         }
     }
@@ -1956,10 +1991,6 @@
     {
         if (!PuedeGuardar) return;
 
-        estaCargando = true;
-        mensajeCarga = "Guardando producción de actividad...";
-        StateHasChanged();
-
         var dict = ParsearAtributos(varianteSeleccionada!.nombre);
         string prodName = "";
         if (dict.TryGetValue("Producto", out var p) && !string.IsNullOrWhiteSpace(p))
@@ -2013,8 +2044,7 @@
         ordenCompra = "";
         varianteSeleccionada = null;
         LimpiarFiltros();
-        await CargarHistorialHoy();
-        estaCargando = false;
+        _ = CargarHistorialHoy();
         StateHasChanged();
     }
 
@@ -2201,8 +2231,8 @@
             }
             else
             {
-                estaCargando = true;
-                mensajeCarga = "Eliminando actividad...";
+                estaBloqueandoAccion = true;
+                mensajeCarga = "Eliminando actividad de Odoo...";
                 StateHasChanged();
                 try
                 {
@@ -2223,7 +2253,7 @@
                 }
                 finally
                 {
-                    estaCargando = false;
+                    estaBloqueandoAccion = false;
                     StateHasChanged();
                 }
             }
