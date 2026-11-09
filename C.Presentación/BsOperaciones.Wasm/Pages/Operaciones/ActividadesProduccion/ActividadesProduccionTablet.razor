@@ -1204,11 +1204,13 @@
             return;
 
         // 1. Mapear clientes permitidos desde la memoria
-        clientesPermitidos = catalogoCompleto.Clientes.Select(c => new ClienteTabItem
+        clientesPermitidos = catalogoCompleto.Clientes
+            .Where(c => c.servicios != null && c.servicios.Any(s => s.variantes_count > 0 && s.variantes != null && s.variantes.Any()))
+            .Select(c => new ClienteTabItem
         {
             OperacionId = c.operacion_id,
             ClienteNombre = c.cliente_nombre,
-            ServiciosCount = c.servicios_count
+            ServiciosCount = c.servicios != null ? c.servicios.Count(s => s.variantes_count > 0 && s.variantes != null && s.variantes.Any()) : c.servicios_count
         }).ToList();
 
         // 2. Preseleccionar cliente si es necesario
@@ -1365,6 +1367,7 @@
         if (cli != null && cli.servicios != null && cli.servicios.Any())
         {
             var serviciosArea = cli.servicios
+                .Where(s => s.variantes_count > 0 && s.variantes != null && s.variantes.Any())
                 .Where(s => {
                     if (s.area_nombre == "*") return true;
                     var norm = s.area_nombre.Trim();
