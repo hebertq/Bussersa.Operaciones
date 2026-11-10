@@ -35,13 +35,40 @@ namespace Modelo.Entidades.Entradas.Odoo
         public int? template_id { get; set; }
         public string? template_nombre { get; set; }
 
-        public static bool EsCodigoHorasLaborales(string? codigo)
+                public static bool EsCodigoHorasLaborales(string? codigo)
         {
             if (string.IsNullOrWhiteSpace(codigo)) return false;
             var c = codigo.Trim().ToUpperInvariant();
-            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.StartsWith("SVTC") || 
+            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.EndsWith("-ADE") || 
+                   c.EndsWith("-ADV") || c.EndsWith("-MTC") || c.EndsWith("-CHO") ||
+                   c.StartsWith("SVTC") || c.StartsWith("HOR-") ||
                    c.Contains("-DIU-") || c.Contains("-EXT-") || c.Contains("-NOC-");
+        }
+
+        public static bool EsActividadDeProduccion(ProduccionDiariaDto? item)
+        {
+            if (item == null) return false;
+            if (item.template_id == 9 || item.template_id == 865) return false;
+            if (!string.IsNullOrWhiteSpace(item.template_nombre))
+            {
+                var tn = item.template_nombre;
+                if (tn.Contains("horas", StringComparison.OrdinalIgnoreCase) ||
+                    tn.Contains("viatico", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            if (EsCodigoHorasLaborales(item.servicio_codigo)) return false;
+            if (!string.IsNullOrWhiteSpace(item.actividad))
+            {
+                var act = item.actividad;
+                if (act.Contains("horas laborales", StringComparison.OrdinalIgnoreCase) ||
+                    act.StartsWith("viatico", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }
-

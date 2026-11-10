@@ -260,7 +260,12 @@
     {
         get
         {
-            if (TemplatesList != null && TemplatesList.Any()) return TemplatesList;
+            if (TemplatesList != null && TemplatesList.Any())
+            {
+                var filtradas = TemplatesList.Where(t => t.id == 9 || (t.nombre != null && t.nombre.Contains("horas laborab", StringComparison.OrdinalIgnoreCase))).ToList();
+                if (filtradas.Any()) return filtradas;
+            }
+            return new List<Combos> { new Combos { id = 9, nombre = "Servicio de horas laborales" } };
             return VariantsList?
                 .Where(v => v.template_id > 0)
                 .Select(v => new Combos { id = v.template_id, nombre = v.template_name })

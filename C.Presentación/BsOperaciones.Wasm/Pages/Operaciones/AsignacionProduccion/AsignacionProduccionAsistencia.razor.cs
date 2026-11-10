@@ -253,7 +253,15 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 }
 
                 var tmplRes = await tmplTask;
-                templatesList = tmplRes.Model?.OrderBy(x => x.nombre).ToList() ?? new();
+                // FILTRO ESTRICTO: En sellado de horas solo mostrar plantilla de horas laborales (id 9)
+                templatesList = (tmplRes.Model ?? new List<Combos>())
+                    .Where(x => x.id == 9 || (x.nombre != null && x.nombre.Contains("horas laborab", StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(x => x.nombre)
+                    .ToList();
+                if (!templatesList.Any())
+                {
+                    templatesList = new List<Combos> { new Combos { id = 9, nombre = "Servicio de horas laborales" } };
+                }
             }
             catch (Exception ex)
             {

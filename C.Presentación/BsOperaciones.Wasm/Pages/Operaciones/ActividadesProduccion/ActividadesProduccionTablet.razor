@@ -2114,10 +2114,8 @@
                 .ToList();
 
             historialHoy = offHoy.Concat(onlineList)
-                .Where(h => (h.template_id == null || (h.template_id != 9 && h.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(h.servicio_codigo))
-                .Where(h => string.IsNullOrWhiteSpace(areaSeleccionada) ||
-                            areaSeleccionada.Equals("CD", StringComparison.OrdinalIgnoreCase) ||
-                            (h.area_cliente != null && h.area_cliente.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+                .Where(h => ProduccionDiariaDto.EsActividadDeProduccion(h))
+                .Where(h => CoincideArea(h.area_cliente, areaSeleccionada))
                 .ToList();
         }
         catch (Exception ex)
@@ -2135,10 +2133,8 @@
                     .ToList();
 
                 historialHoy = offHoy.Concat(onlineList)
-                .Where(h => (h.template_id == null || (h.template_id != 9 && h.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(h.servicio_codigo))
-                .Where(h => string.IsNullOrWhiteSpace(areaSeleccionada) ||
-                            areaSeleccionada.Equals("CD", StringComparison.OrdinalIgnoreCase) ||
-                            (h.area_cliente != null && h.area_cliente.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+                .Where(h => ProduccionDiariaDto.EsActividadDeProduccion(h))
+                .Where(h => CoincideArea(h.area_cliente, areaSeleccionada))
                 .ToList();
             }
             catch { }
@@ -2298,4 +2294,17 @@
             }
         }
     }
+
+    private static bool CoincideArea(string? areaItem, string? areaFiltro)
+    {
+        if (string.IsNullOrWhiteSpace(areaFiltro)) return true;
+        var f = areaFiltro.Trim();
+        var a = (areaItem ?? string.Empty).Trim();
+        if (f.Equals("CD", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrEmpty(a) || a.Equals("CD", StringComparison.OrdinalIgnoreCase) || a == "*";
+        }
+        return a.Equals(f, StringComparison.OrdinalIgnoreCase);
+    }
+
 }

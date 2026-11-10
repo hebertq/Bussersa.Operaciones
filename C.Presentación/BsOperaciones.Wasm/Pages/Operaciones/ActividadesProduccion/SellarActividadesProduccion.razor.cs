@@ -350,7 +350,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_sellar_operacion_id", operacionId.ToString());
 
-                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}";
+                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v2";
                 List<ProduccionDiariaDto> raw = new();
 
                 if (esModoOnline)
@@ -411,7 +411,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                 // FILTRO ESTRICTO: En Sellar Actividades SOLO deben estar las actividades de producción,
                 // NUNCA las horas laborales (plantilla 9) ni viáticos (865).
                 var soloActividades = raw
-                    .Where(a => (a.template_id == null || (a.template_id != 9 && a.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(a.servicio_codigo))
+                    .Where(a => ProduccionDiariaDto.EsActividadDeProduccion(a))
                     .ToList();
 
                 if (soloPendientes)
