@@ -143,6 +143,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 else
                 {
                     var rawList = response.Model?.ToList() ?? new List<ProduccionDiariaDto>();
+
+                    // A partir del 9 de noviembre de 2026, en la pantalla de Producción Diaria SOLO deben aparecer registros sellados
+                    var fechaCorteSellado = new DateTime(2026, 11, 9);
+                    rawList = rawList.Where(x =>
+                        x.fecha_inicio == null ||
+                        x.fecha_inicio.Value.Date < fechaCorteSellado ||
+                        !string.IsNullOrWhiteSpace(x.no_lote) ||
+                        !string.IsNullOrWhiteSpace(x.no_proforma) ||
+                        !string.IsNullOrWhiteSpace(x.no_factura) ||
+                        x.facturada
+                    ).ToList();
+
                     if (targetOpIds.Any())
                     {
                         produccionDiariaList = rawList.Where(x => targetOpIds.Contains(x.operacion_id ?? 0)).ToList();
