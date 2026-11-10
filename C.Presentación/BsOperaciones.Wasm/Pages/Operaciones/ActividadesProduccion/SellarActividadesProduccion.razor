@@ -447,7 +447,7 @@
        ========================================== *@
     <MudTabPanel Text="Trazabilidad y Lotes Sellados" Icon="@Icons.Material.Filled.History">
         <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
-            Esta sección audita los lotes de actividades sellados para facturación comercial en Odoo. Permite consultar el desglose de cada lote o <b>revertir el sellado</b> si requiere correcciones, siempre y cuando no esté facturado.
+            Esta sección audita los lotes de actividades sellados pendientes de facturación comercial en Odoo. Permite auditar el desglose de cada lote o <b>revertir el sellado</b> si requiere correcciones (lo que ya cuenta con proforma de presupuesto o factura comercial se procesa directamente en Odoo).
         </MudAlert>
 
         <MudPaper Elevation="0" Class="pa-4 mb-4" Style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
@@ -486,8 +486,6 @@
                 <MudTh Style="text-align: right;">Total Actividades</MudTh>
                 <MudTh Style="text-align: right;">Cantidad Producida</MudTh>
                 <MudTh Style="text-align: right;">Total Venta ($)</MudTh>
-                <MudTh Style="text-align: center;">Facturada</MudTh>
-                <MudTh>Factura Odoo</MudTh>
                 <MudTh Style="text-align: center;">Acciones</MudTh>
             </HeaderContent>
             <RowTemplate>
@@ -503,34 +501,12 @@
                 <MudTd DataLabel="Total Venta" Style="text-align: right; font-weight: bold; color: #16a34a;">
                     $ @context.total_monto.ToString("N2")
                 </MudTd>
-                <MudTd DataLabel="Facturada" Style="text-align: center;">
-                    @if (context.facturada)
-                    {
-                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">Facturada</MudChip>
-                    }
-                    else
-                    {
-                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">Pendiente</MudChip>
-                    }
-                </MudTd>
-                <MudTd DataLabel="Factura">
-                    @(string.IsNullOrWhiteSpace(context.no_factura) ? "-" : context.no_factura)
-                </MudTd>
                 <MudTd DataLabel="Acciones" Style="text-align: center;">
                     <div class="d-flex align-center justify-center gap-1">
-                        @if (!context.facturada)
-                        {
-                            <MudTooltip Text="Revertir lote (Desellar actividades)">
-                                <MudIconButton Icon="@Icons.Material.Filled.Undo" Size="Size.Small" Color="Color.Error"
-                                               OnClick="@(() => DesellarLote(context.numero_lote))" />
-                            </MudTooltip>
-                        }
-                        else
-                        {
-                            <MudTooltip Text="Lote facturado comercialmente (Protegido)">
-                                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Default" Size="Size.Small" />
-                            </MudTooltip>
-                        }
+                        <MudTooltip Text="Revertir lote (Desellar actividades)">
+                            <MudIconButton Icon="@Icons.Material.Filled.Undo" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => DesellarLote(context.numero_lote))" />
+                        </MudTooltip>
                     </div>
                 </MudTd>
             </RowTemplate>
