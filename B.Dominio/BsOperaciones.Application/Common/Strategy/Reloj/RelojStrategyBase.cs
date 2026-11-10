@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Modelo.Entidades.Entradas.Odoo;
 
 namespace BsOperaciones.Application.Common.Strategy.Reloj
@@ -19,41 +22,42 @@ namespace BsOperaciones.Application.Common.Strategy.Reloj
                 // 2. Ordenamos TODAS las marcas del empleado cronológicamente
                 var ordenadas = grupo.OrderBy(x => x.dt).ToList();
 
-                for (int i = 0; i < ordenadas.Count; i++)
+                // Marcas que inician en el día de la carga
+                var marcasDelDia = ordenadas.Where(x => x.dt.Date == fechaReferencia.Date).ToList();
+                if (!marcasDelDia.Any()) continue;
+
+                // Primer registro: Entrada del día
+                var primerRegistro = marcasDelDia.First().dt;
+
+                // Marcas posteriores dentro de un turno lógico (< 20 horas, contemplando posibles turnos nocturnos)
+                var marcasPosteriores = ordenadas
+                    .Where(x => x.dt > primerRegistro && (x.dt - primerRegistro).TotalHours < 20)
+                    .ToList();
+
+                DateTime? salidaEncontrada = null;
+
+                if (marcasPosteriores.Any())
                 {
-                    var marcaActual = ordenadas[i].dt;
+                    // Tomamos el último registro si supera 1 hora respecto a la entrada
+                    var ultimoRegistro = marcasPosteriores.Last().dt;
+                    double diferenciaHoras = (ultimoRegistro - primerRegistro).TotalHours;
 
-                    // REGLA DE ORO: Solo procesamos marcas que INICIAN el día de la carga.
-                    // Si la marca es de otro día (ej. el 29), la ignoramos como inicio de turno.
-                    if (marcaActual.Date != fechaReferencia.Date) continue;
-
-                    DateTime? salidaEncontrada = null;
-
-                    // 3. Buscamos la siguiente marca para ver si es una salida válida (entre 3 y 14 horas después)
-                    if (i + 1 < ordenadas.Count)
+                    if (diferenciaHoras >= 1)
                     {
-                        var siguienteMarca = ordenadas[i + 1].dt;
-                        double diferenciaHoras = (siguienteMarca - marcaActual).TotalHours;
-
-                        // Si la siguiente marca está en un rango lógico de turno laboral
-                        if (diferenciaHoras >= 1 && diferenciaHoras < 20)
-                        {
-                            salidaEncontrada = siguienteMarca;
-                            // Avanzamos el puntero para no usar la salida como una nueva entrada
-                            i++;
-                        }
+                        salidaEncontrada = ultimoRegistro;
                     }
-
-                    // 4. Agregamos el registro resultante
-                    resultado.Add(new HoraEntrada
-                    {
-                        id = grupo.Key,
-                        fecha = marcaActual.ToString("yyyy-MM-dd"), // Siempre queda la fecha de inicio
-                        entrada = marcaActual.ToString("HH:mm:ss"),
-                        salida = salidaEncontrada?.ToString("HH:mm:ss") ?? "00:00:00"
-                    });
                 }
+
+                // Generamos un solo registro por empleado para la fecha
+                resultado.Add(new HoraEntrada
+                {
+                    id = grupo.Key,
+                    fecha = primerRegistro.ToString("yyyy-MM-dd"),
+                    entrada = primerRegistro.ToString("HH:mm:ss"),
+                    salida = salidaEncontrada?.ToString("HH:mm:ss") ?? "00:00:00"
+                });
             }
+
             return resultado;
         }        
     }
