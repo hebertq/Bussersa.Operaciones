@@ -360,7 +360,8 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                         fchaInicioSemana,
                         fchaFinSemana,
                         operacionId,
-                        null
+                        null,
+                        "actividades"
                     ));
 
                     if (response.Respuesta.ExisteError)
@@ -407,13 +408,19 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                     }
                 }
 
+                // FILTRO ESTRICTO: En Sellar Actividades SOLO deben estar las actividades de producción,
+                // NUNCA las horas laborales (plantilla 9) ni viáticos (865).
+                var soloActividades = raw
+                    .Where(a => (a.template_id == null || (a.template_id != 9 && a.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(a.servicio_codigo))
+                    .ToList();
+
                 if (soloPendientes)
                 {
-                    actividadesList = raw.Where(a => string.IsNullOrWhiteSpace(a.no_lote)).ToList();
+                    actividadesList = soloActividades.Where(a => string.IsNullOrWhiteSpace(a.no_lote)).ToList();
                 }
                 else
                 {
-                    actividadesList = raw;
+                    actividadesList = soloActividades;
                 }
 
                     // Mapear a seleccionables con detección de mes

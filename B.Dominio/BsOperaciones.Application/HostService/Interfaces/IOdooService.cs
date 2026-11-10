@@ -1,4 +1,4 @@
-﻿using Modelo.ClasesGenericas;
+using Modelo.ClasesGenericas;
 using Modelo.Entidades.Entradas.Odoo;
 using Modelo.Entidades.Nomina;
 using Modelo.Interfaces;
@@ -115,7 +115,7 @@ namespace HostService.Interfaces
 
         // --- PRODUCCIÓN DIARIA ---
         Task<IResponse> ImportarProduccionDiaria(List<ProduccionDiariaDto> items);
-        Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura);
+        Task<IListResponse<ProduccionDiariaDto>> GetProduccionDiaria(DateTime? inicio, DateTime? fin, int? operacionId, string? estadoFactura, string? tipoPlantilla = null);
         Task<IResponse> UpdateProduccionDiaria(ProduccionDiariaDto item);
         Task<IResponse> ConsolidarProforma(ConsolidarProformaRequest request);
         Task<IResponse> ActualizarOrdenItemProforma(int itemId, int orden);

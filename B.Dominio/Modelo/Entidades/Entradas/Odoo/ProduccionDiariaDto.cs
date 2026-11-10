@@ -32,6 +32,16 @@ namespace Modelo.Entidades.Entradas.Odoo
         public int? operacion_id { get; set; }
         public int? parent_id { get; set; }
         public string? parent_producto_nombre { get; set; }
+        public int? template_id { get; set; }
+        public string? template_nombre { get; set; }
+
+        public static bool EsCodigoHorasLaborales(string? codigo)
+        {
+            if (string.IsNullOrWhiteSpace(codigo)) return false;
+            var c = codigo.Trim().ToUpperInvariant();
+            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.StartsWith("SVTC") || 
+                   c.Contains("-DIU-") || c.Contains("-EXT-") || c.Contains("-NOC-");
+        }
     }
 }
 

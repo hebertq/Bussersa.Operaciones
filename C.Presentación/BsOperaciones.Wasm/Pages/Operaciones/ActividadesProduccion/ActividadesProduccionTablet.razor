@@ -1,7 +1,8 @@
 @page "/operaciones/actividades-tablet"
 @page "/operaciones/actividades-produccion"
 @layout TabletLayout
-@using Modelo.Entidades.Entradas.Odoo
+@using Modelo.Entidades.Entradas.Odoo
+
 @using Modelo.Entidades.Operaciones
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
@@ -932,7 +933,8 @@
         background: rgba(255, 255, 255, 0.25);
         color: #ffffff;
     }
-
+
+
 </style>
 
 @code {
@@ -971,7 +973,8 @@
     // Selector Dinámico de Empresa
     private int operacionSeleccionadaId = 27;
     private string operacionSeleccionadaNombre = "CBC Pepsi";
-    private List<Combos> operacionesList = new();
+    private List<Combos> operacionesList = new();
+
     private List<ClienteTabItem> clientesPermitidos = new();
 
     // Plantillas de Servicio Maestro (Solo plantillas activas en Odoo)
@@ -1334,8 +1337,11 @@
         if (cli != null)
         {
             operacionSeleccionadaNombre = cli.cliente_nombre;
-            areasClienteList = (cli.areas != null && cli.areas.Any()) 
-                ? cli.areas
+            // FILTRO ESTRICTO: Solo las áreas para las cuales el cliente tiene servicios configurados
+            var areasDeServicios = (cli.servicios != null)
+                ? cli.servicios
+                    .Where(s => s.variantes_count > 0 && s.variantes != null && s.variantes.Any())
+                    .Select(s => s.area_nombre == "*" ? "CD" : s.area_nombre)
                     .Select(a => {
                         var t = a.Trim();
                         if (t.Equals("CS CD", StringComparison.OrdinalIgnoreCase)) return "CD";
@@ -1345,8 +1351,10 @@
                     .Where(a => !string.IsNullOrWhiteSpace(a))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(a => a)
-                    .ToList() 
-                : new List<string> { "CD" };
+                    .ToList()
+                : new List<string>();
+
+            areasClienteList = areasDeServicios.Any() ? areasDeServicios : new List<string> { "CD" };
         }
         else
         {
@@ -1455,6 +1463,7 @@
             filtrosDinamicos.Clear();
             variantesFiltradas.Clear();
         }
+        await CargarHistorialHoy();
         await Task.CompletedTask;
     }
 
@@ -2076,7 +2085,7 @@
 
             if (esModoOnline)
             {
-                var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, operacionSeleccionadaId, null);
+                var res = await OdooService.GetProduccionDiaria(fechaJornada, fechaJornada, operacionSeleccionadaId, null, "actividades");
                 if (!res.Respuesta.ExisteError && res.Model != null)
                 {
                     onlineList = res.Model.OrderByDescending(h => h.id).ToList();
@@ -2104,7 +2113,12 @@
                 .Where(p => p.fecha_inicio?.Date == fechaJornada.Date && p.operacion_id == operacionSeleccionadaId)
                 .ToList();
 
-            historialHoy = offHoy.Concat(onlineList).ToList();
+            historialHoy = offHoy.Concat(onlineList)
+                .Where(h => (h.template_id == null || (h.template_id != 9 && h.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(h.servicio_codigo))
+                .Where(h => string.IsNullOrWhiteSpace(areaSeleccionada) ||
+                            areaSeleccionada.Equals("CD", StringComparison.OrdinalIgnoreCase) ||
+                            (h.area_cliente != null && h.area_cliente.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -2120,7 +2134,12 @@
                     .Where(p => p.fecha_inicio?.Date == fechaJornada.Date && p.operacion_id == operacionSeleccionadaId)
                     .ToList();
 
-                historialHoy = offHoy.Concat(onlineList).ToList();
+                historialHoy = offHoy.Concat(onlineList)
+                .Where(h => (h.template_id == null || (h.template_id != 9 && h.template_id != 865)) && !ProduccionDiariaDto.EsCodigoHorasLaborales(h.servicio_codigo))
+                .Where(h => string.IsNullOrWhiteSpace(areaSeleccionada) ||
+                            areaSeleccionada.Equals("CD", StringComparison.OrdinalIgnoreCase) ||
+                            (h.area_cliente != null && h.area_cliente.Equals(areaSeleccionada, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
             }
             catch { }
         }

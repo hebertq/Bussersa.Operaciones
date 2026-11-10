@@ -1064,5 +1064,13 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                 }
             }
         }
+    
+        private static bool EsCodigoHorasLaborales(string? codigo)
+        {
+            if (string.IsNullOrWhiteSpace(codigo)) return false;
+            var c = codigo.Trim().ToUpperInvariant();
+            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.StartsWith("SVTC") || 
+                   c.Contains("-DIU-") || c.Contains("-EXT-") || c.Contains("-NOC-");
+        }
     }
 }
