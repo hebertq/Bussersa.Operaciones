@@ -334,6 +334,31 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 
         #region Consulta y Consolidación Semanal
 
+        protected async Task OnOperacionChanged(int nuevoId)
+        {
+            operacionId = nuevoId;
+            if (operacionId > 0)
+            {
+                await ConsultarSemana();
+            }
+            else
+            {
+                actividadesList = new();
+                actividadesSeleccionables = new();
+                grillaConsolidada = new();
+                StateHasChanged();
+            }
+        }
+
+        protected async Task OnSoloPendientesChanged(bool nuevoValor)
+        {
+            soloPendientes = nuevoValor;
+            if (operacionId > 0)
+            {
+                await ConsultarSemana();
+            }
+        }
+
         protected async Task ConsultarSemana()
         {
             if (operacionId <= 0)
@@ -821,6 +846,18 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
         #endregion
 
         #region Trazabilidad y Lotes Sellados
+
+        protected async Task OnHistoricoClienteChanged(int nuevoClienteId)
+        {
+            historicoClienteId = nuevoClienteId;
+            await CargarHistorico();
+        }
+
+        protected async Task OnHistoricoAnioChanged(int nuevoAnio)
+        {
+            historicoAnio = nuevoAnio;
+            await CargarHistorico();
+        }
 
         protected async Task CargarHistorico()
         {

@@ -176,6 +176,18 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
         }
 
+        protected async Task OnOperacionFilterChanged(int? newOpId)
+        {
+            filtroOperacionId = newOpId;
+            await CargarProduccion();
+        }
+
+        protected async Task OnEstadoFilterChanged(string newEstado)
+        {
+            filtroEstado = newEstado;
+            await CargarProduccion();
+        }
+
         protected void LimpiarFiltros()
         {
             dateRange = new DateRange(DateTime.Today.AddDays(-30), DateTime.Today);

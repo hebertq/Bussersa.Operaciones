@@ -150,7 +150,7 @@
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudSelect T="int?" Label="Cliente / Operación" @bind-Value="filtroOperacionId" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelect T="int?" Label="Cliente / Operación" Value="filtroOperacionId" ValueChanged="OnOperacionFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                     <MudSelectItem T="int?" Value="@((int?)null)">Todos</MudSelectItem>
                     @if (operacionesList != null)
                     {
@@ -162,7 +162,7 @@
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="2">
-                <MudSelect T="string" Label="Estado de Facturación" @bind-Value="filtroEstado" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelect T="string" Label="Estado de Facturación" Value="filtroEstado" ValueChanged="OnEstadoFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
                     <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
                     <MudSelectItem Value="@("SinProforma")">Sin Proforma</MudSelectItem>
                     <MudSelectItem Value="@("ConProforma")">Con Proforma (Pendiente Factura)</MudSelectItem>
