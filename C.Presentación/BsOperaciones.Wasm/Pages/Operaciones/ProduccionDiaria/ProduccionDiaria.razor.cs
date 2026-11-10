@@ -881,7 +881,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         g.Key.Cliente,
                         g.Key.Area,
                         g.Key.SKU,
-                        Descripcion = g.Select(x => !string.IsNullOrWhiteSpace(x.nombre_producto) ? x.nombre_producto : x.servicio_descripcion)
+                        Descripcion = g.Select(x => !string.IsNullOrWhiteSpace(x.asignado_a) ? x.asignado_a.Trim() : (!string.IsNullOrWhiteSpace(x.nombre_producto) ? x.nombre_producto : x.servicio_descripcion))
                                        .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d)) ?? g.Key.SKU,
                         FechaInicio = g.Min(x => x.fecha_inicio),
                         FechaFin = g.Max(x => x.fecha_fin ?? x.fecha_inicio),
@@ -958,6 +958,11 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         rangoFechas = x.fecha_inicio.Value.ToString("dd/MM/yyyy");
                     }
 
+                    // En la columna Actividad del Excel, colocar la Observación (asignado_a) si existe; si no, dejar la actividad original.
+                    string actividadAMostrar = !string.IsNullOrWhiteSpace(x.asignado_a)
+                        ? x.asignado_a.Trim()
+                        : (!string.IsNullOrWhiteSpace(x.actividad) ? x.actividad.Trim() : "");
+
                     var dict = new Dictionary<string, object>
                     {
                         { "ID", x.id },
@@ -967,7 +972,8 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         { "Hoja Servicio", x.hoja_servicio ?? "" },
                         { "Cliente", x.cliente ?? "" },
                         { "Área / Cadena", x.area_cliente ?? "" },
-                        { "Actividad", x.actividad ?? "" },
+                        { "Actividad", actividadAMostrar },
+                        { "Observaciones", x.asignado_a ?? "" },
                         { "Código SKU", x.servicio_codigo ?? "" },
                         { "Descripción", x.servicio_descripcion ?? "" },
                         { "No. Lote", x.no_lote ?? "" },

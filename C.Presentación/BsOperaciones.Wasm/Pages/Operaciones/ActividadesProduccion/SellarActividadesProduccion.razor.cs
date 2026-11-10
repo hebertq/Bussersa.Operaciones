@@ -350,7 +350,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_sellar_operacion_id", operacionId.ToString());
 
-                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v2";
+                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v3";
                 List<ProduccionDiariaDto> raw = new();
 
                 if (esModoOnline)
@@ -410,8 +410,10 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 
                 // FILTRO ESTRICTO: En Sellar Actividades SOLO deben estar las actividades de producción,
                 // NUNCA las horas laborales (plantilla 9) ni viáticos (865).
+                // REGLA: Nunca mostrar lo que ya está facturado o con proforma de presupuesto
                 var soloActividades = raw
                     .Where(a => ProduccionDiariaDto.EsActividadDeProduccion(a))
+                    .Where(a => string.IsNullOrWhiteSpace(a.no_factura) && string.IsNullOrWhiteSpace(a.no_proforma) && !a.facturada)
                     .ToList();
 
                 if (soloPendientes)
@@ -632,9 +634,9 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             }
 
             bool? confirm = await _dialogService.ShowMessageBox(
-                "Eliminar Actividad de Producción",
-                $"¿Está seguro de eliminar el registro de '{item.actividad}' ({item.nombre_producto}) con cantidad {item.cantidad_producto:N2} unidades?",
-                yesText: "Sí, Eliminar",
+                "Eliminar Actividad de Base de Datos",
+                $"⚠️ ADVERTENCIA: Esta acción ELIMINARÁ PERMANENTEMENTE el registro de la BASE DE DATOS (no solo de la tabla en pantalla).\n\n¿Está seguro de eliminar definitivamente '{item.actividad}' ({item.nombre_producto}) con {item.cantidad_producto:N2} unidades?\n\n(💡 Si únicamente desea excluirlo de este lote a sellar, desmarque la casilla 'Sel' a la izquierda).",
+                yesText: "Sí, Eliminar de BD",
                 cancelText: "Cancelar"
             );
 

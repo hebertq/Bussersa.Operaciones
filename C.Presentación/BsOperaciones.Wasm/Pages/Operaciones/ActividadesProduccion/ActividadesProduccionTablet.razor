@@ -2039,11 +2039,14 @@
                         ?? ObtenerValorAtributo(varianteSeleccionada.nombre, "Área") 
                         ?? areaSeleccionada;
 
+        string obsTexto = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim();
+        string actTexto = !string.IsNullOrWhiteSpace(obsTexto) ? obsTexto : (servicioSeleccionado?.NombreCorto ?? "Actividad de Producción");
+
         var item = new ProduccionDiariaDto
         {
             cliente = operacionSeleccionadaNombre,
             operacion_id = operacionSeleccionadaId,
-            actividad = servicioSeleccionado?.NombreCorto ?? "Actividad de Producción",
+            actividad = actTexto,
             area_cliente = !string.IsNullOrWhiteSpace(areaFinal) ? areaFinal : areaSeleccionada,
             servicio_codigo = varianteSeleccionada.default_code,
             servicio_descripcion = varianteSeleccionada.nombre,
@@ -2056,7 +2059,7 @@
             hora_fin = turnoSeleccionado.Contains("Nocturno") ? "07:00" : "19:00",
             no_lote = string.IsNullOrWhiteSpace(noLote) ? null : noLote.Trim(),
             oc = string.IsNullOrWhiteSpace(ordenCompra) ? null : ordenCompra.Trim(),
-            asignado_a = string.IsNullOrWhiteSpace(observaciones) ? null : observaciones.Trim(),
+            asignado_a = obsTexto,
             facturada = false
         };
 

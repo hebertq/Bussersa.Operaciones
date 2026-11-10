@@ -361,9 +361,8 @@
                         <MudTh Style="text-align: right;">Cantidad</MudTh>
                         <MudTh Style="text-align: right;">Tarifa ($)</MudTh>
                         <MudTh Style="text-align: right;">Subtotal ($)</MudTh>
-                        <MudTh>Estado</MudTh>
+                        <MudTh Style="text-align: center; width: 80px;">Estado</MudTh>
                         <MudTh>N° Lote</MudTh>
-                        <MudTh>Factura</MudTh>
                         <MudTh Style="width: 100px; text-align: center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -391,34 +390,20 @@
                         <MudTd DataLabel="Subtotal" Style="text-align: right; font-weight: bold; color: #16a34a;">
                             $ @((context.cantidad_producto * context.costo_producto).ToString("N2"))
                         </MudTd>
-                        <MudTd DataLabel="Estado">
+                        <MudTd DataLabel="Estado" Style="text-align: center; width: 80px;">
                             @if (!string.IsNullOrWhiteSpace(context.no_lote))
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Lock">SELLADO</MudChip>
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 10.5px; height: 20px; font-weight: bold; padding: 0 8px;">SELL.</MudChip>
                             }
                             else
                             {
-                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.HourglassEmpty">PENDIENTE</MudChip>
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 10.5px; height: 20px; font-weight: bold; padding: 0 8px;">PEND.</MudChip>
                             }
                         </MudTd>
                         <MudTd DataLabel="Lote">
                             @if (!string.IsNullOrWhiteSpace(context.no_lote))
                             {
                                 <code>@context.no_lote</code>
-                            }
-                            else
-                            {
-                                <span class="text-muted">-</span>
-                            }
-                        </MudTd>
-                        <MudTd DataLabel="Factura">
-                            @if (!string.IsNullOrWhiteSpace(context.no_factura))
-                            {
-                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">@context.no_factura</MudChip>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(context.no_proforma))
-                            {
-                                <span style="font-size: 11px;">@context.no_proforma</span>
                             }
                             else
                             {
@@ -433,7 +418,7 @@
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
                                                        OnClick="@(() => AbrirModalEditar(context))" />
                                     </MudTooltip>
-                                    <MudTooltip Text="Eliminar actividad">
+                                    <MudTooltip Text="Eliminar definitivamente de la Base de Datos (Si solo desea no sellarla, desmarque 'Sel')">
                                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
                                                        OnClick="@(() => ConfirmarEliminar(context))" />
                                     </MudTooltip>

@@ -258,8 +258,12 @@
             <MudTd DataLabel="SKU / Servicio / Producto">
                 <div class="font-bold">@context.servicio_codigo</div>
                 <div class="text-secondary" style="font-size: 0.8rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    @(string.IsNullOrWhiteSpace(context.nombre_producto) ? context.servicio_descripcion : context.nombre_producto)
+                    @(!string.IsNullOrWhiteSpace(context.asignado_a) ? context.asignado_a : (string.IsNullOrWhiteSpace(context.nombre_producto) ? context.servicio_descripcion : context.nombre_producto))
                 </div>
+                @if (!string.IsNullOrWhiteSpace(context.asignado_a) && !string.IsNullOrWhiteSpace(context.nombre_producto) && context.asignado_a != context.nombre_producto)
+                {
+                    <div class="text-muted" style="font-size: 0.72rem; font-style: italic;">@context.nombre_producto</div>
+                }
             </MudTd>
             <MudTd DataLabel="Peso / Cantidad">
                 @if (context.peso > 0)
