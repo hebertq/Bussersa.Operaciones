@@ -185,12 +185,14 @@
 
             <!-- 4. Estado de Facturación -->
             <MudItem xs="12" sm="6" md="3">
-                <MudSelect T="string" Label="Estado de Facturación" Value="filtroEstado" ValueChanged="OnEstadoFilterChanged"
+                <MudSelect T="string" Label="Estado" Value="filtroEstado" ValueChanged="OnEstadoFilterChanged"
                            Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
                     <MudSelectItem Value="@("Todos")">Todos los Estados</MudSelectItem>
+                    <MudSelectItem Value="@("Selladas")">Sellado (Listo para Proforma)</MudSelectItem>
+                    <MudSelectItem Value="@("Pendientes")">Pendiente (Sin Sellar)</MudSelectItem>
                     <MudSelectItem Value="@("SinProforma")">Sin Proforma</MudSelectItem>
-                    <MudSelectItem Value="@("ConProforma")">Con Proforma (Pendiente Factura)</MudSelectItem>
-                    <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
+                    <MudSelectItem Value="@("ConProforma")">Con Proforma</MudSelectItem>
+                    <MudSelectItem Value="@("Facturada")">Facturadas</MudSelectItem>
                 </MudSelect>
             </MudItem>
 
@@ -274,9 +276,9 @@
                            Disabled="@estaConsolidando">
                     Quitar Proforma/Factura
                 </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="EliminarSeleccionados"
+                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever" OnClick="EliminarSeleccionados"
                            Disabled="@estaConsolidando">
-                    Eliminar Seleccionados
+                    Eliminar de Base de Datos (@selectedItems.Count)
                 </MudButton>
             </div>
         </MudPaper>
@@ -292,7 +294,6 @@
             <MudTh>Peso / Cantidad</MudTh>
             <MudTh>Tarifa / Costo</MudTh>
             <MudTh Style="text-align: center;">Nº Proforma</MudTh>
-            <MudTh Style="text-align: center;">Nº Factura</MudTh>
             <MudTh Style="text-align: center;">Estado</MudTh>
             <MudTh Style="text-align: center;">Acciones</MudTh>
         </HeaderContent>
@@ -355,28 +356,26 @@
                     <span class="text-muted" style="font-size: 0.8rem;">-</span>
                 }
             </MudTd>
-            <MudTd DataLabel="Nº Factura" Style="text-align: center;">
-                @if (!string.IsNullOrEmpty(context.no_factura))
-                {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold; font-size: 11px;">@context.no_factura</MudChip>
-                }
-                else
-                {
-                    <span class="text-muted" style="font-size: 0.8rem;">-</span>
-                }
-            </MudTd>
             <MudTd DataLabel="Estado" Style="text-align: center;">
-                @if (context.facturada)
+                @if (context.facturada || !string.IsNullOrEmpty(context.no_factura))
                 {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 11px;">Facturada</MudChip>
+                    <MudTooltip Text="@($"Factura: {context.no_factura}")">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 10px; font-weight: bold;">FACTURADO</MudChip>
+                    </MudTooltip>
                 }
                 else if (!string.IsNullOrEmpty(context.no_proforma))
                 {
-                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px;">Con Proforma</MudChip>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 10px; font-weight: bold;">PROFORMA</MudChip>
+                }
+                else if (!string.IsNullOrWhiteSpace(context.no_lote))
+                {
+                    <MudTooltip Text="@($"Lote: {context.no_lote}")">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Lock" Style="font-size: 10px; font-weight: bold;">SELLADO</MudChip>
+                    </MudTooltip>
                 }
                 else
                 {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px;">Sin Proforma</MudChip>
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 10px;">PENDIENTE</MudChip>
                 }
             </MudTd>
             <MudTd DataLabel="Acciones" Style="text-align: center;">
@@ -384,7 +383,7 @@
                     <MudTooltip Text="Editar registro">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="@(() => EditarRegistro(context))" />
                     </MudTooltip>
-                    <MudTooltip Text="Eliminar registro">
+                    <MudTooltip Text="Eliminar de Base de Datos">
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => EliminarRegistro(context))" />
                     </MudTooltip>
                 </div>

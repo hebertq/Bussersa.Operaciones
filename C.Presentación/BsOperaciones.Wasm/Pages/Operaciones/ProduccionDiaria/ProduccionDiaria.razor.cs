@@ -203,6 +203,16 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                         x.facturada
                     ).ToList();
 
+                    // Filtros específicos adicionales en memoria si se seleccionó Selladas o Pendientes
+                    if (filtroEstado == "Selladas")
+                    {
+                        rawList = rawList.Where(x => !string.IsNullOrWhiteSpace(x.no_lote) && string.IsNullOrWhiteSpace(x.no_proforma) && string.IsNullOrWhiteSpace(x.no_factura) && !x.facturada).ToList();
+                    }
+                    else if (filtroEstado == "Pendientes")
+                    {
+                        rawList = rawList.Where(x => string.IsNullOrWhiteSpace(x.no_lote) && string.IsNullOrWhiteSpace(x.no_proforma) && string.IsNullOrWhiteSpace(x.no_factura) && !x.facturada).ToList();
+                    }
+
                     if (targetOpIds.Any())
                     {
                         produccionDiariaList = rawList.Where(x => targetOpIds.Contains(x.operacion_id ?? 0)).ToList();
@@ -393,9 +403,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
 
             bool? result = await _dialogService.ShowMessageBox(
-                "Confirmar Eliminación",
-                $"¿Está seguro de eliminar el registro de {item.servicio_descripcion} del cliente {item.cliente}?",
-                yesText: "Eliminar", cancelText: "Cancelar");
+                "⚠️ Confirmar Eliminación en Base de Datos",
+                $"ATENCIÓN: ¿Está seguro de eliminar PERMANENTEMENTE de la BASE DE DATOS el registro de '{item.servicio_descripcion}' del cliente '{item.cliente}'?\n\nEsta acción borrará el registro de la Base de Datos física (no solo de la tabla en pantalla) y no se puede deshacer.",
+                yesText: "Eliminar de Base de Datos", cancelText: "Cancelar");
 
             if (result == true)
             {
@@ -438,9 +448,9 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             }
 
             bool? result = await _dialogService.ShowMessageBox(
-                "Confirmar Eliminación Masiva",
-                $"¿Está seguro de eliminar los {deletable.Count} registros seleccionados?",
-                yesText: "Eliminar Todo", cancelText: "Cancelar");
+                "⚠️ Confirmar Eliminación en Base de Datos",
+                $"ATENCIÓN: ¿Está seguro de eliminar PERMANENTEMENTE de la BASE DE DATOS los {deletable.Count} registros seleccionados?\n\nEsta acción borrará los registros de la Base de Datos física (no solo de la tabla en pantalla) y no se puede deshacer.",
+                yesText: "Eliminar de Base de Datos", cancelText: "Cancelar");
 
             if (result == true)
             {
@@ -738,6 +748,21 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 _snackbar.Add("Seleccione ítems e ingrese el número de proforma o factura.", Severity.Warning);
                 return;
+            }
+
+            // REGLA: A partir del 9 de noviembre de 2026, solo se puede crear/asociar proforma a actividades que estén selladas
+            var fechaCorte = new DateTime(2026, 11, 9);
+            if (!string.IsNullOrWhiteSpace(noProformaConsolidada))
+            {
+                var noSelladosPostCorte = selectedItems
+                    .Where(x => x.fecha_inicio.HasValue && x.fecha_inicio.Value.Date >= fechaCorte && string.IsNullOrWhiteSpace(x.no_lote))
+                    .ToList();
+
+                if (noSelladosPostCorte.Any())
+                {
+                    _snackbar.Add($"⚠️ No se puede crear o asociar proforma a {noSelladosPostCorte.Count} actividad(es) con fecha igual o posterior al 09/11/2026 porque NO están selladas. Primero debe sellarlas en 'Sellar Actividades' para asignarles lote.", Severity.Error);
+                    return;
+                }
             }
 
             estaConsolidando = true;
