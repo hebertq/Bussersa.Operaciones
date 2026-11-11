@@ -6,14 +6,14 @@
 
 <style>
     .page-container {
-        padding: 24px;
+        padding: 20px;
         background: #f8fafc;
         min-height: 100vh;
     }
     .panel-card {
         border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(226, 232, 240, 0.8);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e2e8f0;
         background: white;
     }
     .section-title {
@@ -25,133 +25,139 @@
     }
     .accent-bar {
         height: 4px;
-        width: 60px;
+        width: 50px;
         background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
         border-radius: 2px;
-        margin-bottom: 20px;
+        margin-top: 4px;
+    }
+    .kpi-card {
+        border-radius: 10px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     }
 </style>
 
 <div class="page-container">
-    <div class="d-flex justify-content-between align-items-center mb-2">
+    <!-- Header Principal -->
+    <div class="d-flex justify-space-between align-center mb-4 flex-wrap gap-2">
         <div>
             <h3 class="section-title">
                 <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Success" Size="Size.Large" />
-                Gestión de Producción Diaria y Proformas
+                Gestión de Producción Diaria y Facturación
             </h3>
             <div class="accent-bar"></div>
         </div>
-        <div class="d-flex gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew" Href="/operaciones/generar-proformas">
+        <div class="d-flex gap-2 align-center">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Autorenew"
+                       Href="/operaciones/generar-proformas" Size="Size.Small">
                 Importar Proformas Odoo
             </MudButton>
         </div>
     </div>
 
-    <MudGrid Class="mb-6">
-        <!-- Generar y Descargar Formato -->
-        <MudItem xs="12" md="6">
-            <MudCard Class="panel-card pa-4 h-100">
-                <MudCardHeader Class="pa-0 pb-3">
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.h6" Class="font-bold text-success d-flex align-items-center gap-2">
-                            <MudIcon Icon="@Icons.Material.Filled.CloudDownload" />
-                            Descargar Formato Prellenado
-                        </MudText>
-                        <MudText Typo="Typo.body2" Class="text-secondary">Genera una plantilla Excel prellenada con las variantes del servicio seleccionado.</MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
-                <MudCardContent Class="pa-0 pt-2">
-                    <MudGrid Spacing="2">
-                        <MudItem xs="12">
-                            <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
-                                <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
-                                @if (operacionesList != null)
-                                {
-                                    @foreach (var item in operacionesList)
-                                    {
-                                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
-                                    }
-                                }
-                            </MudSelect>
-                        </MudItem>
-                    </MudGrid>
-                </MudCardContent>
-                <MudCardActions Class="pa-0 pt-4 justify-end">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download" OnClick="DescargarPlantillaExcel"
-                               Disabled="@(operacionCargaId == 0 || estaDescargando)">
-                        @(estaDescargando ? "Generando..." : "Descargar Formato")
-                    </MudButton>
-                </MudCardActions>
-            </MudCard>
-        </MudItem>
-
-        <!-- Subir Producción -->
-        <MudItem xs="12" md="6">
-            <MudCard Class="panel-card pa-4 h-100 d-flex flex-column justify-between">
-                <MudCardHeader Class="pa-0 pb-3">
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.h6" Class="font-bold text-primary d-flex align-items-center gap-2">
-                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" />
-                            Cargar Producción Diaria
-                        </MudText>
-                        <MudText Typo="Typo.body2" Class="text-secondary">Sube el archivo Excel completado para registrar la producción diaria.</MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
-                <MudCardContent Class="pa-0 pt-2 d-flex flex-column gap-3 justify-center flex-grow-1">
-                    <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId" Variant="Variant.Outlined" Margin="Margin.Dense">
-                        <MudSelectItem Value="0">Seleccione una operación o se autodetectará al elegir archivo...</MudSelectItem>
-                        @if (operacionesList != null)
-                        {
-                            @foreach (var item in operacionesList)
+    <!-- Herramientas de Excel: Descargar y Cargar (Compacto / Colapsable) -->
+    <MudExpansionPanels Elevation="0" Class="mb-4" Outlined="true" Style="border-radius: 12px; border: 1px solid #e2e8f0; background: white;">
+        <MudExpansionPanel Text="Herramientas de Importación / Plantillas Excel (Descarga y Carga Masiva)"
+                           Icon="@Icons.Material.Filled.CloudSync"
+                           Dense="true"
+                           Class="font-bold text-secondary">
+            <MudGrid Spacing="3" Class="pa-2 align-center">
+                <!-- Columna Descargar Formato -->
+                <MudItem xs="12" md="6" Class="border-end-md pr-md-4">
+                    <div class="d-flex align-center gap-2 mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Color="Color.Success" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Class="font-bold text-success">Descargar Formato Prellenado</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="text-secondary d-block mb-2">
+                        Genera un archivo Excel prellenado con las variantes de servicios del cliente.
+                    </MudText>
+                    <div class="d-flex gap-2 align-center">
+                        <MudSelect T="int" Label="Operación / Cliente" @bind-Value="operacionCargaId"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Class="flex-grow-1">
+                            <MudSelectItem Value="0">Seleccione una operación...</MudSelectItem>
+                            @if (operacionesList != null)
                             {
-                                <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                                @foreach (var item in operacionesList)
+                                {
+                                    <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                                }
                             }
-                        }
-                    </MudSelect>
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick="DescargarPlantillaExcel" Size="Size.Small" Style="height: 40px; white-space: nowrap;"
+                                   Disabled="@(operacionCargaId == 0 || estaDescargando)">
+                            @(estaDescargando ? "Generando..." : "Descargar")
+                        </MudButton>
+                    </div>
+                </MudItem>
 
-                    <div class="d-flex flex-column align-center w-100 pa-4" style="border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc;">
-                        <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
-                        @if (archivoExcel == null)
-                        {
-                            <MudText Typo="Typo.body2" Class="text-secondary mb-3">No hay ningún archivo seleccionado.</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.body1" Class="font-bold text-success mb-3">@archivoExcel.Name</MudText>
-                        }
+                <!-- Columna Cargar Producción -->
+                <MudItem xs="12" md="6" Class="pl-md-4">
+                    <div class="d-flex align-center gap-2 mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Color="Color.Primary" Size="Size.Small" />
+                        <MudText Typo="Typo.subtitle2" Class="font-bold text-primary">Cargar Producción Diaria (Excel)</MudText>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="text-secondary d-block mb-2">
+                        Sube el Excel completado para registrar la producción en base de datos.
+                    </MudText>
+                    <div class="d-flex gap-2 align-center flex-wrap">
                         <MudFileUpload T="IBrowserFile" OnFilesChanged="OnExcelFileSelected" Accept=".xlsx, .xls">
                             <ActivatorContent>
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FileOpen">
-                                    Seleccionar Excel
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FileOpen"
+                                           Size="Size.Small" Style="height: 40px; white-space: nowrap;">
+                                    @(archivoExcel == null ? "Elegir Excel" : archivoExcel.Name)
                                 </MudButton>
                             </ActivatorContent>
                         </MudFileUpload>
-                    </div>
-                </MudCardContent>
-                <MudCardActions Class="pa-0 pt-4 justify-end">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload" OnClick="ImportarArchivoProduccion"
-                               Disabled="@(archivoExcel == null || operacionCargaId == 0 || estaImportando)">
-                        @(estaImportando ? "Procesando..." : "Importar Producción")
-                    </MudButton>
-                </MudCardActions>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
 
-    <!-- Filtros de Historial -->
-    <MudCard Class="panel-card pa-4 mb-6">
-        <MudText Typo="Typo.subtitle1" Class="font-bold mb-3 d-flex align-items-center gap-2">
-            <MudIcon Icon="@Icons.Material.Filled.FilterList" Color="Color.Default" />
-            Filtros de Búsqueda
-        </MudText>
-        <MudGrid Spacing="2" Class="align-end">
-            <MudItem xs="12" sm="3">
+                        <MudSelect T="int" Label="Operación" @bind-Value="operacionCargaId"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Style="min-width: 170px;" Class="flex-grow-1">
+                            <MudSelectItem Value="0">Autodetectar o elegir...</MudSelectItem>
+                            @if (operacionesList != null)
+                            {
+                                @foreach (var item in operacionesList)
+                                {
+                                    <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Upload"
+                                   OnClick="ImportarArchivoProduccion" Size="Size.Small" Style="height: 40px; white-space: nowrap;"
+                                   Disabled="@(archivoExcel == null || operacionCargaId == 0 || estaImportando)">
+                            @(estaImportando ? "Importando..." : "Cargar")
+                        </MudButton>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+
+    <!-- Filtros de Búsqueda -->
+    <MudCard Class="panel-card pa-4 mb-4">
+        <div class="d-flex justify-space-between align-center mb-3">
+            <MudText Typo="Typo.subtitle1" Class="font-bold d-flex align-center gap-2">
+                <MudIcon Icon="@Icons.Material.Filled.FilterAlt" Color="Color.Primary" Size="Size.Small" />
+                Filtros de Producción
+            </MudText>
+        </div>
+        <MudGrid Spacing="2" Class="align-center">
+            <!-- 1. Rango de Fechas -->
+            <MudItem xs="12" sm="6" md="3">
                 <MudDateRangePicker Label="Rango de Fechas (Inicio)" @bind-DateRange="dateRange" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudSelect T="int?" Label="Cliente / Operación" Value="filtroOperacionId" ValueChanged="OnOperacionFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-                    <MudSelectItem T="int?" Value="@((int?)null)">Todos</MudSelectItem>
+
+            <!-- 2. Cliente / Operación -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?" Label="Cliente / Operación" Value="filtroOperacionId" ValueChanged="OnOperacionFilterChanged"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true">
+                    <MudSelectItem T="int?" Value="@((int?)null)">-- Seleccione un Cliente --</MudSelectItem>
+                    <MudSelectItem T="int?" Value="@(-1)">⚡ Todas las Operaciones</MudSelectItem>
                     @if (operacionesList != null)
                     {
                         @foreach (var item in operacionesList)
@@ -161,40 +167,95 @@
                     }
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="2">
-                <MudSelect T="string" Label="Estado de Facturación" Value="filtroEstado" ValueChanged="OnEstadoFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem Value="@("Todos")">Todos</MudSelectItem>
+
+            <!-- 3. Filtro Multi-Áreas -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Área(s) a Filtrar" MultiSelection="true" @bind-SelectedValues="areasSeleccionadas"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true" Clearable="true"
+                           SelectAll="true" SelectAllText="Seleccionar todas"
+                           MultiSelectionTextFunc="@(new Func<List<string>, string>(GetMultiSelectionText))"
+                           Placeholder="@(listaAreasDisponibles.Any() ? "Todas las áreas..." : "Sin áreas cargadas")"
+                           Disabled="@(!listaAreasDisponibles.Any())">
+                    @foreach (var area in listaAreasDisponibles)
+                    {
+                        <MudSelectItem T="string" Value="@area">@area</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <!-- 4. Estado de Facturación -->
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Estado de Facturación" Value="filtroEstado" ValueChanged="OnEstadoFilterChanged"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true">
+                    <MudSelectItem Value="@("Todos")">Todos los Estados</MudSelectItem>
                     <MudSelectItem Value="@("SinProforma")">Sin Proforma</MudSelectItem>
                     <MudSelectItem Value="@("ConProforma")">Con Proforma (Pendiente Factura)</MudSelectItem>
                     <MudSelectItem Value="@("Facturada")">Facturadas / Billed</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" sm="3" Class="d-flex gap-2" Style="margin-bottom: 5px;">
-                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search" OnClick="CargarProduccion" Class="flex-grow-1">
-                    Buscar
+
+            <!-- Botones de Acción -->
+            <MudItem xs="12" Class="d-flex justify-end align-center gap-2 pt-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.FilterAltOff"
+                           OnClick="LimpiarFiltros" Size="Size.Small" Style="height: 38px;">
+                    Limpiar
                 </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportarExcelAnalisis" Disabled="@(estaCargando || estaExportando)">
-                    Exportar
+                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Search"
+                           OnClick="CargarProduccion" Size="Size.Small" Style="height: 38px;" Disabled="@estaCargando">
+                    @(estaCargando ? "Buscando..." : "Buscar")
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload"
+                           OnClick="ExportarExcelAnalisis" Size="Size.Small" Style="height: 38px;"
+                           Disabled="@(!ProduccionFiltrada.Any() || estaCargando || estaExportando)">
+                    @(estaExportando ? "Exportando..." : $"Exportar Excel ({ProduccionFiltrada.Count()})")
                 </MudButton>
             </MudItem>
         </MudGrid>
     </MudCard>
 
-    <div class="px-4 py-2 mb-6 border rounded-lg bg-light d-flex align-center gap-4 text-secondary" style="font-size: 12px; border-color: var(--mud-palette-divider); background-color: #f8f9fa;">
-        <div class="d-flex align-center gap-1">
-            <MudIcon Icon="@Icons.Material.Filled.BugReport" Size="Size.Small" Color="Color.Warning" />
-            <strong>Parámetros de Búsqueda Activos:</strong>
-        </div>
-        <div>Rango: <span class="font-medium text-dark">@(dateRange?.Start?.ToString("dd/MM/yyyy") ?? "N/A")</span> al <span class="font-medium text-dark">@(dateRange?.End?.ToString("dd/MM/yyyy") ?? "N/A")</span></div>
-        <div>ID Operación: <span class="font-bold text-primary">@(filtroOperacionId?.ToString() ?? "null (Todos)")</span></div>
-        <div>Filtro Estado: <span class="font-bold text-success">@filtroEstado</span></div>
-        <div>Registros Cargados: <span class="font-bold text-info">@produccionDiariaList.Count</span></div>
-    </div>
+    <!-- Resumen Ejecutivo (KPI Ribbon) -->
+    @if (produccionDiariaList.Any())
+    {
+        <MudGrid Spacing="2" Class="mb-4">
+            <MudItem xs="6" sm="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center kpi-card" Style="border-left: 4px solid #3b82f6;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Registros Filtrados</MudText>
+                    <MudText Typo="Typo.h5" Class="fw-bold text-primary">@ProduccionFiltrada.Count()</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">de @produccionDiariaList.Count totales</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center kpi-card" Style="border-left: 4px solid #f59e0b;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Cantidad Producida</MudText>
+                    <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #d97706;">@TotalCantidadFiltrada.ToString("N0")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">unidades / servicios</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center kpi-card" Style="border-left: 4px solid #10b981;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Total Facturable</MudText>
+                    <MudText Typo="Typo.h5" Class="fw-bold text-success">$ @TotalMontoFiltrado.ToString("N2")</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">estimado en tarifas</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center kpi-card" Style="border-left: 4px solid #8b5cf6;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold text-uppercase">Áreas en Vista</MudText>
+                    <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #7c3aed;">
+                        @(areasSeleccionadas.Any() ? $"{areasSeleccionadas.Count()} sel." : $"{listaAreasDisponibles.Count} total")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
+                        @(string.Join(", ", ProduccionFiltrada.Select(p => p.area_cliente).Where(a => !string.IsNullOrEmpty(a)).Distinct().Take(2)))@((ProduccionFiltrada.Select(p => p.area_cliente).Where(a => !string.IsNullOrEmpty(a)).Distinct().Count() > 2) ? "..." : "")
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
 
     <!-- Panel de Acciones de Consolidación (Se muestra al seleccionar filas) -->
     @if (selectedItems != null && selectedItems.Any())
     {
-        <MudPaper Class="pa-4 mb-6 d-flex align-center justify-between border-success" Style="border-left: 6px solid #10b981; background: #ecfdf5;">
+        <MudPaper Class="pa-4 mb-4 d-flex align-center justify-between border-success flex-wrap gap-2" Style="border-left: 6px solid #10b981; background: #ecfdf5; border-radius: 10px;">
             <div class="d-flex align-center gap-3">
                 <MudIcon Icon="@Icons.Material.Filled.LibraryAddCheck" Color="Color.Success" Size="Size.Large" />
                 <div>
@@ -222,7 +283,7 @@
     }
 
     <!-- Tabla de Resultados -->
-    <MudTable T="ProduccionDiariaDto" Items="@produccionDiariaList" MultiSelection="true" SelectedItems="selectedItems" SelectedItemsChanged="OnSelectedItemsChanged"
+    <MudTable T="ProduccionDiariaDto" Items="@ProduccionFiltrada" MultiSelection="true" SelectedItems="selectedItems" SelectedItemsChanged="OnSelectedItemsChanged"
               Hover="true" Striped="true" Bordered="true" Dense="true" Class="panel-card" Loading="@estaCargando" LoadingProgressColor="Color.Info">
         <HeaderContent>
             <MudTh>Fecha</MudTh>
@@ -253,7 +314,18 @@
                         </MudChip>
                     }
                 </div>
-                <div class="text-secondary" style="font-size: 0.8rem;">@context.area_cliente</div>
+                <div class="text-secondary" style="font-size: 0.8rem;">
+                    @if (!string.IsNullOrWhiteSpace(context.area_cliente))
+                    {
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" Style="font-size: 10px; height: 18px; padding: 0 4px;">
+                            @context.area_cliente
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <span class="text-muted">-</span>
+                    }
+                </div>
             </MudTd>
             <MudTd DataLabel="SKU / Servicio / Producto">
                 <div class="font-bold">@context.servicio_codigo</div>
@@ -276,7 +348,7 @@
             <MudTd DataLabel="Nº Proforma" Style="text-align: center;">
                 @if (!string.IsNullOrEmpty(context.no_proforma))
                 {
-                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">@context.no_proforma</MudChip>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold; font-size: 11px;">@context.no_proforma</MudChip>
                 }
                 else
                 {
@@ -286,7 +358,7 @@
             <MudTd DataLabel="Nº Factura" Style="text-align: center;">
                 @if (!string.IsNullOrEmpty(context.no_factura))
                 {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold;">@context.no_factura</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-weight: bold; font-size: 11px;">@context.no_factura</MudChip>
                 }
                 else
                 {
@@ -296,15 +368,15 @@
             <MudTd DataLabel="Estado" Style="text-align: center;">
                 @if (context.facturada)
                 {
-                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined">Facturada</MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled" Style="font-size: 11px;">Facturada</MudChip>
                 }
                 else if (!string.IsNullOrEmpty(context.no_proforma))
                 {
-                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">Con Proforma</MudChip>
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px;">Con Proforma</MudChip>
                 }
                 else
                 {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">Sin Proforma</MudChip>
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined" Style="font-size: 11px;">Sin Proforma</MudChip>
                 }
             </MudTd>
             <MudTd DataLabel="Acciones" Style="text-align: center;">
@@ -318,6 +390,25 @@
                 </div>
             </MudTd>
         </RowTemplate>
+
+        <NoRecordsContent>
+            @if (!filtroOperacionId.HasValue || filtroOperacionId == 0)
+            {
+                <div class="pa-8 d-flex flex-column align-center justify-center text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Primary" Style="font-size: 48px;" Class="mb-3" />
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">Seleccione un Cliente u Operación</MudText>
+                    <MudText Typo="Typo.body2">Elija una operación en el desplegable superior para consultar sus actividades de producción de forma rápida.</MudText>
+                </div>
+            }
+            else
+            {
+                <div class="pa-8 d-flex flex-column align-center justify-center text-secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Warning" Style="font-size: 48px;" Class="mb-3" />
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">No se encontraron actividades</MudText>
+                    <MudText Typo="Typo.body2">No existen registros que coincidan con el cliente, rango de fechas y áreas seleccionadas.</MudText>
+                </div>
+            }
+        </NoRecordsContent>
 
         <PagerContent>
             <MudTablePager InfoText="{first_item}-{last_item} de {all_items}" RowsPerPageString="Filas por página:" />

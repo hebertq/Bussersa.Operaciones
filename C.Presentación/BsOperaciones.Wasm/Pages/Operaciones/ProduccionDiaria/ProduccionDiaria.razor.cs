@@ -45,6 +45,42 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected List<ProduccionDiariaDto> produccionDiariaList = new();
         protected Dictionary<int, string> asociacionesOrigenDestino = new();
 
+        // Filtro de Áreas
+        protected List<string> listaAreasDisponibles = new();
+        protected IEnumerable<string> areasSeleccionadas { get; set; } = new HashSet<string>();
+
+        protected IEnumerable<ProduccionDiariaDto> ProduccionFiltrada
+        {
+            get
+            {
+                if (produccionDiariaList == null) return Enumerable.Empty<ProduccionDiariaDto>();
+                if (areasSeleccionadas == null || !areasSeleccionadas.Any())
+                    return produccionDiariaList;
+
+                var set = new HashSet<string>(areasSeleccionadas, StringComparer.OrdinalIgnoreCase);
+                bool matchSinArea = set.Contains("(Sin Área)");
+
+                return produccionDiariaList.Where(p =>
+                    (string.IsNullOrWhiteSpace(p.area_cliente) && matchSinArea) ||
+                    (!string.IsNullOrWhiteSpace(p.area_cliente) && set.Contains(p.area_cliente.Trim()))
+                );
+            }
+        }
+
+        protected decimal TotalCantidadFiltrada => ProduccionFiltrada.Sum(x => x.cantidad_producto);
+        protected decimal TotalMontoFiltrado => ProduccionFiltrada.Sum(x => x.cantidad_producto * x.costo_producto);
+
+        protected string GetMultiSelectionText(List<string> selectedValues)
+        {
+            if (selectedValues == null || !selectedValues.Any())
+                return "Todas las áreas";
+            if (selectedValues.Count == 1)
+                return selectedValues.First();
+            if (selectedValues.Count == listaAreasDisponibles.Count)
+                return "Todas las áreas seleccionadas";
+            return $"{selectedValues.Count} áreas seleccionadas";
+        }
+
         // Consolidación
         protected HashSet<ProduccionDiariaDto> selectedItems = new();
         protected string noProformaConsolidada = string.Empty;
@@ -62,11 +98,23 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             {
                 _snackbar.Add($"Error al cargar operaciones: {ex.Message}", Severity.Error);
             }
-            await CargarProduccion();
+            // NO se realiza consulta automática global al abrir la pantalla para evitar lentitud.
+            // El usuario seleccionará un cliente de la lista para cargar su producción de inmediato.
         }
 
         protected async Task CargarProduccion()
         {
+            if (!filtroOperacionId.HasValue || filtroOperacionId.Value == 0)
+            {
+                _snackbar.Add("Seleccione una operación o cliente para consultar la producción.", Severity.Info);
+                produccionDiariaList = new();
+                listaAreasDisponibles = new();
+                areasSeleccionadas = new HashSet<string>();
+                estaCargando = false;
+                StateHasChanged();
+                return;
+            }
+
             estaCargando = true;
             StateHasChanged();
             try
@@ -127,7 +175,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     }
                 }
 
-                int? opIdQueryParam = (targetOpIds.Count > 1) ? null : filtroOperacionId;
+                int? opIdQueryParam = (targetOpIds.Count > 1 || filtroOperacionId == -1) ? null : filtroOperacionId;
 
                 var response = await _mediator.Send(new GetProduccionDiariaQuery(
                     dateRange.Start, 
@@ -163,6 +211,21 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
                     {
                         produccionDiariaList = rawList;
                     }
+
+                    // Extraer áreas disponibles para el filtro multi-área
+                    var distinctAreas = produccionDiariaList
+                        .Where(x => !string.IsNullOrWhiteSpace(x.area_cliente))
+                        .Select(x => x.area_cliente.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(x => x)
+                        .ToList();
+
+                    if (produccionDiariaList.Any(x => string.IsNullOrWhiteSpace(x.area_cliente)))
+                    {
+                        distinctAreas.Add("(Sin Área)");
+                    }
+
+                    listaAreasDisponibles = distinctAreas;
                 }
             }
             catch (Exception ex)
@@ -179,13 +242,28 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         protected async Task OnOperacionFilterChanged(int? newOpId)
         {
             filtroOperacionId = newOpId;
-            await CargarProduccion();
+            areasSeleccionadas = new HashSet<string>();
+            listaAreasDisponibles = new();
+            selectedItems.Clear();
+
+            if (newOpId.HasValue && newOpId.Value != 0)
+            {
+                await CargarProduccion();
+            }
+            else
+            {
+                produccionDiariaList = new();
+                StateHasChanged();
+            }
         }
 
         protected async Task OnEstadoFilterChanged(string newEstado)
         {
             filtroEstado = newEstado;
-            await CargarProduccion();
+            if (filtroOperacionId.HasValue && filtroOperacionId.Value != 0)
+            {
+                await CargarProduccion();
+            }
         }
 
         protected void LimpiarFiltros()
@@ -193,7 +271,11 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             dateRange = new DateRange(DateTime.Today.AddDays(-30), DateTime.Today);
             filtroOperacionId = null;
             filtroEstado = "Todos";
-            _ = CargarProduccion();
+            areasSeleccionadas = new HashSet<string>();
+            listaAreasDisponibles = new();
+            produccionDiariaList = new();
+            selectedItems.Clear();
+            StateHasChanged();
         }
 
         protected async Task<IEnumerable<Combos>> BuscarPlantillas(string value, System.Threading.CancellationToken token)
@@ -870,9 +952,10 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
         protected async Task ExportarExcelAnalisis()
         {
-            if (produccionDiariaList == null || !produccionDiariaList.Any())
+            var datosAExportar = ProduccionFiltrada.ToList();
+            if (!datosAExportar.Any())
             {
-                _snackbar.Add("No hay datos cargados para exportar.", Severity.Warning);
+                _snackbar.Add("No hay datos cargados para exportar con los filtros seleccionados.", Severity.Warning);
                 return;
             }
 
@@ -881,7 +964,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
             try
             {
                 // 1. Group items for the Consolidado sheet
-                var consolidatedGroups = produccionDiariaList
+                var consolidatedGroups = datosAExportar
                     .GroupBy(x => new { 
                         Cliente = x.cliente ?? "", 
                         Area = x.area_cliente ?? "", 
@@ -951,7 +1034,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
 
                 // 2. Map items for the Detalle sheet
                 var detailData = new List<Dictionary<string, object>>();
-                var detailSorted = produccionDiariaList
+                var detailSorted = datosAExportar
                     .OrderByDescending(x => x.fecha_inicio)
                     .ThenBy(x => x.cliente)
                     .ToList();
