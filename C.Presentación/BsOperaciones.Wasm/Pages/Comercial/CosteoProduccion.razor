@@ -177,35 +177,43 @@
                                 <MudText Typo="Typo.caption" Class="font-bold d-block mt-3 mb-2" Color="Color.Success">
                                     TURNO SELECCIONADO (@shiftsForClient.Count disponible@(shiftsForClient.Count == 1 ? "" : "s")):
                                 </MudText>
-                                <div class="shift-cards-grid mb-3">
+                                <div class="shift-cards-stack mb-3">
                                     @foreach (var q in shiftsForClient)
                                     {
                                         bool isSel = selectedPersonnelQuoteId == q.Id;
                                         bool isNight = IsNightShift(q.PersonalDetalle?.Turno);
                                         decimal viat = q.PersonalDetalle?.ViaticosTotales ?? 0m;
                                         decimal costoDia = q.CostoTotal / EffectiveDiasMes;
-                                        <button type="button"
-                                                class="shift-option-card @(isSel ? (isNight ? "selected-night" : "selected") : "")"
-                                                @onclick="@(() => OnPersonnelQuoteChanged(q.Id))">
-                                            <div class="d-flex justify-space-between align-center mb-1">
-                                                <span style="font-weight: 800; font-size: 0.90rem; color: @(isNight ? "#0d47a1" : "#1b5e20");">
-                                                    @(isNight ? "🌙" : "☀️") @(q.PersonalDetalle?.Turno ?? "Estándar") (@(q.PersonalDetalle?.HorasTurno ?? 8)h)
-                                                </span>
-                                                @if (isSel)
-                                                {
-                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="@(isNight ? Color.Info : Color.Success)" Size="Size.Small" />
-                                                }
+                                        <div role="button"
+                                             tabindex="0"
+                                             class="shift-option-card @(isSel ? (isNight ? "selected-night" : "selected") : "")"
+                                             @onclick="@(() => OnPersonnelQuoteChanged(q.Id))">
+                                            <!-- Sección 1: Nombre del Turno y Costo Diario por Persona -->
+                                            <div class="shift-card-sec-top">
+                                                <div class="shift-card-title">
+                                                    <span>@(isNight ? "🌙" : "☀️")</span>
+                                                    <span>@(q.PersonalDetalle?.Turno ?? "Estándar") (@(q.PersonalDetalle?.HorasTurno ?? 8)h)</span>
+                                                    @if (isSel)
+                                                    {
+                                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="@(isNight ? Color.Info : Color.Success)" Size="Size.Small" />
+                                                    }
+                                                </div>
+                                                <div class="shift-card-day-pill">
+                                                    C$ @costoDia.ToString("N2") / pers. / turno
+                                                </div>
                                             </div>
-                                            <div style="font-size: 0.76rem; color: #455a64;">
-                                                CMT / Pers.: <strong>C$ @q.CostoTotal.ToString("N2")/mes</strong>
+                                            <!-- Sección 2: Costo Mensual Total y Transporte / Viáticos -->
+                                            <div class="shift-card-sec-bottom">
+                                                <div class="shift-card-metric">
+                                                    <span class="shift-metric-lbl">CMT Mensual / Pers.</span>
+                                                    <strong class="shift-metric-val">C$ @q.CostoTotal.ToString("N2")</strong>
+                                                </div>
+                                                <div class="shift-card-metric">
+                                                    <span class="shift-metric-lbl">Viáticos / Transp.</span>
+                                                    <strong class="shift-metric-val @(viat > 0 ? "viat-accent" : "")">C$ @viat.ToString("N2")/mes</strong>
+                                                </div>
                                             </div>
-                                            <div style="font-size: 0.76rem; color: @(viat > 0 ? "#e65100" : "#607d8b"); font-weight: @(viat > 0 ? "700" : "400");">
-                                                Viáticos / Transp.: C$ @viat.ToString("N2")/mes
-                                            </div>
-                                            <div style="font-size: 0.78rem; margin-top: 3px; color: #1b5e20; font-weight: 700;">
-                                                C$ @costoDia.ToString("N2") / pers. / turno
-                                            </div>
-                                        </button>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -467,16 +475,30 @@
                                     </div>
                                 </div>
 
-                                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                                <MudGrid Spacing="2" AlignItems="AlignItems.End">
                                     <MudItem XS="12" SM="5">
-                                        <div class="d-flex align-center gap-1 pa-1" style="background: rgba(255,255,255,0.14); border-radius: 10px;">
-                                            <MudNumericField T="decimal" Value="tarifaAcordada" ValueChanged="OnTarifaAcordadaManualChanged" Label="Costo Acordado (C$ / Ud)" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="flex-grow-1 mud-theme-success" Style="color: white; font-weight: 800;" />
-                                            @if (isTarifaManualOverride)
-                                            {
-                                                <MudTooltip Text="Restaurar al costo calculado automático">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.Sync" Color="Color.Inherit" Size="Size.Small" OnClick="ResetTarifaToSuggested" />
-                                                </MudTooltip>
-                                            }
+                                        <div class="agreed-price-box">
+                                            <div class="d-flex justify-space-between align-center mb-1">
+                                                <span class="agreed-price-label">COSTO ACORDADO (C$ / UD)</span>
+                                                @if (isTarifaManualOverride)
+                                                {
+                                                    <span class="agreed-reset-link" @onclick="ResetTarifaToSuggested" title="Restaurar al costo calculado automático">
+                                                        ↻ Auto
+                                                    </span>
+                                                }
+                                            </div>
+                                            <div class="agreed-price-input-shell">
+                                                <span class="agreed-currency-tag">C$</span>
+                                                <MudNumericField T="decimal"
+                                                                 Value="tarifaAcordada"
+                                                                 ValueChanged="OnTarifaAcordadaManualChanged"
+                                                                 Format="N2"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 DisableUnderLine="true"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="agreed-mud-field" />
+                                            </div>
                                         </div>
                                     </MudItem>
                                     <MudItem XS="12" SM="7">
@@ -487,12 +509,12 @@
                                                        OnClick="SaveOrAddSkuToQuote"
                                                        Size="Size.Large"
                                                        Class="font-bold py-3"
-                                                       Style="@(editingSkuItem != null ? "border-radius: 10px; background-color: #FFB300; color: #1f1300;" : "border-radius: 10px; background-color: #00E676; color: #042f1a;")">
-                                                @(editingSkuItem != null ? "Actualizar SKU en la Cotización" : "Agregar SKU a la Cotización")
+                                                       Style="@(editingSkuItem != null ? "border-radius: 10px; background-color: #FFB300; color: #1f1300; font-size: 0.86rem;" : "border-radius: 10px; background-color: #00E676; color: #042f1a; font-size: 0.86rem;")">
+                                                @(editingSkuItem != null ? "Actualizar SKU en Cotización" : "Agregar SKU a la Cotización")
                                             </MudButton>
                                             @if (editingSkuItem != null)
                                             {
-                                                <MudButton Variant="Variant.Outlined" Color="Color.Inherit" OnClick="CancelSkuEdit" Style="border-radius: 10px; border-color: rgba(255,255,255,0.5); color: white;">
+                                                <MudButton Variant="Variant.Outlined" Color="Color.Inherit" OnClick="CancelSkuEdit" Style="border-radius: 10px; border-color: rgba(255,255,255,0.55); color: white; font-size: 0.80rem;">
                                                     Cancelar
                                                 </MudButton>
                                             }
@@ -526,15 +548,15 @@
 
                         <MudGrid Spacing="3">
                             <MudItem XS="12" lg="9">
-                                <MudTable Items="currentItems" Hover="true" Elevation="3" Dense="true" Style="border-radius: 12px; border-top: 4px solid #1976D2;">
+                                <MudTable Items="currentItems" Hover="true" Elevation="3" Dense="true" Class="portfolio-sku-table" Style="border-radius: 12px; border-top: 4px solid #1976D2;">
                                     <HeaderContent>
                                         <MudTh>Producto / SKU</MudTh>
-                                        <MudTh Style="text-align: right;">Uds / Turno</MudTh>
-                                        <MudTh Style="text-align: right;">Turnos / Mes</MudTh>
-                                        <MudTh Style="text-align: right;">Costo Op. Unit.</MudTh>
-                                        <MudTh Style="text-align: right;">Costo Acordado</MudTh>
-                                        <MudTh Style="text-align: right;">Fact. Mensual</MudTh>
-                                        <MudTh Style="width: 100px; text-align: center;">Acciones</MudTh>
+                                        <MudTh Style="text-align: right; width: 90px;">Uds/Turno</MudTh>
+                                        <MudTh Style="text-align: right; width: 82px;">Turnos/Mes</MudTh>
+                                        <MudTh Style="text-align: right; width: 98px;">Costo Op.</MudTh>
+                                        <MudTh Style="text-align: right; width: 148px;">Costo Acordado</MudTh>
+                                        <MudTh Style="text-align: right; width: 122px;">Fact. Mensual</MudTh>
+                                        <MudTh Style="width: 82px; text-align: center;">Acciones</MudTh>
                                     </HeaderContent>
                                     <RowTemplate>
                                         @{
@@ -542,37 +564,47 @@
                                             decimal turnosM = GetItemTurnosMes(context);
                                             int eqCount = GetSkuMachineryCount(context.SkuNombre);
                                             bool isBeingEdited = ReferenceEquals(editingSkuItem, context);
+                                            string rowBg = isBeingEdited ? "background-color: #fff8e1;" : "";
                                         }
-                                        <MudTd DataLabel="SKU" Style="@(isBeingEdited ? "background-color: #fff8e1;" : "")">
-                                            <div style="font-weight: 600; line-height: 1.25;">@context.SkuNombre</div>
+                                        <MudTd DataLabel="SKU" Style="@rowBg">
+                                            <div class="sku-cell-title">@context.SkuNombre</div>
                                             <MudTooltip Text="@GetSkuMachinerySummary(context.SkuNombre)">
-                                                <span style="font-size: 0.74rem; color: #546e7a; cursor: help;">
+                                                <span class="sku-cell-sub">
                                                     ⚙️ @(eqCount > 0 ? $"{eqCount} equipo{(eqCount == 1 ? "" : "s")} efectivo{(eqCount == 1 ? "" : "s")}" : "Sin maquinaria propia")
                                                     @if (isBeingEdited)
                                                     {
-                                                        <strong style="color: #ef6c00; margin-left: 6px;">(Editando en panel...)</strong>
+                                                        <strong style="color: #ef6c00; margin-left: 4px;">(Editando...)</strong>
                                                     }
                                                 </span>
                                             </MudTooltip>
                                         </MudTd>
-                                        <MudTd DataLabel="Uds/Turno" Style="@($"text-align: right; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">@context.ProduccionDiaria.ToString("N0")</MudTd>
-                                        <MudTd DataLabel="Turnos/Mes" Style="@($"text-align: right; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">@turnosM.ToString("N1")</MudTd>
-                                        <MudTd DataLabel="Costo Op. Unit." Style="@($"text-align: right; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">C$ @costoOp.ToString("N2")</MudTd>
-                                        <MudTd DataLabel="Costo Acordado" Style="@($"text-align: right; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">
-                                            <MudNumericField T="decimal"
-                                                             Value="@context.TarifaAcordada"
-                                                             ValueChanged="@((decimal val) => OnInlinePortfolioTarifaChanged(context, val))"
-                                                             Format="N2"
-                                                             Variant="Variant.Outlined"
-                                                             Margin="Margin.Dense"
-                                                             Style="max-width: 120px; margin-left: auto; font-weight: 700;"
-                                                             Adornment="Adornment.Start"
-                                                             AdornmentText="C$" />
+                                        <MudTd DataLabel="Uds/Turno" Style="@($"text-align: right; white-space: nowrap; {rowBg}")">
+                                            <span class="sku-cell-num">@context.ProduccionDiaria.ToString("N0")</span>
                                         </MudTd>
-                                        <MudTd DataLabel="Fact. Mensual" Style="@($"text-align: right; font-weight: 700; color: #1b5e20; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">
-                                            C$ @((context.TarifaAcordada * context.ProduccionDiaria * turnosM).ToString("N2"))
+                                        <MudTd DataLabel="Turnos/Mes" Style="@($"text-align: right; white-space: nowrap; {rowBg}")">
+                                            <span class="sku-cell-num">@turnosM.ToString("N1")</span>
                                         </MudTd>
-                                        <MudTd DataLabel="Acciones" Style="@($"text-align: center; {(isBeingEdited ? "background-color: #fff8e1;" : "")}")">
+                                        <MudTd DataLabel="Costo Op." Style="@($"text-align: right; white-space: nowrap; {rowBg}")">
+                                            <span class="sku-cell-num">C$ @costoOp.ToString("N2")</span>
+                                        </MudTd>
+                                        <MudTd DataLabel="Costo Acordado" Style="@($"text-align: right; {rowBg}")">
+                                            <div class="inline-cost-editor">
+                                                <span class="inline-cost-prefix">C$</span>
+                                                <MudNumericField T="decimal"
+                                                                 Value="@context.TarifaAcordada"
+                                                                 ValueChanged="@((decimal val) => OnInlinePortfolioTarifaChanged(context, val))"
+                                                                 Format="N2"
+                                                                 HideSpinButtons="true"
+                                                                 Variant="Variant.Text"
+                                                                 DisableUnderLine="true"
+                                                                 Margin="Margin.Dense"
+                                                                 Class="inline-cost-mud" />
+                                            </div>
+                                        </MudTd>
+                                        <MudTd DataLabel="Fact. Mensual" Style="@($"text-align: right; white-space: nowrap; font-weight: 700; color: #1b5e20; {rowBg}")">
+                                            <span class="sku-cell-num">C$ @((context.TarifaAcordada * context.ProduccionDiaria * turnosM).ToString("N2"))</span>
+                                        </MudTd>
+                                        <MudTd DataLabel="Acciones" Style="@($"text-align: center; white-space: nowrap; {rowBg}")">
                                             <MudTooltip Text="Editar SKU y su maquinaria en el panel derecho">
                                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" Size="Size.Small" OnClick="@(() => EditProductInQuote(context))" />
                                             </MudTooltip>
@@ -738,7 +770,18 @@
                                                 <MudTd DataLabel="Maquinaria Unit." Style="text-align: right;">C$ @detailContext.AmortizacionUnitaria.ToString("N4")</MudTd>
                                                 <MudTd DataLabel="Costo Op." Style="text-align: right;">C$ @costoOpDet.ToString("N2")</MudTd>
                                                 <MudTd DataLabel="Costo Acordado" Style="text-align: right;">
-                                                    <MudNumericField T="decimal" Value="@detailContext.TarifaAcordada" ValueChanged="@((decimal val) => UpdateTarifaAcordada(context, detailContext, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 130px; margin-left: auto; background-color: white;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                                    <div class="inline-cost-editor">
+                                                        <span class="inline-cost-prefix">C$</span>
+                                                        <MudNumericField T="decimal"
+                                                                         Value="@detailContext.TarifaAcordada"
+                                                                         ValueChanged="@((decimal val) => UpdateTarifaAcordada(context, detailContext, val))"
+                                                                         Format="N2"
+                                                                         HideSpinButtons="true"
+                                                                         Variant="Variant.Text"
+                                                                         DisableUnderLine="true"
+                                                                         Margin="Margin.Dense"
+                                                                         Class="inline-cost-mud" />
+                                                    </div>
                                                 </MudTd>
                                                 <MudTd DataLabel="Fact. Mes" Style="text-align: right; font-weight: 700; color: #1b5e20;">
                                                     C$ @((detailContext.TarifaAcordada * detailContext.ProduccionDiaria * tMesDet).ToString("N2"))
@@ -813,7 +856,7 @@
                                         <MudTh>Precio</MudTh>
                                         <MudTh>Cant.</MudTh>
                                         <MudTh>Meses Proyección</MudTh>
-                                        <MudTh>Personas</MudTh>
+                                        <MudTh>Turnos / Divisor</MudTh>
                                         <MudTh>Proyección Mensual</MudTh>
                                         <MudTh Style="width:100px;">Acciones</MudTh>
                                     </HeaderContent>
@@ -839,7 +882,7 @@
                                     <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
                                     <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
                                     <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                                    <MudNumericField T="int" @bind-Value="editingMachinery.Personas" Label="Personas (Nº Trabajadores)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.Personas" Label="Turnos / Divisor de Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" HelperText="En costeo por SKU indique Nº de turnos que comparten la máquina (ej. 1 o 2 turnos)" />
                                     <div class="d-flex gap-2">
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveMachinery">Guardar</MudButton>
                                         @if (editingMachinery.Id > 0 || !string.IsNullOrEmpty(editingMachinery.Nombre))

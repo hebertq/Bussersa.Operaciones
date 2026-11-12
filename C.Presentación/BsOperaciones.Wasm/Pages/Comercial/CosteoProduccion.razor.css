@@ -52,43 +52,130 @@
     flex-shrink: 0;
 }
 
-.shift-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+/* --- Tarjetas de Turno en 2 Secciones Limpias y Responsivas --- */
+.shift-cards-stack {
+    display: flex;
+    flex-direction: column;
     gap: 10px;
+    width: 100%;
 }
 
 .shift-option-card {
-    border: 2px solid #e0e6ed;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    box-sizing: border-box;
+    width: 100%;
+    border: 2px solid #dfe6ee;
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 10px 14px;
     cursor: pointer;
     background: #fafbfc;
     transition: all 0.18s ease;
-    text-align: left;
-    width: 100%;
+    overflow: hidden;
 }
 
 .shift-option-card:hover {
     border-color: #66bb6a;
-    background: #f1f8e9;
+    background: #f4fbf5;
 }
 
 .shift-option-card.selected {
     border-color: #2e7d32;
-    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
-    box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+    background: linear-gradient(135deg, #e8f5e9 0%, #f3faf4 100%);
+    box-shadow: 0 3px 10px rgba(46, 125, 50, 0.14);
 }
 
 .shift-option-card.selected-night {
     border-color: #1565c0;
-    background: linear-gradient(135deg, #e3f2fd 0%, #ede7f6 100%);
-    box-shadow: 0 4px 12px rgba(21, 101, 192, 0.16);
+    background: linear-gradient(135deg, #e3f2fd 0%, #f1effb 100%);
+    box-shadow: 0 3px 10px rgba(21, 101, 192, 0.15);
 }
 
+/* Sección 1 del Turno: Encabezado + Costo Diario */
+.shift-card-sec-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-bottom: 7px;
+    margin-bottom: 7px;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+}
+
+.shift-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 800;
+    font-size: 0.90rem;
+    color: #103b22;
+}
+
+.shift-option-card.selected-night .shift-card-title {
+    color: #0d47a1;
+}
+
+.shift-card-day-pill {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #1b5e20;
+    background: rgba(46, 125, 50, 0.11);
+    padding: 2px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.shift-option-card.selected-night .shift-card-day-pill {
+    color: #0d47a1;
+    background: rgba(21, 101, 192, 0.11);
+}
+
+/* Sección 2 del Turno: CMT Mensual y Transporte/Viáticos */
+.shift-card-sec-bottom {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+@media (max-width: 420px) {
+    .shift-card-sec-bottom {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+}
+
+.shift-card-metric {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.shift-metric-lbl {
+    font-size: 0.69rem;
+    color: #607d8b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.shift-metric-val {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #263238;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shift-metric-val.viat-accent {
+    color: #e65100;
+}
+
+/* --- Tira KPI de Cuadrilla --- */
 .crew-kpi-strip {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     padding: 10px;
     border-radius: 12px;
@@ -96,11 +183,18 @@
     border: 1px solid rgba(46, 125, 50, 0.16);
 }
 
+@media (max-width: 420px) {
+    .crew-kpi-strip {
+        grid-template-columns: 1fr;
+    }
+}
+
 .crew-kpi-box {
     background: #ffffff;
     border-radius: 8px;
     padding: 7px 10px;
     border-left: 3px solid #2e7d32;
+    min-width: 0;
 }
 
 .crew-kpi-box.viaticos-highlight {
@@ -113,6 +207,7 @@
     background: #e8f0fe;
 }
 
+/* --- Maquinaria Efectiva y Resumen del SKU --- */
 .sku-machinery-section {
     background: #fafcfb;
     border: 1px solid rgba(46, 125, 50, 0.15);
@@ -129,7 +224,7 @@
 
 .sku-cost-pills {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
 }
 
@@ -139,14 +234,131 @@
     padding: 6px 10px;
     display: flex;
     flex-direction: column;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
 }
 
 .sku-cost-pill span {
-    opacity: 0.82;
+    opacity: 0.85;
     margin-bottom: 2px;
 }
 
 .sku-cost-pill strong {
-    font-size: 0.90rem;
+    font-size: 0.88rem;
+}
+
+/* --- Campo de Costo Acordado de Alto Contraste en Panel SKU --- */
+.agreed-price-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.agreed-price-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #b9f6ca;
+    text-transform: uppercase;
+}
+
+.agreed-reset-link {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #ffd54f;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.agreed-price-input-shell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 2px solid #00e676;
+    border-radius: 10px;
+    padding: 4px 12px;
+    min-height: 44px;
+}
+
+.agreed-currency-tag {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: #1b5e20;
+    flex-shrink: 0;
+}
+
+::deep .agreed-mud-field {
+    margin: 0 !important;
+}
+
+::deep .agreed-mud-field input {
+    font-size: 1.05rem !important;
+    font-weight: 800 !important;
+    color: #0f3d24 !important;
+    padding: 2px 0 !important;
+    text-align: right;
+}
+
+/* --- Grilla Compacta de Portafolio de SKUs y Editor Inline Amplio --- */
+::deep .portfolio-sku-table th {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    padding: 8px 8px !important;
+    white-space: nowrap;
+}
+
+::deep .portfolio-sku-table td {
+    padding: 6px 8px !important;
+    font-size: 0.78rem !important;
+}
+
+.sku-cell-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #1e293b;
+}
+
+.sku-cell-sub {
+    font-size: 0.69rem;
+    color: #546e7a;
+    cursor: help;
+}
+
+.sku-cell-num {
+    font-size: 0.78rem;
+}
+
+.inline-cost-editor {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: 132px;
+    background: #f8fff9;
+    border: 1.5px solid #2e7d32;
+    border-radius: 8px;
+    padding: 2px 8px;
+    margin-left: auto;
+    box-sizing: border-box;
+}
+
+.inline-cost-prefix {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: #2e7d32;
+    flex-shrink: 0;
+}
+
+::deep .inline-cost-mud {
+    margin: 0 !important;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+::deep .inline-cost-mud .mud-input-slot,
+::deep .inline-cost-mud input {
+    font-size: 0.80rem !important;
+    font-weight: 800 !important;
+    color: #0f3d24 !important;
+    padding: 3px 0 !important;
+    text-align: right !important;
 }
