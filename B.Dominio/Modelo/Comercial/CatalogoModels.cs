@@ -27,6 +27,8 @@ namespace Modelo.Comercial
         public int Cantidad { get; set; }
         public int MesesProyeccion { get; set; }
         public int Personas { get; set; } = 1;
+        public decimal PorcentajeRepuestos { get; set; } = 0m;
+        public string TipoConcepto { get; set; } = "Maquinaria";
         public decimal ProyeccionMensual { get; set; }
     }
 

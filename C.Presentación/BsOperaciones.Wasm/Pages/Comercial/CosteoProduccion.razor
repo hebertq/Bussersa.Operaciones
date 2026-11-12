@@ -334,11 +334,17 @@
                                         <MudText Typo="Typo.subtitle2" Class="font-bold">Maquinaria Efectiva del SKU</MudText>
                                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">@selectedMachinery.Count equipo@(selectedMachinery.Count == 1 ? "" : "s")</MudChip>
                                     </div>
-                                    <div class="d-flex align-center gap-1">
+                                    <div class="d-flex align-center gap-1 flex-wrap">
                                         @if (selectedMachinery.Count < machineryList.Count && machineryList.Any())
                                         {
                                             <MudButton Variant="Variant.Text" Color="Color.Success" Size="Size.Small" OnClick="SelectAllMachineryForSku">
                                                 + Todos
+                                            </MudButton>
+                                        }
+                                        @if (machineryList.Any(x => string.Equals(x.TipoConcepto, "Mantenimiento", StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            <MudButton Variant="Variant.Text" Color="Color.Warning" Size="Size.Small" OnClick="SelectOnlyMaintenanceForSku" Title="Asignar únicamente mantenimiento y reserva de repuestos (escenario sin maquinaria propia)">
+                                                🔧 Solo Mantto. Horno
                                             </MudButton>
                                         }
                                         @if (selectedMachinery.Any())
@@ -350,10 +356,10 @@
                                     </div>
                                 </div>
 
-                                <MudSelect T="int?" Value="selectedMachineryToAdd" ValueChanged="AddMachineryRow" Label="Seleccionar y Agregar Maquinaria Efectiva del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Placeholder="Elija maquinaria del catálogo global">
+                                <MudSelect T="int?" Value="selectedMachineryToAdd" ValueChanged="AddMachineryRow" Label="Seleccionar y Agregar Maquinaria / Mantenimiento del Catálogo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" Placeholder="Elija maquinaria o mantenimiento del catálogo global">
                                     @foreach (var maq in machineryList.Where(x => !selectedMachinery.Contains(x.Id)))
                                     {
-                                        <MudSelectItem T="int?" Value="@((int?)maq.Id)">@maq.Nombre — C$ @maq.ProyeccionMensual.ToString("N2")</MudSelectItem>
+                                        <MudSelectItem T="int?" Value="@((int?)maq.Id)">@(string.Equals(maq.TipoConcepto, "Mantenimiento", StringComparison.OrdinalIgnoreCase) ? "🔧 " : "⚙️ ")@maq.Nombre — C$ @maq.ProyeccionMensual.ToString("N2")</MudSelectItem>
                                     }
                                 </MudSelect>
 
@@ -852,22 +858,30 @@
                                 <MudTable Items="machineryList" Hover="true" Dense="true" Elevation="1">
                                     <HeaderContent>
                                         <MudTh>ID</MudTh>
+                                        <MudTh>Tipo</MudTh>
                                         <MudTh>Nombre</MudTh>
-                                        <MudTh>Precio</MudTh>
+                                        <MudTh>Precio Base</MudTh>
                                         <MudTh>Cant.</MudTh>
-                                        <MudTh>Meses Proyección</MudTh>
-                                        <MudTh>Turnos / Divisor</MudTh>
-                                        <MudTh>Proyección Mensual</MudTh>
-                                        <MudTh Style="width:100px;">Acciones</MudTh>
+                                        <MudTh>% Repuestos</MudTh>
+                                        <MudTh>Meses</MudTh>
+                                        <MudTh>Divisor Turnos</MudTh>
+                                        <MudTh>Proyección Mes</MudTh>
+                                        <MudTh Style="width:90px;">Acciones</MudTh>
                                     </HeaderContent>
                                     <RowTemplate>
                                         <MudTd>@context.Id</MudTd>
+                                        <MudTd>
+                                            <MudChip T="string" Size="Size.Small" Color="@(string.Equals(context.TipoConcepto, "Mantenimiento", StringComparison.OrdinalIgnoreCase) ? Color.Warning : Color.Success)" Variant="Variant.Outlined">
+                                                @(string.IsNullOrWhiteSpace(context.TipoConcepto) ? "Maquinaria" : context.TipoConcepto)
+                                            </MudChip>
+                                        </MudTd>
                                         <MudTd>@context.Nombre</MudTd>
                                         <MudTd>C$ @context.Precio.ToString("N2")</MudTd>
                                         <MudTd>@context.Cantidad</MudTd>
+                                        <MudTd>@(context.PorcentajeRepuestos > 0 ? $"+{context.PorcentajeRepuestos:N1}%" : "0%")</MudTd>
                                         <MudTd>@context.MesesProyeccion</MudTd>
                                         <MudTd>@context.Personas</MudTd>
-                                        <MudTd>C$ @context.ProyeccionMensual.ToString("N2")</MudTd>
+                                        <MudTd Style="font-weight:700; color:#1b5e20;">C$ @context.ProyeccionMensual.ToString("N2")</MudTd>
                                         <MudTd>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Success" OnClick="@(() => EditMachinery(context))" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteMachinery(context.Id))" />
@@ -877,12 +891,17 @@
                             </MudItem>
                             <MudItem XS="12" MD="4">
                                 <MudCard Outlined="true" Class="pa-4">
-                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingMachinery.Id > 0 ? "Editar Equipo" : "Agregar Equipo")</MudText>
-                                    <MudTextField @bind-Value="editingMachinery.Nombre" Label="Nombre" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                                    <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
-                                    <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                                    <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
-                                    <MudNumericField T="int" @bind-Value="editingMachinery.Personas" Label="Turnos / Divisor de Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" HelperText="En costeo por SKU indique Nº de turnos que comparten la máquina (ej. 1 o 2 turnos)" />
+                                    <MudText Typo="Typo.subtitle1" Class="font-bold mb-2">@(editingMachinery.Id > 0 ? "Editar Equipo / Mantenimiento" : "Agregar Equipo / Mantenimiento")</MudText>
+                                    <MudSelect T="string" @bind-Value="editingMachinery.TipoConcepto" Label="Tipo de Escenario / Concepto" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3">
+                                        <MudSelectItem T="string" Value="@("Maquinaria")">Maquinaria / Equipo (CAPEX)</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("Mantenimiento")">Mantenimiento / Póliza / Horno</MudSelectItem>
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="editingMachinery.Nombre" Label="Nombre del Equipo o Mantenimiento" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                                    <MudNumericField T="decimal" @bind-Value="editingMachinery.Precio" Label="Precio o Costo Base (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.Cantidad" Label="Cantidad" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Min="1" />
+                                    <MudNumericField T="decimal" @bind-Value="editingMachinery.PorcentajeRepuestos" Label="% Reserva por Daños / Repuestos" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Format="N2" Min="0m" Max="200m" Adornment="Adornment.End" AdornmentText="%" HelperText="Presupuesto adicional sobre el costo base para compra de repuestos o daños" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.MesesProyeccion" Label="Meses Proyección / Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Min="1" />
+                                    <MudNumericField T="int" @bind-Value="editingMachinery.Personas" Label="Turnos / Divisor de Prorrateo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" HelperText="Nº de turnos que comparten el equipo/mantenimiento (ej. 1 o 2 turnos)" />
                                     <div class="d-flex gap-2">
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveMachinery">Guardar</MudButton>
                                         @if (editingMachinery.Id > 0 || !string.IsNullOrEmpty(editingMachinery.Nombre))

@@ -37,6 +37,7 @@ namespace BsOperaciones.Pages.Comercial
         private decimal turnosAsignadosMes = 26.00m;
         private string manualTurno = "Diurno";
         private bool isTarifaManualOverride = false;
+        private HashSet<string> manualOverrideSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         protected int activeTabIndex = 0;
         protected void SetActiveTab(int index)
@@ -288,13 +289,18 @@ namespace BsOperaciones.Pages.Comercial
         {
             if (!currentItems.Any()) return;
 
+            if (showToast)
+            {
+                manualOverrideSkus.Clear();
+            }
+
             string turnoActual = CurrentTurnoNombre;
             int workers = Math.Max(1, cantidadTrabajadores);
             decimal diasBase = EffectiveDiasMes;
 
             foreach (var item in currentItems)
             {
-                bool wasManual = item.TarifaSugerida > 0m && Math.Abs(item.TarifaAcordada - Math.Round(item.TarifaSugerida, 2)) > 0.01m;
+                bool wasManual = !showToast && !string.IsNullOrWhiteSpace(item.SkuNombre) && manualOverrideSkus.Contains(item.SkuNombre);
 
                 item.Turno = turnoActual;
                 item.CantidadTrabajadores = workers;
@@ -306,7 +312,7 @@ namespace BsOperaciones.Pages.Comercial
                 if (selectedPersonnelQuote != null)
                 {
                     decimal costoTurnoCuadrilla = (selectedPersonnelQuote.CostoTotal / diasBase) * workers;
-                    item.ManoObraUnitaria = item.ProduccionDiaria > 0 ? (costoTurnoCuadrilla / item.ProduccionDiaria) : 0m;
+                    item.ManoObraUnitaria = item.ProduccionDiaria > 0 ? Math.Round(costoTurnoCuadrilla / item.ProduccionDiaria, 4) : 0m;
                 }
                 else
                 {
@@ -330,6 +336,8 @@ namespace BsOperaciones.Pages.Comercial
                             m.Cantidad = catM.Cantidad;
                             m.MesesProyeccion = catM.MesesProyeccion;
                             m.Personas = catM.Personas;
+                            m.PorcentajeRepuestos = catM.PorcentajeRepuestos;
+                            m.TipoConcepto = catM.TipoConcepto;
                             m.ProyeccionMensual = catM.ProyeccionMensual;
                         }
                     }
@@ -337,7 +345,7 @@ namespace BsOperaciones.Pages.Comercial
                 }
 
                 item.AmortizacionUnitaria = item.ProduccionDiaria > 0
-                    ? ((amortMensualSku / diasBase) / item.ProduccionDiaria)
+                    ? Math.Round((amortMensualSku / diasBase) / item.ProduccionDiaria, 4)
                     : 0m;
 
                 var skuMats = tempMaterialDetalles
@@ -558,6 +566,16 @@ namespace BsOperaciones.Pages.Comercial
             SyncTarifaIfAuto();
         }
 
+        private void SelectOnlyMaintenanceForSku()
+        {
+            selectedMachinery.Clear();
+            foreach (var maq in machineryList.Where(x => string.Equals(x.TipoConcepto, "Mantenimiento", StringComparison.OrdinalIgnoreCase)))
+            {
+                selectedMachinery.Add(maq.Id);
+            }
+            SyncTarifaIfAuto();
+        }
+
         private void RemoveMachineryRow(int id)
         {
             selectedMachinery.Remove(id);
@@ -620,6 +638,17 @@ namespace BsOperaciones.Pages.Comercial
                 tempMaquinariaDetalles.RemoveAll(x => string.Equals(x.SkuNombre, oldSku, StringComparison.OrdinalIgnoreCase)
                                                    || string.Equals(x.SkuNombre, cleanSku, StringComparison.OrdinalIgnoreCase));
 
+                if (isTarifaManualOverride)
+                {
+                    manualOverrideSkus.Remove(oldSku);
+                    manualOverrideSkus.Add(cleanSku);
+                }
+                else
+                {
+                    manualOverrideSkus.Remove(oldSku);
+                    manualOverrideSkus.Remove(cleanSku);
+                }
+
                 PersistCurrentSkuDetails(cleanSku);
 
                 Snackbar.Add($"SKU '{cleanSku}' actualizado en la cotización.", Severity.Success);
@@ -653,6 +682,10 @@ namespace BsOperaciones.Pages.Comercial
 
             tempMaterialDetalles.RemoveAll(x => string.Equals(x.SkuNombre, cleanSku, StringComparison.OrdinalIgnoreCase));
             tempMaquinariaDetalles.RemoveAll(x => string.Equals(x.SkuNombre, cleanSku, StringComparison.OrdinalIgnoreCase));
+            if (isTarifaManualOverride)
+            {
+                manualOverrideSkus.Add(cleanSku);
+            }
             PersistCurrentSkuDetails(cleanSku);
 
             Snackbar.Add($"SKU '{cleanSku}' agregado a la cotización.", Severity.Success);
@@ -702,6 +735,8 @@ namespace BsOperaciones.Pages.Comercial
                         Cantidad = maqInfo.Cantidad,
                         MesesProyeccion = maqInfo.MesesProyeccion,
                         Personas = maqInfo.Personas,
+                        PorcentajeRepuestos = maqInfo.PorcentajeRepuestos,
+                        TipoConcepto = maqInfo.TipoConcepto,
                         ProyeccionMensual = maqInfo.ProyeccionMensual,
                         SkuNombre = cleanSku
                     });
@@ -781,8 +816,8 @@ namespace BsOperaciones.Pages.Comercial
                 }
             }
 
-            // Si la tarifa acordada anterior no había sido sobrescrita manualmente respecto a su sugerida, recalcular con los costos actuales
-            bool wasManual = item.TarifaSugerida > 0m && Math.Abs(item.TarifaAcordada - Math.Round(item.TarifaSugerida, 2)) > 0.01m;
+            // Si la tarifa acordada anterior fue editada manualmente en esta sesión, respetarla; de lo contrario recalcular con los costos actuales
+            bool wasManual = !string.IsNullOrWhiteSpace(item.SkuNombre) && manualOverrideSkus.Contains(item.SkuNombre);
             if (wasManual)
             {
                 tarifaAcordada = item.TarifaAcordada;
@@ -803,6 +838,7 @@ namespace BsOperaciones.Pages.Comercial
             editingNumeroCotizacion = quote.NumeroCotizacion;
             editingSkuItem = null;
             editingOriginalSkuName = null;
+            manualOverrideSkus.Clear();
             cliente = quote.ClienteNombre;
             currentItems.Clear();
             tempMaterialDetalles.Clear();
@@ -907,6 +943,7 @@ namespace BsOperaciones.Pages.Comercial
             editingNumeroCotizacion = null;
             editingSkuItem = null;
             editingOriginalSkuName = null;
+            manualOverrideSkus.Clear();
             cliente = "";
             skuNombre = "";
             produccionDiaria = 1000;
@@ -938,11 +975,20 @@ namespace BsOperaciones.Pages.Comercial
                 return;
             }
 
+            // Si el usuario estaba editando un SKU en el panel derecho y pulsó directamente Actualizar/Guardar Cotización, aplicar sus cambios
+            if (editingSkuItem != null && !string.IsNullOrWhiteSpace(skuNombre))
+            {
+                SaveOrAddSkuToQuote();
+            }
+
             if (!currentItems.Any())
             {
                 Snackbar.Add("Debe agregar al menos un producto (SKU) a la cotización.", Severity.Warning);
                 return;
             }
+
+            // Asegurar que todos los ítems reflejen los costos vigentes de turno, cuadrilla, márgenes y catálogo al guardar/actualizar
+            RecalculatePortfolioItems();
 
             bool isUpdate = !saveAsNew && editingQuoteId.HasValue;
 
@@ -1047,7 +1093,9 @@ namespace BsOperaciones.Pages.Comercial
                 Precio = item.Precio,
                 Cantidad = item.Cantidad,
                 MesesProyeccion = item.MesesProyeccion,
-                Personas = item.Personas
+                Personas = item.Personas > 0 ? item.Personas : 1,
+                PorcentajeRepuestos = item.PorcentajeRepuestos,
+                TipoConcepto = string.IsNullOrWhiteSpace(item.TipoConcepto) ? "Maquinaria" : item.TipoConcepto
             };
         }
 
@@ -1272,6 +1320,10 @@ namespace BsOperaciones.Pages.Comercial
             if (val > 0m)
             {
                 item.TarifaAcordada = val;
+                if (!string.IsNullOrWhiteSpace(item.SkuNombre))
+                {
+                    manualOverrideSkus.Add(item.SkuNombre);
+                }
                 if (ReferenceEquals(editingSkuItem, item))
                 {
                     tarifaAcordada = val;
