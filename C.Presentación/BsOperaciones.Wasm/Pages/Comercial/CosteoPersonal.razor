@@ -77,10 +77,15 @@
                             
                             <MudGrid>
                                 <MudItem XS="12" SM="6">
-                                    <MudTextField @bind-Value="turno" Label="Nombre del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Required="true" HelperText="Ej: Diurno, Nocturno, Mixto" />
+                                    <MudTextField T="string" Value="turno" ValueChanged="OnTurnoNombreChanged" Label="Nombre del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-1" Required="true" HelperText="Diurno (8h) • Mixto (7.5h) • Nocturno (7h)" />
+                                    <div class="d-flex align-center gap-1 flex-wrap mb-3">
+                                        <MudChip T="string" Size="Size.Small" Color="@(turno.Equals("Diurno", StringComparison.OrdinalIgnoreCase) ? Color.Success : Color.Default)" Variant="@(turno.Equals("Diurno", StringComparison.OrdinalIgnoreCase) ? Variant.Filled : Variant.Outlined)" OnClick="@(() => SelectPresetTurno("Diurno", 8m))">☀️ Diurno (8h)</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Color="@(turno.Equals("Mixto", StringComparison.OrdinalIgnoreCase) ? Color.Warning : Color.Default)" Variant="@(turno.Equals("Mixto", StringComparison.OrdinalIgnoreCase) ? Variant.Filled : Variant.Outlined)" OnClick="@(() => SelectPresetTurno("Mixto", 7.5m))">🌗 Mixto (7.5h)</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Color="@(turno.Equals("Nocturno", StringComparison.OrdinalIgnoreCase) ? Color.Info : Color.Default)" Variant="@(turno.Equals("Nocturno", StringComparison.OrdinalIgnoreCase) ? Variant.Filled : Variant.Outlined)" OnClick="@(() => SelectPresetTurno("Nocturno", 7m))">🌙 Nocturno (7h)</MudChip>
+                                    </div>
                                 </MudItem>
                                 <MudItem XS="12" SM="6">
-                                    <MudNumericField T="int" @bind-Value="horasTurno" Label="Horas del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1" Max="24" />
+                                    <MudNumericField T="decimal" @bind-Value="horasTurno" Label="Horas del Turno" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Min="1m" Max="24m" Step="0.5m" Format="0.#" HelperText="Ley laboral: Diurno 8h • Mixto 7.5h • Nocturno 7h" />
                                 </MudItem>
                             </MudGrid>
                             
@@ -371,7 +376,7 @@
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
-                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurno ?? 8) hrs</MudTd>
+                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
                                 <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
                                 <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
                                 <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
@@ -415,7 +420,7 @@
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
-                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurno ?? 8) hrs</MudTd>
+                                <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
                                 <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
                                 <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
                                 <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
@@ -500,7 +505,7 @@
                                             </HeaderContent>
                                             <RowTemplate>
                                                 <MudTd DataLabel="Turno">@detailContext.PersonalDetalle?.Turno</MudTd>
-                                                <MudTd DataLabel="Horas">@detailContext.PersonalDetalle?.HorasTurno hrs</MudTd>
+                                                <MudTd DataLabel="Horas">@(detailContext.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
                                                 <MudTd DataLabel="Salario Base">C$ @(detailContext.PersonalDetalle?.SalarioBase.ToString("N2") ?? "-")</MudTd>
                                                 <MudTd DataLabel="Costo Mensual">C$ @detailContext.CostoTotal.ToString("N2")</MudTd>
                                                 <MudTd DataLabel="Tarifa Sugerida">C$ @detailContext.TarifaSugerida.ToString("N2")</MudTd>

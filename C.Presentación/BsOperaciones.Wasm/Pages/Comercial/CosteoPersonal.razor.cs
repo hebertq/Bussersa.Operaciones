@@ -26,8 +26,26 @@ namespace BsOperaciones.Pages.Comercial
         private bool isPrinting = false;
         private Cotizacion? editingQuote;
         private string turno = "Diurno";
-        private int horasTurno = 8;
+        private decimal horasTurno = 8m;
         protected int activeTabIndex = 0;
+
+        private void OnTurnoNombreChanged(string val)
+        {
+            turno = val ?? "";
+            if (!string.IsNullOrWhiteSpace(turno))
+            {
+                var t = turno.Trim().ToLowerInvariant();
+                if (t.Contains("noct") || t.Contains("noche")) horasTurno = 7m;
+                else if (t.Contains("mixt")) horasTurno = 7.5m;
+                else if (t.Contains("diurn") || t.Contains("día") || t.Contains("dia")) horasTurno = 8m;
+            }
+        }
+
+        private void SelectPresetTurno(string nombreTurno, decimal horas)
+        {
+            turno = nombreTurno;
+            horasTurno = horas;
+        }
         protected void SetActiveTab(int index)
         {
             activeTabIndex = index;
@@ -130,24 +148,26 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal CalculatedFfr => salarioBase > 0 ? (CalculatedTarifaSugerida / salarioBase) : 0m;
 
-        private decimal GetDiasTrabajoMes(int hours)
+        private decimal GetDiasTrabajoMes(decimal hours)
         {
-            if (hours <= 0) return 26m;
-            if (hours <= 8) return 26m;
-            if (hours == 12) return 16m;
-            if (hours == 24) return 8m;
-            return Math.Round((48m / (decimal)hours) * 4m, 1);
+            if (hours <= 0m) return 26m;
+            if (hours <= 8m) return 26m;
+            if (hours == 12m) return 16m;
+            if (hours == 24m) return 8m;
+            return Math.Round((48m / hours) * 4m, 1);
         }
 
         private decimal CalculatedDiasTrabajoMes => (360m - (cargosConfig != null ? cargosConfig.DomingosDias : 52m) - (decimal)diasFeriados) / 12m;
 
-        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (CalculatedDiasTrabajoMes * (decimal)(horasTurno > 0 ? horasTurno : 8));
+        private decimal EffectiveHorasTurno => horasTurno > 0m ? horasTurno : CotizacionPersonalDetalle.GetDefaultHorasPorTurno(turno);
 
-        private decimal CalculatedTarifaDia => CalculatedTarifaHora * (decimal)horasTurno;
+        private decimal CalculatedTarifaHora => CalculatedTarifaSugerida / (CalculatedDiasTrabajoMes * EffectiveHorasTurno);
+
+        private decimal CalculatedTarifaDia => CalculatedTarifaHora * EffectiveHorasTurno;
 
         private decimal CalculatedTarifaExtra => recargoDoble 
             ? (CalculatedTarifaHora * 2m)
-            : (((salarioBase / 30m) / (decimal)(horasTurno > 0 ? horasTurno : 8)) + CalculatedTarifaHora + montoAdicionalHoraExtra);
+            : (((salarioBase / 30m) / EffectiveHorasTurno) + CalculatedTarifaHora + montoAdicionalHoraExtra);
 
         private decimal CalculatedTarifaFeriado => CalculatedTarifaExtra;
 
@@ -304,7 +324,9 @@ namespace BsOperaciones.Pages.Comercial
             if (quote.PersonalDetalle != null)
             {
                 turno = quote.PersonalDetalle.Turno;
-                horasTurno = quote.PersonalDetalle.HorasTurno;
+                horasTurno = quote.PersonalDetalle.HorasTurno > 0m
+                    ? quote.PersonalDetalle.HorasTurno
+                    : CotizacionPersonalDetalle.GetDefaultHorasPorTurno(quote.PersonalDetalle.Turno);
                 salarioBase = quote.PersonalDetalle.SalarioBase;
                 supervision = quote.PersonalDetalle.Supervision;
                 cargos = quote.PersonalDetalle.Cargos;
@@ -433,7 +455,7 @@ namespace BsOperaciones.Pages.Comercial
                 
                 // Resetear campos
                 turno = "";
-                horasTurno = 8;
+                horasTurno = 8m;
                 salarioBase = 9000.00m;
                 recargoDoble = false;
                 selectedEpps.Clear();
@@ -453,7 +475,7 @@ namespace BsOperaciones.Pages.Comercial
         {
             editingQuote = null;
             turno = "";
-            horasTurno = 8;
+            horasTurno = 8m;
             salarioBase = 9000.00m;
             selectedEpps.Clear();
             selectedViaticos.Clear();
@@ -560,7 +582,7 @@ namespace BsOperaciones.Pages.Comercial
 
             // Resetear campos del turno, pero MANTENER el cliente
             turno = "";
-            horasTurno = 8;
+            horasTurno = 8m;
             salarioBase = 9000.00m;
             recargoDoble = false;
             selectedEpps.Clear();

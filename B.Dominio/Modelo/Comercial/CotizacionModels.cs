@@ -39,7 +39,7 @@ namespace Modelo.Comercial
         public decimal Seguros { get; set; }
         public decimal GastosOperativos { get; set; }
         public string Turno { get; set; } = "";
-        public int HorasTurno { get; set; }
+        public decimal HorasTurno { get; set; } = 8m;
         public decimal TarifaExtra { get; set; }
         public decimal TarifaFeriado { get; set; }
         public decimal TarifaDomingo { get; set; }
@@ -47,13 +47,26 @@ namespace Modelo.Comercial
         public bool RecargoDoble { get; set; }
         public decimal MontoAdicionalHoraExtra { get; set; } = 15.0m;
 
+        public string HorasTurnoTexto => HorasTurno % 1m == 0m
+            ? ((int)HorasTurno).ToString()
+            : HorasTurno.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+
+        public static decimal GetDefaultHorasPorTurno(string? turnoNombre)
+        {
+            if (string.IsNullOrWhiteSpace(turnoNombre)) return 8m;
+            var t = turnoNombre.Trim().ToLowerInvariant();
+            if (t.Contains("noct") || t.Contains("noche")) return 7m;
+            if (t.Contains("mixt")) return 7.5m;
+            return 8m;
+        }
+
         public decimal GetDiasTrabajoMes()
         {
-            if (HorasTurno <= 0) return 26m;
-            if (HorasTurno <= 8) return 26m;
-            if (HorasTurno == 12) return 16m;
-            if (HorasTurno == 24) return 8m;
-            return Math.Round((48m / (decimal)HorasTurno) * 4m, 1);
+            if (HorasTurno <= 0m) return 26m;
+            if (HorasTurno <= 8m) return 26m;
+            if (HorasTurno == 12m) return 16m;
+            if (HorasTurno == 24m) return 8m;
+            return Math.Round((48m / HorasTurno) * 4m, 1);
         }
     }
 

@@ -86,13 +86,17 @@ namespace BsOperaciones.Pages.Comercial
         private CatalogoEpp editingEpp = new CatalogoEpp();
         private CatalogoViatico editingViatico = new CatalogoViatico();
 
-        // Turno activo y horas del turno
+        // Turno activo y horas del turno (Diurno: 8h, Mixto: 7.5h, Nocturno: 7h)
         private string CurrentTurnoNombre => selectedPersonnelQuote?.PersonalDetalle?.Turno
             ?? (string.IsNullOrWhiteSpace(manualTurno) ? "Diurno" : manualTurno);
 
-        private int CurrentHorasTurno => (selectedPersonnelQuote?.PersonalDetalle?.HorasTurno ?? 0) > 0
+        private decimal CurrentHorasTurno => (selectedPersonnelQuote?.PersonalDetalle?.HorasTurno ?? 0m) > 0m
             ? selectedPersonnelQuote!.PersonalDetalle.HorasTurno
-            : 8;
+            : CotizacionPersonalDetalle.GetDefaultHorasPorTurno(CurrentTurnoNombre);
+
+        private string CurrentHorasTurnoTexto => CurrentHorasTurno % 1m == 0m
+            ? ((int)CurrentHorasTurno).ToString()
+            : CurrentHorasTurno.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
         private bool IsNightShift(string? turnoName)
         {
@@ -101,7 +105,66 @@ namespace BsOperaciones.Pages.Comercial
             return t.Contains("noct") || t.Contains("noche");
         }
 
-        private decimal CalculatedUnidadesPorHora => CurrentHorasTurno > 0
+        private bool IsMixedShift(string? turnoName)
+        {
+            if (string.IsNullOrWhiteSpace(turnoName)) return false;
+            return turnoName.ToLowerInvariant().Contains("mixt");
+        }
+
+        private string GetShiftIcon(string? turnoName)
+        {
+            if (IsNightShift(turnoName)) return "🌙";
+            if (IsMixedShift(turnoName)) return "🌗";
+            return "☀️";
+        }
+
+        private Color GetShiftColor(string? turnoName)
+        {
+            if (IsNightShift(turnoName)) return Color.Info;
+            if (IsMixedShift(turnoName)) return Color.Warning;
+            return Color.Success;
+        }
+
+        private void OnManualTurnoChanged(string val)
+        {
+            manualTurno = string.IsNullOrWhiteSpace(val) ? "Diurno" : val;
+            SyncTarifaIfAuto();
+            RecalculatePortfolioItems();
+        }
+
+        private decimal GetItemHorasTurno(CotizacionProduccionDetalle item)
+        {
+            if (item.PersonalCotizacionId.HasValue)
+            {
+                var pq = personnelQuotes.FirstOrDefault(x => x.Id == item.PersonalCotizacionId.Value);
+                if (pq?.PersonalDetalle != null && pq.PersonalDetalle.HorasTurno > 0m)
+                {
+                    return pq.PersonalDetalle.HorasTurno;
+                }
+            }
+            return CotizacionPersonalDetalle.GetDefaultHorasPorTurno(item.Turno);
+        }
+
+        private string GetQuoteTurnoHorasTexto(Cotizacion quote, string turnoName)
+        {
+            var det = GetQuoteDetailsList(quote).FirstOrDefault(x => string.Equals(x.Turno ?? "Diurno", turnoName, StringComparison.OrdinalIgnoreCase));
+            decimal hrs = det != null ? GetItemHorasTurno(det) : CotizacionPersonalDetalle.GetDefaultHorasPorTurno(turnoName);
+            return hrs % 1m == 0m
+                ? ((int)hrs).ToString()
+                : hrs.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private decimal GetItemBreakevenUnits(CotizacionProduccionDetalle item)
+        {
+            decimal mermaFactor = 1m + (item.MermaPorcentaje / 100m);
+            decimal costoFijoTurnoConMerma = (item.ManoObraUnitaria + item.AmortizacionUnitaria) * item.ProduccionDiaria * mermaFactor;
+            decimal matConMerma = item.MaterialesTotales * mermaFactor;
+            decimal margenContrib = item.TarifaAcordada - matConMerma;
+            if (margenContrib <= 0m || costoFijoTurnoConMerma <= 0m) return 0m;
+            return Math.Ceiling(costoFijoTurnoConMerma / margenContrib);
+        }
+
+        private decimal CalculatedUnidadesPorHora => CurrentHorasTurno > 0m
             ? Math.Round((decimal)produccionDiaria / CurrentHorasTurno, 1)
             : produccionDiaria;
 
@@ -406,13 +469,15 @@ namespace BsOperaciones.Pages.Comercial
                 selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == id.Value);
                 if (selectedPersonnelQuote != null)
                 {
-                    int hrs = selectedPersonnelQuote.PersonalDetalle?.HorasTurno ?? 8;
-                    if (hrs == 12 && diasOperativosMes == 26m)
+                    decimal hrs = (selectedPersonnelQuote.PersonalDetalle?.HorasTurno ?? 0m) > 0m
+                        ? selectedPersonnelQuote.PersonalDetalle!.HorasTurno
+                        : CotizacionPersonalDetalle.GetDefaultHorasPorTurno(selectedPersonnelQuote.PersonalDetalle?.Turno);
+                    if (hrs == 12m && diasOperativosMes == 26m)
                     {
                         diasOperativosMes = 16m;
                         turnosAsignadosMes = 16m;
                     }
-                    else if (hrs <= 8 && diasOperativosMes == 16m)
+                    else if (hrs <= 8m && diasOperativosMes == 16m)
                     {
                         diasOperativosMes = 26m;
                         turnosAsignadosMes = 26m;
@@ -1444,6 +1509,493 @@ namespace BsOperaciones.Pages.Comercial
             {
                 isPrinting = false;
                 StateHasChanged();
+            }
+        }
+
+        // =========================================================================
+        // EXPORTACIÓN EXCEL (.XLSX) DE SKUS COTIZADAS Y METAS REALES DE PRODUCCIÓN
+        // =========================================================================
+
+        private async Task ExportCurrentPortfolioToExcel()
+        {
+            if (!currentItems.Any())
+            {
+                Snackbar.Add("Agregue al menos un SKU a la cotización para exportar.", Severity.Warning);
+                return;
+            }
+
+            string numCot = string.IsNullOrWhiteSpace(editingNumeroCotizacion) ? "BORRADOR" : editingNumeroCotizacion!;
+            string nomCli = string.IsNullOrWhiteSpace(cliente) ? "Cotizacion_Actual" : cliente;
+
+            var exportRows = currentItems.Select(item => (
+                NumeroCot: numCot,
+                Cliente: nomCli,
+                Item: item,
+                Maqs: tempMaquinariaDetalles
+                    .Where(m => string.Equals(m.SkuNombre, item.SkuNombre, StringComparison.OrdinalIgnoreCase))
+                    .ToList()
+            )).ToList();
+
+            await GenerateProductionSkusExcelAsync($"Metas de Producción — {nomCli}", $"Metas_Produccion_{nomCli}", exportRows);
+        }
+
+        private async Task ExportSavedQuoteToExcel(Cotizacion quote)
+        {
+            var selectedDetails = GetSelectedSkusForPrint(quote);
+            var list = selectedDetails.Any() ? selectedDetails.ToList() : GetQuoteDetailsList(quote);
+            if (!list.Any())
+            {
+                Snackbar.Add("La cotización no contiene SKUs para exportar.", Severity.Warning);
+                return;
+            }
+
+            string numCot = quote.NumeroCotizacion ?? "N/A";
+            string nomCli = string.IsNullOrWhiteSpace(quote.ClienteNombre) ? "Cliente" : quote.ClienteNombre;
+            var allMaqs = quote.MaquinariaDetalles ?? new List<CotizacionMaquinariaDetalle>();
+
+            var exportRows = list.Select(item => (
+                NumeroCot: numCot,
+                Cliente: nomCli,
+                Item: item,
+                Maqs: allMaqs
+                    .Where(m => string.Equals(m.SkuNombre, item.SkuNombre, StringComparison.OrdinalIgnoreCase))
+                    .ToList()
+            )).ToList();
+
+            await GenerateProductionSkusExcelAsync($"Metas de Producción — {nomCli} ({numCot})", $"Metas_Produccion_{nomCli}", exportRows);
+        }
+
+        private async Task ExportAllSavedQuotesToExcel()
+        {
+            if (!savedQuotes.Any())
+            {
+                Snackbar.Add("No hay cotizaciones guardadas para exportar.", Severity.Warning);
+                return;
+            }
+
+            var exportRows = new List<(string NumeroCot, string Cliente, CotizacionProduccionDetalle Item, List<CotizacionMaquinariaDetalle> Maqs)>();
+            foreach (var quote in savedQuotes)
+            {
+                var list = GetQuoteDetailsList(quote);
+                var allMaqs = quote.MaquinariaDetalles ?? new List<CotizacionMaquinariaDetalle>();
+                string numCot = quote.NumeroCotizacion ?? "N/A";
+                string nomCli = quote.ClienteNombre ?? "Cliente";
+
+                foreach (var item in list)
+                {
+                    exportRows.Add((
+                        NumeroCot: numCot,
+                        Cliente: nomCli,
+                        Item: item,
+                        Maqs: allMaqs
+                            .Where(m => string.Equals(m.SkuNombre, item.SkuNombre, StringComparison.OrdinalIgnoreCase))
+                            .ToList()
+                    ));
+                }
+            }
+
+            await GenerateProductionSkusExcelAsync("Consolidado de SKUs Cotizadas y Metas Reales de Producción", "Consolidado_Metas_Produccion_SKUs", exportRows);
+        }
+
+        private static (string Codigo, string Descripcion) SplitSkuCodeAndDesc(string? rawSku, int index)
+        {
+            if (string.IsNullOrWhiteSpace(rawSku))
+            {
+                return ($"SKU-{index:D3}", "Servicio de Producción / Actividad");
+            }
+            var raw = rawSku.Trim();
+            int dashIdx = raw.IndexOf('-');
+            if (dashIdx > 0 && dashIdx <= 22)
+            {
+                var left = raw.Substring(0, dashIdx).Trim();
+                var right = raw.Substring(dashIdx + 1).Trim();
+                if (!left.Contains(' ') && !string.IsNullOrWhiteSpace(right))
+                {
+                    return (left, right);
+                }
+            }
+            return ($"ACT-{index:D3}", raw);
+        }
+
+        private async Task GenerateProductionSkusExcelAsync(
+            string reportTitle,
+            string fileNamePrefix,
+            List<(string NumeroCot, string Cliente, CotizacionProduccionDetalle Item, List<CotizacionMaquinariaDetalle> Maqs)> rows)
+        {
+            try
+            {
+                string cleanPrefix = string.Concat(fileNamePrefix.Split(System.IO.Path.GetInvalidFileNameChars())).Replace(" ", "_");
+                string fileName = $"{cleanPrefix}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+
+                var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+                var sheet = workbook.CreateSheet("Metas Produccion SKUs");
+                var df = workbook.CreateDataFormat();
+
+                // Fuentes
+                var titleFont = workbook.CreateFont();
+                titleFont.IsBold = true;
+                titleFont.FontHeightInPoints = 13;
+                titleFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+                var headerFont = workbook.CreateFont();
+                headerFont.IsBold = true;
+                headerFont.FontHeightInPoints = 10;
+                headerFont.Color = NPOI.HSSF.Util.HSSFColor.White.Index;
+
+                var boldFont = workbook.CreateFont();
+                boldFont.IsBold = true;
+                boldFont.FontHeightInPoints = 10;
+
+                var goalFont = workbook.CreateFont();
+                goalFont.IsBold = true;
+                goalFont.FontHeightInPoints = 10;
+                goalFont.Color = NPOI.HSSF.Util.HSSFColor.DarkGreen.Index;
+
+                var warnFont = workbook.CreateFont();
+                warnFont.IsBold = true;
+                warnFont.FontHeightInPoints = 10;
+                warnFont.Color = NPOI.HSSF.Util.HSSFColor.DarkRed.Index;
+
+                // Estilos
+                var bannerStyle = workbook.CreateCellStyle();
+                bannerStyle.SetFont(titleFont);
+                bannerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.DarkBlue.Index;
+                bannerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+                bannerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+
+                var headerStyle = workbook.CreateCellStyle();
+                headerStyle.SetFont(headerFont);
+                headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.RoyalBlue.Index;
+                headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+                headerStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+                headerStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+                headerStyle.WrapText = true;
+
+                var headerGoalStyle = workbook.CreateCellStyle();
+                headerGoalStyle.SetFont(headerFont);
+                headerGoalStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.SeaGreen.Index;
+                headerGoalStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+                headerGoalStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+                headerGoalStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+                headerGoalStyle.WrapText = true;
+
+                var headerWarnStyle = workbook.CreateCellStyle();
+                headerWarnStyle.SetFont(headerFont);
+                headerWarnStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Brown.Index;
+                headerWarnStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+                headerWarnStyle.Alignment = NPOI.SS.UserModel.HorizontalAlignment.Center;
+                headerWarnStyle.VerticalAlignment = NPOI.SS.UserModel.VerticalAlignment.Center;
+                headerWarnStyle.WrapText = true;
+
+                var intStyle = workbook.CreateCellStyle();
+                intStyle.DataFormat = df.GetFormat("#,##0");
+
+                var dec1Style = workbook.CreateCellStyle();
+                dec1Style.DataFormat = df.GetFormat("#,##0.0");
+
+                var goalIntStyle = workbook.CreateCellStyle();
+                goalIntStyle.SetFont(goalFont);
+                goalIntStyle.DataFormat = df.GetFormat("#,##0");
+                goalIntStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.LightGreen.Index;
+                goalIntStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var goalDecStyle = workbook.CreateCellStyle();
+                goalDecStyle.SetFont(goalFont);
+                goalDecStyle.DataFormat = df.GetFormat("#,##0.0");
+                goalDecStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.LightGreen.Index;
+                goalDecStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var warnIntStyle = workbook.CreateCellStyle();
+                warnIntStyle.SetFont(warnFont);
+                warnIntStyle.DataFormat = df.GetFormat("#,##0");
+                warnIntStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.LightYellow.Index;
+                warnIntStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var warnDecStyle = workbook.CreateCellStyle();
+                warnDecStyle.SetFont(warnFont);
+                warnDecStyle.DataFormat = df.GetFormat("#,##0.0");
+                warnDecStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.LightYellow.Index;
+                warnDecStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var curr2Style = workbook.CreateCellStyle();
+                curr2Style.DataFormat = df.GetFormat("\"C$\" #,##0.00");
+
+                var curr2BoldStyle = workbook.CreateCellStyle();
+                curr2BoldStyle.SetFont(boldFont);
+                curr2BoldStyle.DataFormat = df.GetFormat("\"C$\" #,##0.00");
+
+                var curr4Style = workbook.CreateCellStyle();
+                curr4Style.DataFormat = df.GetFormat("\"C$\" #,##0.0000");
+
+                var pctStyle = workbook.CreateCellStyle();
+                pctStyle.SetFont(boldFont);
+                pctStyle.DataFormat = df.GetFormat("0.0%");
+
+                var totalLabelStyle = workbook.CreateCellStyle();
+                totalLabelStyle.SetFont(boldFont);
+                totalLabelStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+                totalLabelStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var totalIntStyle = workbook.CreateCellStyle();
+                totalIntStyle.SetFont(boldFont);
+                totalIntStyle.DataFormat = df.GetFormat("#,##0");
+                totalIntStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+                totalIntStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var totalDecStyle = workbook.CreateCellStyle();
+                totalDecStyle.SetFont(boldFont);
+                totalDecStyle.DataFormat = df.GetFormat("#,##0.0");
+                totalDecStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+                totalDecStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                var totalCurrStyle = workbook.CreateCellStyle();
+                totalCurrStyle.SetFont(boldFont);
+                totalCurrStyle.DataFormat = df.GetFormat("\"C$\" #,##0.00");
+                totalCurrStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+                totalCurrStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+
+                // Fila 0: Título Ejecutivo
+                var r0 = sheet.CreateRow(0);
+                r0.HeightInPoints = 26;
+                for (int i = 0; i <= 21; i++)
+                {
+                    var bc = r0.CreateCell(i);
+                    bc.CellStyle = bannerStyle;
+                }
+                r0.GetCell(0).SetCellValue($"BUSSERSA — {reportTitle.ToUpperInvariant()}");
+                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, 21));
+
+                // Fila 1: Nota operativa de turnos legales y lectura de metas
+                var r1 = sheet.CreateRow(1);
+                r1.CreateCell(0).SetCellValue($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  |  Jornadas Legales: Diurno = 8h • Mixto = 7.5h • Nocturno = 7h  |  Columnas Amarillas = Mínimo Equilibrio (No Perder)  |  Columnas Verdes = META REAL A PRODUCIR");
+                sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(1, 1, 0, 21));
+
+                // Fila 3: Encabezados de tabla
+                int headerRowIdx = 3;
+                var hr = sheet.CreateRow(headerRowIdx);
+                hr.HeightInPoints = 32;
+
+                string[] headers = new[]
+                {
+                    "Cotización No.",                       // 0  A
+                    "Cliente / Escenario",                  // 1  B
+                    "Código SKU",                           // 2  C
+                    "Descripción Producto / Actividad",     // 3  D
+                    "Turno",                                // 4  E
+                    "Horas Turno",                          // 5  F
+                    "Personas",                             // 6  G
+                    "Tarifa Cotizada (C$/Ud)",              // 7  H
+                    "Costo Fijo Turno c/Merma (C$)",        // 8  I
+                    "MÍNIMO Equilibrio / Turno (Uds)",      // 9  J (Warn)
+                    "MÍNIMO Equilibrio / Hora (Uds/h)",     // 10 K (Warn)
+                    "META REAL a Producir / Turno (Uds)",   // 11 L (Goal)
+                    "META REAL a Producir / Hora (Uds/h)",  // 12 M (Goal)
+                    "Meta por Persona / Turno (Uds)",       // 13 N (Goal)
+                    "Turnos Asignados / Mes",               // 14 O
+                    "META REAL Mensual (Uds/Mes)",          // 15 P (Goal)
+                    "Costo Op. Unit. c/Merma (C$)",         // 16 Q
+                    "Costo Op. Mensual (C$)",               // 17 R
+                    "Facturación Mensual Est. (C$)",        // 18 S
+                    "Utilidad Bruta Mensual (C$)",          // 19 T
+                    "% Margen Real",                        // 20 U
+                    "Equipos / Mantenimiento Incluidos"     // 21 V
+                };
+
+                for (int c = 0; c < headers.Length; c++)
+                {
+                    var hc = hr.CreateCell(c);
+                    hc.SetCellValue(headers[c]);
+                    if (c == 9 || c == 10)
+                        hc.CellStyle = headerWarnStyle;
+                    else if (c == 11 || c == 12 || c == 13 || c == 15)
+                        hc.CellStyle = headerGoalStyle;
+                    else
+                        hc.CellStyle = headerStyle;
+                }
+
+                int firstDataRow = headerRowIdx + 1;
+                int rowIdx = firstDataRow;
+                int seq = 1;
+
+                foreach (var entry in rows)
+                {
+                    var item = entry.Item;
+                    var row = sheet.CreateRow(rowIdx);
+                    int excelRow = rowIdx + 1; // 1-based for Excel formulas
+
+                    var (codigo, desc) = SplitSkuCodeAndDesc(item.SkuNombre, seq++);
+                    string turnoLbl = string.IsNullOrWhiteSpace(item.Turno) ? "Diurno" : item.Turno;
+                    decimal horas = GetItemHorasTurno(item);
+                    int personas = Math.Max(1, item.CantidadTrabajadores);
+                    decimal mermaFactor = 1m + (item.MermaPorcentaje / 100m);
+                    decimal costoOpUnit = GetItemCostoOperativoUnit(item);
+                    decimal costoFijoTurnoConMerma = (item.ManoObraUnitaria + item.AmortizacionUnitaria) * item.ProduccionDiaria * mermaFactor;
+                    decimal matConMerma = item.MaterialesTotales * mermaFactor;
+                    decimal turnosMes = GetItemTurnosMes(item);
+                    string maqResumen = entry.Maqs != null && entry.Maqs.Any()
+                        ? string.Join(" | ", entry.Maqs.Select(m => $"{m.Nombre} (C$ {m.ProyeccionMensual:N2}/mes)"))
+                        : "Sin maquinaria propia";
+
+                    row.CreateCell(0).SetCellValue(entry.NumeroCot);
+                    row.CreateCell(1).SetCellValue(entry.Cliente);
+                    row.CreateCell(2).SetCellValue(codigo);
+                    row.CreateCell(3).SetCellValue(desc);
+                    row.CreateCell(4).SetCellValue(turnoLbl);
+
+                    var cHoras = row.CreateCell(5);
+                    cHoras.SetCellValue((double)horas);
+                    cHoras.CellStyle = dec1Style;
+
+                    var cPers = row.CreateCell(6);
+                    cPers.SetCellValue(personas);
+                    cPers.CellStyle = intStyle;
+
+                    var cTarifa = row.CreateCell(7);
+                    cTarifa.SetCellValue((double)item.TarifaAcordada);
+                    cTarifa.CellStyle = curr2BoldStyle;
+
+                    var cCostoFijo = row.CreateCell(8);
+                    cCostoFijo.SetCellValue((double)Math.Round(costoFijoTurnoConMerma, 2));
+                    cCostoFijo.CellStyle = curr2Style;
+
+                    // J: Mínimo Equilibrio / Turno = ROUNDUP(I / (H - matConMerma), 0)
+                    string matTerm = matConMerma > 0m
+                        ? $"(H{excelRow}-{matConMerma.ToString("0.0000", System.Globalization.CultureInfo.InvariantCulture)})"
+                        : $"H{excelRow}";
+                    var cEqTurno = row.CreateCell(9);
+                    cEqTurno.SetCellFormula($"IF({matTerm}>0,ROUNDUP(I{excelRow}/{matTerm},0),0)");
+                    cEqTurno.CellStyle = warnIntStyle;
+
+                    // K: Mínimo Equilibrio / Hora = J / F
+                    var cEqHora = row.CreateCell(10);
+                    cEqHora.SetCellFormula($"IF(F{excelRow}>0,J{excelRow}/F{excelRow},0)");
+                    cEqHora.CellStyle = warnDecStyle;
+
+                    // L: META REAL a Producir / Turno (Uds)
+                    var cMetaTurno = row.CreateCell(11);
+                    cMetaTurno.SetCellValue(item.ProduccionDiaria);
+                    cMetaTurno.CellStyle = goalIntStyle;
+
+                    // M: META REAL a Producir / Hora (Uds/h) = L / F
+                    var cMetaHora = row.CreateCell(12);
+                    cMetaHora.SetCellFormula($"IF(F{excelRow}>0,L{excelRow}/F{excelRow},0)");
+                    cMetaHora.CellStyle = goalDecStyle;
+
+                    // N: Meta por Persona / Turno = L / G
+                    var cMetaPers = row.CreateCell(13);
+                    cMetaPers.SetCellFormula($"IF(G{excelRow}>0,L{excelRow}/G{excelRow},0)");
+                    cMetaPers.CellStyle = goalDecStyle;
+
+                    // O: Turnos Asignados / Mes
+                    var cTurnos = row.CreateCell(14);
+                    cTurnos.SetCellValue((double)turnosMes);
+                    cTurnos.CellStyle = dec1Style;
+
+                    // P: META REAL Mensual (Uds/Mes) = L * O
+                    var cMetaMes = row.CreateCell(15);
+                    cMetaMes.SetCellFormula($"L{excelRow}*O{excelRow}");
+                    cMetaMes.CellStyle = goalIntStyle;
+
+                    // Q: Costo Operativo Unitario c/Merma
+                    var cCostoOpU = row.CreateCell(16);
+                    cCostoOpU.SetCellValue((double)Math.Round(costoOpUnit, 4));
+                    cCostoOpU.CellStyle = curr4Style;
+
+                    // R: Costo Operativo Mensual = I * O + matConMerma * P
+                    var cCostoMes = row.CreateCell(17);
+                    cCostoMes.SetCellFormula($"Q{excelRow}*P{excelRow}");
+                    cCostoMes.CellStyle = curr2Style;
+
+                    // S: Facturación Mensual Estimada = H * P
+                    var cFactMes = row.CreateCell(18);
+                    cFactMes.SetCellFormula($"H{excelRow}*P{excelRow}");
+                    cFactMes.CellStyle = curr2BoldStyle;
+
+                    // T: Utilidad Bruta Mensual = S - R
+                    var cUtilMes = row.CreateCell(19);
+                    cUtilMes.SetCellFormula($"S{excelRow}-R{excelRow}");
+                    cUtilMes.CellStyle = curr2BoldStyle;
+
+                    // U: % Margen Real = T / S
+                    var cMargen = row.CreateCell(20);
+                    cMargen.SetCellFormula($"IF(S{excelRow}>0,T{excelRow}/S{excelRow},0)");
+                    cMargen.CellStyle = pctStyle;
+
+                    // V: Equipos / Mantenimiento
+                    row.CreateCell(21).SetCellValue(maqResumen);
+
+                    rowIdx++;
+                }
+
+                // Fila de Totales
+                if (rowIdx > firstDataRow)
+                {
+                    int startExcel = firstDataRow + 1;
+                    int endExcel = rowIdx;
+                    var tr = sheet.CreateRow(rowIdx);
+                    tr.HeightInPoints = 22;
+
+                    for (int c = 0; c <= 21; c++)
+                    {
+                        var tc = tr.CreateCell(c);
+                        tc.CellStyle = totalLabelStyle;
+                    }
+                    tr.GetCell(3).SetCellValue("TOTAL CONSOLIDADO DEL PLAN DE PRODUCCIÓN:");
+
+                    var tTurnos = tr.GetCell(14);
+                    tTurnos.SetCellFormula($"SUM(O{startExcel}:O{endExcel})");
+                    tTurnos.CellStyle = totalDecStyle;
+
+                    var tUdsMes = tr.GetCell(15);
+                    tUdsMes.SetCellFormula($"SUM(P{startExcel}:P{endExcel})");
+                    tUdsMes.CellStyle = totalIntStyle;
+
+                    var tCostoMes = tr.GetCell(17);
+                    tCostoMes.SetCellFormula($"SUM(R{startExcel}:R{endExcel})");
+                    tCostoMes.CellStyle = totalCurrStyle;
+
+                    var tFactMes = tr.GetCell(18);
+                    tFactMes.SetCellFormula($"SUM(S{startExcel}:S{endExcel})");
+                    tFactMes.CellStyle = totalCurrStyle;
+
+                    var tUtilMes = tr.GetCell(19);
+                    tUtilMes.SetCellFormula($"SUM(T{startExcel}:T{endExcel})");
+                    tUtilMes.CellStyle = totalCurrStyle;
+
+                    var tMargen = tr.GetCell(20);
+                    int totExcel = rowIdx + 1;
+                    tMargen.SetCellFormula($"IF(S{totExcel}>0,T{totExcel}/S{totExcel},0)");
+                    tMargen.CellStyle = pctStyle;
+                }
+
+                // Anchos de columnas explícitos (evita System.Drawing en Blazor WASM)
+                int[] widths = new[] { 24, 42, 15, 50, 12, 12, 11, 18, 22, 22, 22, 24, 24, 20, 16, 22, 20, 20, 22, 22, 14, 58 };
+                for (int c = 0; c < widths.Length; c++)
+                {
+                    sheet.SetColumnWidth(c, widths[c] * 256);
+                }
+
+                sheet.ForceFormulaRecalculation = true;
+                try
+                {
+                    NPOI.XSSF.UserModel.XSSFFormulaEvaluator.EvaluateAllFormulaCells(workbook);
+                }
+                catch
+                {
+                    // Excel evaluará las fórmulas automáticamente al abrir el libro
+                }
+
+                using var ms = new System.IO.MemoryStream();
+                workbook.Write(ms);
+                workbook.Close();
+                string base64 = Convert.ToBase64String(ms.ToArray());
+
+                await JS.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
+                Snackbar.Add($"Excel '{fileName}' descargado con las metas reales de producción y equilibrio por SKU.", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al generar Excel de metas de producción: {ex.Message}", Severity.Error);
             }
         }
     }
