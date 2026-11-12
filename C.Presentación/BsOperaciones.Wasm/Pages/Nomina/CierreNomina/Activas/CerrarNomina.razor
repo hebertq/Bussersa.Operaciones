@@ -1,74 +1,14 @@
 @using Modelo.Entidades.Entradas.Odoo
 
-@* Overlay de Carga Corporativo *@
-<MudOverlay Visible="isloaddata" DarkBackground="true" Absolute="true" ZIndex="9999">
-    <div class="d-flex flex-column align-center">
-        <MudProgressCircular Color="MudBlazor.Color.Secondary" Indeterminate="true" Size="MudBlazor.Size.Large" />
-        <MudText Typo="MudBlazor.Typo.h6" Color="MudBlazor.Color.Surface" Class="mt-3">Procesando cierre...</MudText>
-    </div>
-</MudOverlay>
-
 <MudContainer MaxWidth="MudBlazor.MaxWidth.ExtraLarge" Class="mt-4">
     <MudPaper Elevation="0" Class="pa-6 mb-6 glass-card card-lift">
-        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-6" Style="font-weight: 800;">
+        <MudText Typo="MudBlazor.Typo.h5" Color="MudBlazor.Color.Primary" Class="mb-4" Style="font-weight: 800;">
             <MudIcon Icon="@Icons.Material.Outlined.LockClock" Class="mr-2" />
             Cierre de Nóminas Activas
         </MudText>
 
-        <MudGrid Spacing="3" Class="align-center">
-            @* Selector de Nóminas *@
-            <MudItem xs="12" md="8">
-                <MudSelect T="int" Label="Nóminas Disponibles para Cierre"
-                           Value="operacion"
-                           ValueChanged="OnChangeNomina"
-                           Variant="MudBlazor.Variant.Outlined"
-                           AnchorOrigin="MudBlazor.Origin.BottomCenter"
-                           StartIcon="@Icons.Material.Filled.ListAlt">
-                    <MudSelectItem Value="0">Seleccione la nómina a cerrar...</MudSelectItem>
-                    @foreach (var item in PayLoadNomina)
-                    {
-                        <MudSelectItem Value="@item.id">@item.nombre</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-
-            @* Botón de Cierre *@
-            <MudItem xs="12" md="4">
-                <MudButton Variant="MudBlazor.Variant.Filled"
-                           Color="MudBlazor.Color.Success"
-                           StartIcon="@Icons.Material.Filled.CheckCircle"
-                           OnClick="RefrescarCierre"
-                           Disabled="@BotonEnabled"
-                           FullWidth="true"
-                           Style="height: 56px; border-radius: 12px; font-weight: bold;">
-                    FINALIZAR Y CERRAR
-                </MudButton>
-            </MudItem>
-        </MudGrid>
+        <MudAlert Severity="MudBlazor.Severity.Info" Variant="MudBlazor.Variant.Outlined" Dense="false">
+            El cierre de lotes de nómina y liquidaciones se realiza ahora directamente desde <b>Odoo (Nómina &rarr; Lotes)</b> para garantizar el cierre automático de las nóminas individuales y su contabilización automática en Contabilidad.
+        </MudAlert>
     </MudPaper>
-
-    @* Detalle de la Nómina *@
-    <MudDataGrid T="nominatype" Items="@PayLoadList" SortMode="MudBlazor.SortMode.Multiple" Filterable="true"
-                 Dense="true" Elevation="0" Class="border-radius-12 shadow-sm">
-        <ToolBarContent>
-            <MudText Typo="MudBlazor.Typo.h6">Detalle de nómina a cerrar</MudText>
-            <MudSpacer />
-        </ToolBarContent>
-        <Columns>
-            <PropertyColumn Property="x => x.cedula" Title="Cédula" />
-            <PropertyColumn Property="x => x.empleado" Title="Empleado" />
-            <PropertyColumn Property="x => x.tipoempleado" Title="Tipo Empleado" />
-            <PropertyColumn Property="x => x.dias" Title="Días Lab." />
-            <PropertyColumn Property="x => x.he" Title="Horas Ext." />
-            <PropertyColumn Property="x => x.bonocump" Title="Bono" />
-            <PropertyColumn Property="x => x.neto" Title="Neto a Recibir" Format="N2">
-                <HeaderTemplate>
-                    <MudText Typo="MudBlazor.Typo.subtitle2" Style="font-weight: bold; color: var(--mud-palette-success);">Neto a Recibir</MudText>
-                </HeaderTemplate>
-            </PropertyColumn>
-        </Columns>
-        <PagerContent>
-            <MudDataGridPager T="nominatype" />
-        </PagerContent>
-    </MudDataGrid>
 </MudContainer>

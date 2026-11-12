@@ -122,7 +122,10 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                         horas_extras = x.horas_extras,
                         HorasNormalesCobrables = x.horas_normales_cobrables,
                         HorasExtrasCobrables = x.horas_extras_cobrables,
-                        ReglaAplicada = x.regla_aplicada,
+                        ReglaAplicada = x.regla_aplicada ?? string.Empty,
+                        HorasNormalesDb = x.horas_normales_cobrables,
+                        HorasExtrasDb = x.horas_extras_cobrables,
+                        ReglaAplicadaDb = x.regla_aplicada ?? string.Empty,
                         Turno = DeterminarTurnoSegunLeyNicaragua(x.entrada_movimiento, x.salida_movimiento)
                     }).ToList();
 
@@ -423,16 +426,17 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
         protected void LimpiarFormularioEdicion()
         {
+            bool esWalmartOLasCondes = modalOperacionId == 4 || modalOperacionId == 5;
             editingRegla = new Modelo.Entidades.Operaciones.ReglaCobroClienteDto
             {
                 Id = 0,
                 OperacionId = modalOperacionId,
-                NombreRegla = "",
-                CargoPatron = "",
-                TipoRegla = "MONTACARGA_12H",
-                HorasNormales = 12.00m,
+                NombreRegla = esWalmartOLasCondes ? "Domingo Siempre Extra (Sin 48h)" : "",
+                CargoPatron = esWalmartOLasCondes ? "*" : "",
+                TipoRegla = esWalmartOLasCondes ? "DOMINGO_SIEMPRE_EXTRA" : "MONTACARGA_12H",
+                HorasNormales = esWalmartOLasCondes ? 8.00m : 12.00m,
                 HorasExtrasBase = 0.00m,
-                HorasBaseTurno = 12.00m,
+                HorasBaseTurno = esWalmartOLasCondes ? 8.00m : 12.00m,
                 Activa = true,
                 Orden = ReglasCliente.Count + 1
             };
@@ -469,7 +473,13 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             // Si el nombre de la regla está vacío o es un nombre por defecto de regla, sugerir nombre
             if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla) || editingRegla.NombreRegla.StartsWith("Regla "))
             {
-                if (!string.IsNullOrWhiteSpace(nuevoCargo))
+                if (nuevoCargo == "*")
+                {
+                    editingRegla.NombreRegla = editingRegla.TipoRegla == "DOMINGO_SIEMPRE_EXTRA"
+                        ? "Domingo Siempre Extra (Sin 48h)"
+                        : "Regla General (Todos los cargos)";
+                }
+                else if (!string.IsNullOrWhiteSpace(nuevoCargo))
                 {
                     editingRegla.NombreRegla = $"Regla {nuevoCargo}";
                 }
@@ -479,7 +489,13 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             if (!string.IsNullOrWhiteSpace(nuevoCargo))
             {
                 string lower = nuevoCargo.ToLower();
-                if (lower.Contains("montacarga"))
+                if (nuevoCargo == "*" && editingRegla.TipoRegla == "DOMINGO_SIEMPRE_EXTRA")
+                {
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                }
+                else if (lower.Contains("montacarga"))
                 {
                     editingRegla.TipoRegla = "MONTACARGA_12H";
                     editingRegla.HorasNormales = 12.00m;
@@ -509,6 +525,13 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             editingRegla.TipoRegla = nuevoTipo;
             switch (nuevoTipo)
             {
+                case "DOMINGO_SIEMPRE_EXTRA":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Domingo Siempre Extra (Sin 48h)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "*";
+                    break;
                 case "MONTACARGA_12H":
                     editingRegla.HorasNormales = 12.00m;
                     editingRegla.HorasExtrasBase = 0.00m;
@@ -664,7 +687,16 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 return;
             }
 
-            // Si ya vino pre-calculado desde PostgreSQL vía LEFT JOIN LATERAL
+            // Restaurar valores pre-calculados desde PostgreSQL vía LEFT JOIN LATERAL (incluso tras alternar el toggle)
+            if (!string.IsNullOrWhiteSpace(item.ReglaAplicadaDb) && item.ReglaAplicadaDb != "Marcación Real")
+            {
+                item.HorasNormalesCobrables = item.HorasNormalesDb;
+                item.HorasExtrasCobrables = item.HorasExtrasDb;
+                item.ReglaAplicada = item.ReglaAplicadaDb;
+                return;
+            }
+
+            // Si ya vino pre-calculado directamente en el objeto
             if (!string.IsNullOrWhiteSpace(item.ReglaAplicada) && item.ReglaAplicada != "Marcación Real")
             {
                 return;
@@ -687,6 +719,15 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 item.HorasNormalesCobrables = 0.0m;
                 item.HorasExtrasCobrables = extrasFeriado;
                 item.ReglaAplicada = "Feriado";
+                return;
+            }
+
+            // Fallback para WalMart (4) y Las Condes (5): Domingos siempre 100% extras (sin regla de 48h)
+            if ((operacionId == 4 || operacionId == 5) && item.fecha_asistencia.DayOfWeek == DayOfWeek.Sunday)
+            {
+                item.HorasNormalesCobrables = 0.0m;
+                item.HorasExtrasCobrables = item.horas_totales + item.horas_extras;
+                item.ReglaAplicada = "Domingo Extra (100% Extras)";
                 return;
             }
 

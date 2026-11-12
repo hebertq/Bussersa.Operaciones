@@ -59,12 +59,17 @@ namespace Modelo.Comercial
 
     public class CotizacionProduccionDetalle
     {
+        public long Id { get; set; }
         public Guid CotizacionId { get; set; }
         public string SkuNombre { get; set; }
+        public string Turno { get; set; } = "Diurno";
         public int ProduccionDiaria { get; set; }
         public decimal ManoObraUnitaria { get; set; }
         public decimal MaterialesTotales { get; set; }
         public decimal MermaPorcentaje { get; set; }
+        public decimal UtilidadPorcentaje { get; set; } = 35.00m;
+        public decimal DiasOperativosMes { get; set; } = 26.00m;
+        public decimal TurnosAsignadosMes { get; set; } = 26.00m;
         public decimal AmortizacionUnitaria { get; set; }
         public Guid? PersonalCotizacionId { get; set; }
         public int CantidadTrabajadores { get; set; } = 1;

@@ -521,6 +521,7 @@
                                         {
                                             <select class="form-select form-select-sm fw-semibold" value="@editingRegla.CargoPatron" @onchange="OnCargoChanged">
                                                 <option value="">-- Seleccione un Cargo --</option>
+                                                <option value="*">* (Todos los cargos)</option>
                                                 @if (ListaCargosHr != null)
                                                 {
                                                     @foreach (var c in ListaCargosHr)
@@ -528,7 +529,7 @@
                                                         <option value="@c.nombre">@c.nombre</option>
                                                     }
                                                 }
-                                                @if (!string.IsNullOrEmpty(editingRegla.CargoPatron) && ListaCargosHr != null && !ListaCargosHr.Any(x => string.Equals(x.nombre, editingRegla.CargoPatron, StringComparison.OrdinalIgnoreCase)))
+                                                @if (!string.IsNullOrEmpty(editingRegla.CargoPatron) && editingRegla.CargoPatron != "*" && ListaCargosHr != null && !ListaCargosHr.Any(x => string.Equals(x.nombre, editingRegla.CargoPatron, StringComparison.OrdinalIgnoreCase)))
                                                 {
                                                     <option value="@editingRegla.CargoPatron">@editingRegla.CargoPatron (Personalizado)</option>
                                                 }
@@ -536,12 +537,13 @@
                                         }
                                         else
                                         {
-                                            <input type="text" class="form-control form-control-sm" placeholder="ej. Operador de montacarga, conductor" @bind="editingRegla.CargoPatron" />
+                                            <input type="text" class="form-control form-control-sm" placeholder="ej. * (todos), Operador de montacarga, conductor" @bind="editingRegla.CargoPatron" />
                                         }
                                     </div>
                                     <div class="col-md-4">
                                         <label class="small fw-bold text-secondary mb-1">Tipo / Comportamiento de Cobro:</label>
                                         <select class="form-select form-select-sm" value="@editingRegla.TipoRegla" @onchange="OnTipoReglaChanged">
+                                            <option value="DOMINGO_SIEMPRE_EXTRA">📅 Domingo Siempre Extra (Sin regla 48h)</option>
                                             <option value="MONTACARGA_12H">🚜 Montacargas 12h (12 Cobrables + Exceso a Extras)</option>
                                             <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>
                                             <option value="FIJO_DIARIO">🚚 Tarifa Fija Diaria (Horas Fijas)</option>
@@ -642,11 +644,21 @@
                                                         <td class="text-center fw-bold">@num</td>
                                                         <td class="fw-bold text-primary">@regla.NombreRegla</td>
                                                         <td>
-                                                            <code>@regla.CargoPatron</code>
+                                                            @if (regla.CargoPatron == "*" || string.Equals(regla.CargoPatron, "TODOS", StringComparison.OrdinalIgnoreCase))
+                                                            {
+                                                                <span class="badge bg-info text-dark">* (Todos los cargos)</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <code>@regla.CargoPatron</code>
+                                                            }
                                                         </td>
                                                         <td>
                                                             @switch (regla.TipoRegla)
                                                             {
+                                                                case "DOMINGO_SIEMPRE_EXTRA":
+                                                                    <span>📅 Domingo Siempre Extra</span>
+                                                                    break;
                                                                 case "MONTACARGA_12H":
                                                                     <span>🚜 Montacargas 12h</span>
                                                                     break;

@@ -33,6 +33,9 @@ namespace Modelo.Report
         public decimal HorasNormalesCobrables { get; set; }
         public decimal HorasExtrasCobrables { get; set; }
         public string ReglaAplicada { get; set; } = string.Empty;
+        public decimal HorasNormalesDb { get; set; }
+        public decimal HorasExtrasDb { get; set; }
+        public string ReglaAplicadaDb { get; set; } = string.Empty;
         public DateTime fecha_registro { get; set; }
         public DateTime? fecha_actualizacion { get; set; }
     }

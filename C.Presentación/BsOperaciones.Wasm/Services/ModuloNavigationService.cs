@@ -236,15 +236,6 @@ namespace BsOperaciones.Services
                     },
                     new ModuloHerramientaItem
                     {
-                        Titulo = "Cierre de Nóminas Activas",
-                        Subtitulo = "Cierre formal de nóminas activas y mensuales para el procesamiento contable.",
-                        Icono = Icons.Material.Filled.LockClock,
-                        Ruta = "/nomina/cerrar/activa",
-                        MenuResourceId = 12,
-                        Color = "#047857"
-                    },
-                    new ModuloHerramientaItem
-                    {
                         Titulo = "Descriptores de Puesto",
                         Subtitulo = "Gestión de descriptores de puesto, funciones, requisitos y competencias.",
                         Icono = Icons.Material.Filled.Assignment,
@@ -434,7 +425,7 @@ namespace BsOperaciones.Services
                 // 2. Operaciones (15) o cualquiera de sus accesos
                 if (modulo.Clave == "operaciones")
                 {
-                    return menus.Any(m => m.id == 15 || m.id == 55 || m.id == 64 || m.id == 16 || m.id == 18 || m.id == 56 || m.id == 36 || m.id == 67 || m.id == 69);
+                    return menus.Any(m => m.id == 15 || m.id == 55 || m.id == 64 || m.id == 16 || m.id == 18 || m.id == 56 || m.id == 36 || m.id == 37 || m.id == 57 || m.id == 67 || m.id == 69);
                 }
 
                 // 3. Asistencias (3)
@@ -443,22 +434,22 @@ namespace BsOperaciones.Services
                     return menus.Any(m => m.id == 3 || m.id == 4 || m.id == 5);
                 }
 
-                // 4. Nómina (8 o 9 o 60 o 30 o 31 o 32)
+                // 4. Nómina (8 o 9 o 39 o 60 o 30 o 31 o 32)
                 if (modulo.Clave == "nomina")
                 {
-                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 60 || m.id == 30 || m.id == 31 || m.id == 32);
+                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 39 || m.id == 60 || m.id == 30 || m.id == 31 || m.id == 32);
                 }
 
-                // 5. Comercial (26 o 27 o 33)
+                // 5. Comercial (26 o 27 o 28 o 29 o 33)
                 if (modulo.Clave == "comercial")
                 {
-                    return menus.Any(m => m.id == 26 || m.id == 27 || m.id == 33);
+                    return menus.Any(m => m.id == 26 || m.id == 27 || m.id == 28 || m.id == 29 || m.id == 33);
                 }
 
-                // 6. Administración (22 o 23 o 24 o 25)
+                // 6. Administración (22 o 23 o 24 o 25 o 59)
                 if (modulo.Clave == "admon")
                 {
-                    return menus.Any(m => m.id == 22 || m.id == 23 || m.id == 24 || m.id == 25);
+                    return menus.Any(m => m.id == 22 || m.id == 23 || m.id == 24 || m.id == 25 || m.id == 59);
                 }
 
                 // Regla general directa

@@ -13,6 +13,8 @@ namespace Modelo.Admin
         public string apellidos { get; set; }
         public string nav_menu { get; set; } 
         public int grupoid { get; set; }
+        public string? grupo_nombre { get; set; }
+        public string? rol_nombre { get; set; }
         public string? redmine_user { get; set; }
 
     }

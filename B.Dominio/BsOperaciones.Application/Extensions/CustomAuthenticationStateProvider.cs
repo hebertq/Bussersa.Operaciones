@@ -85,11 +85,34 @@ namespace BsOperaciones.Application.Extensions
                 var userNameOrEmail = !string.IsNullOrWhiteSpace(user.email) ? user.email : (!string.IsNullOrWhiteSpace(user.username) ? user.username : "user");
                 var navMenu = !string.IsNullOrWhiteSpace(user.nav_menu) ? user.nav_menu : "[]";
 
-                claimsIdentity = new ClaimsIdentity(new[]
-                                {
-                                    new Claim(ClaimTypes.Name, userNameOrEmail),
-                                    new Claim("UserMenu", navMenu)
-                                }, "apiauth_type");
+                string roleLabel = !string.IsNullOrWhiteSpace(user.grupo_nombre)
+                    ? user.grupo_nombre
+                    : (!string.IsNullOrWhiteSpace(user.rol_nombre)
+                        ? user.rol_nombre
+                        : user.grupoid switch
+                        {
+                            4 => "Administrador",
+                            3 => "Oficial Bussersa",
+                            5 => "Oficial de Facturación",
+                            7 => "Supervisor",
+                            8 => "Coordinador OPM",
+                            _ => "Colaborador"
+                        });
+
+                var claims = new System.Collections.Generic.List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, userNameOrEmail),
+                    new Claim(ClaimTypes.Role, roleLabel),
+                    new Claim("GroupId", user.grupoid.ToString()),
+                    new Claim("UserMenu", navMenu)
+                };
+
+                if (user.grupoid == 4)
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                }
+
+                claimsIdentity = new ClaimsIdentity(claims, "apiauth_type");
             }
 
             return claimsIdentity;

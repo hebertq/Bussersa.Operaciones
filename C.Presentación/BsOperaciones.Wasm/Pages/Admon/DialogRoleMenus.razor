@@ -25,7 +25,7 @@
                 var depth = GetMenuDepth(menu);
                 var hasChildren = AllMenus.Any(m => m.parentid == menu.id);
                 var prefix = depth > 0 ? "— " : "";
-                var isMandatory = menuId == 1 || menuId == 21;
+                var isMandatory = menuId == 1;
                 
                 <div style="@($"margin-left: {depth * 24}px; display: flex; align-items: center; min-height: 40px;")">
                     @if (hasChildren)
@@ -97,7 +97,6 @@
             {
                 SelectedMenuIds = new HashSet<int>(roleMenusResult.Model.Select(m => m.id));
                 SelectedMenuIds.Add(1);
-                SelectedMenuIds.Add(21);
             }
         }
         catch (Exception ex)
@@ -128,10 +127,48 @@
         if (isChecked)
         {
             SelectedMenuIds.Add(menuId);
+            SetDescendantsChecked(menuId, true, new HashSet<int> { menuId });
+            EnsureAncestorsChecked(menuId);
         }
         else
         {
-            SelectedMenuIds.Remove(menuId);
+            if (menuId != 1)
+            {
+                SelectedMenuIds.Remove(menuId);
+            }
+            SetDescendantsChecked(menuId, false, new HashSet<int> { menuId });
+        }
+    }
+
+    private void SetDescendantsChecked(int parentId, bool isChecked, HashSet<int> visited)
+    {
+        var children = AllMenus.Where(m => m.parentid == parentId && m.id != parentId).ToList();
+        foreach (var child in children)
+        {
+            if (!visited.Add(child.id)) continue;
+            if (isChecked)
+            {
+                SelectedMenuIds.Add(child.id);
+            }
+            else if (child.id != 1)
+            {
+                SelectedMenuIds.Remove(child.id);
+            }
+            SetDescendantsChecked(child.id, isChecked, visited);
+        }
+    }
+
+    private void EnsureAncestorsChecked(int menuId)
+    {
+        var current = AllMenus.FirstOrDefault(m => m.id == menuId);
+        var visited = new HashSet<int>();
+        while (current != null && current.parentid > 0 && current.parentid != current.id)
+        {
+            if (!visited.Add(current.id)) break;
+            var parent = AllMenus.FirstOrDefault(m => m.id == current.parentid);
+            if (parent == null) break;
+            SelectedMenuIds.Add(parent.id);
+            current = parent;
         }
     }
 

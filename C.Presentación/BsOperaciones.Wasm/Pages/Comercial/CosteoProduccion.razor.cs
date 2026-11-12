@@ -17,16 +17,24 @@ namespace BsOperaciones.Pages.Comercial
         [Inject] private ISnackbar Snackbar { get; set; } = default!;
         [Inject] private ISender Mediator { get; set; } = default!;
         [Inject] private IJSRuntime JS { get; set; } = default!;
+        [Inject] private NavigationManager NavManager { get; set; } = default!;
 
         private Guid? editingQuoteId;
         private string? editingNumeroCotizacion;
         private bool isPrinting = false;
+        private bool showExcelPanel = false;
         private HashSet<Cotizacion> expandedQuotes = new HashSet<Cotizacion>();
         private Dictionary<Guid, HashSet<CotizacionProduccionDetalle>> selectedSkusForPrint = new Dictionary<Guid, HashSet<CotizacionProduccionDetalle>>();
 
         private string cliente = "";
         private string skuNombre = "";
         private int produccionDiaria = 1000;
+        private int cantidadTrabajadores = 8;
+        private decimal diasOperativosMes = 26.00m;
+        private decimal turnosAsignadosMes = 26.00m;
+        private string manualTurno = "Diurno";
+        private bool isTarifaManualOverride = false;
+
         protected int activeTabIndex = 0;
         protected void SetActiveTab(int index)
         {
@@ -36,10 +44,11 @@ namespace BsOperaciones.Pages.Comercial
 
         private decimal manoObraUnitaria = 1.5000m;
         private decimal mermaPorcentaje = 2.00m;
+        private decimal utilidadPorcentaje = 35.00m;
         private decimal tarifaAcordada = 0.0000m;
 
         private Guid? selectedPersonnelQuoteId;
-        private Cotizacion selectedPersonnelQuote;
+        private Cotizacion? selectedPersonnelQuote;
         private string selectedFilterEmpresa = "";
         private List<string> importedProducts = new List<string>();
         private int currentProductIndex = -1;
@@ -48,7 +57,7 @@ namespace BsOperaciones.Pages.Comercial
         private List<CatalogoViatico> viaticosList = new List<CatalogoViatico>();
         private List<CatalogoMaquinaria> machineryList = new List<CatalogoMaquinaria>();
         private List<CatalogoMaterial> materialesList = new List<CatalogoMaterial>();
-        
+
         private List<Cotizacion> savedQuotes = new List<Cotizacion>();
         private List<Cotizacion> personnelQuotes = new List<Cotizacion>();
 
@@ -57,6 +66,10 @@ namespace BsOperaciones.Pages.Comercial
         private List<CotizacionMaquinariaDetalle> tempMaquinariaDetalles = new List<CotizacionMaquinariaDetalle>();
 
         private HashSet<int> selectedMachinery = new HashSet<int>();
+        private Dictionary<int, decimal> customMachineryPrices = new Dictionary<int, decimal>();
+        private Dictionary<int, int> customMachineryQuantities = new Dictionary<int, int>();
+        private Dictionary<int, int> customMachineryMonths = new Dictionary<int, int>();
+
         private HashSet<int> selectedMateriales = new HashSet<int>();
         private Dictionary<int, decimal> customMaterialesCosts = new Dictionary<int, decimal>();
         private Dictionary<int, decimal> customMaterialesQuantities = new Dictionary<int, decimal>();
@@ -64,73 +77,158 @@ namespace BsOperaciones.Pages.Comercial
         private int? selectedMaterialToAdd;
         private int? selectedMachineryToAdd;
 
-        // Cálculos dinámicos consolidados
-        private decimal ConsolidatedCostoMensual => currentItems.Sum(x => (x.ManoObraUnitaria + x.MaterialesTotales + x.AmortizacionUnitaria) * x.ProduccionDiaria * 30m);
-        private decimal ConsolidatedFacturacionMensual => currentItems.Sum(x => x.TarifaAcordada * x.ProduccionDiaria * 30m);
-        private decimal ConsolidatedTarifaSugeridaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaSugerida) : 0m;
-        private decimal ConsolidatedTarifaAcordadaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaAcordada) : 0m;
-
         // Modelos para gestión de catálogos
         private CatalogoMaterial editingMaterial = new CatalogoMaterial();
         private CatalogoMaquinaria editingMachinery = new CatalogoMaquinaria();
         private CatalogoEpp editingEpp = new CatalogoEpp();
         private CatalogoViatico editingViatico = new CatalogoViatico();
 
-        private decimal GetDiasTrabajoMes(int hours)
+        // Turno activo y horas del turno
+        private string CurrentTurnoNombre => selectedPersonnelQuote?.PersonalDetalle?.Turno
+            ?? (string.IsNullOrWhiteSpace(manualTurno) ? "Diurno" : manualTurno);
+
+        private int CurrentHorasTurno => (selectedPersonnelQuote?.PersonalDetalle?.HorasTurno ?? 0) > 0
+            ? selectedPersonnelQuote!.PersonalDetalle.HorasTurno
+            : 8;
+
+        private bool IsNightShift(string? turnoName)
         {
-            if (hours <= 0) return 26m;
-            if (hours <= 8) return 26m;
-            if (hours == 12) return 16m;
-            if (hours == 24) return 8m;
-            return Math.Round((48m / (decimal)hours) * 4m, 1);
+            if (string.IsNullOrWhiteSpace(turnoName)) return false;
+            var t = turnoName.ToLowerInvariant();
+            return t.Contains("noct") || t.Contains("noche");
         }
 
-        private decimal CalculatedCostoDiarioPersona => selectedPersonnelQuote != null 
-            ? (selectedPersonnelQuote.CostoTotal / GetDiasTrabajoMes(selectedPersonnelQuote.PersonalDetalle?.HorasTurno ?? 8)) 
+        private decimal CalculatedUnidadesPorHora => CurrentHorasTurno > 0
+            ? Math.Round((decimal)produccionDiaria / CurrentHorasTurno, 1)
+            : produccionDiaria;
+
+        // Costos de Personal y Cuadrilla por Turno
+        private decimal EffectiveDiasMes => diasOperativosMes > 0m ? diasOperativosMes : 26m;
+
+        private decimal CalculatedCostoDiarioPersona => selectedPersonnelQuote != null
+            ? (selectedPersonnelQuote.CostoTotal / EffectiveDiasMes)
             : 0m;
 
-        private decimal CalculatedManoObraUnitaria => selectedPersonnelQuoteId.HasValue 
-            ? ((produccionDiaria > 0) ? (CalculatedCostoDiarioPersona / (decimal)produccionDiaria) : 0m)
+        private decimal CalculatedCostoTurnoCuadrilla => CalculatedCostoDiarioPersona * Math.Max(1, cantidadTrabajadores);
+
+        private decimal CalculatedCostoMensualCuadrilla => selectedPersonnelQuote != null
+            ? (selectedPersonnelQuote.CostoTotal * Math.Max(1, cantidadTrabajadores))
+            : 0m;
+
+        private decimal CalculatedManoObraUnitaria => selectedPersonnelQuoteId.HasValue
+            ? ((produccionDiaria > 0) ? (CalculatedCostoTurnoCuadrilla / (decimal)produccionDiaria) : 0m)
             : manoObraUnitaria;
 
+        // Costos de Materiales por Unidad
         private decimal CalculatedMateriales => materialesList
             .Where(x => selectedMateriales.Contains(x.Id))
-            .Sum(x => 
-            {
-                decimal price = customMaterialesCosts.TryGetValue(x.Id, out var cost) ? cost : x.CostoUnitario;
-                decimal qty = customMaterialesQuantities.TryGetValue(x.Id, out var q) ? q : 1m;
-                return price * qty;
-            });
+            .Sum(x => GetMaterialCost(x.Id) * GetMaterialQuantity(x.Id));
+
+        // Costos de Maquinaria y Equipos
+        private decimal GetMachineryPrice(int id)
+        {
+            if (customMachineryPrices.TryGetValue(id, out var p)) return p;
+            return machineryList.FirstOrDefault(x => x.Id == id)?.Precio ?? 0m;
+        }
+
+        private int GetMachineryQuantity(int id)
+        {
+            if (customMachineryQuantities.TryGetValue(id, out var q)) return q;
+            return machineryList.FirstOrDefault(x => x.Id == id)?.Cantidad ?? 1;
+        }
+
+        private int GetMachineryMonths(int id)
+        {
+            if (customMachineryMonths.TryGetValue(id, out var m) && m > 0) return m;
+            var catM = machineryList.FirstOrDefault(x => x.Id == id)?.MesesProyeccion ?? 12;
+            return catM > 0 ? catM : 12;
+        }
+
+        private decimal GetMachineryMonthly(int id)
+        {
+            int months = GetMachineryMonths(id);
+            decimal totalInv = GetMachineryPrice(id) * GetMachineryQuantity(id);
+            return months > 0 ? (totalInv / months) : totalInv;
+        }
+
+        private decimal CalculatedCapexTotal => machineryList
+            .Where(x => selectedMachinery.Contains(x.Id))
+            .Sum(x => GetMachineryPrice(x.Id) * GetMachineryQuantity(x.Id));
 
         private decimal CalculatedAmortizacionMensual => machineryList
             .Where(x => selectedMachinery.Contains(x.Id))
-            .Sum(x => x.ProyeccionMensual);
+            .Sum(x => GetMachineryMonthly(x.Id));
+
+        private decimal CalculatedCostoTurnoMaquinaria => CalculatedAmortizacionMensual / EffectiveDiasMes;
 
         private decimal CalculatedAmortizacionUnitaria => (produccionDiaria > 0)
-            ? (CalculatedAmortizacionMensual / 30m) / (decimal)produccionDiaria
+            ? (CalculatedCostoTurnoMaquinaria / (decimal)produccionDiaria)
             : 0m;
 
+        // Cascada de Costo Unitario y Precio Comercial
         private decimal CalculatedCostoUnitarioBase => CalculatedManoObraUnitaria + CalculatedMateriales + CalculatedAmortizacionUnitaria;
 
         private decimal CalculatedMermaCosto => CalculatedCostoUnitarioBase * (mermaPorcentaje / 100m);
 
-        private decimal CalculatedTarifaUnitaria => CalculatedCostoUnitarioBase + CalculatedMermaCosto;
+        private decimal CalculatedCostoOperativoUnitario => CalculatedCostoUnitarioBase + CalculatedMermaCosto;
+
+        private decimal CalculatedUtilidadUnitaria => (utilidadPorcentaje > 0m && utilidadPorcentaje < 100m)
+            ? (CalculatedCostoOperativoUnitario / (1m - (utilidadPorcentaje / 100m))) - CalculatedCostoOperativoUnitario
+            : 0m;
+
+        private decimal CalculatedTarifaUnitaria => Math.Round(CalculatedCostoOperativoUnitario + CalculatedUtilidadUnitaria, 4);
+
+        // Proyecciones por Turno y Mensual
+        private decimal EffectiveTurnosAsignadosMes => turnosAsignadosMes > 0m ? turnosAsignadosMes : EffectiveDiasMes;
 
         private decimal CalculatedFacturacionDiaria => tarifaAcordada * (decimal)produccionDiaria;
+        private decimal CalculatedCostoPorTurno => CalculatedCostoOperativoUnitario * (decimal)produccionDiaria;
+        private decimal CalculatedUtilidadPorTurno => CalculatedFacturacionDiaria - CalculatedCostoPorTurno;
 
-        private decimal CalculatedFacturacionMensual => CalculatedFacturacionDiaria * 30m;
+        private decimal CalculatedFacturacionMensual => CalculatedFacturacionDiaria * EffectiveTurnosAsignadosMes;
+        private decimal CalculatedCostoMensualSku => CalculatedCostoPorTurno * EffectiveTurnosAsignadosMes;
+        private decimal CalculatedUtilidadMensualSku => CalculatedFacturacionMensual - CalculatedCostoMensualSku;
 
-        // Punto de equilibrio
-        private decimal CalculatedUtilidadUnitariaAntesDeLabor => tarifaAcordada - CalculatedMateriales - CalculatedAmortizacionUnitaria - CalculatedMermaCosto;
-
-        private decimal CalculatedUnidadesBreakeven => (CalculatedUtilidadUnitariaAntesDeLabor > 0 && CalculatedCostoDiarioPersona > 0)
-            ? CalculatedCostoDiarioPersona / CalculatedUtilidadUnitariaAntesDeLabor
+        private decimal CalculatedMargenRealPorcentaje => tarifaAcordada > 0m
+            ? ((tarifaAcordada - CalculatedCostoOperativoUnitario) / tarifaAcordada) * 100m
             : 0m;
+
+        // Punto de equilibrio del turno completo (Cuadrilla N personas + Equipos)
+        private decimal CalculatedCostoFijoTurnoConMerma => (CalculatedCostoTurnoCuadrilla + CalculatedCostoTurnoMaquinaria) * (1m + (mermaPorcentaje / 100m));
+        private decimal CalculatedMaterialUnitarioConMerma => CalculatedMateriales * (1m + (mermaPorcentaje / 100m));
+        private decimal CalculatedMargenContribucionUnitario => tarifaAcordada - CalculatedMaterialUnitarioConMerma;
+
+        private decimal CalculatedUnidadesBreakeven => (CalculatedMargenContribucionUnitario > 0m && CalculatedCostoFijoTurnoConMerma > 0m)
+            ? Math.Ceiling(CalculatedCostoFijoTurnoConMerma / CalculatedMargenContribucionUnitario)
+            : 0m;
+
+        // Cálculos dinámicos consolidados de la cotización actual
+        private decimal GetItemTurnosMes(CotizacionProduccionDetalle x)
+            => x.TurnosAsignadosMes > 0m ? x.TurnosAsignadosMes : (x.DiasOperativosMes > 0m ? x.DiasOperativosMes : 26m);
+
+        private decimal GetItemCostoOperativoUnit(CotizacionProduccionDetalle x)
+            => (x.ManoObraUnitaria + x.MaterialesTotales + x.AmortizacionUnitaria) * (1m + (x.MermaPorcentaje / 100m));
+
+        private decimal ConsolidatedTurnosTotalesMes => currentItems.Sum(x => GetItemTurnosMes(x));
+        private decimal ConsolidatedUnidadesMensuales => currentItems.Sum(x => x.ProduccionDiaria * GetItemTurnosMes(x));
+        private decimal ConsolidatedCostoMensual => currentItems.Sum(x => GetItemCostoOperativoUnit(x) * x.ProduccionDiaria * GetItemTurnosMes(x));
+        private decimal ConsolidatedFacturacionMensual => currentItems.Sum(x => x.TarifaAcordada * x.ProduccionDiaria * GetItemTurnosMes(x));
+        private decimal ConsolidatedUtilidadMensual => ConsolidatedFacturacionMensual - ConsolidatedCostoMensual;
+        private decimal ConsolidatedMargenPorcentaje => ConsolidatedFacturacionMensual > 0m
+            ? (ConsolidatedUtilidadMensual / ConsolidatedFacturacionMensual) * 100m
+            : 0m;
+        private decimal ConsolidatedTarifaSugeridaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaSugerida) : 0m;
+        private decimal ConsolidatedTarifaAcordadaPromedio => currentItems.Any() ? currentItems.Average(x => x.TarifaAcordada) : 0m;
 
         protected override async Task OnInitializedAsync()
         {
             await LoadCatalogs();
             await LoadQuotes();
+        }
+
+        private void GoToCosteoPersonal()
+        {
+            NavManager.NavigateTo("/comercial/costeo-personal");
         }
 
         private async Task LoadCatalogs()
@@ -143,24 +241,6 @@ namespace BsOperaciones.Pages.Comercial
                 viaticosList = cats.Viaticos ?? new List<CatalogoViatico>();
                 machineryList = cats.Maquinaria ?? new List<CatalogoMaquinaria>();
                 materialesList = cats.Materiales ?? new List<CatalogoMaterial>();
-
-                // Seleccionar por defecto algunos materiales si están disponibles
-                if (!selectedMateriales.Any())
-                {
-                    foreach (var mat in materialesList.Where(x => x.Nombre.Contains("Manga") || x.Nombre.Contains("Cinchos") || x.Nombre.Contains("Stickers") || x.Nombre.Contains("Estibado")))
-                    {
-                        selectedMateriales.Add(mat.Id);
-                    }
-                }
-
-                // Seleccionar por defecto maquinaria
-                if (!selectedMachinery.Any())
-                {
-                    foreach (var item in machineryList)
-                    {
-                        selectedMachinery.Add(item.Id);
-                    }
-                }
             }
         }
 
@@ -172,24 +252,49 @@ namespace BsOperaciones.Pages.Comercial
                 savedQuotes = res.Model.Where(x => x.TipoCosteo == "Produccion").ToList();
                 personnelQuotes = res.Model.Where(x => x.TipoCosteo == "Personal").ToList();
             }
-            RecalculateTarifaAcordada();
+            SyncTarifaIfAuto();
         }
 
-        private void RecalculateTarifaAcordada()
+        private void SyncTarifaIfAuto()
         {
-            if (tarifaAcordada == 0m)
+            if (!isTarifaManualOverride || tarifaAcordada <= 0m)
             {
-                tarifaAcordada = CalculatedTarifaUnitaria;
+                tarifaAcordada = Math.Round(CalculatedTarifaUnitaria, 2);
             }
+        }
+
+        private void ResetTarifaToSuggested()
+        {
+            isTarifaManualOverride = false;
+            tarifaAcordada = Math.Round(CalculatedTarifaUnitaria, 2);
+        }
+
+        private void OnTarifaAcordadaManualChanged(decimal val)
+        {
+            tarifaAcordada = val;
+            isTarifaManualOverride = Math.Abs(val - Math.Round(CalculatedTarifaUnitaria, 2)) > 0.004m;
         }
 
         private void OnEmpresaFilterChanged(string val)
         {
             selectedFilterEmpresa = val;
-            selectedPersonnelQuoteId = null;
-            selectedPersonnelQuote = null;
-            manoObraUnitaria = 0m;
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            if (string.IsNullOrWhiteSpace(cliente) && !string.IsNullOrWhiteSpace(val))
+            {
+                cliente = val;
+            }
+
+            var companyShifts = personnelQuotes.Where(x => x.ClienteNombre == selectedFilterEmpresa).ToList();
+            if (companyShifts.Any())
+            {
+                var preferred = companyShifts.FirstOrDefault(x => !IsNightShift(x.PersonalDetalle?.Turno)) ?? companyShifts.First();
+                OnPersonnelQuoteChanged(preferred.Id);
+            }
+            else
+            {
+                selectedPersonnelQuoteId = null;
+                selectedPersonnelQuote = null;
+                SyncTarifaIfAuto();
+            }
         }
 
         private void OnPersonnelQuoteChanged(Guid? id)
@@ -198,20 +303,79 @@ namespace BsOperaciones.Pages.Comercial
             if (id.HasValue)
             {
                 selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == id.Value);
+                if (selectedPersonnelQuote != null)
+                {
+                    int hrs = selectedPersonnelQuote.PersonalDetalle?.HorasTurno ?? 8;
+                    if (hrs == 12 && diasOperativosMes == 26m)
+                    {
+                        diasOperativosMes = 16m;
+                        turnosAsignadosMes = 16m;
+                    }
+                    else if (hrs <= 8 && diasOperativosMes == 16m)
+                    {
+                        diasOperativosMes = 26m;
+                        turnosAsignadosMes = 26m;
+                    }
+                }
             }
             else
             {
                 selectedPersonnelQuote = null;
             }
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            SyncTarifaIfAuto();
+        }
+
+        private void OnCantidadTrabajadoresChanged(int val)
+        {
+            cantidadTrabajadores = Math.Max(1, val);
+            SyncTarifaIfAuto();
+        }
+
+        private void OnDiasOperativosMesChanged(decimal val)
+        {
+            decimal oldDias = diasOperativosMes;
+            diasOperativosMes = val > 0m ? val : 26m;
+            if (turnosAsignadosMes == oldDias)
+            {
+                turnosAsignadosMes = diasOperativosMes;
+            }
+            SyncTarifaIfAuto();
         }
 
         private void OnProduccionDiariaChanged(int val)
         {
-            produccionDiaria = val;
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            produccionDiaria = Math.Max(1, val);
+            SyncTarifaIfAuto();
         }
 
+        private void OnUnidadesPorHoraChanged(decimal packsHora)
+        {
+            if (packsHora > 0m)
+            {
+                produccionDiaria = Math.Max(1, (int)Math.Round(packsHora * CurrentHorasTurno, 0));
+                SyncTarifaIfAuto();
+            }
+        }
+
+        private void OnMermaChanged(decimal val)
+        {
+            mermaPorcentaje = Math.Max(0m, val);
+            SyncTarifaIfAuto();
+        }
+
+        private void OnUtilidadChanged(decimal val)
+        {
+            utilidadPorcentaje = Math.Clamp(val, 0m, 95m);
+            SyncTarifaIfAuto();
+        }
+
+        private void OnManoObraManualChanged(decimal val)
+        {
+            manoObraUnitaria = Math.Max(0m, val);
+            SyncTarifaIfAuto();
+        }
+
+        // Materiales
         private decimal GetMaterialCost(int id)
         {
             if (customMaterialesCosts.TryGetValue(id, out var cost))
@@ -220,16 +384,23 @@ namespace BsOperaciones.Pages.Comercial
             return item?.CostoUnitario ?? 0m;
         }
 
+        private decimal GetMaterialQuantity(int id)
+        {
+            if (customMaterialesQuantities.TryGetValue(id, out var q))
+                return q;
+            return 1m;
+        }
+
         private void SetMaterialCost(int id, decimal cost)
         {
             customMaterialesCosts[id] = cost;
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            SyncTarifaIfAuto();
         }
 
         private void SetMaterialQuantity(int id, decimal qty)
         {
             customMaterialesQuantities[id] = qty;
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            SyncTarifaIfAuto();
         }
 
         private void AddMaterialRow(int? id)
@@ -249,7 +420,7 @@ namespace BsOperaciones.Pages.Comercial
                         customMaterialesCosts[id.Value] = item.CostoUnitario;
                     }
                 }
-                tarifaAcordada = CalculatedTarifaUnitaria;
+                SyncTarifaIfAuto();
             }
             selectedMaterialToAdd = null;
         }
@@ -257,7 +428,34 @@ namespace BsOperaciones.Pages.Comercial
         private void RemoveMaterialRow(int id)
         {
             selectedMateriales.Remove(id);
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            SyncTarifaIfAuto();
+        }
+
+        private void ClearSelectedMateriales()
+        {
+            selectedMateriales.Clear();
+            customMaterialesCosts.Clear();
+            customMaterialesQuantities.Clear();
+            SyncTarifaIfAuto();
+        }
+
+        // Maquinaria
+        private void SetMachineryPrice(int id, decimal price)
+        {
+            customMachineryPrices[id] = Math.Max(0m, price);
+            SyncTarifaIfAuto();
+        }
+
+        private void SetMachineryQuantity(int id, int qty)
+        {
+            customMachineryQuantities[id] = Math.Max(1, qty);
+            SyncTarifaIfAuto();
+        }
+
+        private void SetMachineryMonths(int id, int months)
+        {
+            customMachineryMonths[id] = Math.Max(1, months);
+            SyncTarifaIfAuto();
         }
 
         private void AddMachineryRow(int? id)
@@ -265,7 +463,14 @@ namespace BsOperaciones.Pages.Comercial
             if (id.HasValue)
             {
                 selectedMachinery.Add(id.Value);
-                tarifaAcordada = CalculatedTarifaUnitaria;
+                var maq = machineryList.FirstOrDefault(x => x.Id == id.Value);
+                if (maq != null)
+                {
+                    if (!customMachineryPrices.ContainsKey(id.Value)) customMachineryPrices[id.Value] = maq.Precio;
+                    if (!customMachineryQuantities.ContainsKey(id.Value)) customMachineryQuantities[id.Value] = Math.Max(1, maq.Cantidad);
+                    if (!customMachineryMonths.ContainsKey(id.Value)) customMachineryMonths[id.Value] = maq.MesesProyeccion > 0 ? maq.MesesProyeccion : 12;
+                }
+                SyncTarifaIfAuto();
             }
             selectedMachineryToAdd = null;
         }
@@ -273,36 +478,55 @@ namespace BsOperaciones.Pages.Comercial
         private void RemoveMachineryRow(int id)
         {
             selectedMachinery.Remove(id);
-            tarifaAcordada = CalculatedTarifaUnitaria;
+            SyncTarifaIfAuto();
+        }
+
+        private void ClearSelectedMachinery()
+        {
+            selectedMachinery.Clear();
+            customMachineryPrices.Clear();
+            customMachineryQuantities.Clear();
+            customMachineryMonths.Clear();
+            SyncTarifaIfAuto();
         }
 
         private void AddProductToQuote()
         {
             if (string.IsNullOrWhiteSpace(skuNombre))
             {
-                Snackbar.Add("Debe ingresar la descripción del SKU.", Severity.Warning);
+                Snackbar.Add("Debe ingresar la descripción del SKU / Producto.", Severity.Warning);
                 return;
             }
 
-            if (currentItems.Any(x => x.SkuNombre.Equals(skuNombre, StringComparison.OrdinalIgnoreCase)))
+            string turnoActual = CurrentTurnoNombre;
+
+            if (currentItems.Any(x => x.SkuNombre.Equals(skuNombre.Trim(), StringComparison.OrdinalIgnoreCase)
+                                   && string.Equals(x.Turno ?? "Diurno", turnoActual, StringComparison.OrdinalIgnoreCase)))
             {
-                Snackbar.Add("Este producto/SKU ya ha sido agregado a la cotización.", Severity.Warning);
+                Snackbar.Add($"El SKU '{skuNombre}' ya fue agregado en el turno '{turnoActual}'.", Severity.Warning);
                 return;
             }
 
             if (tarifaAcordada <= 0m)
             {
-                Snackbar.Add("La tarifa acordada debe ser mayor a cero.", Severity.Warning);
+                Snackbar.Add("La tarifa acordada por unidad debe ser mayor a cero.", Severity.Warning);
                 return;
             }
 
+            string cleanSku = skuNombre.Trim();
+
             var item = new CotizacionProduccionDetalle
             {
-                SkuNombre = skuNombre,
+                SkuNombre = cleanSku,
+                Turno = turnoActual,
                 ProduccionDiaria = produccionDiaria,
+                CantidadTrabajadores = Math.Max(1, cantidadTrabajadores),
+                DiasOperativosMes = EffectiveDiasMes,
+                TurnosAsignadosMes = EffectiveTurnosAsignadosMes,
                 ManoObraUnitaria = CalculatedManoObraUnitaria,
                 MaterialesTotales = CalculatedMateriales,
                 MermaPorcentaje = mermaPorcentaje,
+                UtilidadPorcentaje = utilidadPorcentaje,
                 AmortizacionUnitaria = CalculatedAmortizacionUnitaria,
                 PersonalCotizacionId = selectedPersonnelQuoteId,
                 TarifaSugerida = CalculatedTarifaUnitaria,
@@ -311,7 +535,8 @@ namespace BsOperaciones.Pages.Comercial
 
             currentItems.Add(item);
 
-            // Guardar materiales de este SKU
+            // Reemplazar detalles previos de este SKU si no había otro turno usándolos
+            tempMaterialDetalles.RemoveAll(x => x.SkuNombre == cleanSku);
             foreach (var matId in selectedMateriales)
             {
                 var matInfo = materialesList.FirstOrDefault(x => x.Id == matId);
@@ -321,14 +546,14 @@ namespace BsOperaciones.Pages.Comercial
                     {
                         MaterialId = matId,
                         Nombre = matInfo.Nombre,
-                        Cantidad = customMaterialesQuantities.TryGetValue(matId, out var q) ? q : 1m,
-                        CostoUnitario = customMaterialesCosts.TryGetValue(matId, out var cost) ? cost : matInfo.CostoUnitario,
-                        SkuNombre = skuNombre
+                        Cantidad = GetMaterialQuantity(matId),
+                        CostoUnitario = GetMaterialCost(matId),
+                        SkuNombre = cleanSku
                     });
                 }
             }
 
-            // Guardar maquinaria de este SKU
+            tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == cleanSku);
             foreach (var maqId in selectedMachinery)
             {
                 var maqInfo = machineryList.FirstOrDefault(x => x.Id == maqId);
@@ -338,35 +563,100 @@ namespace BsOperaciones.Pages.Comercial
                     {
                         MaquinariaId = maqId,
                         Nombre = maqInfo.Nombre,
-                        Precio = maqInfo.Precio,
-                        Cantidad = maqInfo.Cantidad,
-                        MesesProyeccion = maqInfo.MesesProyeccion,
-                        Personas = maqInfo.Personas,
-                        ProyeccionMensual = maqInfo.ProyeccionMensual,
-                        SkuNombre = skuNombre
+                        Precio = GetMachineryPrice(maqId),
+                        Cantidad = GetMachineryQuantity(maqId),
+                        MesesProyeccion = GetMachineryMonths(maqId),
+                        Personas = Math.Max(1, cantidadTrabajadores),
+                        ProyeccionMensual = GetMachineryMonthly(maqId),
+                        SkuNombre = cleanSku
                     });
                 }
             }
 
-            Snackbar.Add($"Producto '{skuNombre}' agregado exitosamente.", Severity.Success);
+            Snackbar.Add($"SKU '{cleanSku}' ({turnoActual}) agregado a la cotización.", Severity.Success);
 
-            // Resetear inputs de SKU
-            skuNombre = "";
-            produccionDiaria = 1000;
-            selectedPersonnelQuoteId = null;
-            selectedPersonnelQuote = null;
-            selectedMateriales.Clear();
-            customMaterialesCosts.Clear();
-            customMaterialesQuantities.Clear();
-            selectedMachinery.Clear();
-            tarifaAcordada = 0m;
+            // Avanzar al siguiente producto si viene de un lote Excel, preservando el Turno, Cuadrilla y Maquinaria para cotizar en serie rápido
+            if (importedProducts.Any() && currentProductIndex >= 0 && currentProductIndex < importedProducts.Count - 1)
+            {
+                currentProductIndex++;
+                skuNombre = importedProducts[currentProductIndex];
+            }
+            else
+            {
+                skuNombre = "";
+            }
+
+            isTarifaManualOverride = false;
+            SyncTarifaIfAuto();
+        }
+
+        private void DuplicateSkuForAlternateShift(CotizacionProduccionDetalle sourceItem)
+        {
+            if (string.IsNullOrEmpty(selectedFilterEmpresa) && sourceItem.PersonalCotizacionId.HasValue)
+            {
+                var p = personnelQuotes.FirstOrDefault(x => x.Id == sourceItem.PersonalCotizacionId.Value);
+                if (p != null) selectedFilterEmpresa = p.ClienteNombre;
+            }
+
+            var altQuote = personnelQuotes
+                .Where(x => x.ClienteNombre == selectedFilterEmpresa && x.Id != sourceItem.PersonalCotizacionId)
+                .FirstOrDefault();
+
+            if (altQuote == null)
+            {
+                Snackbar.Add("No se encontró otro turno en Costeo de Personal para este cliente. Puede crearlo en Costeo de Personal.", Severity.Info);
+                return;
+            }
+
+            string altTurno = altQuote.PersonalDetalle?.Turno ?? "Nocturno";
+            if (currentItems.Any(x => x.SkuNombre.Equals(sourceItem.SkuNombre, StringComparison.OrdinalIgnoreCase)
+                                   && string.Equals(x.Turno, altTurno, StringComparison.OrdinalIgnoreCase)))
+            {
+                Snackbar.Add($"El SKU '{sourceItem.SkuNombre}' ya existe en el turno '{altTurno}'.", Severity.Warning);
+                return;
+            }
+
+            decimal diasBase = sourceItem.DiasOperativosMes > 0m ? sourceItem.DiasOperativosMes : 26m;
+            int workers = Math.Max(1, sourceItem.CantidadTrabajadores);
+            decimal costoTurnoCuadrillaAlt = (altQuote.CostoTotal / diasBase) * workers;
+            decimal moUnitAlt = sourceItem.ProduccionDiaria > 0 ? (costoTurnoCuadrillaAlt / sourceItem.ProduccionDiaria) : sourceItem.ManoObraUnitaria;
+
+            decimal costoBaseSinMerma = moUnitAlt + sourceItem.MaterialesTotales + sourceItem.AmortizacionUnitaria;
+            decimal costoConMerma = costoBaseSinMerma * (1m + (sourceItem.MermaPorcentaje / 100m));
+            decimal utilPct = sourceItem.UtilidadPorcentaje > 0m ? sourceItem.UtilidadPorcentaje : utilidadPorcentaje;
+            decimal sugeridaAlt = (utilPct > 0m && utilPct < 100m)
+                ? Math.Round(costoConMerma / (1m - (utilPct / 100m)), 4)
+                : Math.Round(costoConMerma, 4);
+
+            currentItems.Add(new CotizacionProduccionDetalle
+            {
+                SkuNombre = sourceItem.SkuNombre,
+                Turno = altTurno,
+                ProduccionDiaria = sourceItem.ProduccionDiaria,
+                CantidadTrabajadores = workers,
+                DiasOperativosMes = diasBase,
+                TurnosAsignadosMes = sourceItem.TurnosAsignadosMes,
+                ManoObraUnitaria = moUnitAlt,
+                MaterialesTotales = sourceItem.MaterialesTotales,
+                MermaPorcentaje = sourceItem.MermaPorcentaje,
+                UtilidadPorcentaje = utilPct,
+                AmortizacionUnitaria = sourceItem.AmortizacionUnitaria,
+                PersonalCotizacionId = altQuote.Id,
+                TarifaSugerida = sugeridaAlt,
+                TarifaAcordada = Math.Round(sugeridaAlt, 2)
+            });
+
+            Snackbar.Add($"SKU '{sourceItem.SkuNombre}' calculado y agregado para turno '{altTurno}'.", Severity.Success);
         }
 
         private void RemoveProductFromQuote(CotizacionProduccionDetalle item)
         {
             currentItems.Remove(item);
-            tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
-            tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            if (!currentItems.Any(x => x.SkuNombre == item.SkuNombre))
+            {
+                tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+                tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            }
             Snackbar.Add($"Producto '{item.SkuNombre}' removido de la cotización.", Severity.Info);
         }
 
@@ -374,8 +664,12 @@ namespace BsOperaciones.Pages.Comercial
         {
             skuNombre = item.SkuNombre;
             produccionDiaria = item.ProduccionDiaria;
+            cantidadTrabajadores = item.CantidadTrabajadores > 0 ? item.CantidadTrabajadores : 8;
+            diasOperativosMes = item.DiasOperativosMes > 0m ? item.DiasOperativosMes : 26m;
+            turnosAsignadosMes = item.TurnosAsignadosMes > 0m ? item.TurnosAsignadosMes : diasOperativosMes;
             mermaPorcentaje = item.MermaPorcentaje;
-            tarifaAcordada = item.TarifaAcordada;
+            utilidadPorcentaje = item.UtilidadPorcentaje > 0m ? item.UtilidadPorcentaje : 35m;
+            manualTurno = string.IsNullOrWhiteSpace(item.Turno) ? "Diurno" : item.Turno;
 
             selectedPersonnelQuoteId = item.PersonalCotizacionId;
             if (selectedPersonnelQuoteId.HasValue)
@@ -407,23 +701,36 @@ namespace BsOperaciones.Pages.Comercial
                 }
             }
 
-            // Cargar maquinaria de este SKU
+            // Cargar maquinaria de este SKU con sus cantidades y meses personalizados
             selectedMachinery.Clear();
+            customMachineryPrices.Clear();
+            customMachineryQuantities.Clear();
+            customMachineryMonths.Clear();
             var maqs = tempMaquinariaDetalles.Where(x => x.SkuNombre == item.SkuNombre).ToList();
             foreach (var maq in maqs)
             {
                 if (maq.MaquinariaId.HasValue)
                 {
-                    selectedMachinery.Add(maq.MaquinariaId.Value);
+                    int id = maq.MaquinariaId.Value;
+                    selectedMachinery.Add(id);
+                    customMachineryPrices[id] = maq.Precio;
+                    customMachineryQuantities[id] = Math.Max(1, maq.Cantidad);
+                    customMachineryMonths[id] = maq.MesesProyeccion > 0 ? maq.MesesProyeccion : 12;
                 }
             }
 
-            // Quitar de la lista temporal para re-agregar al enviar el formulario
-            currentItems.Remove(item);
-            tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
-            tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            tarifaAcordada = item.TarifaAcordada;
+            isTarifaManualOverride = Math.Abs(item.TarifaAcordada - Math.Round(CalculatedTarifaUnitaria, 2)) > 0.004m;
 
-            Snackbar.Add($"Producto '{item.SkuNombre}' cargado para edición.", Severity.Info);
+            // Quitar de la lista temporal para re-agregar al guardar la edición del SKU
+            currentItems.Remove(item);
+            if (!currentItems.Any(x => x.SkuNombre == item.SkuNombre))
+            {
+                tempMaterialDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+                tempMaquinariaDetalles.RemoveAll(x => x.SkuNombre == item.SkuNombre);
+            }
+
+            Snackbar.Add($"SKU '{item.SkuNombre}' ({item.Turno}) cargado en el editor.", Severity.Info);
         }
 
         private void LoadQuoteToForm(Cotizacion quote)
@@ -431,8 +738,6 @@ namespace BsOperaciones.Pages.Comercial
             editingQuoteId = quote.Id;
             editingNumeroCotizacion = quote.NumeroCotizacion;
             cliente = quote.ClienteNombre;
-            selectedPersonnelQuoteId = null;
-            selectedPersonnelQuote = null;
             currentItems.Clear();
             tempMaterialDetalles.Clear();
             tempMaquinariaDetalles.Clear();
@@ -478,31 +783,90 @@ namespace BsOperaciones.Pages.Comercial
                 }
             }
 
-            // Limpiar inputs del formulario
+            // Pre-configurar el formulario con el turno, cuadrilla y maquinaria del primer ítem de la cotización
+            var refItem = currentItems.FirstOrDefault();
+            if (refItem != null)
+            {
+                cantidadTrabajadores = refItem.CantidadTrabajadores > 0 ? refItem.CantidadTrabajadores : 8;
+                diasOperativosMes = refItem.DiasOperativosMes > 0m ? refItem.DiasOperativosMes : 26m;
+                turnosAsignadosMes = refItem.TurnosAsignadosMes > 0m ? refItem.TurnosAsignadosMes : diasOperativosMes;
+                mermaPorcentaje = refItem.MermaPorcentaje;
+                utilidadPorcentaje = refItem.UtilidadPorcentaje > 0m ? refItem.UtilidadPorcentaje : 35m;
+                manualTurno = string.IsNullOrWhiteSpace(refItem.Turno) ? "Diurno" : refItem.Turno;
+
+                if (refItem.PersonalCotizacionId.HasValue)
+                {
+                    selectedPersonnelQuoteId = refItem.PersonalCotizacionId.Value;
+                    selectedPersonnelQuote = personnelQuotes.FirstOrDefault(x => x.Id == refItem.PersonalCotizacionId.Value);
+                    if (selectedPersonnelQuote != null)
+                    {
+                        selectedFilterEmpresa = selectedPersonnelQuote.ClienteNombre;
+                    }
+                }
+
+                selectedMachinery.Clear();
+                customMachineryPrices.Clear();
+                customMachineryQuantities.Clear();
+                customMachineryMonths.Clear();
+                foreach (var maq in tempMaquinariaDetalles.Where(x => x.SkuNombre == refItem.SkuNombre))
+                {
+                    if (maq.MaquinariaId.HasValue)
+                    {
+                        int id = maq.MaquinariaId.Value;
+                        selectedMachinery.Add(id);
+                        customMachineryPrices[id] = maq.Precio;
+                        customMachineryQuantities[id] = Math.Max(1, maq.Cantidad);
+                        customMachineryMonths[id] = maq.MesesProyeccion > 0 ? maq.MesesProyeccion : 12;
+                    }
+                }
+            }
+
             skuNombre = "";
-            produccionDiaria = 1000;
-            selectedPersonnelQuoteId = null;
-            selectedPersonnelQuote = null;
             selectedMateriales.Clear();
             customMaterialesCosts.Clear();
             customMaterialesQuantities.Clear();
-            selectedMachinery.Clear();
-            tarifaAcordada = 0m;
+            isTarifaManualOverride = false;
+            SyncTarifaIfAuto();
 
-            Snackbar.Add($"Cotización de '{cliente}' cargada con éxito.", Severity.Info);
+            activeTabIndex = 0;
+            Snackbar.Add($"Cotización '{quote.NumeroCotizacion ?? cliente}' cargada en el cotizador ({currentItems.Count} SKUs).", Severity.Info);
+        }
+
+        private void ClearCurrentQuoteForm()
+        {
+            editingQuoteId = null;
+            editingNumeroCotizacion = null;
+            cliente = "";
+            skuNombre = "";
+            produccionDiaria = 1000;
+            cantidadTrabajadores = 8;
+            diasOperativosMes = 26m;
+            turnosAsignadosMes = 26m;
+            mermaPorcentaje = 2.00m;
+            utilidadPorcentaje = 35.00m;
+            selectedFilterEmpresa = "";
+            selectedPersonnelQuoteId = null;
+            selectedPersonnelQuote = null;
+            currentItems.Clear();
+            tempMaterialDetalles.Clear();
+            tempMaquinariaDetalles.Clear();
+            ClearSelectedMateriales();
+            ClearSelectedMachinery();
+            isTarifaManualOverride = false;
+            SyncTarifaIfAuto();
         }
 
         private async Task SaveQuote()
         {
             if (string.IsNullOrWhiteSpace(cliente))
             {
-                Snackbar.Add("El nombre del cliente es obligatorio.", Severity.Warning);
+                Snackbar.Add("El nombre del cliente / proyecto es obligatorio.", Severity.Warning);
                 return;
             }
 
             if (!currentItems.Any())
             {
-                Snackbar.Add("Debe agregar al menos un producto a la cotización.", Severity.Warning);
+                Snackbar.Add("Debe agregar al menos un producto (SKU) a la cotización.", Severity.Warning);
                 return;
             }
 
@@ -510,12 +874,12 @@ namespace BsOperaciones.Pages.Comercial
             {
                 Id = editingQuoteId ?? Guid.NewGuid(),
                 NumeroCotizacion = editingNumeroCotizacion ?? $"COT-{DateTime.Now:yyyyMMdd}-{Guid.NewGuid().ToString().Split('-')[0].ToUpper()}",
-                ClienteNombre = cliente,
+                ClienteNombre = cliente.Trim(),
                 TipoCosteo = "Produccion",
-                UtilidadPorcentaje = currentItems.Average(x => x.MermaPorcentaje),
+                UtilidadPorcentaje = currentItems.Average(x => x.UtilidadPorcentaje > 0m ? x.UtilidadPorcentaje : utilidadPorcentaje),
                 CostoTotal = ConsolidatedCostoMensual,
-                TarifaSugerida = ConsolidatedTarifaSugeridaPromedio,
-                TarifaAcordada = ConsolidatedTarifaAcordadaPromedio,
+                TarifaSugerida = ConsolidatedFacturacionMensual,
+                TarifaAcordada = ConsolidatedFacturacionMensual,
                 ProduccionDetalles = currentItems,
                 MaterialDetalles = tempMaterialDetalles,
                 MaquinariaDetalles = tempMaquinariaDetalles,
@@ -526,20 +890,7 @@ namespace BsOperaciones.Pages.Comercial
             if (!res.Respuesta.ExisteError)
             {
                 Snackbar.Add("Cotización de producción guardada exitosamente.", Severity.Success);
-                editingQuoteId = null;
-                editingNumeroCotizacion = null;
-                cliente = "";
-                skuNombre = "";
-                currentItems.Clear();
-                tempMaterialDetalles.Clear();
-                tempMaquinariaDetalles.Clear();
-                selectedPersonnelQuoteId = null;
-                selectedPersonnelQuote = null;
-                selectedMateriales.Clear();
-                customMaterialesCosts.Clear();
-                customMaterialesQuantities.Clear();
-                selectedMachinery.Clear();
-                tarifaAcordada = 0m;
+                ClearCurrentQuoteForm();
                 await LoadQuotes();
             }
             else
@@ -792,7 +1143,8 @@ namespace BsOperaciones.Pages.Comercial
                             {
                                 currentProductIndex = 0;
                                 skuNombre = importedProducts[0];
-                                Snackbar.Add($"Se importaron {importedProducts.Count} productos. Iniciando cotización.", Severity.Success);
+                                showExcelPanel = true;
+                                Snackbar.Add($"Se importaron {importedProducts.Count} productos. Iniciando cotización en serie.", Severity.Success);
                             }
                             else
                             {
@@ -849,16 +1201,16 @@ namespace BsOperaciones.Pages.Comercial
         private async Task UpdateTarifaAcordada(Cotizacion quote, CotizacionProduccionDetalle det, decimal val)
         {
             det.TarifaAcordada = val;
-            
-            // Recalcular costos y tarifas totales de la cotización maestra
-            quote.TarifaAcordada = quote.ProduccionDetalles.Average(x => x.TarifaAcordada);
-            quote.TarifaSugerida = quote.ProduccionDetalles.Average(x => x.TarifaSugerida);
-            quote.CostoTotal = quote.ProduccionDetalles.Sum(x => (x.ManoObraUnitaria + x.MaterialesTotales + x.AmortizacionUnitaria) * x.ProduccionDiaria * 30m);
+
+            // Recalcular costos y facturación mensual total de la cotización maestra
+            quote.CostoTotal = quote.ProduccionDetalles.Sum(x => GetItemCostoOperativoUnit(x) * x.ProduccionDiaria * GetItemTurnosMes(x));
+            quote.TarifaSugerida = quote.ProduccionDetalles.Sum(x => x.TarifaSugerida * x.ProduccionDiaria * GetItemTurnosMes(x));
+            quote.TarifaAcordada = quote.ProduccionDetalles.Sum(x => x.TarifaAcordada * x.ProduccionDiaria * GetItemTurnosMes(x));
 
             var res = await Mediator.Send(new SaveCotizacionCommand(quote));
             if (!res.Respuesta.ExisteError)
             {
-                Snackbar.Add($"Tarifa acordada del producto '{det.SkuNombre}' actualizada a C$ {val:N2}.", Severity.Success);
+                Snackbar.Add($"Tarifa acordada del SKU '{det.SkuNombre}' actualizada a C$ {val:N2}.", Severity.Success);
                 await LoadQuotes();
             }
             else
@@ -873,7 +1225,11 @@ namespace BsOperaciones.Pages.Comercial
             {
                 return quote.ProduccionDetalles;
             }
-            return new List<CotizacionProduccionDetalle> { quote.ProduccionDetalle };
+            if (quote.ProduccionDetalle != null)
+            {
+                return new List<CotizacionProduccionDetalle> { quote.ProduccionDetalle };
+            }
+            return new List<CotizacionProduccionDetalle>();
         }
 
         private HashSet<CotizacionProduccionDetalle> GetSelectedSkusForPrint(Cotizacion quote)
@@ -895,8 +1251,8 @@ namespace BsOperaciones.Pages.Comercial
         private async Task PrintConsolidatedCotizacion(Cotizacion quote)
         {
             var selectedDetails = GetSelectedSkusForPrint(quote);
-            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            if (skus == null || !skus.Any())
+            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+            if (!skus.Any())
             {
                 Snackbar.Add("Debe seleccionar al menos un SKU para imprimir.", Severity.Warning);
                 return;
@@ -928,8 +1284,8 @@ namespace BsOperaciones.Pages.Comercial
         private async Task PrintConsolidatedCotizacionDesglose(Cotizacion quote)
         {
             var selectedDetails = GetSelectedSkusForPrint(quote);
-            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            if (skus == null || !skus.Any())
+            var skus = selectedDetails.Select(d => d.SkuNombre).Where(s => !string.IsNullOrEmpty(s)).Distinct().ToList();
+            if (!skus.Any())
             {
                 Snackbar.Add("Debe seleccionar al menos un SKU para imprimir.", Severity.Warning);
                 return;

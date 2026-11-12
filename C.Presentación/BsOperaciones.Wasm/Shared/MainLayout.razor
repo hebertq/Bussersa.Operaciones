@@ -239,13 +239,17 @@
                 _userDisplayName = user.Identity.Name ?? "Usuario";
                 
                 string nameLower = _userDisplayName.ToLowerInvariant();
-                if (user.IsInRole("Admin") || user.IsInRole("Administrador") || nameLower == "admin" || nameLower.Contains("admin"))
+                if (user.IsInRole("Admin") || user.IsInRole("Administrador") || user.IsInRole("Master Admin") ||
+                    nameLower == "admin" || nameLower == "admin@bussersa.com" || nameLower == "hquintero" || nameLower == "info@bussersa.com")
                 {
                     _userRoleName = "ADMINISTRADOR";
                 }
                 else
                 {
-                    _userRoleName = user.FindFirst(ClaimTypes.Role)?.Value?.ToUpperInvariant() ?? "SUPERVISOR";
+                    var roleClaim = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role && c.Value != "Admin")?.Value;
+                    _userRoleName = !string.IsNullOrWhiteSpace(roleClaim)
+                        ? roleClaim.ToUpperInvariant()
+                        : "COLABORADOR";
                 }
 
                 if (!string.IsNullOrWhiteSpace(_userDisplayName))
