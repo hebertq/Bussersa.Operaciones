@@ -206,7 +206,7 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
                 {
                     Hojas = new List<ExcelRequest>
                     {
-                        new ExcelRequest { Hoja = "Desgloce", Datos = Modelo.Validaciones.Util.ToDictionaryList(datosParaExcel), IncludeHeader = false },
+                        new ExcelRequest { Hoja = "Desglose", Datos = Modelo.Validaciones.Util.ToDictionaryList(datosParaExcel), IncludeHeader = false },
                         new ExcelRequest { Hoja = "Detalle Marcaciones", Datos = Modelo.Validaciones.Util.ToDictionaryList(detailsList), IncludeHeader = false }
                     }
                 };

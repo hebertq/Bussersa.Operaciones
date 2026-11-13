@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -22,10 +22,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 {
     public enum ModoVistaGrilla
     {
-        Operativo, // Paso 2: Jornada & ViÃ¡ticos (Horas, Turno auto, Comida, ViÃ¡ticos)
-        Ubicacion, // Paso 1: UbicaciÃ³n & Puesto (Cliente, Ãrea, Cargo)
+        Operativo, // Paso 2: Jornada & Viáticos (Horas, Turno auto, Comida, Viáticos)
+        Ubicacion, // Paso 1: Ubicación & Puesto (Cliente, Área, Cargo)
         Completo,  // Todas las columnas
-        Tarjetas   // Modo tarjetas touch-friendly para tablets pequeÃ±as o mÃ³viles
+        Tarjetas   // Modo tarjetas touch-friendly para tablets pequeñas o móviles
     }
 
     public class EmpleadoJornadaItem
@@ -111,7 +111,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public List<EmpleadoJornadaItem> Empleados { get; set; } = new();
         public int Cantidad => Empleados.Count(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--");
         public string IdsEmpleadosTexto => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Select(e => e.CodigoEmpleado));
-        public string NombresResumen => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Take(3).Select(e => e.NombreEmpleado)) + (Cantidad > 3 ? $" y {Cantidad - 3} mÃ¡s..." : "");
+        public string NombresResumen => string.Join(", ", Empleados.Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--").Take(3).Select(e => e.NombreEmpleado)) + (Cantidad > 3 ? $" y {Cantidad - 3} más..." : "");
         public int? TicketRedmineId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketRedmineId.HasValue && e.TicketRedmineId > 0)?.TicketRedmineId;
         public int? TicketViaticoId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketViaticoId.HasValue && e.TicketViaticoId > 0)?.TicketViaticoId;
         public int? TicketBonoId => Empleados.FirstOrDefault(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.TicketBonoId.HasValue && e.TicketBonoId > 0)?.TicketBonoId;
@@ -129,7 +129,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraInicio { get; set; } = string.Empty;
         public string HoraFin { get; set; } = string.Empty;
         public string TurnoNombre { get; set; } = string.Empty;
-        public int Recursos => Empleados.Count(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--"); // NÃºmero de personas del viÃ¡tico (asistentes)
+        public int Recursos => Empleados.Count(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && e.HoraEntrada != "--:--"); // Número de personas del viático (asistentes)
         public decimal VtcoTrasp { get; set; }
         public decimal VtcoAlim { get; set; }
         public bool TraspAplicaNomina { get; set; }
@@ -162,11 +162,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected bool estaEnviandoHelpdesk = false;
         protected bool estaLimpiando = false;
         protected bool estaEliminando = false;
-        protected string textoOperacionBd = "Procesando operaciÃ³n en base de datos... Por favor, espere.";
+        protected string textoOperacionBd = "Procesando operación en base de datos... Por favor, espere.";
         protected bool estaOperandoEnBd => estaGuardando || estaCargando || cargandoPlantilla || estaEnviandoViaticos || estaEnviandoBonos || estaEnviandoHelpdesk || estaEnviandoAusencias || estaLimpiando || estaEliminando;
         protected int activeTabIndex = 0;
         protected void SetActiveTab(int index)
         {
+            if (index == 0)
+            {
+                mostrarTodosClientesHelpdesk = false;
+            }
             activeTabIndex = index;
             StateHasChanged();
         }
@@ -190,7 +194,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string clienteRedmineIdentificador = string.Empty;
         protected DateTime? fechaSeleccionada = DateTime.Today;
 
-        // CatÃ¡logos
+        // Catálogos
         protected List<OdooEmployeeDto> catalogoEmpleadosOdoo = new();
         protected List<string> cargosDisponibles = new()
         {
@@ -206,10 +210,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // Lista de empleados de la jornada activa (Grilla Tab 1)
         protected List<EmpleadoJornadaItem> empleadosJornada = new();
 
-        // Filtro rÃ¡pido de bÃºsqueda en la grilla
+        // Filtro rápido de búsqueda en la grilla
         protected string textoBusqueda = string.Empty;
         protected string filtroAsistencia = "TODOS"; // "TODOS", "PRESENTES", "AUSENTES"
-        // Filtros rÃƒÂ¡pidos de Cliente y ÃƒÂrea para la grilla
+        // Filtros rápidos de Cliente y Área para la grilla
         protected string? filtroClienteGrilla { get; set; } = null;
         protected string? filtroAreaGrilla { get; set; } = null;
 
@@ -261,7 +265,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected void OnFiltroClienteGrillaChanged(string? nuevoCliente)
         {
             filtroClienteGrilla = nuevoCliente;
-            // Al seleccionar o cambiar cliente, resetear el filtro de Ã¡rea para seleccionar entre las Ã¡reas del nuevo cliente
+            // Al seleccionar o cambiar cliente, resetear el filtro de área para seleccionar entre las áreas del nuevo cliente
             filtroAreaGrilla = null;
             StateHasChanged();
         }
@@ -304,8 +308,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     lista.AddRange(NombresMisClientes);
                 }
-                // Si hay colaboradores en la jornada asignados a otro cliente (ej. un prÃ©stamo o movimiento),
-                // incluir ese cliente en las pestaÃ±as para que el supervisor pueda verlo y gestionarlo
+                // Si hay colaboradores en la jornada asignados a otro cliente (ej. un préstamo o movimiento),
+                // incluir ese cliente en las pestañas para que el supervisor pueda verlo y gestionarlo
                 foreach (var c in empleadosJornada.Select(e => e.Cliente?.Trim()).Where(c => !string.IsNullOrWhiteSpace(c)))
                 {
                     if (!lista.Contains(c, StringComparer.OrdinalIgnoreCase))
@@ -336,10 +340,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
+        protected bool mostrarTodosClientesHelpdesk = false;
+
+        protected bool PerteneceAClienteSeleccionado(string? clienteItem)
+        {
+            if (mostrarTodosClientesHelpdesk) return true;
+            var cliActivo = ClienteActivoAsistenciasSeguro;
+            if (string.IsNullOrWhiteSpace(cliActivo)) return true;
+            if (string.IsNullOrWhiteSpace(clienteItem)) return ListaClientesAsistencia.Count <= 1;
+            return string.Equals(clienteItem.Trim(), cliActivo.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
         protected void CambiarClienteAsistencias(string cliente)
         {
-            clienteActivoAsistencias = cliente;
+            if (cliente == "__TODOS__")
+            {
+                mostrarTodosClientesHelpdesk = true;
+            }
+            else
+            {
+                mostrarTodosClientesHelpdesk = false;
+                clienteActivoAsistencias = cliente;
+            }
             filtroAreaGrilla = null;
+            foreach (var emp in empleadosJornada)
+            {
+                emp.Seleccionado = false;
+            }
             StateHasChanged();
         }
 
@@ -388,41 +415,47 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected ModoVistaGrilla modoVistaPlantilla = ModoVistaGrilla.Operativo;
         protected ModoVistaGrilla modoVistaMovimientos = ModoVistaGrilla.Tarjetas;
 
-        // PestaÃ±a Ausencias (Tab 2)
+        // Pestaña Ausencias (Tab 2)
         protected List<Combos> tiposAusenciaOdoo = new();
         protected ModoVistaGrilla modoVistaAusencias = ModoVistaGrilla.Tarjetas;
         protected string textoBusquedaAusencias = string.Empty;
         protected bool estaEnviandoAusencias = false;
-        // PestaÃ±a Bonos (Tab 4 - RRHH Tracker 11)
+        // Pestaña Bonos (Tab 4 - RRHH Tracker 11)
         protected string textoBusquedaBonos = string.Empty;
         protected string filtroBonos = "CON_BONO"; // "CON_BONO", "PENDIENTES", "TODOS"
         protected bool estaEnviandoBonos = false;
         protected bool estaEnviandoViaticos = false;
         protected ModoVistaGrilla modoVistaBonos = ModoVistaGrilla.Tarjetas;
 
-        protected int TotalConBono => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0);
-        protected int TotalBonosSincronizados => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && x.TicketBonoId.HasValue && x.TicketBonoId > 0);
-        protected int TotalBonosPendientes => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && (!x.TicketBonoId.HasValue || x.TicketBonoId <= 0));
-        protected int CantidadBonosSeleccionados => empleadosJornada.Count(x => x.Asistio && x.BonoBnc > 0 && x.Seleccionado);
+        protected int TotalPresentesCliente => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente));
+        protected decimal TotalViaticosTraspCliente => empleadosJornada.Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente)).Sum(x => x.VtcoTrasp);
+        protected decimal TotalViaticosAlimCliente => empleadosJornada.Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente)).Sum(x => x.VtcoAlim);
+        protected decimal TotalViaticosBncCliente => empleadosJornada.Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente)).Sum(x => x.BonoBnc);
 
-        protected int TotalConViaticosTransporteAlim => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
-        protected int TotalViaticosSincronizados => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && x.TicketViaticoId.HasValue && x.TicketViaticoId > 0);
-        protected int TotalViaticosPendientes => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && (!x.TicketViaticoId.HasValue || x.TicketViaticoId <= 0));
-        protected int TotalGruposViaticosPendientes => GruposViaticos.Count(g => !g.Sincronizado);
-        protected int TotalGruposMovimientosPendientes => gruposConsolidados.Count(g => !g.Sincronizado);
+        protected int TotalConBono => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.BonoBnc > 0);
+        protected int TotalBonosSincronizados => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.BonoBnc > 0 && x.SincronizadoBono);
+        protected int TotalBonosPendientes => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.BonoBnc > 0 && !x.SincronizadoBono);
+        protected int CantidadBonosSeleccionados => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.BonoBnc > 0 && !x.SincronizadoBono && x.Seleccionado);
+
+        protected int TotalConViaticosTransporteAlim => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
+        protected int TotalViaticosSincronizados => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && x.SincronizadoViatico);
+        protected int TotalViaticosPendientes => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0) && !x.SincronizadoViatico);
+        protected List<ConsolidadoHelpdeskItem> GruposMovimientosFiltrados => gruposConsolidados.Where(g => PerteneceAClienteSeleccionado(g.Cliente)).ToList();
+        protected int TotalGruposViaticosPendientes => GruposViaticos.Count(g => !g.Sincronizado && g.Recursos > 0);
+        protected int TotalGruposMovimientosPendientes => GruposMovimientosFiltrados.Count(g => !g.Sincronizado && g.Cantidad > 0);
 
         protected IEnumerable<EmpleadoJornadaItem> EmpleadosBonosFiltrados
         {
             get
             {
-                var query = empleadosJornada.Where(x => x.Asistio);
+                var query = empleadosJornada.Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente));
                 if (filtroBonos == "CON_BONO")
                 {
                     query = query.Where(x => x.BonoBnc > 0);
                 }
                 else if (filtroBonos == "PENDIENTES")
                 {
-                    query = query.Where(x => x.BonoBnc > 0 && (!x.TicketBonoId.HasValue || x.TicketBonoId <= 0));
+                    query = query.Where(x => x.BonoBnc > 0 && !x.SincronizadoBono);
                 }
 
                 if (!string.IsNullOrWhiteSpace(textoBusquedaBonos))
@@ -439,18 +472,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        protected int TotalAusenciasSincronizadas => empleadosJornada.Count(x => !x.Asistio && x.TicketAusenciaId.HasValue && x.TicketAusenciaId > 0);
-        protected int TotalAusenciasPendientes => empleadosJornada.Count(x => !x.Asistio && (!x.TicketAusenciaId.HasValue || x.TicketAusenciaId <= 0));
-        protected int CantidadAusentesSeleccionados => empleadosJornada.Count(x => !x.Asistio && x.Seleccionado);
+        protected int TotalAusentesCliente => empleadosJornada.Count(x => !x.Asistio && PerteneceAClienteSeleccionado(x.Cliente));
+        protected int TotalAusenciasSincronizadas => empleadosJornada.Count(x => !x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.SincronizadoAusencia);
+        protected int TotalAusenciasPendientes => empleadosJornada.Count(x => !x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && !x.SincronizadoAusencia);
+        protected int TotalAusenciasPendientesFiltradas => AusentesFiltrados.Count(x => !x.SincronizadoAusencia);
+        protected int CantidadAusentesSeleccionados => AusentesFiltrados.Count(x => x.Seleccionado && !x.SincronizadoAusencia);
 
         protected IEnumerable<EmpleadoJornadaItem> AusentesFiltrados
         {
             get
             {
-                var ausentes = empleadosJornada.Where(x => !x.Asistio);
+                var ausentes = empleadosJornada.Where(x => !x.Asistio && PerteneceAClienteSeleccionado(x.Cliente));
                 DateTime fRef = fechaSeleccionada ?? DateTime.Today;
                 foreach (var a in ausentes)
                 {
+                    if (a.SincronizadoAusencia && a.Seleccionado)
+                        a.Seleccionado = false;
                     if (!a.FechaInicioAusencia.HasValue || a.FechaInicioAusencia.Value <= DateTime.MinValue)
                         a.FechaInicioAusencia = fRef;
                     if (!a.FechaFinAusencia.HasValue || a.FechaFinAusencia.Value <= DateTime.MinValue)
@@ -468,7 +505,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     (x.Area != null && x.Area.Contains(q, StringComparison.OrdinalIgnoreCase)));
             }
         }
-                // Filtros rÃ¡pidos de Cliente y Ãrea para Mi Personal (Plantilla)
+                // Filtros rápidos de Cliente y Área para Mi Personal (Plantilla)
         protected string? filtroClientePlantilla { get; set; } = null;
         protected string? filtroAreaPlantilla { get; set; } = null;
 
@@ -571,7 +608,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // CatÃ¡logo de Ãreas por Cliente (Tab 5)
+        // Catálogo de Áreas por Cliente (Tab 5)
         protected List<ClienteAreaDto> catalogoClienteAreas = new();
         protected Dictionary<string, List<string>> areasPorCliente = new(StringComparer.OrdinalIgnoreCase);
         protected int? filtroClienteAreaId = null;
@@ -581,7 +618,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected string nuevaAreaNombre = string.Empty;
         protected int? nuevoClienteAreaOpId = null;
 
-        // CachÃ© de Reglas de ViÃ¡ticos por Horario (Cargado en memoria para evaluaciÃ³n instantÃ¡nea)
+        // Caché de Reglas de Viáticos por Horario (Cargado en memoria para evaluación instantánea)
         protected List<ReglaViaticoDto> cacheReglasViaticos = new();
         protected bool cargandoReglasViaticos = false;
 
@@ -622,12 +659,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalNuevosSinGuardar => empleadosJornada.Count(x => x.Id <= 0);
         protected int TotalConflictosHorarios => empleadosJornada.Count(x => x.TieneConflictoHorario);
 
-        protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
-        protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && x.VtcoTrasp == 0 && x.VtcoAlim == 0);
+        protected int TotalConViaticos => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0));
+        protected int TotalSinViaticos => empleadosJornada.Count(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.VtcoTrasp == 0 && x.VtcoAlim == 0);
 
-        // Filtros para la pestaÃ±a de ViÃ¡ticos
+        // Filtros para la pestaña de Viáticos
         protected string textoBusquedaViaticos = string.Empty;
-        protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viÃ¡tico
+        protected string filtroViaticos = "CON_VIATICOS"; // Por defecto solo mostrar quienes tienen viático
         protected string modoVistaViaticos = "GRUPOS"; // "GRUPOS" (Solicitudes con Recursos) o "COLABORADORES"
         protected ModoVistaGrilla modoVistaViaticosFormato = ModoVistaGrilla.Tarjetas; // Tarjetas o Tabla (Operativo)
 
@@ -635,7 +672,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             get
             {
-                var conViaticos = empleadosJornada.Where(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0)).ToList();
+                var conViaticos = empleadosJornada
+                    .Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0))
+                    .ToList();
                 return conViaticos
                     .GroupBy(x => new
                     {
@@ -650,7 +689,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         x.VtcoTrasp,
                         x.VtcoAlim,
                         x.TraspAplicaNomina,
-                        x.AlimAplicaNomina
+                        x.AlimAplicaNomina,
+                        TicketViaticoKey = (x.TicketViaticoId.HasValue && x.TicketViaticoId > 0) ? x.TicketViaticoId.Value : 0
                     })
                     .Select((g, idx) => new GrupoViaticoItem
                     {
@@ -675,7 +715,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             get
             {
-                var query = empleadosJornada.Where(x => x.Asistio);
+                var query = empleadosJornada.Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente));
 
                 if (filtroViaticos == "CON_VIATICOS")
                 {
@@ -700,7 +740,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // Claves de LocalStorage por usuario para trabajo Offline y CachÃ© local
+        // Claves de LocalStorage por usuario para trabajo Offline y Caché local
         protected bool esModoOnline { get; set; } = true;
         protected DateTime? ultimaHoraGuardadoLocal { get; set; } = null;
         private DotNetObjectReference<RegistroMovimientosSupervisor>? dotNetHelper;
@@ -735,11 +775,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             esModoOnline = online;
             if (online)
             {
-                _snackbar.Add("ðŸŸ¢ ConexiÃ³n a internet restablecida. Puedes sincronizar tus cambios con la Base de Datos.", Severity.Success, config => config.VisibleStateDuration = 6000);
+                _snackbar.Add("🟢 Conexión a internet restablecida. Puedes sincronizar tus cambios con la Base de Datos.", Severity.Success, config => config.VisibleStateDuration = 6000);
             }
             else
             {
-                _snackbar.Add("ðŸŸ¡ Modo Offline (Bodega): Sin conexiÃ³n a internet. Los cambios se estÃ¡n guardando localmente en este dispositivo.", Severity.Warning, config => config.VisibleStateDuration = 6000);
+                _snackbar.Add("🟡 Modo Offline (Bodega): Sin conexión a internet. Los cambios se están guardando localmente en este dispositivo.", Severity.Warning, config => config.VisibleStateDuration = 6000);
             }
             InvokeAsync(StateHasChanged);
         }
@@ -833,7 +873,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             try
             {
-                // No precargar con ningÃºn ID por defecto; mostrar placeholder limpio "Seleccione de la lista..."
+                // No precargar con ningún ID por defecto; mostrar placeholder limpio "Seleccione de la lista..."
                 selectedOperacionId = null;
                 clienteRedmineIdentificador = string.Empty;
                 areasSugeridas = new List<string>
@@ -982,7 +1022,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 catch (Exception exBd)
                 {
-                    Console.WriteLine($"Sin conexiÃ³n a BD al cargar jornada: {exBd.Message}");
+                    Console.WriteLine($"Sin conexión a BD al cargar jornada: {exBd.Message}");
                     exitoBd = false;
                 }
 
@@ -1052,7 +1092,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         };
                     }).ToList();
 
-                    // FusiÃ³n inteligente: Si hay un borrador local que contiene registros modificados offline en bodega,
+                    // Fusión inteligente: Si hay un borrador local que contiene registros modificados offline en bodega,
                     // preservar las ediciones locales para que el supervisor no pierda su recorrido
                     if (tieneBorradorLocal && borradorLocal != null && borradorLocal.Any(x => x.Modificado || x.Id == 0))
                     {
@@ -1097,14 +1137,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else if (exitoBd)
                 {
-                    // La base de datos respondiÃ³ exitosamente y confirmÃ³ que no hay registros para esta fecha.
-                    // El dÃ­a aÃºn no se ha trabajado: mantener limpio en 0 y remover cualquier borrador previo.
+                    // La base de datos respondió exitosamente y confirmó que no hay registros para esta fecha.
+                    // El día aún no se ha trabajado: mantener limpio en 0 y remover cualquier borrador previo.
                     empleadosJornada.Clear();
                     await LimpiarBorradorLocal();
                 }
                 else if (!exitoBd && tieneBorradorLocal && borradorLocal != null && borradorLocal.Any())
                 {
-                    // Modo Offline real (sin conexiÃ³n al servidor): cargar borrador local de bodega
+                    // Modo Offline real (sin conexión al servidor): cargar borrador local de bodega
                     empleadosJornada = borradorLocal;
                     _snackbar.Add($"Modo Offline: jornada cargada desde memoria local del dispositivo ({empleadosJornada.Count} colaboradores).", Severity.Info);
                 }
@@ -1161,7 +1201,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     return;
                 }
 
-                // 2. Si _userInfo.UserId > 0, consultar por el ID numÃ©rico
+                // 2. Si _userInfo.UserId > 0, consultar por el ID numérico
                 if (_userInfo.UserId > 0)
                 {
                     var respId = await _odooService.GetSupervisorClientes(usuario: _userInfo.UserId.ToString());
@@ -1224,7 +1264,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- GESTIÃ“N DE PLANTILLA DE PERSONAL DEL SUPERVISOR ---
+        // --- GESTIÓN DE PLANTILLA DE PERSONAL DEL SUPERVISOR ---
         protected async Task CargarMiPlantilla()
         {
             cargandoPlantilla = true;
@@ -1258,14 +1298,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     // Si el supervisor tiene clientes asignados (ej. Sinsa)
                     if (NombresMisClientes.Any())
                     {
-                        // Auto-corregir si algÃºn colaborador del supervisor quedÃ³ con cliente "AdministraciÃ³n", "General" o vacÃ­o
+                        // Auto-corregir si algún colaborador del supervisor quedó con cliente "Administración", "General" o vacío
                         if (NombresMisClientes.Count == 1)
                         {
                             var clienteUnico = NombresMisClientes[0];
                             foreach (var it in items)
                             {
                                 if (string.IsNullOrWhiteSpace(it.ClienteDefault) || 
-                                    string.Equals(it.ClienteDefault, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(it.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase) ||
                                     string.Equals(it.ClienteDefault, "General", StringComparison.OrdinalIgnoreCase))
                                 {
                                     it.ClienteDefault = clienteUnico;
@@ -1275,7 +1315,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         }
 
                     }
-                    // Garantizar unicidad absoluta: el backend ya filtrÃ³ por supervisor y clientes asignados
+                    // Garantizar unicidad absoluta: el backend ya filtró por supervisor y clientes asignados
                     if (NombresMisClientes.Any())
                     {
                         items = items.Where(x => NombresMisClientes.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase) ||
@@ -1324,7 +1364,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- CARGAR DATOS BASE (COPIAR DE LA TABLA MAESTRA DE ADMINISTRACIÃ“N) ---
+        // --- CARGAR DATOS BASE (COPIAR DE LA TABLA MAESTRA DE ADMINISTRACIÓN) ---
         protected Task CargarDatosBasePlantilla() => CargarDatosBasePlantilla(ClienteActivoPlantillaSeguro);
         protected async Task CargarDatosBasePlantilla(string? clienteFiltro)
         {
@@ -1342,7 +1382,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!clientesAProcesar.Any())
                 {
-                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administraciÃ³n.", Severity.Warning);
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
                     return;
                 }
 
@@ -1354,8 +1394,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     bool? confirm = await _dialogService.ShowMessageBox(
                         "Cargar Datos Base",
-                        $"Â¿Deseas reemplazar tu plantilla de {string.Join(", ", clientesAProcesar)} ({plantillaActualCliente.Count} colaboradores) con los datos base de administraciÃ³n?",
-                        yesText: "SÃ­, Cargar Base",
+                        $"¿Deseas reemplazar tu plantilla de {string.Join(", ", clientesAProcesar)} ({plantillaActualCliente.Count} colaboradores) con los datos base de administración?",
+                        yesText: "Sí, Cargar Base",
                         cancelText: "Cancelar");
 
                     if (confirm != true) return;
@@ -1386,7 +1426,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     .Select(g => g.First())
                     .ToList();
 
-                // Mantener los de otros clientes y los prÃ©stamos/temporales
+                // Mantener los de otros clientes y los préstamos/temporales
                 var aConservar = miPlantillaPersonal
                     .Where(x => !clientesAProcesar.Contains(x.ClienteDefault, StringComparer.OrdinalIgnoreCase) ||
                                 string.Equals(x.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase) ||
@@ -1450,12 +1490,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!clientesAProcesar.Any())
                 {
-                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administraciÃ³n.", Severity.Warning);
+                    _snackbar.Add("No tienes clientes asignados configurados en el sistema de administración.", Severity.Warning);
                     return;
                 }
 
                 cargandoPlantilla = true;
-                textoOperacionBd = $"Actualizando plantilla de {string.Join(", ", clientesAProcesar)} desde administraciÃ³n...";
+                textoOperacionBd = $"Actualizando plantilla de {string.Join(", ", clientesAProcesar)} desde administración...";
                 StateHasChanged();
 
                 if (!misClientesAsignados.Any())
@@ -1493,7 +1533,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!nuevosPorAgregar.Any())
                 {
-                    _snackbar.Add($"Tu plantilla de {string.Join(", ", clientesAProcesar)} ya estÃ¡ al dÃ­a. No hay nuevos colaboradores en la base maestra.", Severity.Info);
+                    _snackbar.Add($"Tu plantilla de {string.Join(", ", clientesAProcesar)} ya está al día. No hay nuevos colaboradores en la base maestra.", Severity.Info);
                     return;
                 }
 
@@ -1538,7 +1578,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- PRECARGAR PERSONAL POR CLIENTE CON REGLA DE PRÃ‰STAMO / MULTICLIENTE ---
+        // --- PRECARGAR PERSONAL POR CLIENTE CON REGLA DE PRÉSTAMO / MULTICLIENTE ---
         protected async Task PrecargarPersonalCliente(string cliente)
         {
             if (string.IsNullOrWhiteSpace(cliente)) return;
@@ -1554,7 +1594,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (!plantillaCliente.Any())
             {
-                _snackbar.Add($"No tienes colaboradores configurados en Mi Personal para {cliente}. Puedes agregarlos desde la pestaÃ±a 'Mi Personal'.", Severity.Info);
+                _snackbar.Add($"No tienes colaboradores configurados en Mi Personal para {cliente}. Puedes agregarlos desde la pestaña 'Mi Personal'.", Severity.Info);
                 return;
             }
 
@@ -1564,7 +1604,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             try
             {
-                // 1. Consultar colaboradores que ya tienen turno/horario registrado para este dÃ­a en cualquier cliente o supervisor
+                // 1. Consultar colaboradores que ya tienen turno/horario registrado para este día en cualquier cliente o supervisor
                 Dictionary<int, Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> turnosOcupados = new();
                 try
                 {
@@ -1584,14 +1624,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 foreach (var item in plantillaCliente)
                 {
-                    // a) Si ya estÃ¡ en la jornada para este mismo cliente, omitir para no duplicar
+                    // a) Si ya está en la jornada para este mismo cliente, omitir para no duplicar
                     if (empleadosJornada.Any(x => x.CodigoEmpleado == item.CodigoEmpleado && string.Equals(x.Cliente, cliente, StringComparison.OrdinalIgnoreCase)))
                     {
                         continue;
                     }
 
-                    // b) REGLA DE PRÃ‰STAMO / MULTICLIENTE:
-                    // Si ya estÃ¡ registrado en la jornada con OTRO cliente (ej. como prÃ©stamo), NO cargarlo automÃ¡ticamente
+                    // b) REGLA DE PRÉSTAMO / MULTICLIENTE:
+                    // Si ya está registrado en la jornada con OTRO cliente (ej. como préstamo), NO cargarlo automáticamente
                     var yaRegistradoEnOtro = empleadosJornada.FirstOrDefault(x => x.CodigoEmpleado == item.CodigoEmpleado && !string.Equals(x.Cliente, cliente, StringComparison.OrdinalIgnoreCase));
                     if (yaRegistradoEnOtro != null)
                     {
@@ -1599,7 +1639,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         continue;
                     }
 
-                    // c) VerificaciÃ³n preventiva en base de datos (otro supervisor u operaciÃ³n)
+                    // c) Verificación preventiva en base de datos (otro supervisor u operación)
                     if (turnosOcupados.TryGetValue(item.CodigoEmpleado, out var turnoExistente))
                     {
                         bool esOtroCliente = !string.IsNullOrWhiteSpace(turnoExistente.Cliente) && 
@@ -1616,7 +1656,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(item.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
                     {
                         string orig = !string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? item.ClienteOrigenNomina : cliente;
-                        obsPlantilla = $"{item.TipoEmpleado} (NÃ³mina: {orig})";
+                        obsPlantilla = $"{item.TipoEmpleado} (Nómina: {orig})";
                     }
 
                     empleadosJornada.Add(new EmpleadoJornadaItem
@@ -1652,7 +1692,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (colaboradoresOmitidosPrestamo.Any())
                 {
-                    _snackbar.Add($"â„¹ï¸ Se omitieron {colaboradoresOmitidosPrestamo.Count} colaborador(es) porque ya estÃ¡n en otro cliente como prÃ©stamo o turno previo:\n{string.Join("; ", colaboradoresOmitidosPrestamo)}.\nSi requiere agregarlo en {cliente}, hÃ¡galo manualmente con '+ Colaborador'.", Severity.Warning, config => config.VisibleStateDuration = 12000);
+                    _snackbar.Add($"ℹ️ Se omitieron {colaboradoresOmitidosPrestamo.Count} colaborador(es) porque ya están en otro cliente como préstamo o turno previo:\n{string.Join("; ", colaboradoresOmitidosPrestamo)}.\nSi requiere agregarlo en {cliente}, hágalo manualmente con '+ Colaborador'.", Severity.Warning, config => config.VisibleStateDuration = 12000);
                 }
 
                 ActualizarGruposConsolidados();
@@ -1681,8 +1721,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (!miPlantillaPersonal.Any())
             {
-                _snackbar.Add("No tienes colaboradores en tu plantilla. Puedes configurarlos en la pestaÃ±a 'Mi Personal' o guardar la jornada actual como tu plantilla.", Severity.Info);
-                activeTabIndex = 5; // Cambiar a pestaÃ±a Mi Personal (Ãndice 5)
+                _snackbar.Add("No tienes colaboradores en tu plantilla. Puedes configurarlos en la pestaña 'Mi Personal' o guardar la jornada actual como tu plantilla.", Severity.Info);
+                activeTabIndex = 5; // Cambiar a pestaña Mi Personal (Índice 5)
                 return;
             }
 
@@ -1690,9 +1730,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 bool? confirm = await _dialogService.ShowMessageBox(
                     "Cargar Mi Personal",
-                    $"La grilla actual ya contiene {empleadosJornada.Count} colaboradores. Â¿Deseas reemplazarla con tu plantilla de {miPlantillaPersonal.Count} colaboradores o aÃ±adir los faltantes?",
+                    $"La grilla actual ya contiene {empleadosJornada.Count} colaboradores. ¿Deseas reemplazarla con tu plantilla de {miPlantillaPersonal.Count} colaboradores o añadir los faltantes?",
                     yesText: "Reemplazar Grilla",
-                    noText: "AÃ±adir Faltantes",
+                    noText: "Añadir Faltantes",
                     cancelText: "Cancelar");
 
                 if (confirm == null) return;
@@ -1710,7 +1750,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             var existentes = empleadosJornada.Select(x => x.CodigoEmpleado).ToHashSet();
             int agregados = 0;
 
-            // 1. Consultar colaboradores que ya tienen turno/horario registrado para este dÃ­a en cualquier cliente o supervisor
+            // 1. Consultar colaboradores que ya tienen turno/horario registrado para este día en cualquier cliente o supervisor
             Dictionary<int, Modelo.ClasesGenericas.MovimientoPersonalDiarioDto> turnosOcupados = new();
             try
             {
@@ -1725,7 +1765,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch
             {
-                // No interrumpir si la verificaciÃ³n preventiva no responde
+                // No interrumpir si la verificación preventiva no responde
             }
 
             var colaboradoresOmitidos = new List<string>();
@@ -1737,7 +1777,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     // REGLA DE NEGOCIO: Si el colaborador YA tiene un turno registrado en esta fecha (en otro cliente o supervisor), NO cargarlo
                     if (turnosOcupados.TryGetValue(item.CodigoEmpleado, out var turnoExistente))
                     {
-                        string clienteItem = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase)
+                        string clienteItem = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase)
                             ? item.ClienteDefault 
                             : (NombresMisClientes.FirstOrDefault() ?? "General");
 
@@ -1750,15 +1790,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             continue;
                         }
                     }
-                    string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase)
+                    string clienteDefault = !string.IsNullOrWhiteSpace(item.ClienteDefault) && !string.Equals(item.ClienteDefault, "Administración", StringComparison.OrdinalIgnoreCase)
                         ? item.ClienteDefault 
-                        : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
+                        : (NombresMisClientes.FirstOrDefault() ?? operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "General");
 
                     string obsPlantilla = string.Empty;
                     if (string.Equals(item.TipoEmpleado, "Prestamo", StringComparison.OrdinalIgnoreCase) || string.Equals(item.TipoEmpleado, "Temporal", StringComparison.OrdinalIgnoreCase))
                     {
                         string orig = !string.IsNullOrWhiteSpace(item.ClienteOrigenNomina) ? item.ClienteOrigenNomina : item.ClienteDefault;
-                        obsPlantilla = $"{item.TipoEmpleado} (NÃ³mina: {orig})";
+                        obsPlantilla = $"{item.TipoEmpleado} (Nómina: {orig})";
                     }
 
                     empleadosJornada.Add(new EmpleadoJornadaItem
@@ -1795,7 +1835,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (colaboradoresOmitidos.Any())
             {
-                _snackbar.Add($"â„¹ï¸ Se omitieron {colaboradoresOmitidos.Count} colaborador(es) porque ya tienen turno registrado en otro cliente para esta fecha: {string.Join(", ", colaboradoresOmitidos)}", Severity.Warning, config => config.VisibleStateDuration = 10000);
+                _snackbar.Add($"ℹ️ Se omitieron {colaboradoresOmitidos.Count} colaborador(es) porque ya tienen turno registrado en otro cliente para esta fecha: {string.Join(", ", colaboradoresOmitidos)}", Severity.Warning, config => config.VisibleStateDuration = 10000);
             }
 
             ActualizarGruposConsolidados();
@@ -1813,8 +1853,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Guardar como Mi Plantilla Permanente",
-                $"Â¿Deseas guardar los {empleadosJornada.Count} colaboradores de la grilla como tu plantilla habitual de trabajo con sus clientes iniciales asignados?",
-                yesText: "SÃ­, Guardar en Mi Plantilla",
+                $"¿Deseas guardar los {empleadosJornada.Count} colaboradores de la grilla como tu plantilla habitual de trabajo con sus clientes iniciales asignados?",
+                yesText: "Sí, Guardar en Mi Plantilla",
                 cancelText: "Cancelar");
 
             if (confirm != true) return;
@@ -1854,7 +1894,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 await _odooService.SaveSupervisorPlantillaMasivo(req);
                 await CargarMiPlantilla();
-                _snackbar.Add($"âœ… {items.Count} colaboradores guardados exitosamente en tu plantilla.", Severity.Success);
+                _snackbar.Add($"✅ {items.Count} colaboradores guardados exitosamente en tu plantilla.", Severity.Success);
             }
             catch (Exception ex)
             {
@@ -1869,7 +1909,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected async Task GuardarItemPlantilla(SupervisorPlantillaItemDto item)
         {
             estaGuardando = true;
-            textoOperacionBd = $"Guardando configuraciÃ³n de #{item.CodigoEmpleado} {item.NombreEmpleado}...";
+            textoOperacionBd = $"Guardando configuración de #{item.CodigoEmpleado} {item.NombreEmpleado}...";
             try
             {
                 item.UsuarioSupervisor = currentUserName;
@@ -1877,12 +1917,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (resp?.Respuesta?.ExisteError == false)
                 {
-                    _snackbar.Add($"âœ… Guardado en Mi Personal: #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault} - {item.AreaDefault}).", Severity.Success);
+                    _snackbar.Add($"✅ Guardado en Mi Personal: #{item.CodigoEmpleado} {item.NombreEmpleado} ({item.ClienteDefault} - {item.AreaDefault}).", Severity.Success);
                 }
                 else
                 {
                     string msg = resp?.Respuesta?.MensajeError ?? "No se pudo actualizar en BD";
-                    _snackbar.Add($"âš ï¸ No se pudo guardar: {msg}", Severity.Warning);
+                    _snackbar.Add($"⚠️ No se pudo guardar: {msg}", Severity.Warning);
                 }
             }
             catch (Exception ex)
@@ -1961,7 +2001,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!string.Equals(clienteAnterior, nuevoCliente, StringComparison.OrdinalIgnoreCase))
                 {
-                    _snackbar.Add($"Colaborador {item.NombreEmpleado} asignado a {nuevoCliente} (PrÃ©stamo).", Severity.Success);
+                    _snackbar.Add($"Colaborador {item.NombreEmpleado} asignado a {nuevoCliente} (Préstamo).", Severity.Success);
                 }
                 else
                 {
@@ -2017,7 +2057,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["CantidadSeleccionados"] = 0
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("ViÃ¡ticos & Bono de Plantilla", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Viáticos & Bono de Plantilla", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
@@ -2044,8 +2084,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Quitar Colaborador de Mi Plantilla",
-                $"Â¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de tu plantilla permanente?",
-                yesText: "SÃ­, Quitar",
+                $"¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de tu plantilla permanente?",
+                yesText: "Sí, Quitar",
                 cancelText: "Cancelar");
 
             if (confirm != true) return;
@@ -2077,13 +2117,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             DateTime fechaAyer = fechaSeleccionada.Value.AddDays(-1);
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Copiar Jornada Anterior",
-                $"Â¿Deseas precargar la jornada del dÃ­a {fechaAyer:dd/MM/yyyy} para la fecha activa {fechaSeleccionada:dd/MM/yyyy}?",
-                yesText: "SÃ­, Copiar", cancelText: "Cancelar");
+                $"¿Deseas precargar la jornada del día {fechaAyer:dd/MM/yyyy} para la fecha activa {fechaSeleccionada:dd/MM/yyyy}?",
+                yesText: "Sí, Copiar", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
             estaCargando = true;
-            textoOperacionBd = "Copiando jornada del dÃ­a anterior...";
+            textoOperacionBd = "Copiando jornada del día anterior...";
             try
             {
                 var req = new ClonarMovimientosDiaAnteriorRequest
@@ -2140,7 +2180,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (!ValidarConflictosHorarios(out var errorCruce))
             {
-                _snackbar.Add($"âŒ No se puede guardar: se detectaron cruces de horarios entre turnos del mismo colaborador:\n{errorCruce}", Severity.Error, config => config.VisibleStateDuration = 10000);
+                _snackbar.Add($"❌ No se puede guardar: se detectaron cruces de horarios entre turnos del mismo colaborador:\n{errorCruce}", Severity.Error, config => config.VisibleStateDuration = 10000);
                 return;
             }
 
@@ -2233,7 +2273,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         }
                     }
                     await AutoGuardarBorradorLocal();
-                    _snackbar.Add($"âœ… {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
+                    _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
 
                     // 2. En segundo plano (sin vaciar la grilla ni mostrar spinner destructivo), sincronizar IDs asignados por BD
                     try
@@ -2266,7 +2306,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                     catch
                     {
-                        // No interrumpir si la sincronizaciÃ³n de IDs tarda
+                        // No interrumpir si la sincronización de IDs tarda
                     }
 
                     ActualizarGruposConsolidados();
@@ -2282,7 +2322,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         int nl = errorMsg.IndexOf('\n');
                         if (nl > 0) errorMsg = errorMsg.Substring(0, nl);
                     }
-                    _snackbar.Add($"âŒ {errorMsg}", Severity.Error, config => config.VisibleStateDuration = 12000);
+                    _snackbar.Add($"❌ {errorMsg}", Severity.Error, config => config.VisibleStateDuration = 12000);
                 }
             }
             catch (Exception ex)
@@ -2295,13 +2335,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- ASIGNACIÃ“N MASIVA RÃPIDA ---
+        // --- ASIGNACIÓN MASIVA RÁPIDA ---
         protected async Task AbrirAsignacionMasiva()
         {
             var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
             if (!seleccionados.Any())
             {
-                _snackbar.Add("Selecciona al menos un empleado con la casilla de verificaciÃ³n.", Severity.Info);
+                _snackbar.Add("Selecciona al menos un empleado con la casilla de verificación.", Severity.Info);
                 return;
             }
 
@@ -2320,7 +2360,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["ClienteInicial"] = firstClient ?? string.Empty
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogAsignacionMasivaTurno>("AsignaciÃ³n Masiva", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogAsignacionMasivaTurno>("Asignación Masiva", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogAsignacionMasivaTurno.ResultadoAsignacionMasiva data)
@@ -2347,7 +2387,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     emp.Seleccionado = false;
                 }
 
-                _snackbar.Add($"Asignado turno, Ã¡rea y viÃ¡ticos a {seleccionados.Count} colaboradores.", Severity.Success);
+                _snackbar.Add($"Asignado turno, área y viáticos a {seleccionados.Count} colaboradores.", Severity.Success);
                 ActualizarGruposConsolidados();
             }
         }
@@ -2355,7 +2395,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- AGREGAR COLABORADOR MANUAL O DESDE ODOO ---
         protected async Task AbrirDialogoAgregarColaborador(string textoInicial = "", bool esDesdePlantilla = false)
         {
-            // Determinar la operaciÃ³n por defecto dando prioridad a la selecciÃ³n actual o a los clientes asignados del supervisor
+            // Determinar la operación por defecto dando prioridad a la selección actual o a los clientes asignados del supervisor
             string defaultOp = "";
             if (selectedOperacionId.HasValue && selectedOperacionId.Value > 0)
             {
@@ -2374,7 +2414,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             { 
                 defaultOp = filtroClienteGrilla; 
             } 
-            else if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))
+            else if (string.IsNullOrWhiteSpace(defaultOp) || string.Equals(defaultOp, "Administración", StringComparison.OrdinalIgnoreCase))
             {
                 if (NombresMisClientes.Any())
                 {
@@ -2382,15 +2422,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
-                    defaultOp = operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))?.nombre ?? "Sinsa";
+                    defaultOp = operacionesList.FirstOrDefault(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))?.nombre ?? "Sinsa";
                 }
             }
 
             var defaultAreas = GetAreasParaCliente(defaultOp);
 
-            // Operaciones disponibles: excluir AdministraciÃ³n y ordenar poniendo al inicio los clientes asignados del supervisor
+            // Operaciones disponibles: excluir Administración y ordenar poniendo al inicio los clientes asignados del supervisor
             var opsDisponibles = operacionesList
-                .Where(o => !string.Equals(o.nombre, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase))
+                .Where(o => !string.Equals(o.nombre, "Administración", StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(o => NombresMisClientes.Contains(o.nombre, StringComparer.OrdinalIgnoreCase))
                 .ThenBy(o => o.nombre)
                 .ToList();
@@ -2422,13 +2462,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (!result.Canceled && result.Data is EmpleadoJornadaItem nuevo)
             {
                 nuevo.ClienteOrigenNomina = LimpiarTextoOdoo(nuevo.ClienteOrigenNomina);
-                // Asegurar que si el cliente sigue como "AdministraciÃ³n" y el supervisor tiene cliente asignado, se asigne a su cliente
-                if (string.Equals(nuevo.Cliente, "AdministraciÃ³n", StringComparison.OrdinalIgnoreCase) && NombresMisClientes.Any())
+                // Asegurar que si el cliente sigue como "Administración" y el supervisor tiene cliente asignado, se asigne a su cliente
+                if (string.Equals(nuevo.Cliente, "Administración", StringComparison.OrdinalIgnoreCase) && NombresMisClientes.Any())
                 {
                     nuevo.Cliente = NombresMisClientes.FirstOrDefault() ?? nuevo.Cliente;
                 }
 
-                // SI SE ABRIÃ“ DESDE "MI PERSONAL" (TAB 4):
+                // SI SE ABRIÓ DESDE "MI PERSONAL" (TAB 4):
                 if (esDesdePlantilla)
                 {
                     bool yaExisteEnPlantilla = miPlantillaPersonal.Any(p => 
@@ -2438,7 +2478,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     if (yaExisteEnPlantilla)
                     {
-                        _snackbar.Add($"âš ï¸ El colaborador #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} ya existe en tu personal.", Severity.Warning);
+                        _snackbar.Add($"⚠️ El colaborador #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} ya existe en tu personal.", Severity.Warning);
                         return;
                     }
 
@@ -2492,7 +2532,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         await _odooService.SavePersonalClienteItem(itemBase);
                     }
 
-                    _snackbar.Add($"âœ… #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} guardado exitosamente en Mi Personal.", Severity.Success);
+                    _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} guardado exitosamente en Mi Personal.", Severity.Success);
                     StateHasChanged();
                     return;
                 }
@@ -2500,11 +2540,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var existente = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == nuevo.CodigoEmpleado);
                 if (existente != null)
                 {
-                    _snackbar.Add($"â„¹ï¸ Registro adicional (Turno {nuevo.TurnoNombre}) agregado para #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado}.", Severity.Info);
+                    _snackbar.Add($"ℹ️ Registro adicional (Turno {nuevo.TurnoNombre}) agregado para #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado}.", Severity.Info);
                 }
                 else
                 {
-                    _snackbar.Add($"âœ… #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
+                    _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} agregado a la jornada para '{nuevo.Cliente}'.", Severity.Success);
                 }
 
                 if (nuevo.VtcoTrasp == 0 && nuevo.VtcoAlim == 0 && nuevo.BonoBnc == 0)
@@ -2516,11 +2556,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ValidarConflictosHorarios(out var msgConflicto);
                 if (!string.IsNullOrWhiteSpace(msgConflicto))
                 {
-                    _snackbar.Add($"âš ï¸ Advertencia de cruce de horario:\n{msgConflicto}", Severity.Warning, config => config.VisibleStateDuration = 8000);
+                    _snackbar.Add($"⚠️ Advertencia de cruce de horario:\n{msgConflicto}", Severity.Warning, config => config.VisibleStateDuration = 8000);
                 }
                 ActualizarGruposConsolidados();
 
-                // Guardar tambiÃ©n en la plantilla del supervisor si aÃºn no estaba o actualizar datos (garantizando unicidad)
+                // Guardar también en la plantilla del supervisor si aún no estaba o actualizar datos (garantizando unicidad)
                 var itemPlantilla = miPlantillaPersonal.FirstOrDefault(p => 
                     (nuevo.CodigoEmpleado > 0 && p.CodigoEmpleado == nuevo.CodigoEmpleado) ||
                     (nuevo.IdEmpleado > 0 && p.IdEmpleado == nuevo.IdEmpleado) ||
@@ -2601,9 +2641,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 int totalRegistrosBd = Math.Max(idsEnBd.Count, empleadosJornada.Count(x => x.Id > 0));
                 bool? confirm = await _dialogService.ShowMessageBox(
                     "Limpiar Asistencia Diaria",
-                    $"La jornada del dÃ­a {fechaSeleccionada:dd/MM/yyyy} tiene {totalRegistrosBd} asistencia(s) registrada(s) en la base de datos.\n\n" +
-                    "â€¢ 'Limpiar Pantalla': Quita los registros de la vista temporal en tu pantalla sin borrarlos de la BD ni de 'Mi Personal'.\n" +
-                    "â€¢ 'Borrar de BD': Elimina y anula permanentemente las asistencias guardadas en la base de datos para esta fecha.",
+                    $"La jornada del día {fechaSeleccionada:dd/MM/yyyy} tiene {totalRegistrosBd} asistencia(s) registrada(s) en la base de datos.\n\n" +
+                    "• 'Limpiar Pantalla': Quita los registros de la vista temporal en tu pantalla sin borrarlos de la BD ni de 'Mi Personal'.\n" +
+                    "• 'Borrar de BD': Elimina y anula permanentemente las asistencias guardadas en la base de datos para esta fecha.",
                     yesText: "Limpiar Pantalla (Conservar en BD)",
                     noText: "Borrar de BD Permanentemente",
                     cancelText: "Cancelar");
@@ -2614,7 +2654,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 textoOperacionBd = confirm == false ? "Borrando asistencias de la base de datos..." : "Limpiando grilla de pantalla...";
                 try
                 {
-                    if (confirm == false) // El usuario eligiÃ³ expresamente borrar de BD
+                    if (confirm == false) // El usuario eligió expresamente borrar de BD
                     {
                         var idsParaBorrar = empleadosJornada.Where(x => x.Id > 0).Select(x => x.Id).ToHashSet();
                         foreach (var id in idsEnBd) idsParaBorrar.Add(id);
@@ -2624,7 +2664,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             var tasks = idsParaBorrar.Select(id => _odooService.DeleteMovimientoPersonalDiario(id));
                             await Task.WhenAll(tasks);
                         }
-                        _snackbar.Add($"Se anularon y borraron {idsParaBorrar.Count} asistencias de la base de datos para el dÃ­a {fechaSeleccionada:dd/MM/yyyy}.", Severity.Warning);
+                        _snackbar.Add($"Se anularon y borraron {idsParaBorrar.Count} asistencias de la base de datos para el día {fechaSeleccionada:dd/MM/yyyy}.", Severity.Warning);
                     }
                     else
                     {
@@ -2649,8 +2689,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 bool? confirm = await _dialogService.ShowMessageBox(
                     "Limpiar Grilla Diaria",
-                    $"Â¿Deseas limpiar los {empleadosJornada.Count} colaboradores de la grilla? (Tu plantilla 'Mi Personal' permanece intacta).",
-                    yesText: "SÃ­, Limpiar Pantalla",
+                    $"¿Deseas limpiar los {empleadosJornada.Count} colaboradores de la grilla? (Tu plantilla 'Mi Personal' permanece intacta).",
+                    yesText: "Sí, Limpiar Pantalla",
                     cancelText: "Cancelar");
 
                 if (confirm == true)
@@ -2695,11 +2735,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 string[] headers = new[]
                 {
-                    "#", "ID BD", "Fecha", "Carnet / CÃ³digo", "Colaborador", "Cliente / OperaciÃ³n", "Asistencia",
-                    "Ãrea Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
-                    "ViÃ¡tico Transporte (C$)", "ViÃ¡tico AlimentaciÃ³n (C$)", "Bono BNC (C$)", "Total ViÃ¡ticos (C$)",
-                    "Tipo Ausencia", "DÃ­as Ausencia", "Observaciones", "Estado",
-                    "Ticket Movimiento", "Ticket ViÃ¡tico", "Ticket Bono", "Ticket Ausencia", "Supervisor"
+                    "#", "ID BD", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
+                    "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
+                    "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
+                    "Tipo Ausencia", "Días Ausencia", "Observaciones", "Estado",
+                    "Ticket Movimiento", "Ticket Viático", "Ticket Bono", "Ticket Ausencia", "Supervisor"
                 };
 
                 var headerRow = sheet.CreateRow(0);
@@ -2788,26 +2828,26 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     6,  // 0: #
                     14, // 1: Fecha
-                    18, // 2: Carnet / CÃ³digo
+                    18, // 2: Carnet / Código
                     34, // 3: Colaborador
-                    24, // 4: Cliente / OperaciÃ³n
+                    24, // 4: Cliente / Operación
                     14, // 5: Asistencia
-                    26, // 6: Ãrea Operativa
+                    26, // 6: Área Operativa
                     28, // 7: Cargo / Puesto
                     14, // 8: Turno
                     14, // 9: Hora Entrada
                     14, // 10: Hora Salida
                     14, // 11: Tiempo Comida (Hrs)
-                    22, // 12: ViÃ¡tico Transporte (C$)
-                    22, // 13: ViÃ¡tico AlimentaciÃ³n (C$)
+                    22, // 12: Viático Transporte (C$)
+                    22, // 13: Viático Alimentación (C$)
                     18, // 14: Bono BNC (C$)
-                    20, // 15: Total ViÃ¡ticos (C$)
+                    20, // 15: Total Viáticos (C$)
                     24, // 16: Tipo Ausencia
-                    14, // 17: DÃ­as Ausencia
+                    14, // 17: Días Ausencia
                     32, // 18: Observaciones
                     14, // 19: Estado
                     18, // 20: Ticket Movimiento
-                    18, // 21: Ticket ViÃ¡tico
+                    18, // 21: Ticket Viático
                     18, // 22: Ticket Bono
                     18, // 23: Ticket Ausencia
                     26  // 24: Supervisor
@@ -2826,7 +2866,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 string fileName = $"Jornada_Supervisor_{fechaSeleccionada:yyyyMMdd}_{currentUserName}.xlsx";
 
                 await _js.InvokeVoidAsync("downloadFile", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", base64, fileName);
-                _snackbar.Add($"âœ… Archivo '{fileName}' descargado con Ã©xito.", Severity.Success);
+                _snackbar.Add($"✅ Archivo '{fileName}' descargado con éxito.", Severity.Success);
             }
             catch (Exception ex)
             {
@@ -2834,7 +2874,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- SELECCIÃ“N Y EDICIÃ“N RÃPIDA EN GRILLA ---
+        // --- SELECCIÓN Y EDICIÓN RÁPIDA EN GRILLA ---
         protected void MarcarTodos(bool marcar)
         {
             foreach (var e in EmpleadosFiltrados)
@@ -2945,9 +2985,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             for (int m = startMinutes; m < endMinutes; m++)
             {
                 int minDelDia = m % 1440;
-                // CÃ³digo del Trabajo de Nicaragua (Ley NÂ° 185):
+                // Código del Trabajo de Nicaragua (Ley N° 185):
                 // Art. 51: Jornada diurna es la que se ejecuta entre las 06:00 y las 20:00 (360 a 1200 minutos).
-                // Art. 52: Jornada nocturna es la que se ejecuta entre las 20:00 y las 06:00 del dÃ­a siguiente.
+                // Art. 52: Jornada nocturna es la que se ejecuta entre las 20:00 y las 06:00 del día siguiente.
                 if (minDelDia >= 360 && minDelDia < 1200)
                 {
                     diurnos++;
@@ -2971,9 +3011,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             // Art. 53: Mixto
-            // "siempre que el perÃ­odo nocturno sea menor de tres horas y media (210 minutos).
-            // Si en la jornada mixta se laboran tres horas y media o mÃ¡s en el perÃ­odo nocturno,
-            // se reputarÃ¡ trabajo nocturno para todos los efectos legales."
+            // "siempre que el período nocturno sea menor de tres horas y media (210 minutos).
+            // Si en la jornada mixta se laboran tres horas y media o más en el período nocturno,
+            // se reputará trabajo nocturno para todos los efectos legales."
             if (nocturnos >= 210)
             {
                 return "Nocturno";
@@ -3167,7 +3207,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 FullWidth = true
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEdicionMasivaHorarioComida>("EdiciÃ³n Masiva de Horario y Comida (Mi Personal)", parameters, options);
+            var dialog = await _dialogService.ShowAsync<DialogEdicionMasivaHorarioComida>("Edición Masiva de Horario y Comida (Mi Personal)", parameters, options);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEdicionMasivaHorarioComida.ResultadoEdicionMasivaHorario data)
@@ -3180,7 +3220,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!coinciden.Any())
                 {
-                    _snackbar.Add("No se encontraron colaboradores en tu personal que coincidan con la selecciÃ³n de Cliente/Ãrea/Puesto.", Severity.Warning);
+                    _snackbar.Add("No se encontraron colaboradores en tu personal que coincidan con la selección de Cliente/Área/Puesto.", Severity.Warning);
                     return;
                 }
 
@@ -3206,7 +3246,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         guardados++;
                     }
 
-                    _snackbar.Add($"âœ… Horario ({normEntrada} - {normSalida}) y comida ({normComida}h) actualizados y guardados en base de datos para {guardados} colaborador(es) de Mi Personal.", Severity.Success);
+                    _snackbar.Add($"✅ Horario ({normEntrada} - {normSalida}) y comida ({normComida}h) actualizados y guardados en base de datos para {guardados} colaborador(es) de Mi Personal.", Severity.Success);
                 }
                 catch (Exception ex)
                 {
@@ -3240,7 +3280,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 FullWidth = true
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEdicionMasivaHorarioComida>("EdiciÃ³n Masiva de Horario y Comida", parameters, options);
+            var dialog = await _dialogService.ShowAsync<DialogEdicionMasivaHorarioComida>("Edición Masiva de Horario y Comida", parameters, options);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEdicionMasivaHorarioComida.ResultadoEdicionMasivaHorario data)
@@ -3254,7 +3294,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 if (!coinciden.Any())
                 {
-                    _snackbar.Add("No se encontraron colaboradores que coincidan con la selecciÃ³n de Cliente/Ãrea/Puesto.", Severity.Warning);
+                    _snackbar.Add("No se encontraron colaboradores que coincidan con la selección de Cliente/Área/Puesto.", Severity.Warning);
                     return;
                 }
 
@@ -3275,7 +3315,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ValidarConflictosHorarios(out _);
                 ActualizarGruposConsolidados();
 
-                _snackbar.Add($"âœ… Horario ({normEntrada} - {normSalida}) y comida ({normComida}h) aplicados exitosamente a {coinciden.Count} colaborador(es).", Severity.Success);
+                _snackbar.Add($"✅ Horario ({normEntrada} - {normSalida}) y comida ({normComida}h) aplicados exitosamente a {coinciden.Count} colaborador(es).", Severity.Success);
                 StateHasChanged();
             }
         }
@@ -3367,7 +3407,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["OcultarBono"] = ocultarBono
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>(ocultarBono ? "ViÃ¡ticos (Operaciones)" : "ViÃ¡ticos & Bono", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>(ocultarBono ? "Viáticos (Operaciones)" : "Viáticos & Bono", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
@@ -3400,7 +3440,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 ActualizarGruposConsolidados();
                 var total = data.VtcoTrasp + data.VtcoAlim;
-                _snackbar.Add($"ViÃ¡ticos actualizados (Total Cliente C$ {total:N2} | NÃ³mina C$ {data.BonoBnc:N2})", Severity.Success);
+                _snackbar.Add($"Viáticos actualizados (Total Cliente C$ {total:N2} | Nómina C$ {data.BonoBnc:N2})", Severity.Success);
             }
         }
 
@@ -3420,7 +3460,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["OcultarBono"] = false
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Editar ViÃ¡ticos del Grupo", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Editar Viáticos del Grupo", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
@@ -3437,7 +3477,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 ActualizarGruposConsolidados();
                 var total = (data.VtcoTrasp + data.VtcoAlim) * grupo.Recursos;
-                _snackbar.Add($"ViÃ¡ticos actualizados para {grupo.Recursos} recursos (Total C$ {total:N2})", Severity.Success);
+                _snackbar.Add($"Viáticos actualizados para {grupo.Recursos} recursos (Total C$ {total:N2})", Severity.Success);
             }
         }
 
@@ -3446,7 +3486,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             var seleccionados = empleadosJornada.Where(x => x.Seleccionado).ToList();
             if (!seleccionados.Any())
             {
-                _snackbar.Add("Selecciona al menos un colaborador usando las casillas de verificaciÃ³n.", Severity.Warning);
+                _snackbar.Add("Selecciona al menos un colaborador usando las casillas de verificación.", Severity.Warning);
                 return;
             }
 
@@ -3464,7 +3504,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["OcultarBono"] = false
             };
 
-            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("AsignaciÃ³n Masiva de ViÃ¡ticos", parameters);
+            var dialog = await _dialogService.ShowAsync<DialogEditarViaticos>("Asignación Masiva de Viáticos", parameters);
             var result = await dialog.Result;
 
             if (!result.Canceled && result.Data is DialogEditarViaticos.ResultadoEdicionViaticos data)
@@ -3481,16 +3521,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 ActualizarGruposConsolidados();
                 var total = (data.VtcoTrasp + data.VtcoAlim) * seleccionados.Count;
-                _snackbar.Add($"ViÃ¡ticos asignados a {seleccionados.Count} colaboradores (Total C$ {total:N2})", Severity.Success);
+                _snackbar.Add($"Viáticos asignados a {seleccionados.Count} colaboradores (Total C$ {total:N2})", Severity.Success);
             }
         }
 
         protected async Task LimpiarTodosLosViaticos()
         {
             bool? confirm = await _dialogService.ShowMessageBox(
-                "Limpiar ViÃ¡ticos",
-                "Â¿Deseas restablecer a C$ 0 todos los viÃ¡ticos de transporte y alimentaciÃ³n de la jornada?",
-                yesText: "SÃ­, Limpiar a C$ 0", cancelText: "Cancelar");
+                "Limpiar Viáticos",
+                "¿Deseas restablecer a C$ 0 todos los viáticos de transporte y alimentación de la jornada?",
+                yesText: "Sí, Limpiar a C$ 0", cancelText: "Cancelar");
 
             if (confirm == true)
             {
@@ -3507,7 +3547,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                 }
                 ActualizarGruposConsolidados();
-                _snackbar.Add("Se han restablecido los viÃ¡ticos (transporte y alimentaciÃ³n) a C$ 0.", Severity.Info);
+                _snackbar.Add("Se han restablecido los viáticos (transporte y alimentación) a C$ 0.", Severity.Info);
             }
         }
 
@@ -3525,8 +3565,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 bool? confirm = await _dialogService.ShowMessageBox(
                     "Quitar Colaborador",
-                    $"Â¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de la jornada del {fechaSeleccionada:dd/MM/yyyy}?",
-                    yesText: "SÃ­, Quitar",
+                    $"¿Deseas quitar a {item.NombreEmpleado} (#{item.CodigoEmpleado}) de la jornada del {fechaSeleccionada:dd/MM/yyyy}?",
+                    yesText: "Sí, Quitar",
                     cancelText: "Cancelar");
 
                 if (confirm != true) return;
@@ -3607,8 +3647,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         private void ActualizarGruposConsolidadosInterno(bool autoGuardar = true)
         {
-            // AgrupaciÃ³n automÃ¡tica igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
-            // Garantizar que ningÃºn colaborador ausente conserve tickets de movimientos ni viÃ¡ticos
+            // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx
+            // Garantizar que ningún colaborador ausente conserve tickets de movimientos ni viáticos
             foreach (var aus in empleadosJornada.Where(x => !x.Asistio || string.Equals(x.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)))
             {
                 aus.TicketRedmineId = null;
@@ -3616,7 +3656,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 aus.TicketBonoId = null;
             }
 
-            // AgrupaciÃ³n automÃ¡tica igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx (EXCLUSIVAMENTE ASISTENTES)
+            // Agrupación automática igual que Sheet 'Consolidado Agrupado' de OPM_Produccion_Diaria_Hrs.xlsx (EXCLUSIVAMENTE ASISTENTES)
             var presentes = empleadosJornada
                 .Where(x => x.Asistio 
                          && !string.Equals(x.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
@@ -3624,11 +3664,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                          && x.HoraSalida != "--:--")
                 .ToList();
 
-            // Preservar observaciones previas del supervisor si ya existÃ­an para no sobreescribir lo que digitÃ³
+            // Preservar observaciones previas del supervisor si ya existían para no sobreescribir lo que digitó
             var dicObsPrevias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var prev in gruposConsolidados)
             {
-                string key = $"{prev.Cliente}|{prev.Area}|{prev.Puesto}|{prev.HoraInicio}|{prev.HoraFin}";
+                string key = $"{prev.Cliente}|{prev.Area}|{prev.Puesto}|{prev.HoraInicio}|{prev.HoraFin}|{prev.TicketRedmineId ?? 0}";
                 if (!dicObsPrevias.ContainsKey(key))
                 {
                     dicObsPrevias[key] = prev.Observaciones;
@@ -3651,22 +3691,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     x.VtcoAlim,
                     x.BonoBnc,
                     x.TraspAplicaNomina,
-                    x.AlimAplicaNomina
+                    x.AlimAplicaNomina,
+                    TicketRedmineKey = (x.TicketRedmineId.HasValue && x.TicketRedmineId > 0) ? x.TicketRedmineId.Value : 0
                 })
                 .Select((g, idx) =>
                 {
                     var empleadosGrupo = g.ToList();
 
-                    // Detectar colaboradores en condiciÃ³n de prÃ©stamo o cuyo cliente sea diferente al de la asistencia
+                    // Detectar colaboradores en condición de préstamo o cuyo cliente sea diferente al de la asistencia
                     var listaPrestamos = new List<string>();
                     foreach (var emp in empleadosGrupo)
                     {
                         var enPlantilla = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == emp.CodigoEmpleado);
                         string clienteNomina = !string.IsNullOrWhiteSpace(enPlantilla?.ClienteDefault) ? enPlantilla.ClienteDefault : string.Empty;
 
-                        if (!string.IsNullOrWhiteSpace(emp.Observaciones) && emp.Observaciones.Contains("NÃ³mina:", StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrWhiteSpace(emp.Observaciones) && emp.Observaciones.Contains("Nómina:", StringComparison.OrdinalIgnoreCase))
                         {
-                            int idxNom = emp.Observaciones.IndexOf("NÃ³mina:", StringComparison.OrdinalIgnoreCase);
+                            int idxNom = emp.Observaciones.IndexOf("Nómina:", StringComparison.OrdinalIgnoreCase);
                             string resto = emp.Observaciones.Substring(idxNom + 7).Trim().TrimEnd(')').Trim();
                             if (!string.IsNullOrWhiteSpace(resto))
                             {
@@ -3683,7 +3724,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                 ? clienteNomina
                                 : (!string.IsNullOrWhiteSpace(clienteNomina) ? clienteNomina : "su cliente de origen");
 
-                            listaPrestamos.Add($"ID {emp.CodigoEmpleado} pertenece a la nÃ³mina de {nomDestino}");
+                            listaPrestamos.Add($"ID {emp.CodigoEmpleado} pertenece a la nómina de {nomDestino}");
                         }
                     }
 
@@ -3691,15 +3732,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     if (listaPrestamos.Any())
                     {
                         string clausulas = string.Join(", ", listaPrestamos);
-                        notaAutomatica = $"{clausulas} para que sus horas nÃ³mina se graben en la nÃ³mina correspondiente.";
+                        notaAutomatica = $"{clausulas} para que sus horas nómina se graben en la nómina correspondiente.";
                     }
 
-                    string keyGrupo = $"{g.Key.Cliente}|{g.Key.Area}|{g.Key.Puesto}|{g.Key.HoraInicio}|{g.Key.HoraFin}";
+                    string keyGrupo = $"{g.Key.Cliente}|{g.Key.Area}|{g.Key.Puesto}|{g.Key.HoraInicio}|{g.Key.HoraFin}|{g.Key.TicketRedmineKey}";
                     string obsFinal = notaAutomatica;
 
                     if (dicObsPrevias.TryGetValue(keyGrupo, out var obsPrevia) && !string.IsNullOrWhiteSpace(obsPrevia))
                     {
-                        if (!string.IsNullOrWhiteSpace(notaAutomatica) && !obsPrevia.Contains("pertenece a la nÃ³mina de", StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrWhiteSpace(notaAutomatica) && !obsPrevia.Contains("pertenece a la nómina de", StringComparison.OrdinalIgnoreCase))
                         {
                             obsFinal = $"{notaAutomatica} {obsPrevia}".Trim();
                         }
@@ -3743,9 +3784,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             ActualizarGruposConsolidados();
 
-            if (!gruposConsolidados.Any())
+            var gruposVisibles = GruposMovimientosFiltrados;
+            if (!gruposVisibles.Any())
             {
-                _snackbar.Add("No hay grupos activos para enviar a Helpdesk.", Severity.Warning);
+                _snackbar.Add("No hay grupos activos para enviar a Helpdesk en el cliente seleccionado.", Severity.Warning);
                 return;
             }
 
@@ -3753,26 +3795,29 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la jornada.",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la jornada.",
                     yesText: "Entendido");
                 return;
             }
 
-            // Filtrar Ãºnicamente los grupos de asistentes que NO estÃ¡n ya sincronizados con Helpdesk
-            var gruposPendientes = gruposConsolidados.Where(g => !g.Sincronizado && g.Cantidad > 0).ToList();
+            // Filtrar únicamente los grupos del cliente seleccionado que NO cuentan con ticket en Helpdesk
+            var gruposPendientes = gruposVisibles.Where(g => !g.Sincronizado && g.Cantidad > 0).ToList();
             if (!gruposPendientes.Any())
             {
-                _snackbar.Add("Todos los grupos de movimiento ya estÃ¡n sincronizados con Helpdesk.", Severity.Info);
+                _snackbar.Add("Todos los grupos de movimiento del cliente seleccionado ya cuentan con ticket en Helpdesk.", Severity.Info);
                 return;
             }
 
             int totalGrupos = gruposPendientes.Count;
             int totalEmpleados = gruposPendientes.Sum(g => g.Cantidad);
+            string clientesTexto = string.Join(", ", gruposPendientes.Select(g => g.Cliente).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(clientesTexto))
+                clientesTexto = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones";
 
             bool? confirm = await _dialogService.ShowMessageBox(
-                "Confirmar EnvÃ­o a Helpdesk",
-                $"Â¿EstÃ¡s seguro de enviar {totalGrupos} grupos de movimiento ({totalEmpleados} colaboradores) a Redmine Helpdesk para el cliente '{clienteRedmineIdentificador}'?",
-                yesText: "SÃ­, Enviar a Helpdesk", cancelText: "Cancelar");
+                "Confirmar Envío a Helpdesk",
+                $"¿Estás seguro de enviar {totalGrupos} grupo(s) pendiente(s) de movimiento ({totalEmpleados} colaborador(es) sin ticket) a Redmine Helpdesk para '{clientesTexto}'?",
+                yesText: "Sí, Enviar a Helpdesk", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
@@ -3799,10 +3844,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     VtcoAlim = "0"
                 }).ToList();
 
+                string clientePrincipal = gruposPendientes.Select(g => g.Cliente).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))
+                    ?? (!string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones");
+
                 var request = new CrearMovimientosPersonalRequestDto
                 {
                     OperacionId = selectedOperacionId ?? 0,
-                    ClienteRedmine = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones",
+                    ClienteRedmine = clientePrincipal,
                     ModoGeneracion = "SoloMovimientos",
                     UsuarioRedmine = UsuarioRedmineEfectivo,
                     Movimientos = movimientosRedmine
@@ -3850,7 +3898,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         }
                     }
 
-                    _snackbar.Add($"ðŸš€ {creados} tickets creados con Ã©xito en Helpdesk Redmine.", Severity.Success);
+                    ActualizarGruposConsolidados();
+                    _snackbar.Add($"🚀 {creados} ticket(s) creados con éxito en Helpdesk Redmine.", Severity.Success);
                 }
                 else
                 {
@@ -3859,7 +3908,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error en comunicaciÃ³n con Helpdesk: {ex.Message}", Severity.Error);
+                _snackbar.Add($"Error en comunicación con Helpdesk: {ex.Message}", Severity.Error);
             }
             finally
             {
@@ -3867,7 +3916,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE (Conservando dÃ­as recientes) ---
+        // --- PURGA DE BORRADORES OBSOLETOS DE LOCALSTORAGE (Conservando días recientes) ---
         private async Task LimpiarTodosLosBorradoresLocales()
         {
             try
@@ -3909,7 +3958,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             ActualizarGruposConsolidados();
         }
 
-        // --- CATÃLOGO DE ÃREAS POR CLIENTE ---
+        // --- CATÁLOGO DE ÁREAS POR CLIENTE ---
         public List<string> GetAreasParaCliente(string? cliente)
         {
             if (string.IsNullOrWhiteSpace(cliente))
@@ -3917,11 +3966,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             string limpio = cliente.Trim();
 
-            // 1. Por catÃ¡logo configurado de supervisiÃ³n (exacto)
+            // 1. Por catálogo configurado de supervisión (exacto)
             if (areasPorCliente.TryGetValue(limpio, out var exactList) && exactList.Any())
                 return exactList;
 
-            // 2. Por coincidencia parcial en el catÃ¡logo
+            // 2. Por coincidencia parcial en el catálogo
             var match = areasPorCliente.FirstOrDefault(kvp =>
                 kvp.Key.Contains(limpio, StringComparison.OrdinalIgnoreCase) ||
                 limpio.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase));
@@ -3929,7 +3978,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (match.Value != null && match.Value.Any())
                 return match.Value;
 
-            // 3. Buscar en catÃ¡logo tbl_bs_cliente_areas por OperacionId si coincide con operacionesList
+            // 3. Buscar en catálogo tbl_bs_cliente_areas por OperacionId si coincide con operacionesList
             var opMatch = operacionesList.FirstOrDefault(o =>
                 string.Equals(o.nombre?.Trim(), limpio, StringComparison.OrdinalIgnoreCase) ||
                 (o.nombre?.IndexOf(limpio, StringComparison.OrdinalIgnoreCase) ?? -1) >= 0 ||
@@ -3949,7 +3998,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     return areasOp;
             }
 
-            // 4. Ãreas ya existentes en la jornada activa para este cliente
+            // 4. Áreas ya existentes en la jornada activa para este cliente
             var areasDeJornada = empleadosJornada
                 .Where(x => string.Equals(x.Cliente?.Trim(), limpio, StringComparison.OrdinalIgnoreCase))
                 .Select(x => x.Area?.Trim())
@@ -3964,7 +4013,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             return new List<string> { "Operaciones" };
         }
 
-        #region Reglas de ViÃ¡ticos en Memoria (EvaluaciÃ³n AutomÃ¡tica por Horario)
+        #region Reglas de Viáticos en Memoria (Evaluación Automática por Horario)
         protected async Task CargarCacheReglasViaticos()
         {
             try
@@ -3987,7 +4036,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 cargandoReglasViaticos = false;
             }
 
-            // Fallback offline para Reglas de ViÃ¡ticos
+            // Fallback offline para Reglas de Viáticos
             if (!cacheReglasViaticos.Any())
             {
                 try
@@ -4062,7 +4111,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (cacheReglasViaticos == null || !cacheReglasViaticos.Any())
             {
-                _snackbar.Add("No hay reglas de viÃ¡ticos configuradas o activas en el sistema.", Severity.Warning);
+                _snackbar.Add("No hay reglas de viáticos configuradas o activas en el sistema.", Severity.Warning);
                 return;
             }
 
@@ -4084,7 +4133,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             ActualizarGruposConsolidados();
-            _snackbar.Add($"Reglas de viÃ¡ticos evaluadas para {procesados} colaboradores.", Severity.Success);
+            _snackbar.Add($"Reglas de viáticos evaluadas para {procesados} colaboradores.", Severity.Success);
         }
         #endregion
 
@@ -4154,7 +4203,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 StateHasChanged();
             }
 
-            // Fallback offline desde localStorage para Ãreas
+            // Fallback offline desde localStorage para Áreas
             if (!catalogoClienteAreas.Any())
             {
                 try
@@ -4191,13 +4240,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (!nuevoClienteAreaOpId.HasValue || nuevoClienteAreaOpId.Value <= 0)
             {
-                _snackbar.Add("Seleccione el cliente para la nueva Ã¡rea.", Severity.Warning);
+                _snackbar.Add("Seleccione el cliente para la nueva área.", Severity.Warning);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(nuevaAreaNombre))
             {
-                _snackbar.Add("Ingrese el nombre del Ã¡rea operativa.", Severity.Warning);
+                _snackbar.Add("Ingrese el nombre del área operativa.", Severity.Warning);
                 return;
             }
 
@@ -4215,34 +4264,34 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             var res = await _odooService.GuardarClienteArea(req);
             if (res?.Respuesta?.ExisteError == false)
             {
-                _snackbar.Add($"Ãrea '{nuevaAreaNombre}' guardada exitosamente para '{cName}'.", Severity.Success);
+                _snackbar.Add($"Área '{nuevaAreaNombre}' guardada exitosamente para '{cName}'.", Severity.Success);
                 nuevaAreaNombre = string.Empty;
                 await CargarCatalogoClienteAreas();
             }
             else
             {
-                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar el Ã¡rea.", Severity.Error);
+                _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al guardar el área.", Severity.Error);
             }
         }
 
         protected async Task EliminarAreaCliente(ClienteAreaDto item)
         {
             bool? confirm = await _dialogService.ShowMessageBox(
-                "Eliminar Ãrea",
-                $"Â¿EstÃ¡ seguro de eliminar el Ã¡rea '{item.AreaNombre}' del cliente '{item.ClienteNombre}'?",
-                yesText: "SÃ­, Eliminar", cancelText: "Cancelar");
+                "Eliminar Área",
+                $"¿Está seguro de eliminar el área '{item.AreaNombre}' del cliente '{item.ClienteNombre}'?",
+                yesText: "Sí, Eliminar", cancelText: "Cancelar");
 
             if (confirm == true)
             {
                 var res = await _odooService.EliminarClienteArea(item.Id);
                 if (res?.Respuesta?.ExisteError == false)
                 {
-                    _snackbar.Add($"Ãrea '{item.AreaNombre}' eliminada.", Severity.Info);
+                    _snackbar.Add($"Área '{item.AreaNombre}' eliminada.", Severity.Info);
                     await CargarCatalogoClienteAreas();
                 }
                 else
                 {
-                    _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar Ã¡rea.", Severity.Error);
+                    _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al eliminar área.", Severity.Error);
                 }
             }
         }
@@ -4350,7 +4399,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     new() { id = 6, nombre = "Vacaciones" },
                     new() { id = 7, nombre = "Subsidio" },
                     new() { id = 10, nombre = "Cuarentena" },
-                    new() { id = 11, nombre = "SuspensiÃ³n laboral" }
+                    new() { id = 11, nombre = "Suspensión laboral" }
                 };
             }
         }
@@ -4359,7 +4408,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             foreach (var a in AusentesFiltrados)
             {
-                a.Seleccionado = marcar;
+                a.Seleccionado = marcar && !a.SincronizadoAusencia;
             }
         }
 
@@ -4409,13 +4458,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // --- ENVIAR AUSENCIAS A HELPDESK (REDMINE TRACKER 8) ---
         protected async Task EnviarAusenciasAHelpdeskMasivo(bool soloSeleccionados = false)
         {
-            var ausentes = soloSeleccionados 
-                ? empleadosJornada.Where(x => !x.Asistio && x.Seleccionado).ToList()
-                : empleadosJornada.Where(x => !x.Asistio).ToList();
+            var ausentes = (soloSeleccionados
+                ? AusentesFiltrados.Where(x => !x.SincronizadoAusencia && x.Seleccionado)
+                : AusentesFiltrados.Where(x => !x.SincronizadoAusencia)).ToList();
 
             if (!ausentes.Any())
             {
-                _snackbar.Add("No hay colaboradores ausentes para enviar a Helpdesk.", Severity.Warning);
+                _snackbar.Add("No hay ausencias pendientes sin número de ticket en Helpdesk para el cliente seleccionado.", Severity.Info);
                 return;
             }
 
@@ -4423,16 +4472,19 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n de ausencias o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de reportar las ausencias.",
+                    "No se puede enviar a Helpdesk porque hay información de ausencias o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de reportar las ausencias.",
                     yesText: "Entendido");
                 return;
             }
 
             int total = ausentes.Count;
+            string clientesTexto = string.Join(", ", ausentes.Select(a => a.Cliente).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase));
+            string sufijoCliente = !string.IsNullOrWhiteSpace(clientesTexto) ? $" del cliente '{clientesTexto}'" : string.Empty;
+
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Confirmar Solicitud de Ausencias",
-                $"Â¿EstÃ¡s seguro de generar la solicitud de ausencia en Helpdesk para {total} colaborador(es) ausente(s)?",
-                yesText: "SÃ­, Solicitar en Helpdesk", cancelText: "Cancelar");
+                $"¿Estás seguro de generar la solicitud de ausencia en Helpdesk para {total} colaborador(es) pendiente(s) sin ticket{sufijoCliente}?",
+                yesText: "Sí, Solicitar en Helpdesk", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
@@ -4476,6 +4528,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             if (emp != null && det.RedmineIssueId.HasValue)
                             {
                                 emp.TicketAusenciaId = det.RedmineIssueId;
+                                emp.Seleccionado = false;
                                 emp.Modificado = false;
                                 emp.Estado = "SINCRONIZADO";
                                 if (emp.Id > 0)
@@ -4493,11 +4546,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     if (res.Exitosos > 0)
                     {
-                        _snackbar.Add($"âœ… Se generaron {res.Exitosos} solicitud(es) de ausencia en Helpdesk con Ã©xito.", Severity.Success);
+                        _snackbar.Add($"✅ Se generaron {res.Exitosos} solicitud(es) de ausencia en Helpdesk con éxito.", Severity.Success);
                     }
                     if (res.Fallidos > 0)
                     {
-                        _snackbar.Add($"âš ï¸ Hubo {res.Fallidos} solicitud(es) que no se pudieron procesar.", Severity.Warning);
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) que no se pudieron procesar.", Severity.Warning);
                     }
                 }
                 else
@@ -4518,20 +4571,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected async Task EnviarAusenciaIndividual(EmpleadoJornadaItem emp)
         {
-            if (emp == null) return;
+            if (emp == null || emp.SincronizadoAusencia) return;
             if (HayCambiosSinGuardar)
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la ausencia.",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar la ausencia.",
                     yesText: "Entendido");
                 return;
             }
 
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Confirmar Solicitud de Ausencia",
-                $"Â¿Deseas generar la solicitud de ausencia en Helpdesk para {emp.NombreEmpleado} (#{emp.CodigoEmpleado})?",
-                yesText: "SÃ­, Solicitar", cancelText: "Cancelar");
+                $"¿Deseas generar la solicitud de ausencia en Helpdesk para {emp.NombreEmpleado} (#{emp.CodigoEmpleado})?",
+                yesText: "Sí, Solicitar", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
@@ -4579,7 +4632,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Estado = "SINCRONIZADO"
                         });
                     }
-                    _snackbar.Add($"âœ… Solicitud de ausencia #{det.RedmineIssueId} generada exitosamente.", Severity.Success);
+                    _snackbar.Add($"✅ Solicitud de ausencia #{det.RedmineIssueId} generada exitosamente.", Severity.Success);
                 }
                 else
                 {
@@ -4597,13 +4650,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- ENVIAR SOLICITUD DE VIÃTICOS A HELPDESK (OPERACIONES - TRACKER 27) ---
+        // --- ENVIAR SOLICITUD DE VIÁTICOS A HELPDESK (OPERACIONES - TRACKER 27) ---
         protected async Task EnviarViaticosMasivo()
         {
-            var conViaticos = empleadosJornada.Where(x => x.Asistio && (x.VtcoTrasp > 0 || x.VtcoAlim > 0)).ToList();
+            var conViaticos = empleadosJornada
+                .Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && (x.VtcoTrasp > 0 || x.VtcoAlim > 0))
+                .ToList();
             if (!conViaticos.Any())
             {
-                _snackbar.Add("No hay colaboradores con viÃ¡ticos (transporte o alimentaciÃ³n) asignados.", Severity.Warning);
+                _snackbar.Add("No hay colaboradores con viáticos (transporte o alimentación) asignados en el cliente seleccionado.", Severity.Warning);
                 return;
             }
 
@@ -4611,49 +4666,51 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n de viÃ¡ticos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de viÃ¡ticos.",
+                    "No se puede enviar a Helpdesk porque hay información de viáticos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de viáticos.",
                     yesText: "Entendido");
                 return;
             }
 
             ActualizarGruposConsolidados();
-            var gruposConViaticosPendientes = gruposConsolidados
-                .Where(g => (g.VtcoTrasp > 0 || g.VtcoAlim > 0) && (!g.TicketViaticoId.HasValue || g.TicketViaticoId <= 0))
+            var gruposVisiblesViaticos = GruposViaticos;
+            var gruposConViaticosPendientes = gruposVisiblesViaticos
+                .Where(g => !g.Sincronizado && g.Recursos > 0)
                 .ToList();
 
             if (!gruposConViaticosPendientes.Any())
             {
-                _snackbar.Add("Todas las solicitudes de viÃ¡ticos ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
+                _snackbar.Add("Todas las solicitudes de viáticos del cliente seleccionado ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
                 return;
             }
 
-            int cantPendiente = gruposConViaticosPendientes.Sum(g => g.Cantidad);
-            decimal totalViatPendiente = gruposConViaticosPendientes.Sum(g => (g.VtcoTrasp + g.VtcoAlim) * g.Cantidad);
-            decimal traspPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoTrasp * g.Cantidad);
-            decimal alimPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoAlim * g.Cantidad);
+            int cantPendiente = gruposConViaticosPendientes.Sum(g => g.Recursos);
+            decimal totalViatPendiente = gruposConViaticosPendientes.Sum(g => g.TotalGrupo);
+            decimal traspPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoTrasp * g.Recursos);
+            decimal alimPendiente = gruposConViaticosPendientes.Sum(g => g.VtcoAlim * g.Recursos);
 
             bool? confirm = await _dialogService.ShowMessageBox(
-                "Solicitud de ViÃ¡ticos (Operaciones - Tracker 27)",
-                $"Â¿Deseas enviar {gruposConViaticosPendientes.Count} solicitud(es) de viÃ¡ticos para {cantPendiente} colaboradores por un total de C$ {totalViatPendiente:N2} (Transporte: C$ {traspPendiente:N2}, AlimentaciÃ³n: C$ {alimPendiente:N2})?",
-                yesText: "SÃ­, Enviar a Operaciones", cancelText: "Cancelar");
+                "Solicitud de Viáticos (Operaciones - Tracker 27)",
+                $"¿Deseas enviar {gruposConViaticosPendientes.Count} solicitud(es) pendiente(s) de viáticos para {cantPendiente} colaborador(es) sin ticket por un total de C$ {totalViatPendiente:N2} (Transporte: C$ {traspPendiente:N2}, Alimentación: C$ {alimPendiente:N2})?",
+                yesText: "Sí, Enviar a Operaciones", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
             estaEnviandoViaticos = true;
-            textoOperacionBd = "Enviando solicitudes de viÃ¡ticos a Helpdesk...";
+            textoOperacionBd = "Enviando solicitudes de viáticos a Helpdesk...";
             try
             {
                 var movimientosRedmine = gruposConViaticosPendientes.Select(g => 
                 {
-                                        var empConViaticos = g.Empleados.Where(e => e.VtcoTrasp > 0 || e.VtcoAlim > 0).ToList();
+                    var empConViaticos = g.Empleados
+                        .Where(e => e.Asistio && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) && !e.SincronizadoViatico && (e.VtcoTrasp > 0 || e.VtcoAlim > 0))
+                        .ToList();
                     decimal totalViatNominaGrupo = empConViaticos.Sum(e => e.TotalViaticosNomina);
                     decimal totalViatEfectivoGrupo = empConViaticos.Sum(e => e.TotalViaticosEfectivo);
-                    decimal totalViatClienteGrupo = empConViaticos.Sum(e => e.TotalViaticos);
 
                     var sbDetalle = new StringBuilder();
-                    sbDetalle.AppendLine("FORMA DE LIQUIDACIÃ“N DE VIÃTICOS:");
-                                        sbDetalle.AppendLine($"â€¢ Pago en NÃ³mina: C$ {totalViatNominaGrupo:N2}");
-                    sbDetalle.AppendLine($"â€¢ Pago en Efectivo: C$ {totalViatEfectivoGrupo:N2}");
+                    sbDetalle.AppendLine("FORMA DE LIQUIDACIÓN DE VIÁTICOS:");
+                    sbDetalle.AppendLine($"• Pago en Nómina: C$ {totalViatNominaGrupo:N2}");
+                    sbDetalle.AppendLine($"• Pago en Efectivo: C$ {totalViatEfectivoGrupo:N2}");
                     sbDetalle.AppendLine();
                     sbDetalle.AppendLine("Detalle por colaborador:");
 
@@ -4662,33 +4719,41 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         var partes = new List<string>();
                         if (emp.VtcoTrasp > 0)
                         {
-                            string via = emp.TraspAplicaNomina ? "NÃ“MINA" : "EFECTIVO";
+                            string via = emp.TraspAplicaNomina ? "NÓMINA" : "EFECTIVO";
                             partes.Add($"Transporte: C$ {emp.VtcoTrasp:N2} -> {via}");
                         }
                         if (emp.VtcoAlim > 0)
                         {
-                            string via = emp.AlimAplicaNomina ? "NÃ“MINA" : "EFECTIVO";
-                            partes.Add($"AlimentaciÃ³n: C$ {emp.VtcoAlim:N2} -> {via}");
+                            string via = emp.AlimAplicaNomina ? "NÓMINA" : "EFECTIVO";
+                            partes.Add($"Alimentación: C$ {emp.VtcoAlim:N2} -> {via}");
                         }
 
-                        string resumenEmp = $"Total: C$ {emp.TotalViaticos:N2} (NÃ³mina: C$ {emp.TotalViaticosNomina:N2} / Efectivo: C$ {emp.TotalViaticosEfectivo:N2})";
-                        sbDetalle.AppendLine($"â€¢ #{emp.CodigoEmpleado} {emp.NombreEmpleado}: {string.Join(" | ", partes)} [{resumenEmp}]");
+                        string resumenEmp = $"Total: C$ {emp.TotalViaticos:N2} (Nómina: C$ {emp.TotalViaticosNomina:N2} / Efectivo: C$ {emp.TotalViaticosEfectivo:N2})";
+                        sbDetalle.AppendLine($"• #{emp.CodigoEmpleado} {emp.NombreEmpleado}: {string.Join(" | ", partes)} [{resumenEmp}]");
                     }
 
-                    string obsConLiquidacion = string.Join("\n\n", new[] { g.Observaciones, sbDetalle.ToString().Trim() }
+                    string obsGrupoPrevio = gruposConsolidados
+                        .FirstOrDefault(gc => string.Equals(gc.Cliente, g.Cliente, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(gc.Area, g.Area, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(gc.Puesto, g.Puesto, StringComparison.OrdinalIgnoreCase)
+                            && gc.HoraInicio == g.HoraInicio && gc.HoraFin == g.HoraFin)?.Observaciones ?? string.Empty;
+
+                    string obsConLiquidacion = string.Join("\n\n", new[] { obsGrupoPrevio, sbDetalle.ToString().Trim() }
                         .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+                    string tiempoComidaGrupo = empConViaticos.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e.TiempoComida))?.TiempoComida ?? "1.00";
 
                     return new MovimientoPersonalItemDto
                     {
-                        FilaIndex = g.GrupoIndex,
+                        FilaIndex = g.Index,
                         Cliente = g.Cliente,
                         Area = g.Area,
                         Cargo = g.Puesto,
                         Fecha = fechaSeleccionada?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"),
                         HoraInicio = g.HoraInicio,
                         HoraFin = g.HoraFin,
-                        TiempoComida = g.TiempoComida,
-                        CantidadEmpleados = g.Cantidad,
+                        TiempoComida = tiempoComidaGrupo,
+                        CantidadEmpleados = g.Recursos,
                         IdsEmpleados = g.IdsEmpleadosTexto,
                         Asunto = !string.IsNullOrWhiteSpace(g.Cliente) ? $"{g.Cliente} - {g.Area} - {g.Puesto}".Trim() : $"{g.Area} - {g.Puesto}".Trim(),
                         Observaciones = obsConLiquidacion,
@@ -4698,10 +4763,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     };
                 }).ToList();
 
+                string clientePrincipal = gruposConViaticosPendientes.Select(g => g.Cliente).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c))
+                    ?? (!string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones");
+
                 var request = new CrearMovimientosPersonalRequestDto
                 {
                     OperacionId = selectedOperacionId ?? 0,
-                    ClienteRedmine = !string.IsNullOrWhiteSpace(clienteRedmineIdentificador) ? clienteRedmineIdentificador : "Operaciones",
+                    ClienteRedmine = clientePrincipal,
                     ModoGeneracion = "SoloViaticos",
                     UsuarioRedmine = UsuarioRedmineEfectivo,
                     Movimientos = movimientosRedmine
@@ -4715,7 +4783,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         foreach (var det in res.Detalles)
                         {
-                            var grupo = gruposConsolidados.FirstOrDefault(g => g.GrupoIndex == det.FilaIndex);
+                            var grupo = gruposConViaticosPendientes.FirstOrDefault(g => g.Index == det.FilaIndex);
                             if (grupo != null && det.RedmineViaticosIssueId.HasValue)
                             {
                                 var idsDb = grupo.Empleados
@@ -4743,16 +4811,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         }
                     }
 
-                    _snackbar.Add($"âœ… {res.Exitosos} solicitud(es) de viÃ¡ticos generadas en Operaciones (Tracker 27).", Severity.Success);
+                    ActualizarGruposConsolidados();
+                    _snackbar.Add($"✅ {res.Exitosos} solicitud(es) de viáticos generadas en Operaciones (Tracker 27).", Severity.Success);
                 }
                 else
                 {
-                    _snackbar.Add($"Error al enviar viÃ¡ticos: {response?.Respuesta?.MensajeError}", Severity.Error);
+                    _snackbar.Add($"Error al enviar viáticos: {response?.Respuesta?.MensajeError}", Severity.Error);
                 }
             }
             catch (Exception ex)
             {
-                _snackbar.Add($"Error en comunicaciÃ³n con Helpdesk: {ex.Message}", Severity.Error);
+                _snackbar.Add($"Error en comunicación con Helpdesk: {ex.Message}", Severity.Error);
             }
             finally
             {
@@ -4761,13 +4830,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        // --- ENVIAR SOLICITUDES DE BONO DIARIO A HELPDESK (RRHH - TRACKER 11: APLICAR BONO DEL DIA) ---
+        // --- ENVIAR SOLICITUDES DE BONO DIARIO A HELPDESK (RRHH - TRACKER 11: APLICAR BONO DEL DÍA) ---
         protected async Task EnviarBonosMasivo()
         {
-            var conBono = empleadosJornada.Where(x => x.Asistio && x.BonoBnc > 0).ToList();
+            var conBono = empleadosJornada
+                .Where(x => x.Asistio && PerteneceAClienteSeleccionado(x.Cliente) && x.BonoBnc > 0)
+                .ToList();
             if (!conBono.Any())
             {
-                _snackbar.Add("No hay colaboradores con bono asignado para enviar.", Severity.Warning);
+                _snackbar.Add("No hay colaboradores con bono asignado para enviar en el cliente seleccionado.", Severity.Warning);
                 return;
             }
 
@@ -4775,24 +4846,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n de bonos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de bono.",
+                    "No se puede enviar a Helpdesk porque hay información de bonos o jornada pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar las solicitudes de bono.",
                     yesText: "Entendido");
                 return;
             }
 
-            // Filtrar Ãºnicamente los colaboradores con bono que NO han sido sincronizados
-            var conBonoPendiente = conBono.Where(x => !x.TicketBonoId.HasValue || x.TicketBonoId <= 0).ToList();
+            // Filtrar únicamente los colaboradores con bono del cliente seleccionado que NO han sido sincronizados
+            var conBonoPendiente = conBono.Where(x => !x.SincronizadoBono).ToList();
             if (!conBonoPendiente.Any())
             {
-                _snackbar.Add("Todas las solicitudes de Bono del DÃ­a ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
+                _snackbar.Add("Todas las solicitudes de Bono del Día del cliente seleccionado ya cuentan con un ticket generado en Helpdesk.", Severity.Info);
                 return;
             }
 
             decimal totalBncPendiente = conBonoPendiente.Sum(x => x.BonoBnc);
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Solicitud de Bono Diario (RRHH - Tracker 11)",
-                $"Â¿Deseas enviar las solicitudes individuales de Bono del DÃ­a a RRHH para {conBonoPendiente.Count} colaboradores por un total de C$ {totalBncPendiente:N2}?",
-                yesText: "SÃ­, Enviar a RRHH", cancelText: "Cancelar");
+                $"¿Deseas enviar las solicitudes individuales de Bono del Día a RRHH para {conBonoPendiente.Count} colaborador(es) pendiente(s) sin ticket por un total de C$ {totalBncPendiente:N2}?",
+                yesText: "Sí, Enviar a RRHH", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
@@ -4808,18 +4879,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     var lineasDetalle = new List<string>();
                     if (viatTraspNomina > 0)
-                        lineasDetalle.Add($"â€¢ ViÃ¡tico Transporte en NÃ³mina: C$ {viatTraspNomina:N2}");
+                        lineasDetalle.Add($"• Viático Transporte en Nómina: C$ {viatTraspNomina:N2}");
                     if (viatAlimNomina > 0)
-                        lineasDetalle.Add($"â€¢ ViÃ¡tico AlimentaciÃ³n en NÃ³mina: C$ {viatAlimNomina:N2}");
+                        lineasDetalle.Add($"• Viático Alimentación en Nómina: C$ {viatAlimNomina:N2}");
                     if (bonoExtra > 0)
-                        lineasDetalle.Add($"â€¢ Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
+                        lineasDetalle.Add($"• Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
                     if (!lineasDetalle.Any())
-                        lineasDetalle.Add($"â€¢ Bono de Cumplimiento / DesempeÃ±o: C$ {b.BonoBnc:N2}");
+                        lineasDetalle.Add($"• Bono de Cumplimiento / Desempeño: C$ {b.BonoBnc:N2}");
 
                     string detalleDesglose = "DESGLOSE DE LO DEPOSITADO (TOTAL C$ " + b.BonoBnc.ToString("N2") + "):\n" + string.Join("\n", lineasDetalle);
 
                     string relacionTicketViatico = (b.TicketViaticoId.HasValue && b.TicketViaticoId.Value > 0)
-                        ? $"Ticket de ViÃ¡ticos Relacionada: #{b.TicketViaticoId.Value}"
+                        ? $"Ticket de Viáticos Relacionado: #{b.TicketViaticoId.Value}"
                         : "";
 
                     string obsFinalBono = string.Join("\n\n", new[] { detalleDesglose, relacionTicketViatico, !string.IsNullOrWhiteSpace(b.Observaciones) ? $"Observaciones:\n{b.Observaciones.Trim()}" : "" }
@@ -4881,11 +4952,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     if (res.Exitosos > 0)
                     {
-                        _snackbar.Add($"âœ… Se generaron {res.Exitosos} solicitud(es) de Bono Diario en RRHH (Tracker 11) con Ã©xito.", Severity.Success);
+                        _snackbar.Add($"✅ Se generaron {res.Exitosos} solicitud(es) de Bono Diario en RRHH (Tracker 11) con éxito.", Severity.Success);
                     }
                     if (res.Fallidos > 0)
                     {
-                        _snackbar.Add($"âš ï¸ Hubo {res.Fallidos} solicitud(es) de bono que no se pudieron procesar.", Severity.Warning);
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) de bono que no se pudieron procesar.", Severity.Warning);
                     }
                 }
                 else
@@ -4906,20 +4977,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected async Task EnviarBonoIndividual(EmpleadoJornadaItem emp)
         {
-            if (emp == null || emp.BonoBnc <= 0) return;
+            if (emp == null || emp.BonoBnc <= 0 || emp.SincronizadoBono) return;
             if (HayCambiosSinGuardar)
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay informaciÃ³n pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botÃ³n amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar el bono.",
+                    "No se puede enviar a Helpdesk porque hay información pendiente de guardar en Base de Datos.\n\nPor favor, haz clic en el botón amarillo 'GUARDAR EN BD' (arriba a la derecha) antes de enviar el bono.",
                     yesText: "Entendido");
                 return;
             }
 
             bool? confirm = await _dialogService.ShowMessageBox(
                 "Confirmar Solicitud de Bono",
-                $"Â¿Deseas generar la solicitud individual de Bono del DÃ­a (Tracker 11) en RRHH para {emp.NombreEmpleado} (#{emp.CodigoEmpleado}) por C$ {emp.BonoBnc:N2}?",
-                yesText: "SÃ­, Enviar", cancelText: "Cancelar");
+                $"¿Deseas generar la solicitud individual de Bono del Día (Tracker 11) en RRHH para {emp.NombreEmpleado} (#{emp.CodigoEmpleado}) por C$ {emp.BonoBnc:N2}?",
+                yesText: "Sí, Enviar", cancelText: "Cancelar");
 
             if (confirm != true) return;
 
@@ -4932,18 +5003,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 var lineasDetalle = new List<string>();
                 if (viatTraspNomina > 0)
-                    lineasDetalle.Add($"â€¢ ViÃ¡tico Transporte en NÃ³mina: C$ {viatTraspNomina:N2}");
+                    lineasDetalle.Add($"• Viático Transporte en Nómina: C$ {viatTraspNomina:N2}");
                 if (viatAlimNomina > 0)
-                    lineasDetalle.Add($"â€¢ ViÃ¡tico AlimentaciÃ³n en NÃ³mina: C$ {viatAlimNomina:N2}");
+                    lineasDetalle.Add($"• Viático Alimentación en Nómina: C$ {viatAlimNomina:N2}");
                 if (bonoExtra > 0)
-                    lineasDetalle.Add($"â€¢ Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
+                    lineasDetalle.Add($"• Bono Adicional de Cumplimiento: C$ {bonoExtra:N2}");
                 if (!lineasDetalle.Any())
-                    lineasDetalle.Add($"â€¢ Bono de Cumplimiento / DesempeÃ±o: C$ {emp.BonoBnc:N2}");
+                    lineasDetalle.Add($"• Bono de Cumplimiento / Desempeño: C$ {emp.BonoBnc:N2}");
 
                 string detalleDesglose = "DESGLOSE DE LO DEPOSITADO (TOTAL C$ " + emp.BonoBnc.ToString("N2") + "):\n" + string.Join("\n", lineasDetalle);
 
                 string relacionTicketViatico = (emp.TicketViaticoId.HasValue && emp.TicketViaticoId.Value > 0)
-                    ? $"Ticket de ViÃ¡ticos Relacionada: #{emp.TicketViaticoId.Value}"
+                    ? $"Ticket de Viáticos Relacionado: #{emp.TicketViaticoId.Value}"
                     : "";
 
                 string obsFinalBono = string.Join("\n\n", new[] { detalleDesglose, relacionTicketViatico, !string.IsNullOrWhiteSpace(emp.Observaciones) ? $"Observaciones:\n{emp.Observaciones.Trim()}" : "" }
@@ -4991,7 +5062,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Estado = "SINCRONIZADO"
                         });
                     }
-                    _snackbar.Add($"âœ… Solicitud de Bono #{det.RedmineIssueId} generada exitosamente en RRHH.", Severity.Success);
+                    _snackbar.Add($"✅ Solicitud de Bono #{det.RedmineIssueId} generada exitosamente en RRHH.", Severity.Success);
                 }
                 else
                 {

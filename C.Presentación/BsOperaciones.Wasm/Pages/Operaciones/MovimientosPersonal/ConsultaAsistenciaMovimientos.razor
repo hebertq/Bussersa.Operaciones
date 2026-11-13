@@ -220,7 +220,7 @@
             <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #fef3c7; border-radius: 12px; background: #fffbeb;">
                 <MudText Typo="Typo.caption" Style="color: #92400e; font-weight: 700;">VIÁTICOS / BONOS</MudText>
                 <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #b45309;">C$ @(TotalViaticosGlobal.ToString("N0"))</MudText>
-                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #92400e;">Trasp: @TotalViaticosTrasp.ToString("N0") | Alim: @TotalViaticosAlim.ToString("N0")</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #92400e;">Transp: @TotalViaticosTrasp.ToString("N0") | Alim: @TotalViaticosAlim.ToString("N0")</MudText>
             </MudPaper>
         </MudItem>
 
@@ -371,7 +371,7 @@
                              Variant="Variant.Outlined" 
                              Color="Color.Primary" 
                              Style="height: 22px; font-size: 0.75rem; font-weight: 600;"
-                             Title="@($"Trasp: C$ {context.VtcoTrasp:N2} | Alim: C$ {context.VtcoAlim:N2} | Bono: C$ {bonoVal:N2}")">
+                             Title="@($"Transp: C$ {context.VtcoTrasp:N2} | Alim: C$ {context.VtcoAlim:N2} | Bono: C$ {bonoVal:N2}")">
                         C$ @totBeneficios.ToString("N0")
                     </MudChip>
                 }

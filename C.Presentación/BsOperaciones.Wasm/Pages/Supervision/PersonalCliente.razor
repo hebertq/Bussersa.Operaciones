@@ -1,4 +1,4 @@
-@page "/admon/supervision/personal-cliente"
+﻿@page "/admon/supervision/personal-cliente"
 @using Modelo.Entidades.Entradas.Odoo
 @using Modelo.Admin
 @using Modelo.ClasesGenericas
@@ -2094,7 +2094,7 @@
 
         if (!nuevoHoras && !nuevoAct)
         {
-            _snackbar.Add("Debe mantener activo al menos un mÃ³dulo (Horas o Actividades) para este cliente.", Severity.Warning);
+            _snackbar.Add("Debe mantener activo al menos un módulo (Horas o Actividades) para este cliente.", Severity.Warning);
             return;
         }
 
@@ -2106,11 +2106,11 @@
         {
             string modulo = esHoras ? "Horas" : "Actividades";
             string estado = nuevoValor ? "activado" : "desactivado";
-            _snackbar.Add($"MÃ³dulo {modulo} {estado} para '{item.ClienteNombre}'.", Severity.Success);
+            _snackbar.Add($"Módulo {modulo} {estado} para '{item.ClienteNombre}'.", Severity.Success);
         }
         else
         {
-            _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al actualizar mÃ³dulos.", Severity.Error);
+            _snackbar.Add(res?.Respuesta?.MensajeError ?? "Error al actualizar módulos.", Severity.Error);
             if (esHoras) item.AplicaHoras = !nuevoValor;
             else item.AplicaActividades = !nuevoValor;
         }

@@ -46,7 +46,7 @@ a, .btn-link {
         transform: translateY(-1px);
     }
 
-/* --- COMPONENTES DEL M�DULO DE OPERACIONES (Why-Us) --- */
+/* --- COMPONENTES DEL MÃ“DULO DE OPERACIONES (Why-Us) --- */
 .why-us .content {
     padding: 30px;
     background: var(--bussersa-azul); /* Fondo Azul Bussersa */
@@ -102,7 +102,7 @@ a, .btn-link {
         color: var(--bussersa-azul);
     }
 
-/* --- SECCI�N HERO (AJUSTADA) --- */
+/* --- SECCIÃ“N HERO (AJUSTADA) --- */
 #hero {
     width: 100%;
     height: 65vh;
@@ -211,7 +211,7 @@ a, .btn-link {
     width: 100%;
 }
 
-/* Configuraciones de columnas según clase */
+/* Configuraciones de columnas segÃƒÂºn clase */
 .app-tab-grid.cols-2 {
     grid-template-columns: repeat(2, 1fr);
 }
@@ -273,7 +273,7 @@ a, .btn-link {
     }
 }
 
-/* Responsive para Pantallas Móviles (<= 639px) */
+/* Responsive para Pantallas MÃƒÂ³viles (<= 639px) */
 @media (max-width: 639px) {
     .app-tab-grid.cols-3,
     .app-tab-grid.cols-4,
@@ -296,7 +296,7 @@ a, .btn-link {
     }
 }
 
-/* Estilo individual de cada pestaña */
+/* Estilo individual de cada pestaÃƒÂ±a */
 .app-tab-item {
     display: flex;
     align-items: center;

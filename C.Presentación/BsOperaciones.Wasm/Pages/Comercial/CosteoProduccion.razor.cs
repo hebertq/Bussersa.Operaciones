@@ -1628,7 +1628,7 @@ namespace BsOperaciones.Pages.Comercial
                 string fileName = $"{cleanPrefix}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
 
                 var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
-                var sheet = workbook.CreateSheet("Metas Produccion SKUs");
+                var sheet = workbook.CreateSheet("Metas Producción SKUs");
                 var df = workbook.CreateDataFormat();
 
                 // Fuentes

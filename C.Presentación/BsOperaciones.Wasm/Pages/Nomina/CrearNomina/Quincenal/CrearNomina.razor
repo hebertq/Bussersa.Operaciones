@@ -93,12 +93,12 @@
             <MudTextField @bind-Value="_searchString" Placeholder="Buscar..." Adornment="MudBlazor.Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="MudBlazor.Size.Medium" Class="mt-0" Immediate="true" />
         </ToolBarContent>
         <Columns>
-            <PropertyColumn Property="x => x.id" Title="No empleado" />
+            <PropertyColumn Property="x => x.id" Title="No. Empleado" />
             <PropertyColumn Property="x => x.nombre" Title="Nombre" />
             <PropertyColumn Property="x => x.tipoempleado" Title="Tipo" />
-            <PropertyColumn Property="x => x.area" Title="Area" />
-            <PropertyColumn Property="x => x.totaldias" Title="Dias" />
-            <PropertyColumn Property="x => x.hexpagar" Title="Horas ext" />
+            <PropertyColumn Property="x => x.area" Title="Área" />
+            <PropertyColumn Property="x => x.totaldias" Title="Días" />
+            <PropertyColumn Property="x => x.hexpagar" Title="Horas Ext." />
             <PropertyColumn Property="x => x.bono" Title="Bono" />
         </Columns>
         <PagerContent>

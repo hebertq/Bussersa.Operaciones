@@ -211,7 +211,7 @@
                 </MudItem>
 
                 <MudItem xs="4">
-                    <MudNumericField T="decimal" @bind-Value="VtcoTrasp" Label="Trasp (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                    <MudNumericField T="decimal" @bind-Value="VtcoTrasp" Label="Transp. (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
                     <div class="d-flex gap-1 mt-1">
                         <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoTrasp = 0)">0</MudChip>
                         <MudChip T="string" Size="Size.Small" Variant="@(VtcoTrasp == 35 ? Variant.Filled : Variant.Outlined)" Color="Color.Info" OnClick="@(() => VtcoTrasp = 35)">35</MudChip>
@@ -220,7 +220,7 @@
                     </div>
                 </MudItem>
                 <MudItem xs="4">
-                    <MudNumericField T="decimal" @bind-Value="VtcoAlim" Label="Alim (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
+                    <MudNumericField T="decimal" @bind-Value="VtcoAlim" Label="Alim. (C$)" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Min="0" />
                     <div class="d-flex gap-1 mt-1">
                         <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 0 ? Variant.Filled : Variant.Outlined)" Color="Color.Default" OnClick="@(() => VtcoAlim = 0)">0</MudChip>
                         <MudChip T="string" Size="Size.Small" Variant="@(VtcoAlim == 50 ? Variant.Filled : Variant.Outlined)" Color="Color.Secondary" OnClick="@(() => VtcoAlim = 50)">50</MudChip>
