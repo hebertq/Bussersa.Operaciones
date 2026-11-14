@@ -1098,9 +1098,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         foreach (var modLocal in borradorLocal.Where(x => x.Modificado || x.Id == 0))
                         {
-                            var coincidente = itemsBd.FirstOrDefault(b => 
-                                (modLocal.Id > 0 && b.Id == modLocal.Id) || 
-                                (b.CodigoEmpleado == modLocal.CodigoEmpleado && string.Equals(b.Cliente, modLocal.Cliente, StringComparison.OrdinalIgnoreCase)));
+                            var coincidente = itemsBd.FirstOrDefault(b =>
+                                (modLocal.Id > 0 && b.Id == modLocal.Id) ||
+                                (modLocal.Id <= 0
+                                    && b.CodigoEmpleado == modLocal.CodigoEmpleado
+                                    && string.Equals(b.Cliente?.Trim(), modLocal.Cliente?.Trim(), StringComparison.OrdinalIgnoreCase)
+                                    && ((!b.Asistio && !modLocal.Asistio) ||
+                                        string.Equals(NormalizarFormatoHora(b.HoraEntrada), NormalizarFormatoHora(modLocal.HoraEntrada), StringComparison.OrdinalIgnoreCase))));
 
                             if (coincidente != null)
                             {
@@ -1120,15 +1124,22 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                 coincidente.Observaciones = modLocal.Observaciones;
                                 coincidente.Modificado = true;
                             }
-                            else if (modLocal.Id == 0 && !itemsBd.Any(b => b.CodigoEmpleado == modLocal.CodigoEmpleado && string.Equals(b.Cliente, modLocal.Cliente, StringComparison.OrdinalIgnoreCase)))
+                            else if (modLocal.Id == 0 && !itemsBd.Any(b =>
+                                b.CodigoEmpleado == modLocal.CodigoEmpleado
+                                && string.Equals(b.Cliente?.Trim(), modLocal.Cliente?.Trim(), StringComparison.OrdinalIgnoreCase)
+                                && ((!b.Asistio && !modLocal.Asistio) ||
+                                    (string.Equals(NormalizarFormatoHora(b.HoraEntrada), NormalizarFormatoHora(modLocal.HoraEntrada), StringComparison.OrdinalIgnoreCase)
+                                     && string.Equals(NormalizarFormatoHora(b.HoraSalida), NormalizarFormatoHora(modLocal.HoraSalida), StringComparison.OrdinalIgnoreCase)))))
                             {
                                 itemsBd.Add(modLocal);
                             }
                         }
+                        itemsBd = DeduplicarEmpleadosJornada(itemsBd);
                         _snackbar.Add($"Jornada sincronizada con BD preservando tus ediciones locales de bodega ({itemsBd.Count} registros).", Severity.Info);
                     }
                     else
                     {
+                        itemsBd = DeduplicarEmpleadosJornada(itemsBd);
                         _snackbar.Add($"Jornada del {fechaSeleccionada:dd/MM/yyyy} cargada de BD ({itemsBd.Count} registros de {currentUserName}).", Severity.Info);
                     }
 
@@ -1145,7 +1156,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 else if (!exitoBd && tieneBorradorLocal && borradorLocal != null && borradorLocal.Any())
                 {
                     // Modo Offline real (sin conexión al servidor): cargar borrador local de bodega
-                    empleadosJornada = borradorLocal;
+                    empleadosJornada = DeduplicarEmpleadosJornada(borradorLocal);
                     _snackbar.Add($"Modo Offline: jornada cargada desde memoria local del dispositivo ({empleadosJornada.Count} colaboradores).", Severity.Info);
                 }
                 else
@@ -2178,6 +2189,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
+            empleadosJornada = DeduplicarEmpleadosJornada(empleadosJornada);
+
             if (!ValidarConflictosHorarios(out var errorCruce))
             {
                 _snackbar.Add($"❌ No se puede guardar: se detectaron cruces de horarios entre turnos del mismo colaborador:\n{errorCruce}", Severity.Error, config => config.VisibleStateDuration = 10000);
@@ -2272,7 +2285,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             emp.Estado = "GUARDADO";
                         }
                     }
-                    await AutoGuardarBorradorLocal();
                     _snackbar.Add($"✅ {dtos.Count} movimientos guardados exitosamente en la base de datos.", Severity.Success);
 
                     // 2. En segundo plano (sin vaciar la grilla ni mostrar spinner destructivo), sincronizar IDs asignados por BD
@@ -2286,10 +2298,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                 var local = empleadosJornada.FirstOrDefault(e => 
                                     (e.Id > 0 && e.Id == itemBd.Id) || 
                                     (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado 
-                                               && string.Equals(e.Area?.Trim(), itemBd.Area?.Trim(), StringComparison.OrdinalIgnoreCase)
-                                               && string.Equals(e.HoraEntrada?.Trim(), itemBd.HoraEntrada?.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                                               && string.Equals(NormalizarFormatoHora(e.HoraEntrada), NormalizarFormatoHora(itemBd.HoraEntrada), StringComparison.OrdinalIgnoreCase)
+                                               && string.Equals(NormalizarFormatoHora(e.HoraSalida), NormalizarFormatoHora(itemBd.HoraSalida), StringComparison.OrdinalIgnoreCase)) ||
                                     (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado 
-                                               && string.Equals(e.Area?.Trim(), itemBd.Area?.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                                               && string.Equals(e.Area?.Trim(), itemBd.Area?.Trim(), StringComparison.OrdinalIgnoreCase)
+                                               && string.Equals(NormalizarFormatoHora(e.HoraEntrada), NormalizarFormatoHora(itemBd.HoraEntrada), StringComparison.OrdinalIgnoreCase)) ||
                                     (e.Id <= 0 && e.CodigoEmpleado == itemBd.CodigoEmpleado && !empleadosJornada.Any(other => other != e && other.Id == itemBd.Id)));
                                 if (local != null)
                                 {
@@ -2302,6 +2315,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                                     if (itemBd.TicketAusenciaId.HasValue && itemBd.TicketAusenciaId > 0) local.TicketAusenciaId = itemBd.TicketAusenciaId;
                                 }
                             }
+                            empleadosJornada = DeduplicarEmpleadosJornada(empleadosJornada);
                         }
                     }
                     catch
@@ -2309,6 +2323,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         // No interrumpir si la sincronización de IDs tarda
                     }
 
+                    await AutoGuardarBorradorLocal();
+                    ValidarConflictosHorarios(out _);
                     ActualizarGruposConsolidados();
                     StateHasChanged();
                 }
@@ -2534,6 +2550,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     _snackbar.Add($"✅ #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} guardado exitosamente en Mi Personal.", Severity.Success);
                     StateHasChanged();
+                    return;
+                }
+
+                bool duplicadoMismoHorario = empleadosJornada.Any(e =>
+                    ((nuevo.CodigoEmpleado > 0 && e.CodigoEmpleado == nuevo.CodigoEmpleado) ||
+                     (nuevo.CodigoEmpleado <= 0 && string.Equals(e.NombreEmpleado?.Trim(), nuevo.NombreEmpleado?.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    && ((!e.Asistio && !nuevo.Asistio) ||
+                        (e.Asistio && nuevo.Asistio
+                         && string.Equals(NormalizarFormatoHora(e.HoraEntrada), NormalizarFormatoHora(nuevo.HoraEntrada), StringComparison.OrdinalIgnoreCase)
+                         && string.Equals(NormalizarFormatoHora(e.HoraSalida), NormalizarFormatoHora(nuevo.HoraSalida), StringComparison.OrdinalIgnoreCase))));
+
+                if (duplicadoMismoHorario)
+                {
+                    _snackbar.Add($"⚠️ El colaborador #{nuevo.CodigoEmpleado} {nuevo.NombreEmpleado} ya está registrado en la jornada con el mismo horario ({nuevo.HoraEntrada} - {nuevo.HoraSalida}).", Severity.Warning);
                     return;
                 }
 
@@ -3020,6 +3050,55 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             return "Mixto";
+        }
+
+        private static List<EmpleadoJornadaItem> DeduplicarEmpleadosJornada(IEnumerable<EmpleadoJornadaItem> origen)
+        {
+            if (origen == null) return new List<EmpleadoJornadaItem>();
+
+            var resultado = new List<EmpleadoJornadaItem>();
+            var grupos = origen.GroupBy(e =>
+            {
+                string empKey = e.CodigoEmpleado > 0
+                    ? $"C:{e.CodigoEmpleado}"
+                    : $"N:{(e.NombreEmpleado ?? string.Empty).Trim().ToLowerInvariant()}|{(e.Cliente ?? string.Empty).Trim().ToLowerInvariant()}";
+                string hIn = !e.Asistio || string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) || e.HoraEntrada == "--:--"
+                    ? "--:--"
+                    : NormalizarFormatoHora(e.HoraEntrada);
+                string hOut = !e.Asistio || string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase) || e.HoraSalida == "--:--"
+                    ? "--:--"
+                    : NormalizarFormatoHora(e.HoraSalida);
+                return $"{empKey}|{hIn}|{hOut}";
+            });
+
+            foreach (var g in grupos)
+            {
+                var principal = g
+                    .OrderByDescending(x =>
+                        (x.TicketRedmineId.HasValue && x.TicketRedmineId > 0 ? 1 : 0) +
+                        (x.TicketViaticoId.HasValue && x.TicketViaticoId > 0 ? 1 : 0) +
+                        (x.TicketAusenciaId.HasValue && x.TicketAusenciaId > 0 ? 1 : 0) +
+                        (x.TicketBonoId.HasValue && x.TicketBonoId > 0 ? 1 : 0))
+                    .ThenBy(x => x.Id > 0 ? 0 : 1)
+                    .ThenBy(x => x.Id)
+                    .First();
+
+                foreach (var dup in g.Where(x => !ReferenceEquals(x, principal)))
+                {
+                    if ((!principal.TicketRedmineId.HasValue || principal.TicketRedmineId <= 0) && dup.TicketRedmineId.HasValue && dup.TicketRedmineId > 0)
+                        principal.TicketRedmineId = dup.TicketRedmineId;
+                    if ((!principal.TicketViaticoId.HasValue || principal.TicketViaticoId <= 0) && dup.TicketViaticoId.HasValue && dup.TicketViaticoId > 0)
+                        principal.TicketViaticoId = dup.TicketViaticoId;
+                    if ((!principal.TicketAusenciaId.HasValue || principal.TicketAusenciaId <= 0) && dup.TicketAusenciaId.HasValue && dup.TicketAusenciaId > 0)
+                        principal.TicketAusenciaId = dup.TicketAusenciaId;
+                    if ((!principal.TicketBonoId.HasValue || principal.TicketBonoId <= 0) && dup.TicketBonoId.HasValue && dup.TicketBonoId > 0)
+                        principal.TicketBonoId = dup.TicketBonoId;
+                }
+
+                resultado.Add(principal);
+            }
+
+            return resultado;
         }
 
         protected bool ValidarConflictosHorarios(out string mensajeConflicto)
