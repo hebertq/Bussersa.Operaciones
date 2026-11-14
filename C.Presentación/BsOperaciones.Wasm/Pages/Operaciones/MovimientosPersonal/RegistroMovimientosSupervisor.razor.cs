@@ -4550,12 +4550,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                     if (res.Fallidos > 0)
                     {
-                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) que no se pudieron procesar.", Severity.Warning);
+                        var motivos = res.Detalles?
+                            .Where(d => !d.Exitoso && !string.IsNullOrWhiteSpace(d.Mensaje))
+                            .Select(d => $"#{d.CodigoEmpleado}: {d.Mensaje}")
+                            .Take(3)
+                            .ToList() ?? new List<string>();
+                        string detalleMotivos = motivos.Any() ? $" Detalle: {string.Join(" | ", motivos)}" : string.Empty;
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) de ausencia que no se pudieron procesar.{detalleMotivos}", Severity.Warning);
                     }
                 }
                 else
                 {
-                    _snackbar.Add("Error al comunicarse con el servicio de Helpdesk.", Severity.Error);
+                    _snackbar.Add($"Error al comunicarse con el servicio de Helpdesk: {response?.Respuesta?.MensajeError}", Severity.Error);
                 }
             }
             catch (Exception ex)
@@ -4956,7 +4962,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                     if (res.Fallidos > 0)
                     {
-                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) de bono que no se pudieron procesar.", Severity.Warning);
+                        var motivos = res.Detalles?
+                            .Where(d => !d.Exitoso && !string.IsNullOrWhiteSpace(d.Mensaje))
+                            .Select(d => $"#{d.CodigoEmpleado}: {d.Mensaje}")
+                            .Take(3)
+                            .ToList() ?? new List<string>();
+                        string detalleMotivos = motivos.Any() ? $" Detalle: {string.Join(" | ", motivos)}" : string.Empty;
+                        _snackbar.Add($"⚠️ Hubo {res.Fallidos} solicitud(es) de bono que no se pudieron procesar.{detalleMotivos}", Severity.Warning);
                     }
                 }
                 else
