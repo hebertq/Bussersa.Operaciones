@@ -69,9 +69,11 @@
                     <MudTable Items="@context.Item.detalleall" Context="detail" Dense="true" Hover="true" Elevation="0" RowsPerPage="10">
                         <HeaderContent>
                             <MudTh Style="text-align:center">Acciones</MudTh>
+                            <MudTh>Semana</MudTh>
                             <MudTh>Fecha</MudTh>
                             <MudTh>Entrada</MudTh>
                             <MudTh>Salida</MudTh>
+                            <MudTh>Hrs Día</MudTh>
                             <MudTh>Días</MudTh>
                             <MudTh>Extras</MudTh>
                             <MudTh>Bono</MudTh>                           
@@ -81,9 +83,11 @@
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Info" OnClick="@((args) => OnUpdateChange(detail))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@((args) => OnDeleteChange(detail))" />
                             </MudTd>
+                            <MudTd>@detail.semana</MudTd>
                             <MudTd>@detail.fecha.ToString("dd/MM/yyyy")</MudTd>
                             <MudTd>@detail.entrada</MudTd>
                             <MudTd>@detail.salida</MudTd>
+                            <MudTd>@detail.horas_dia.ToString("0.00")</MudTd>
                             <MudTd>@detail.dias</MudTd>
                             <MudTd>@detail.horasextras</MudTd>
                             <MudTd>@detail.bono</MudTd>                          

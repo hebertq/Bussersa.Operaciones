@@ -179,20 +179,30 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
                     if (detailsResult?.Model != null)
                     {
                         string opNombre = PayLoadOper.FirstOrDefault(x => x.id == opId)?.nombre ?? "";
-                        foreach (var emp in detailsResult.Model)
+                        DateTime inicioBaseSem = ObtenerInicioSemanaLunes(FchaDesde.Date);
+                        foreach (var emp in detailsResult.Model.OrderBy(e => e?.id ?? 0))
                         {
                             if (emp?.detalleall == null) continue;
-                            foreach (var mark in emp.detalleall)
+                            foreach (var mark in emp.detalleall.OrderBy(m => m.fecha).ThenBy(m => m.entrada))
                             {
+                                string etiquetaSemana = !string.IsNullOrWhiteSpace(mark.semana)
+                                    ? mark.semana
+                                    : $"Semana {((ObtenerInicioSemanaLunes(mark.fecha.Date) - inicioBaseSem).Days / 7) + 1}";
+                                decimal horasDia = mark.horas_dia > 0
+                                    ? mark.horas_dia
+                                    : CalcularHorasNetasDia(mark.entrada, mark.salida, mark.comida, mark.dias);
+
                                 detailsList.Add(new
                                 {
                                     Cliente = opNombre,
                                     Empleado_ID = emp.id,
                                     Nombre = emp.nombre,
+                                    Semana = etiquetaSemana,
                                     Fecha = mark.fecha.ToString("yyyy-MM-dd"),
                                     Entrada = mark.entrada,
                                     Salida = mark.salida,
                                     Comida = mark.comida,
+                                    HorasDia = horasDia,
                                     Dias = mark.dias,
                                     HorasExtras = mark.horasextras,
                                     Bono = mark.bono
@@ -240,5 +250,23 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
             if (x.area?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) return true;
             return false;
         };
+
+        private static DateTime ObtenerInicioSemanaLunes(DateTime fecha)
+        {
+            int diff = (7 + (fecha.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return fecha.AddDays(-diff).Date;
+        }
+
+        private static decimal CalcularHorasNetasDia(string? entrada, string? salida, decimal comida, decimal diasFallback)
+        {
+            if (!string.IsNullOrWhiteSpace(entrada) && !string.IsNullOrWhiteSpace(salida)
+                && TimeSpan.TryParse(entrada, out var tsIn) && TimeSpan.TryParse(salida, out var tsOut))
+            {
+                double totalHoras = (tsOut - tsIn).TotalHours;
+                if (totalHoras < 0) totalHoras += 24.0;
+                return Math.Max(0m, Math.Round((decimal)totalHoras - comida, 2));
+            }
+            return Math.Round(diasFallback * 8m, 2);
+        }
     }
 }

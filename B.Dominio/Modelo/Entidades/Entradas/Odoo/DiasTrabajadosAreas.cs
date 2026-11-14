@@ -39,6 +39,9 @@ namespace Modelo.Entidades.Entradas.Odoo
 
         [Display(Order = 7)]
         public decimal dias { get; set; } = 0;
+
+        public string semana { get; set; } = string.Empty;
+        public decimal horas_dia { get; set; } = 0;
     }
 
     public class Diasxempleados

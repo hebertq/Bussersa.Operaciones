@@ -56,17 +56,22 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
             await Task.Delay(50);
             try
             {
-                var datosExcel = master.detalleall.Select(x => new
+                var datosExcel = master.detalleall
+                    .OrderBy(x => x.fecha)
+                    .ThenBy(x => x.entrada)
+                    .Select(x => new
                 {
-                    x.fecha,
-                    x.id,
-                    x.nombre,
-                    x.entrada,
-                    x.salida,
-                    x.comida,
-                    x.dias,
-                    x.horasextras,
-                    x.bono
+                    Semana = x.semana,
+                    Fecha = x.fecha,
+                    ID = x.id,
+                    Nombre = x.nombre,
+                    Entrada = x.entrada,
+                    Salida = x.salida,
+                    Comida = x.comida,
+                    HorasDia = x.horas_dia,
+                    Dias = x.dias,
+                    HorasExtras = x.horasextras,
+                    Bono = x.bono
                 }).ToList();
 
                 var exceldata = DataExcel.CreateExcel(datosExcel, $"Detalle_{master.id}");
@@ -100,17 +105,23 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
                 // 2. Crear el Detalle aplanando todos los detalles de todos los empleados
                 var detalleList = _PayLoadList
                     .Where(x => x != null && x.detalleall != null)
-                    .SelectMany(x => x.detalleall.Select(d => new
+                    .OrderBy(x => x!.id)
+                    .SelectMany(x => x!.detalleall
+                        .OrderBy(d => d.fecha)
+                        .ThenBy(d => d.entrada)
+                        .Select(d => new
                     {
-                        d.fecha,
-                        d.id,
-                        d.nombre,
-                        d.entrada,
-                        d.salida,
-                        d.comida,
-                        d.dias,
-                        d.horasextras,
-                        d.bono
+                        Semana = d.semana,
+                        Fecha = d.fecha,
+                        ID = d.id,
+                        Nombre = d.nombre,
+                        Entrada = d.entrada,
+                        Salida = d.salida,
+                        Comida = d.comida,
+                        HorasDia = d.horas_dia,
+                        Dias = d.dias,
+                        HorasExtras = d.horasextras,
+                        Bono = d.bono
                     }))
                     .ToList();
 
