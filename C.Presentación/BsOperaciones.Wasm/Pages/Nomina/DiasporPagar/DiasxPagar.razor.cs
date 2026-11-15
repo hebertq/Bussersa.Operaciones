@@ -205,7 +205,8 @@ namespace BsOperaciones.Pages.Nomina.DiasporPagar
                                     HorasDia = horasDia,
                                     Dias = mark.dias,
                                     HorasExtras = mark.horasextras,
-                                    Bono = mark.bono
+                                    Bono = mark.bono,
+                                    Observacion = mark.observacion ?? string.Empty
                                 });
                             }
                         }

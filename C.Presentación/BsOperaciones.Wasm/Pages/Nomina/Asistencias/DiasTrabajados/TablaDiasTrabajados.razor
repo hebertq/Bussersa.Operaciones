@@ -76,7 +76,8 @@
                             <MudTh>Hrs Día</MudTh>
                             <MudTh>Días</MudTh>
                             <MudTh>Extras</MudTh>
-                            <MudTh>Bono</MudTh>                           
+                            <MudTh>Bono</MudTh>
+                            <MudTh>Observación</MudTh>
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd Style="text-align:center">
@@ -90,7 +91,8 @@
                             <MudTd>@detail.horas_dia.ToString("0.00")</MudTd>
                             <MudTd>@detail.dias</MudTd>
                             <MudTd>@detail.horasextras</MudTd>
-                            <MudTd>@detail.bono</MudTd>                          
+                            <MudTd>@detail.bono</MudTd>
+                            <MudTd Style="font-size: 0.78rem; color: #475569; max-width: 380px;">@detail.observacion</MudTd>
                         </RowTemplate>
                         @* Se agrega el PagerContent para habilitar los controles de página *@
                         <PagerContent>

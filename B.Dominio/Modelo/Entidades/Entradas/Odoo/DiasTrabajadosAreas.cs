@@ -42,6 +42,7 @@ namespace Modelo.Entidades.Entradas.Odoo
 
         public string semana { get; set; } = string.Empty;
         public decimal horas_dia { get; set; } = 0;
+        public string observacion { get; set; } = string.Empty;
     }
 
     public class Diasxempleados

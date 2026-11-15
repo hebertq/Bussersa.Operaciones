@@ -71,7 +71,8 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
                     HorasDia = x.horas_dia,
                     Dias = x.dias,
                     HorasExtras = x.horasextras,
-                    Bono = x.bono
+                    Bono = x.bono,
+                    Observacion = x.observacion ?? string.Empty
                 }).ToList();
 
                 var exceldata = DataExcel.CreateExcel(datosExcel, $"Detalle_{master.id}");
@@ -121,7 +122,8 @@ namespace BsOperaciones.Pages.Nomina.Asistencias.DiasTrabajados
                         HorasDia = d.horas_dia,
                         Dias = d.dias,
                         HorasExtras = d.horasextras,
-                        Bono = d.bono
+                        Bono = d.bono,
+                        Observacion = d.observacion ?? string.Empty
                     }))
                     .ToList();
 
