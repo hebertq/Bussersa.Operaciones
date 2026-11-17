@@ -108,25 +108,42 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
                 if (response.Model != null)
                 {
-                    DatosCierreRaw = response.Model.Select(x => new ReporteCierreMarcadasDetalle
+                    bool usaSemanaDomSab = operacionId == 27 || response.Model.Any(r => (r.regla_aplicada ?? "").Contains("Dom-Sáb", StringComparison.OrdinalIgnoreCase));
+                    DateTime fechaBaseConsulta = esRango
+                        ? (fchaInicio?.Date ?? (response.Model.Any() ? response.Model.Min(m => m.fecha_asistencia.Date) : DateTime.Today))
+                        : new DateTime(anio, mes, 1);
+                    DateTime inicioSemBase = ObtenerInicioSemana(fechaBaseConsulta, usaSemanaDomSab);
+
+                    DatosCierreRaw = response.Model.Select(x =>
                     {
-                        fecha_asistencia = x.fecha_asistencia,
-                        id_empleado = x.id_empleado,
-                        nombre_empleado = x.nombre_empleado,
-                        tipo_empleado = x.tipo_empleado,
-                        area_nombre = x.area_nombre,
-                        cargo = x.cargo,
-                        entrada_movimiento = x.entrada_movimiento,
-                        salida_movimiento = x.salida_movimiento,
-                        horas_totales = x.horas_totales,
-                        horas_extras = x.horas_extras,
-                        HorasNormalesCobrables = x.horas_normales_cobrables,
-                        HorasExtrasCobrables = x.horas_extras_cobrables,
-                        ReglaAplicada = x.regla_aplicada ?? string.Empty,
-                        HorasNormalesDb = x.horas_normales_cobrables,
-                        HorasExtrasDb = x.horas_extras_cobrables,
-                        ReglaAplicadaDb = x.regla_aplicada ?? string.Empty,
-                        Turno = DeterminarTurnoSegunLeyNicaragua(x.entrada_movimiento, x.salida_movimiento)
+                        DateTime iniSemFila = ObtenerInicioSemana(x.fecha_asistencia.Date, usaSemanaDomSab);
+                        DateTime finSemFila = iniSemFila.AddDays(6);
+                        int numSemana = ((iniSemFila - inicioSemBase).Days / 7) + 1;
+                        decimal hLaboradas = CalcularHorasEfectivasFila(x.entrada_movimiento, x.salida_movimiento, x.horas_totales, x.horas_extras);
+
+                        return new ReporteCierreMarcadasDetalle
+                        {
+                            Semana = $"Semana {numSemana}",
+                            RangoSemana = $"{iniSemFila:dd/MM/yyyy} al {finSemFila:dd/MM/yyyy} ({(usaSemanaDomSab ? "Dom-Sáb" : "Lun-Dom")})",
+                            fecha_asistencia = x.fecha_asistencia,
+                            id_empleado = x.id_empleado,
+                            nombre_empleado = x.nombre_empleado,
+                            tipo_empleado = x.tipo_empleado,
+                            area_nombre = x.area_nombre,
+                            cargo = x.cargo,
+                            entrada_movimiento = x.entrada_movimiento,
+                            salida_movimiento = x.salida_movimiento,
+                            HorasLaboradas = hLaboradas,
+                            horas_totales = x.horas_totales,
+                            horas_extras = x.horas_extras,
+                            HorasNormalesCobrables = x.horas_normales_cobrables,
+                            HorasExtrasCobrables = x.horas_extras_cobrables,
+                            ReglaAplicada = x.regla_aplicada ?? string.Empty,
+                            HorasNormalesDb = x.horas_normales_cobrables,
+                            HorasExtrasDb = x.horas_extras_cobrables,
+                            ReglaAplicadaDb = x.regla_aplicada ?? string.Empty,
+                            Turno = DeterminarTurnoOperativo(operacionId, x.entrada_movimiento, x.salida_movimiento)
+                        };
                     }).ToList();
 
                     await CargarSupervisoresConfig();
@@ -315,9 +332,10 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                 if (DatosCierre == null || !DatosCierre.Any()) return "⚖️ Reglas de Cobro Activas";
 
                 var reglasDistintas = DatosCierre
-                    .Select(x => x.ReglaAplicada)
-                    .Where(r => !string.IsNullOrWhiteSpace(r) && r != "Estándar" && r != "Feriado" && r != "Marcación Real")
+                    .Select(x => (x.ReglaAplicada ?? string.Empty).Split('(')[0].Trim())
+                    .Where(r => !string.IsNullOrWhiteSpace(r) && r != "Estándar" && r != "Feriado" && r != "Feriado Oficial" && r != "Marcación Real")
                     .Distinct()
+                    .Take(4)
                     .ToList();
 
                 if (reglasDistintas.Any())
@@ -525,6 +543,13 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             editingRegla.TipoRegla = nuevoTipo;
             switch (nuevoTipo)
             {
+                case "REGLA_48H_SEMANAL":
+                    editingRegla.HorasNormales = modalOperacionId == 23 ? 9.00m : (modalOperacionId == 27 ? 8.60m : 8.00m);
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = (modalOperacionId == 27 || modalOperacionId == 28) ? 7.00m : 8.00m;
+                    if (string.IsNullOrWhiteSpace(editingRegla.NombreRegla)) editingRegla.NombreRegla = "Regla 48h Semanal (Alineada con Nómina)";
+                    if (string.IsNullOrWhiteSpace(editingRegla.CargoPatron)) editingRegla.CargoPatron = "*";
+                    break;
                 case "DOMINGO_SIEMPRE_EXTRA":
                     editingRegla.HorasNormales = 8.00m;
                     editingRegla.HorasExtrasBase = 0.00m;
@@ -937,6 +962,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
                 var detalleExport = DatosCierre.Select(x => new
                 {
+                    x.Semana,
+                    Rango_Semana = x.RangoSemana,
                     Fecha = x.fecha_asistencia.ToString("yyyy-MM-dd"),
                     Área = x.area_nombre,
                     Cargo = x.cargo,
@@ -945,10 +972,12 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Nombre = x.nombre_empleado,
                     Entrada = x.entrada_movimiento,
                     Salida = x.salida_movimiento,
+                    Horas_Laboradas = x.HorasLaboradas,
                     Horas_Marcadas = x.horas_totales,
                     Extras_Marcadas = x.horas_extras,
                     Horas_Cobrables = x.HorasNormalesCobrables,
                     Extras_Cobrables = x.HorasExtrasCobrables,
+                    Total_Cobrable = x.HorasNormalesCobrables + x.HorasExtrasCobrables,
                     Regla_Aplicada = x.ReglaAplicada
                 }).ToList();
 
@@ -985,11 +1014,64 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             }
         }
 
+        protected static DateTime ObtenerInicioSemana(DateTime fecha, bool domingoASabado)
+        {
+            if (domingoASabado)
+            {
+                int diffDom = (int)fecha.DayOfWeek; // Sunday = 0
+                return fecha.Date.AddDays(-diffDom);
+            }
+            int diffLun = (7 + (fecha.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return fecha.Date.AddDays(-diffLun);
+        }
+
+        protected static decimal CalcularHorasEfectivasFila(string? entradaStr, string? salidaStr, decimal horasTotales, decimal horasExtras)
+        {
+            decimal suma = horasTotales + horasExtras;
+            if (TryParseHora(entradaStr, out var ent) && TryParseHora(salidaStr, out var sal) && ent != sal)
+            {
+                double spanHoras = (sal - ent).TotalHours;
+                if (spanHoras <= 0) spanHoras += 24.0;
+                decimal reloj = Math.Round((decimal)spanHoras, 2);
+                if (reloj > 0 && suma > reloj)
+                {
+                    return reloj;
+                }
+            }
+            return Math.Round(suma, 2);
+        }
+
+        public static string DeterminarTurnoOperativo(int opId, string? entradaStr, string? salidaStr)
+        {
+            if (TryParseHora(entradaStr, out var ent) && TryParseHora(salidaStr, out var sal) && ent != sal)
+            {
+                double startMin = ent.TotalMinutes;
+                double endMin = sal.TotalMinutes;
+                if (endMin <= startMin) endMin += 1440.0;
+
+                // Si inicia entre 04:00 y 12:00 y cumple >= 8h antes de las 20:00, es turno Diurno (aunque extienda horas extras de noche)
+                double minAntes20 = Math.Min(endMin, 1200.0) - startMin;
+                if ((startMin >= 240.0 && startMin <= 720.0 && minAntes20 >= 480.0)
+                    || (startMin >= 360.0 && endMin <= 1200.0))
+                {
+                    return "Diurno";
+                }
+
+                // En operaciones con turno vespertino/nocturno equivalente (Pepsi 14:30-22:30, Glacial 15:00-22:00)
+                if ((opId == 27 || opId == 28) && startMin >= 780.0)
+                {
+                    return "Nocturno";
+                }
+            }
+            return DeterminarTurnoSegunLeyNicaragua(entradaStr, salidaStr);
+        }
+
         protected Func<ConsolidadoCierre, bool> _filterMaestro => x => string.IsNullOrWhiteSpace(_searchMaestro) ||
             (x.Area != null && x.Area.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase)) ||
             (x.Cargo != null && x.Cargo.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase)) ||
             (x.Turno != null && x.Turno.Contains(_searchMaestro, StringComparison.OrdinalIgnoreCase));
         protected Func<ReporteCierreMarcadasDetalle, bool> _filterDetalle => x => string.IsNullOrWhiteSpace(_searchDetalle) ||
+            (x.Semana != null && x.Semana.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
             (x.nombre_empleado != null && x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
             (x.cargo != null && x.cargo.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
             (x.Turno != null && x.Turno.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||

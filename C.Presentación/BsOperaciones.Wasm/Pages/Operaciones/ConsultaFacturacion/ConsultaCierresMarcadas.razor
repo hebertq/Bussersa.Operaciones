@@ -240,22 +240,22 @@
                     <PropertyColumn Property="x => x.TotalColaboradores" Title="Pers." />
                     <TemplateColumn Title="Horas Cobrables">
                         <CellTemplate>
-                            <span class="fw-bold text-primary" style="font-size: 13px;">@context.Item.TotalHoras.ToString("N1")</span>
+                            <span class="fw-bold text-primary" style="font-size: 13px;">@context.Item.TotalHoras.ToString("N2")</span>
                         </CellTemplate>
                     </TemplateColumn>
                     <TemplateColumn Title="Extras Cobrables">
                         <CellTemplate>
-                            <span class="fw-bold text-success" style="font-size: 13px;">@context.Item.TotalExtras.ToString("N1")</span>
+                            <span class="fw-bold text-success" style="font-size: 13px;">@context.Item.TotalExtras.ToString("N2")</span>
                         </CellTemplate>
                     </TemplateColumn>
                     <TemplateColumn Title="Total Cobro">
                         <CellTemplate>
-                            <span class="fw-bold text-dark" style="font-size: 13px;">@((context.Item.TotalHoras + context.Item.TotalExtras).ToString("N1"))</span>
+                            <span class="fw-bold text-dark" style="font-size: 13px;">@((context.Item.TotalHoras + context.Item.TotalExtras).ToString("N2"))</span>
                         </CellTemplate>
                     </TemplateColumn>
                     <TemplateColumn Title="Marcadas">
                         <CellTemplate>
-                            <span class="text-secondary small">@context.Item.TotalHorasReales.ToString("N1")h / @context.Item.TotalExtrasReales.ToString("N1")e</span>
+                            <span class="text-secondary small">@context.Item.TotalHorasReales.ToString("N2")h / @context.Item.TotalExtrasReales.ToString("N2")e</span>
                         </CellTemplate>
                     </TemplateColumn>
                 </Columns>
@@ -277,6 +277,13 @@
                                   AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
                 </ToolBarContent>
                 <Columns>
+                    <TemplateColumn Title="Semana">
+                        <CellTemplate>
+                            <MudTooltip Text="@context.Item.RangoSemana">
+                                <span class="badge bg-secondary text-white fw-bold" style="font-size: 11px;">@context.Item.Semana</span>
+                            </MudTooltip>
+                        </CellTemplate>
+                    </TemplateColumn>
                     <PropertyColumn Property="x => x.fecha_asistencia" Title="Fecha" Format="dd/MM/yyyy" />
                     <PropertyColumn Property="x => x.area_nombre" Title="Área" />
                     <PropertyColumn Property="x => x.cargo" Title="Cargo" />
@@ -315,25 +322,30 @@
                     </TemplateColumn>
                     <PropertyColumn Property="x => x.entrada_movimiento" Title="Entrada" />
                     <PropertyColumn Property="x => x.salida_movimiento" Title="Salida" />
+                    <TemplateColumn Title="Hrs Laboradas">
+                        <CellTemplate>
+                            <span class="fw-bold text-dark small">@context.Item.HorasLaboradas.ToString("N2")h</span>
+                        </CellTemplate>
+                    </TemplateColumn>
                     <TemplateColumn Title="Marcadas">
                         <CellTemplate>
-                            <span class="text-secondary small">@context.Item.horas_totales.ToString("N1") + @context.Item.horas_extras.ToString("N1")e</span>
+                            <span class="text-secondary small">@context.Item.horas_totales.ToString("N2") + @context.Item.horas_extras.ToString("N2")e</span>
                         </CellTemplate>
                     </TemplateColumn>
                     <TemplateColumn Title="Horas Cobro">
                         <CellTemplate>
-                            <span class="badge bg-primary text-white fw-bold px-2 py-1" style="font-size: 12px;">@context.Item.HorasNormalesCobrables.ToString("N1")h</span>
+                            <span class="badge bg-primary text-white fw-bold px-2 py-1" style="font-size: 12px;">@context.Item.HorasNormalesCobrables.ToString("N2")h</span>
                         </CellTemplate>
                     </TemplateColumn>
                     <TemplateColumn Title="Extras Cobro">
                         <CellTemplate>
                             @if (context.Item.HorasExtrasCobrables > 0)
                             {
-                                <span class="badge bg-success text-white fw-bold px-2 py-1" style="font-size: 12px;">+@context.Item.HorasExtrasCobrables.ToString("N1")h</span>
+                                <span class="badge bg-success text-white fw-bold px-2 py-1" style="font-size: 12px;">+@context.Item.HorasExtrasCobrables.ToString("N2")h</span>
                             }
                             else
                             {
-                                <span class="text-muted small">0.0h</span>
+                                <span class="text-muted small">0.00h</span>
                             }
                         </CellTemplate>
                     </TemplateColumn>
@@ -543,6 +555,7 @@
                                     <div class="col-md-4">
                                         <label class="small fw-bold text-secondary mb-1">Tipo / Comportamiento de Cobro:</label>
                                         <select class="form-select form-select-sm" value="@editingRegla.TipoRegla" @onchange="OnTipoReglaChanged">
+                                            <option value="REGLA_48H_SEMANAL">⚖️ Regla 48h Semanal (Alineada con Nómina)</option>
                                             <option value="DOMINGO_SIEMPRE_EXTRA">📅 Domingo Siempre Extra (Sin regla 48h)</option>
                                             <option value="MONTACARGA_12H">🚜 Montacargas 12h (12 Cobrables + Exceso a Extras)</option>
                                             <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>

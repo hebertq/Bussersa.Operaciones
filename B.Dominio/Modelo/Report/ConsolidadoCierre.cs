@@ -19,6 +19,8 @@ namespace Modelo.Report
 
     public class ReporteCierreMarcadasDetalle
     {
+        public string Semana { get; set; } = string.Empty;
+        public string RangoSemana { get; set; } = string.Empty;
         public DateTime fecha_asistencia { get; set; }
         public int id_empleado { get; set; }
         public string nombre_empleado { get; set; } = string.Empty;
@@ -28,6 +30,7 @@ namespace Modelo.Report
         public string Turno { get; set; } = string.Empty;
         public string entrada_movimiento { get; set; } = string.Empty;
         public string salida_movimiento { get; set; } = string.Empty;
+        public decimal HorasLaboradas { get; set; }
         public decimal horas_totales { get; set; }
         public decimal horas_extras { get; set; }
         public decimal HorasNormalesCobrables { get; set; }
