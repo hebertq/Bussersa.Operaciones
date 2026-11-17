@@ -242,6 +242,13 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.Entidades.Operaciones.EppCatalogoItemDto>> GetCatalogoEpp();
         Task<IListResponse<Modelo.Entidades.Operaciones.EppEntregaDto>> GetHistorialEntregasEpp(int? empleadoId = null, DateTime? fechaInicio = null, DateTime? fechaFin = null);
         Task<IResponse> RegistrarEntregaEpp(Modelo.Entidades.Operaciones.EppEntregaDto entrega);
+
+        // --- PERFIL DE USUARIO Y BAJA UNIFICADA (OPERACIONES + ADMIN + HELPDESK) ---
+        Task<ISingleResponse<UserProfileDto>> GetMyProfile();
+        Task<IResponse> UpdateMyProfile(UpdateMyProfileRequest request);
+        Task<IResponse> ChangeMyPassword(ChangeMyPasswordRequest request);
+        Task<ISingleResponse<UserLinkCatalogsDto>> GetUserLinkCatalogs();
+        Task<ISingleResponse<ToggleUserStatusResultDto>> ToggleUserStatus(ToggleUserStatusRequest request);
     }
 }
 

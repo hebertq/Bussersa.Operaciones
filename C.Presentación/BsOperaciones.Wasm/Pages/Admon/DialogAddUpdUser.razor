@@ -5,8 +5,8 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-3 mb-n1" />
+        <MudText Typo="Typo.h6" Style="font-weight: 800;">
+            <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Class="mr-2 mb-n1" Color="Color.Primary" />
             @Title
         </MudText>
     </TitleContent>
@@ -15,74 +15,284 @@
         {
             <MudProgressLinear Color="Color.Secondary" Indeterminate="true" Class="my-2" />
         }
-        <MudContainer Style="max-height: 450px; overflow-y: auto" Class="pt-4">
-            <MudGrid Spacing="3">
+        <MudContainer Style="max-height: 540px; overflow-y: auto" Class="pt-2 px-1">
+            <MudGrid Spacing="2">
+                @* SECCIÓN 1: VÍNCULO CON EXPEDIENTE ADMIN Y HELPDESK *@
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="fw-bold mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Link" Size="Size.Small" Class="mr-1 mb-n1" />
+                            Vinculación entre Sistemas (Admin RRHH + Odoo + Helpdesk)
+                        </MudText>
+
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12">
+                                <MudAutocomplete T="OdooEmployeeOptionDto"
+                                                 Label="1. Expediente de Colaborador en Admin (Odoo RRHH)"
+                                                 Value="_selectedEmployee"
+                                                 ValueChanged="OnEmployeeSelected"
+                                                 SearchFunc="SearchEmployees"
+                                                 ToStringFunc="@(e => e?.DisplayLabel ?? string.Empty)"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Clearable="true"
+                                                 ResetValueOnEmptyText="true"
+                                                 MaxItems="25"
+                                                 AdornmentIcon="@Icons.Material.Filled.Badge"
+                                                 HelperText="Al vincular la ficha, el usuario verá sus datos oficiales en Mi Perfil y si pasa a Baja en Admin se deshabilitarán sus cuentas." />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudAutocomplete T="OdooUserOptionDto"
+                                                 Label="2. Usuario Acceso Admin (Odoo Login)"
+                                                 Value="_selectedOdooUser"
+                                                 ValueChanged="OnOdooUserSelected"
+                                                 SearchFunc="SearchOdooUsers"
+                                                 ToStringFunc="@(u => u?.DisplayLabel ?? string.Empty)"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Clearable="true"
+                                                 ResetValueOnEmptyText="true"
+                                                 MaxItems="25"
+                                                 AdornmentIcon="@Icons.Material.Filled.AdminPanelSettings"
+                                                 HelperText="Opcional: si posee usuario en Odoo" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudAutocomplete T="RedmineUserOptionDto"
+                                                 Label="3. Usuario Helpdesk (Redmine)"
+                                                 Value="_selectedRedmineUser"
+                                                 ValueChanged="OnRedmineUserSelected"
+                                                 SearchFunc="SearchRedmineUsers"
+                                                 ToStringFunc="@(r => r?.DisplayLabel ?? string.Empty)"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Clearable="true"
+                                                 ResetValueOnEmptyText="true"
+                                                 MaxItems="25"
+                                                 AdornmentIcon="@Icons.Material.Filled.SupportAgent"
+                                                 HelperText="Catálogo en vivo de Helpdesk" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+
+                @* SECCIÓN 2: CREDENCIALES Y PERMISOS EN OPERACIONES *@
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="payload.username" Label="Usuario (Username)" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField @bind-Value="payload.username" Label="Usuario Operaciones (Username)" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="payload.email" Label="Correo Electrónico" Variant="Variant.Outlined" Required="true" InputType="InputType.Email" />
+                    <MudTextField @bind-Value="payload.email" Label="Correo Electrónico de Acceso" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" InputType="InputType.Email" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="payload.nombres" Label="Nombres" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField @bind-Value="payload.nombres" Label="Nombres" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="payload.apellidos" Label="Apellidos" Variant="Variant.Outlined" Required="true" />
+                    <MudTextField @bind-Value="payload.apellidos" Label="Apellidos" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="payload.password" Label="Contraseña" Variant="Variant.Outlined" InputType="InputType.Password" Required="true" />
+                    <MudTextField @bind-Value="_newPasswordInput"
+                                  Label="@(IsEdit ? "Nueva Contraseña (dejar vacío para conservar)" : "Contraseña")"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  InputType="InputType.Password"
+                                  Required="@(!IsEdit)" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
-                    <MudSelect @bind-Value="payload.grupoid" Label="Grupo de Permisos" Variant="Variant.Outlined" Required="true">
+                    <MudSelect @bind-Value="payload.grupoid" Label="Grupo de Permisos" Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
                         @foreach (var g in Groups)
                         {
                             <MudSelectItem Value="@g.id">@g.nombre</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="payload.redmine_user" Label="Usuario Redmine / Helpdesk" Variant="Variant.Outlined" HelperText="Identificador o usuario en Helpdesk/Redmine para trazabilidad y edición de tareas" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.SupportAgent" />
-                </MudItem>
             </MudGrid>
         </MudContainer>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Default">Cancelar</MudButton>
-        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar</MudButton>
+        <MudButton OnClick="Save" Variant="Variant.Filled" Color="Color.Primary" Disabled="isloading">Guardar Usuario</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
-    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public string Title { get; set; } = "Registro de Usuario";
     [Parameter] public User payload { get; set; } = new User();
     [Parameter] public List<AdmonGroup> Groups { get; set; } = new List<AdmonGroup>();
+    [Parameter] public UserLinkCatalogsDto Catalogs { get; set; } = new UserLinkCatalogsDto();
     [Parameter] public bool IsEdit { get; set; }
 
     private bool isloading;
+    private string _newPasswordInput = string.Empty;
+
+    private OdooEmployeeOptionDto? _selectedEmployee;
+    private OdooUserOptionDto? _selectedOdooUser;
+    private RedmineUserOptionDto? _selectedRedmineUser;
+
+    protected override void OnInitialized()
+    {
+        if (payload.odoo_employee_id.HasValue)
+        {
+            _selectedEmployee = Catalogs.empleados_admin.FirstOrDefault(x => x.id == payload.odoo_employee_id.Value);
+        }
+
+        if (payload.odoo_user_id.HasValue)
+        {
+            _selectedOdooUser = Catalogs.usuarios_admin_odoo.FirstOrDefault(x => x.id == payload.odoo_user_id.Value);
+        }
+
+        if (payload.redmine_user_id.HasValue)
+        {
+            _selectedRedmineUser = Catalogs.usuarios_helpdesk.FirstOrDefault(x => x.id == payload.redmine_user_id.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(payload.redmine_user))
+        {
+            _selectedRedmineUser = Catalogs.usuarios_helpdesk.FirstOrDefault(x =>
+                !string.IsNullOrWhiteSpace(x.login) && x.login.Equals(payload.redmine_user.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private Task<IEnumerable<OdooEmployeeOptionDto>> SearchEmployees(string value, System.Threading.CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(Catalogs.empleados_admin.Take(25));
+
+        string q = value.Trim();
+        var matches = Catalogs.empleados_admin.Where(e =>
+            (e.codigo_empleado?.ToString().Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            e.nombre.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (e.cedula?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (e.correo?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).Take(25);
+        return Task.FromResult(matches);
+    }
+
+    private Task<IEnumerable<OdooUserOptionDto>> SearchOdooUsers(string value, System.Threading.CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult<IEnumerable<OdooUserOptionDto>>(Catalogs.usuarios_admin_odoo);
+
+        string q = value.Trim();
+        return Task.FromResult(Catalogs.usuarios_admin_odoo.Where(u =>
+            u.login.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            u.nombre.Contains(q, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private Task<IEnumerable<RedmineUserOptionDto>> SearchRedmineUsers(string value, System.Threading.CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult<IEnumerable<RedmineUserOptionDto>>(Catalogs.usuarios_helpdesk);
+
+        string q = value.Trim();
+        return Task.FromResult(Catalogs.usuarios_helpdesk.Where(r =>
+            r.login.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            r.nombre.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            r.email.Contains(q, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void OnEmployeeSelected(OdooEmployeeOptionDto? emp)
+    {
+        _selectedEmployee = emp;
+        payload.odoo_employee_id = emp?.id;
+
+        if (emp != null)
+        {
+            // Autocompletar nombres/apellidos/correo si el formulario está en blanco (nuevo usuario)
+            if (string.IsNullOrWhiteSpace(payload.nombres) && string.IsNullOrWhiteSpace(payload.apellidos))
+            {
+                var parts = emp.nombre.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 3)
+                {
+                    payload.nombres = string.Join(" ", parts.Take(parts.Length - 2));
+                    payload.apellidos = string.Join(" ", parts.Skip(parts.Length - 2));
+                }
+                else if (parts.Length == 2)
+                {
+                    payload.nombres = parts[0];
+                    payload.apellidos = parts[1];
+                }
+                else
+                {
+                    payload.nombres = emp.nombre;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.email) && !string.IsNullOrWhiteSpace(emp.correo))
+            {
+                payload.email = emp.correo;
+            }
+
+            // Auto-vincular usuario de acceso Odoo si lo tiene
+            if (_selectedOdooUser == null)
+            {
+                var odooMatch = (emp.odoo_user_id.HasValue
+                    ? Catalogs.usuarios_admin_odoo.FirstOrDefault(u => u.id == emp.odoo_user_id.Value)
+                    : null) ?? (!string.IsNullOrWhiteSpace(emp.correo)
+                    ? Catalogs.usuarios_admin_odoo.FirstOrDefault(u => u.login.Equals(emp.correo, StringComparison.OrdinalIgnoreCase))
+                    : null);
+                if (odooMatch != null)
+                {
+                    _selectedOdooUser = odooMatch;
+                    payload.odoo_user_id = odooMatch.id;
+                }
+            }
+
+            // Auto-vincular usuario Helpdesk por correo si aún no está seleccionado
+            if (_selectedRedmineUser == null && !string.IsNullOrWhiteSpace(emp.correo))
+            {
+                var rmMatch = Catalogs.usuarios_helpdesk.FirstOrDefault(r =>
+                    !string.IsNullOrWhiteSpace(r.email) && r.email.Equals(emp.correo, StringComparison.OrdinalIgnoreCase));
+                if (rmMatch != null)
+                {
+                    _selectedRedmineUser = rmMatch;
+                    payload.redmine_user_id = rmMatch.id;
+                    payload.redmine_user = rmMatch.EffectiveHandle;
+                }
+            }
+        }
+    }
+
+    private void OnOdooUserSelected(OdooUserOptionDto? u)
+    {
+        _selectedOdooUser = u;
+        payload.odoo_user_id = u?.id;
+    }
+
+    private void OnRedmineUserSelected(RedmineUserOptionDto? r)
+    {
+        _selectedRedmineUser = r;
+        payload.redmine_user_id = r?.id;
+        payload.redmine_user = r?.EffectiveHandle;
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Save()
     {
-        if (string.IsNullOrWhiteSpace(payload.username) || string.IsNullOrWhiteSpace(payload.email) || string.IsNullOrWhiteSpace(payload.password))
+        if (string.IsNullOrWhiteSpace(payload.username) || string.IsNullOrWhiteSpace(payload.email))
         {
-            Snackbar.Add("Por favor complete los campos obligatorios.", Severity.Warning);
+            Snackbar.Add("Por favor complete el usuario y correo electrónico.", Severity.Warning);
             return;
+        }
+
+        if (!IsEdit && string.IsNullOrWhiteSpace(_newPasswordInput))
+        {
+            Snackbar.Add("Debe asignar una contraseña para el nuevo usuario.", Severity.Warning);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_newPasswordInput))
+        {
+            payload.password = _newPasswordInput;
         }
 
         try
         {
             isloading = true;
-            IResponse response;
-            if (IsEdit)
-            {
-                response = await OdooService.UpdateUser(payload);
-            }
-            else
-            {
-                response = await OdooService.AddUser(payload);
-            }
+            IResponse response = IsEdit
+                ? await OdooService.UpdateUser(payload)
+                : await OdooService.AddUser(payload);
 
             isloading = false;
             if (response.Respuesta.ExisteError)
@@ -91,7 +301,7 @@
             }
             else
             {
-                Snackbar.Add("Usuario guardado con éxito.", Severity.Success);
+                Snackbar.Add("Usuario y vínculos guardados con éxito.", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
         }

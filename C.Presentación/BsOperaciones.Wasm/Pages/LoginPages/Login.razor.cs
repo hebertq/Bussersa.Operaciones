@@ -115,7 +115,9 @@ namespace BsOperaciones.Pages.LoginPages
                 return true;
             }
 
-            LoginMesssage = "Credenciales no válidas.";
+            LoginMesssage = response.Respuesta.ExisteError && !string.IsNullOrWhiteSpace(response.Respuesta.MensajeError)
+                ? response.Respuesta.MensajeError
+                : "Credenciales no válidas.";
             user.Password = originalPassword;
             return false;
         }

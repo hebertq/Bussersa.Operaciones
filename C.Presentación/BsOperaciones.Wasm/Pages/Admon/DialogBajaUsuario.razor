@@ -1,0 +1,132 @@
+@using Modelo.Admin
+@using HostService.Interfaces
+@inject IOdooService OdooService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@(Activar ? Icons.Material.Filled.PersonAddAlt1 : Icons.Material.Filled.PersonOff)"
+                     Color="@(Activar ? Color.Success : Color.Error)" />
+            <MudText Typo="Typo.h6" Style="font-weight: 800;">
+                @(Activar ? "Reactivar Accesos del Usuario" : "Baja Unificada y Deshabilitación de Accesos")
+            </MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_processing)
+        {
+            <MudProgressLinear Color="@(Activar ? Color.Success : Color.Error)" Indeterminate="true" Class="mb-3" />
+        }
+
+        <MudAlert Severity="@(Activar ? Severity.Info : Severity.Warning)" Variant="Variant.Outlined" Dense="true" Class="mb-3 rounded-lg">
+            @if (Activar)
+            {
+                <span>Se reactivarán las cuentas vinculadas de <b>@TargetUser.nombres @TargetUser.apellidos (@TargetUser.username)</b>.</span>
+            }
+            else
+            {
+                <span>Al confirmar la baja de <b>@TargetUser.nombres @TargetUser.apellidos (@TargetUser.username)</b>, se revocarán sus sesiones activas y se deshabilitarán en cascada todos sus accesos vinculados:</span>
+            }
+        </MudAlert>
+
+        <MudPaper Elevation="0" Class="pa-3 mb-3 rounded-lg" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+            <MudStack Spacing="1">
+                <div class="d-flex align-center justify-space-between">
+                    <MudText Typo="Typo.body2"><b>1. Operaciones (BsOperaciones):</b></MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@TargetUser.username (@TargetUser.email)</MudChip>
+                </div>
+                <div class="d-flex align-center justify-space-between">
+                    <MudText Typo="Typo.body2"><b>2. Admin (Odoo):</b></MudText>
+                    @if (!string.IsNullOrWhiteSpace(TargetUser.odoo_user_login))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">@TargetUser.odoo_user_login</MudChip>
+                    }
+                    else if (TargetUser.odoo_employee_id.HasValue)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Ficha #@TargetUser.codigo_empleado (sin usuario de login Odoo)</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Sin cuenta vinculada</MudText>
+                    }
+                </div>
+                <div class="d-flex align-center justify-space-between">
+                    <MudText Typo="Typo.body2"><b>3. Helpdesk (Redmine):</b></MudText>
+                    @if (!string.IsNullOrWhiteSpace(TargetUser.redmine_user))
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@@@TargetUser.redmine_user</MudChip>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Sin cuenta vinculada</MudText>
+                    }
+                </div>
+            </MudStack>
+        </MudPaper>
+
+        @if (!Activar)
+        {
+            <MudTextField @bind-Value="_motivo" Label="Motivo de la Baja / Deshabilitación" Variant="Variant.Outlined"
+                          Lines="2" Required="true" Placeholder="Ej. Baja de personal / Renuncia / Fin de contrato" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text" Disabled="@_processing">Cancelar</MudButton>
+        <MudButton OnClick="Confirmar" Variant="Variant.Filled"
+                   Color="@(Activar ? Color.Success : Color.Error)"
+                   StartIcon="@(Activar ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Block)"
+                   Disabled="@_processing">
+            @(Activar ? "Reactivar Cuentas" : "Ejecutar Baja en Todos los Sistemas")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public User TargetUser { get; set; } = new();
+    [Parameter] public bool Activar { get; set; }
+
+    private string _motivo = "Baja de personal";
+    private bool _processing = false;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Confirmar()
+    {
+        if (!Activar && string.IsNullOrWhiteSpace(_motivo))
+        {
+            Snackbar.Add("Indique el motivo de la baja.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _processing = true;
+            var res = await OdooService.ToggleUserStatus(new ToggleUserStatusRequest
+            {
+                user_id = TargetUser.id,
+                activar = Activar,
+                motivo = _motivo
+            });
+
+            if (res.Respuesta.ExisteError)
+            {
+                Snackbar.Add(res.Respuesta.MensajeError, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add(res.Model?.resumen ?? (Activar ? "Usuario reactivado." : "Baja aplicada en cascada."), Severity.Success);
+                MudDialog.Close(DialogResult.Ok(res.Model));
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+}

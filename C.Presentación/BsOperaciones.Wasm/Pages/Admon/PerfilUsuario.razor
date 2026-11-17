@@ -1,0 +1,558 @@
+@page "/perfil"
+@page "/admon/perfil"
+@attribute [Authorize]
+@using Modelo.Admin
+@using Modelo.Interfaces
+@using HostService.Interfaces
+@using Utilidades.Interfaces
+@using Microsoft.AspNetCore.Components.Forms
+@inject IOdooService OdooService
+@inject IUserInfo UserInfoState
+@inject IUtilidades Util
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Mi Perfil - BUSSERSA</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-3 mb-8">
+    @if (_loading)
+    {
+        <MudPaper Class="pa-8 d-flex flex-column align-center justify-center rounded-xl" Elevation="1">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" Class="mb-3" />
+            <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Cargando expediente y accesos desde Admin...</MudText>
+        </MudPaper>
+    }
+    else if (_profile == null)
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-lg">
+            No fue posible cargar la información de su perfil. Intente recargar la página.
+        </MudAlert>
+    }
+    else
+    {
+        @* ENCABEZADO DEL PERFIL *@
+        <MudPaper Class="pa-5 mb-4 rounded-xl" Elevation="1" Style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff;">
+            <div class="d-flex flex-column flex-md-row align-center justify-space-between gap-4">
+                <div class="d-flex flex-column flex-sm-row align-center gap-4">
+                    <div class="d-flex flex-column align-center">
+                        @if (!string.IsNullOrWhiteSpace(_editModel.foto_url))
+                        {
+                            <MudAvatar Style="width: 92px; height: 92px; border: 3px solid #f97316; box-shadow: 0 4px 14px rgba(0,0,0,0.35);">
+                                <MudImage Src="@_editModel.foto_url" Alt="@NombreCompletoMostrar" ObjectFit="ObjectFit.Cover" />
+                            </MudAvatar>
+                        }
+                        else
+                        {
+                            <MudAvatar Color="Color.Secondary" Style="width: 92px; height: 92px; font-size: 2rem; font-weight: 800; border: 3px solid rgba(255,255,255,0.3);">
+                                @ObtenerIniciales()
+                            </MudAvatar>
+                        }
+
+                        <div class="d-flex align-center gap-1 mt-2">
+                            <InputFile id="inputPerfilFoto" OnChange="OnUploadFoto" hidden accept=".jpg,.jpeg,.png,.webp" />
+                            <MudButton HtmlTag="label" for="inputPerfilFoto" Size="Size.Small" Variant="Variant.Filled" Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.PhotoCamera" Style="font-size: 0.72rem; border-radius: 16px; text-transform: none;">
+                                Cambiar Foto
+                            </MudButton>
+                            @if (!string.IsNullOrWhiteSpace(_editModel.foto_url))
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Size="Size.Small" Style="color: #fca5a5;"
+                                               Title="Quitar foto" OnClick="QuitarFoto" />
+                            }
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex align-center flex-wrap gap-2 mb-1">
+                            <MudText Typo="Typo.h5" Style="font-weight: 800; color: #ffffff;">
+                                @NombreCompletoMostrar
+                            </MudText>
+                            @if (_profile.codigo_empleado.HasValue)
+                            {
+                                <MudChip T="string" Size="Size.Small" Style="background: rgba(249, 115, 22, 0.9); color: #fff; font-weight: 700;">
+                                    Código #@_profile.codigo_empleado
+                                </MudChip>
+                            }
+                        </div>
+
+                        <MudText Typo="Typo.body2" Style="color: #cbd5e1; font-weight: 500;">
+                            @(string.IsNullOrWhiteSpace(_profile.cargo) ? _profile.grupo_nombre : _profile.cargo)
+                            @(!string.IsNullOrWhiteSpace(_profile.departamento) ? $" • {_profile.departamento}" : "")
+                        </MudText>
+
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.VerifiedUser"
+                                     Style="background: rgba(16, 185, 129, 0.22); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.45);">
+                                Operaciones: @_profile.username (@(string.IsNullOrWhiteSpace(_profile.grupo_nombre) ? "Activo" : _profile.grupo_nombre))
+                            </MudChip>
+
+                            @if (_profile.tiene_ficha_admin)
+                            {
+                                <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Badge"
+                                         Style="background: rgba(56, 189, 248, 0.2); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.45);">
+                                    Admin RRHH: @(_profile.activo_en_admin == false ? "Baja" : "Vinculado")
+                                    @(!string.IsNullOrWhiteSpace(_profile.odoo_user_login) ? $" ({_profile.odoo_user_login})" : "")
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Info"
+                                         Style="background: rgba(148, 163, 184, 0.2); color: #e2e8f0;">
+                                    Admin RRHH: Cuenta operativa sin ficha individual
+                                </MudChip>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(_profile.redmine_user))
+                            {
+                                <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.SupportAgent"
+                                         Style="@(_profile.redmine_status == 3
+                                             ? "background: rgba(239, 68, 68, 0.25); color: #fecaca; border: 1px solid rgba(239,68,68,0.5);"
+                                             : "background: rgba(251, 191, 36, 0.2); color: #fde68a; border: 1px solid rgba(251,191,36,0.45);")">
+                                    Helpdesk: @@@_profile.redmine_user @(_profile.redmine_status == 3 ? "(Bloqueado)" : "(Activo)")
+                                </MudChip>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </MudPaper>
+
+        @* PESTAÑAS DE GESTIÓN DEL PERFIL *@
+        <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-5" Color="Color.Primary">
+            @* PESTAÑA 1: EXPEDIENTE Y CONTACTO PERSONAL *@
+            <MudTabPanel Text="Mis Datos e Información Personal" Icon="@Icons.Material.Filled.Person">
+                <MudGrid Spacing="4">
+                    @* BLOQUE IZQUIERDO: DATOS OFICIALES DE ADMIN (SOLO LECTURA) *@
+                    <MudItem xs="12" md="5">
+                        <MudPaper Elevation="0" Class="pa-4 rounded-xl h-100" Style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                            <div class="d-flex align-center justify-space-between mb-3">
+                                <div class="d-flex align-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentInd" Color="Color.Primary" />
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 800;">Expediente Oficial (Admin)</MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">Solo lectura</MudChip>
+                            </div>
+
+                            @if (!_profile.tiene_ficha_admin)
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3 rounded-lg">
+                                    Esta cuenta no tiene aún un expediente de empleado vinculado en el Admin. Puede solicitar a Administración la vinculación de su ficha para visualizar sus datos laborales y sincronizar su contacto.
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+                                    Estos datos provienen directamente de su expediente laboral en Admin (Odoo). Si detecta alguna diferencia en su cédula, INSS o cargo, notifíquelo a RRHH.
+                                </MudText>
+                            }
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.codigo_empleado?.ToString() ?? "No asignado")" Label="Código Colaborador" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.cedula ?? "No registrada")" Label="Cédula de Identidad" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudTextField Value="@(_profile.nombre_completo_admin ?? $"{_profile.nombres} {_profile.apellidos}")" Label="Nombre Oficial en Nómina" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.inss ?? "No registrado")" Label="N.° INSS" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.fecha_ingreso?.ToString("dd/MM/yyyy") ?? "No registrada")" Label="Fecha de Ingreso" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.cargo ?? "No especificado")" Label="Cargo / Puesto" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.departamento ?? "No especificado")" Label="Departamento / Operación" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@(_profile.fecha_nacimiento?.ToString("dd/MM/yyyy") ?? "No registrada")" Label="Fecha de Nacimiento" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField Value="@_profile.email" Label="Correo de Acceso" ReadOnly="true" Variant="Variant.Filled" Margin="Margin.Dense" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    </MudItem>
+
+                    @* BLOQUE DERECHO: DATOS PERSONALES Y CONTACTO EDITABLES *@
+                    <MudItem xs="12" md="7">
+                        <MudPaper Elevation="0" Class="pa-4 rounded-xl" Style="border: 1px solid #e2e8f0;">
+                            <div class="d-flex align-center justify-space-between mb-3">
+                                <div class="d-flex align-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.EditNote" Color="Color.Secondary" />
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 800;">Información Personal y Contacto (Editable)</MudText>
+                                </div>
+                                @if (_profile.tiene_ficha_admin)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Sincronizado con Admin</MudChip>
+                                }
+                            </div>
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_editModel.celular_corporativo" Label="Celular Corporativo" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Smartphone" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_editModel.telefono_corporativo" Label="Teléfono Oficina / Ext." Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_editModel.telefono_personal" Label="Teléfono / Celular Personal" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.PhoneAndroid" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_editModel.correo_personal" Label="Correo Electrónico Personal" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  InputType="InputType.Email" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.AlternateEmail" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+
+                                <MudItem xs="12" sm="8">
+                                    <MudTextField @bind-Value="_editModel.direccion_domicilio" Label="Dirección Domiciliar" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Home" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_editModel.ciudad_domicilio" Label="Ciudad / Municipio" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" @bind-Value="_editModel.estado_civil" Label="Estado Civil" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Disabled="@(!_profile.tiene_ficha_admin)">
+                                        <MudSelectItem Value="@("single")">Soltero(a)</MudSelectItem>
+                                        <MudSelectItem Value="@("married")">Casado(a)</MudSelectItem>
+                                        <MudSelectItem Value="@("cohabitant")">Unión de hecho</MudSelectItem>
+                                        <MudSelectItem Value="@("divorced")">Divorciado(a)</MudSelectItem>
+                                        <MudSelectItem Value="@("widower")">Viudo(a)</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="_editModel.placa_vehiculo" Label="Placa de Vehículo / Moto (si aplica)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.DirectionsCar" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-1" />
+                                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">Contacto en Caso de Emergencia</MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="7">
+                                    <MudTextField @bind-Value="_editModel.contacto_emergencia_nombre" Label="Nombre de Contacto de Emergencia" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.ContactEmergency" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="5">
+                                    <MudTextField @bind-Value="_editModel.contacto_emergencia_telefono" Label="Teléfono de Emergencia" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Call" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-1" />
+                                    <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Color="Color.Secondary">Formación Académica</MudText>
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudSelect T="string" @bind-Value="_editModel.nivel_academico" Label="Nivel Académico" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Disabled="@(!_profile.tiene_ficha_admin)">
+                                        <MudSelectItem Value="@("other")">Secundaria / Técnico</MudSelectItem>
+                                        <MudSelectItem Value="@("graduate")">Graduado / Técnico Superior</MudSelectItem>
+                                        <MudSelectItem Value="@("bachelor")">Licenciatura / Ingeniería</MudSelectItem>
+                                        <MudSelectItem Value="@("master")">Maestría / Posgrado</MudSelectItem>
+                                        <MudSelectItem Value="@("doctor")">Doctorado</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_editModel.profesion_estudio" Label="Profesión / Carrera" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_editModel.centro_estudio" Label="Universidad / Centro" Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="@(!_profile.tiene_ficha_admin)" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <div class="d-flex justify-end mt-4">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Medium"
+                                           StartIcon="@Icons.Material.Filled.Save" Disabled="@_savingProfile"
+                                           OnClick="GuardarMiInformacion" Class="rounded-pill px-6">
+                                    @(_savingProfile ? "Guardando..." : "Guardar Mi Información")
+                                </MudButton>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            @* PESTAÑA 2: CAMBIO DE CONTRASEÑA *@
+            <MudTabPanel Text="Seguridad y Contraseña" Icon="@Icons.Material.Filled.LockReset">
+                <MudGrid Justify="Justify.Center">
+                    <MudItem xs="12" sm="8" md="5">
+                        <MudPaper Elevation="0" Class="pa-5 rounded-xl" Style="border: 1px solid #e2e8f0;">
+                            <MudText Typo="Typo.h6" Class="mb-1 fw-bold">Actualizar Contraseña de Acceso</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                Ingrese su contraseña actual para confirmar su identidad y defina una nueva contraseña segura.
+                            </MudText>
+
+                            <MudTextField @bind-Value="_currentPassword" Label="Contraseña Actual" Variant="Variant.Outlined" Class="mb-3"
+                                          InputType="@(_showPass ? InputType.Text : InputType.Password)"
+                                          Adornment="Adornment.End" AdornmentIcon="@(_showPass ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                          OnAdornmentClick="@(() => _showPass = !_showPass)" />
+
+                            <MudTextField @bind-Value="_newPassword" Label="Nueva Contraseña" Variant="Variant.Outlined" Class="mb-3"
+                                          InputType="@(_showPass ? InputType.Text : InputType.Password)"
+                                          HelperText="Mínimo 6 caracteres" />
+
+                            <MudTextField @bind-Value="_confirmPassword" Label="Confirmar Nueva Contraseña" Variant="Variant.Outlined" Class="mb-4"
+                                          InputType="@(_showPass ? InputType.Text : InputType.Password)" />
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Key" Disabled="@_savingPassword"
+                                       OnClick="CambiarMiPassword" Class="rounded-pill py-2 fw-bold">
+                                @(_savingPassword ? "Actualizando..." : "Cambiar Contraseña")
+                            </MudButton>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            @* PESTAÑA 3: MI FIRMA INSTITUCIONAL *@
+            <MudTabPanel Text="Mi Firma de Correo" Icon="@Icons.Material.Filled.Badge">
+                <MudGrid>
+                    <MudItem xs="12" md="8">
+                        <MudText Typo="Typo.subtitle1" Class="fw-bold mb-1">Vista Previa Automática de su Firma Corporativa</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Generada automáticamente con su nombre, cargo de Admin, teléfonos y foto actual.
+                        </MudText>
+
+                        <div id="miFirmaPerfilContainer" style="background-color: #ffffff; border: 1px dashed #cbd5e1; padding: 18px; border-radius: 12px; overflow-x: auto;" class="mb-4">
+                            @((MarkupString)GenerarHtmlFirmaPerfil())
+                        </div>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.ContentCopy"
+                                   OnClick="CopiarMiFirmaHtml" Class="rounded-pill px-5">
+                            Copiar Firma para Outlook / Gmail / Zoho
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private bool _savingProfile = false;
+    private bool _savingPassword = false;
+    private bool _showPass = false;
+
+    private UserProfileDto? _profile;
+    private UpdateMyProfileRequest _editModel = new();
+
+    private string _currentPassword = string.Empty;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+
+    private string NombreCompletoMostrar =>
+        !string.IsNullOrWhiteSpace(_profile?.nombre_completo_admin)
+            ? _profile!.nombre_completo_admin!
+            : $"{_profile?.nombres} {_profile?.apellidos}".Trim();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarPerfil();
+    }
+
+    private async Task CargarPerfil()
+    {
+        try
+        {
+            _loading = true;
+            var res = await OdooService.GetMyProfile();
+            if (!res.Respuesta.ExisteError && res.Model != null)
+            {
+                _profile = res.Model;
+                _editModel = new UpdateMyProfileRequest
+                {
+                    foto_url = _profile.foto_url,
+                    telefono_corporativo = _profile.telefono_corporativo,
+                    celular_corporativo = _profile.celular_corporativo,
+                    telefono_personal = _profile.telefono_personal,
+                    correo_personal = _profile.correo_personal,
+                    direccion_domicilio = _profile.direccion_domicilio,
+                    ciudad_domicilio = _profile.ciudad_domicilio,
+                    estado_civil = _profile.estado_civil,
+                    contacto_emergencia_nombre = _profile.contacto_emergencia_nombre,
+                    contacto_emergencia_telefono = _profile.contacto_emergencia_telefono,
+                    nivel_academico = _profile.nivel_academico,
+                    profesion_estudio = _profile.profesion_estudio,
+                    centro_estudio = _profile.centro_estudio,
+                    placa_vehiculo = _profile.placa_vehiculo
+                };
+            }
+            else
+            {
+                Snackbar.Add("Error al consultar perfil: " + res.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error inesperado: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private string ObtenerIniciales()
+    {
+        var parts = NombreCompletoMostrar.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2) return $"{parts[0][0]}{parts[1][0]}".ToUpperInvariant();
+        return NombreCompletoMostrar.Length >= 2 ? NombreCompletoMostrar.Substring(0, 2).ToUpperInvariant() : "US";
+    }
+
+    private async Task OnUploadFoto(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+            if (file.Size > 1024 * 1024 * 2)
+            {
+                Snackbar.Add("La imagen no debe superar 2 MB.", Severity.Warning);
+                return;
+            }
+
+            var resized = await file.RequestImageFileAsync("image/jpeg", 320, 320);
+            using var stream = resized.OpenReadStream(1024 * 1024 * 2);
+            using var ms = new System.IO.MemoryStream();
+            await stream.CopyToAsync(ms);
+            string base64 = Convert.ToBase64String(ms.ToArray());
+            _editModel.foto_url = $"data:image/jpeg;base64,{base64}";
+            Snackbar.Add("Foto lista. Presione 'Guardar Mi Información' para aplicarla.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("No se pudo procesar la imagen: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private void QuitarFoto()
+    {
+        _editModel.foto_url = null;
+    }
+
+    private async Task GuardarMiInformacion()
+    {
+        try
+        {
+            _savingProfile = true;
+            var res = await OdooService.UpdateMyProfile(_editModel);
+            if (!res.Respuesta.ExisteError)
+            {
+                if (UserInfoState?.User != null)
+                {
+                    UserInfoState.User.foto_url = _editModel.foto_url;
+                }
+                Snackbar.Add("Información actualizada y sincronizada correctamente.", Severity.Success);
+                await CargarPerfil();
+            }
+            else
+            {
+                Snackbar.Add("No se pudo guardar: " + res.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al guardar: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _savingProfile = false;
+        }
+    }
+
+    private async Task CambiarMiPassword()
+    {
+        if (string.IsNullOrWhiteSpace(_currentPassword) || string.IsNullOrWhiteSpace(_newPassword))
+        {
+            Snackbar.Add("Complete la contraseña actual y la nueva contraseña.", Severity.Warning);
+            return;
+        }
+        if (_newPassword.Length < 6)
+        {
+            Snackbar.Add("La nueva contraseña debe tener al menos 6 caracteres.", Severity.Warning);
+            return;
+        }
+        if (_newPassword != _confirmPassword)
+        {
+            Snackbar.Add("La confirmación de contraseña no coincide.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _savingPassword = true;
+            var req = new ChangeMyPasswordRequest
+            {
+                current_password_encrypted = Util.Encrypt(_currentPassword),
+                new_password_encrypted = Util.Encrypt(_newPassword)
+            };
+            var res = await OdooService.ChangeMyPassword(req);
+            if (!res.Respuesta.ExisteError)
+            {
+                _currentPassword = string.Empty;
+                _newPassword = string.Empty;
+                _confirmPassword = string.Empty;
+                Snackbar.Add("Contraseña actualizada con éxito.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(res.Respuesta.MensajeError, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cambiar contraseña: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _savingPassword = false;
+        }
+    }
+
+    private string GenerarHtmlFirmaPerfil()
+    {
+        string nombre = System.Net.WebUtility.HtmlEncode(NombreCompletoMostrar);
+        string cargo = System.Net.WebUtility.HtmlEncode(_profile?.cargo ?? _profile?.grupo_nombre ?? "Colaborador");
+        string depto = System.Net.WebUtility.HtmlEncode(_profile?.departamento ?? "BUSSERSA");
+        string tel = System.Net.WebUtility.HtmlEncode(
+            !string.IsNullOrWhiteSpace(_editModel.celular_corporativo)
+                ? _editModel.celular_corporativo
+                : (!string.IsNullOrWhiteSpace(_editModel.telefono_corporativo) ? _editModel.telefono_corporativo : _editModel.telefono_personal ?? "www.bussersa.com"));
+        string email = System.Net.WebUtility.HtmlEncode(_profile?.email ?? "");
+        string avatarImg = !string.IsNullOrWhiteSpace(_editModel.foto_url)
+            ? $"<img src=\"{_editModel.foto_url}\" alt=\"{nombre}\" width=\"68\" height=\"68\" style=\"border-radius:50%;object-fit:cover;border:2px solid #f97316;display:block;\" />"
+            : "<img src=\"https://www.bussersa.com/img/brand/sygnet.png\" alt=\"BUSSERSA\" width=\"56\" height=\"56\" style=\"display:block;\" />";
+
+        return $@"<table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family:Segoe UI,Arial,sans-serif;color:#0f172a;font-size:13px;"">
+            <tr>
+                <td style=""padding-right:14px;vertical-align:middle;"">{avatarImg}</td>
+                <td style=""border-left:3px solid #f97316;padding-left:14px;vertical-align:middle;"">
+                    <div style=""font-size:15px;font-weight:700;color:#0f172a;"">{nombre}</div>
+                    <div style=""font-size:12px;font-weight:600;color:#f97316;"">{cargo} | {depto}</div>
+                    <div style=""font-size:12px;color:#475569;margin-top:4px;"">Tel: {tel} &bull; <a href=""mailto:{email}"" style=""color:#1e3a8a;text-decoration:none;"">{email}</a></div>
+                    <div style=""font-size:11px;color:#64748b;margin-top:2px;""><strong>BUSSERSA</strong> &bull; www.bussersa.com</div>
+                </td>
+            </tr>
+        </table>";
+    }
+
+    private async Task CopiarMiFirmaHtml()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GenerarHtmlFirmaPerfil());
+            Snackbar.Add("Código HTML de la firma copiado al portapapeles.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("No se pudo copiar automáticamente al portapapeles.", Severity.Warning);
+        }
+    }
+}

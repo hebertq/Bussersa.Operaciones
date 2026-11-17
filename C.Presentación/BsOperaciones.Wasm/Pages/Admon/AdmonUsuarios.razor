@@ -6,8 +6,8 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<DocsPages Title="Administración de Usuarios" IdPage="23" ComponentType="typeof(AdmonUsuarios)">
-    <CodeSnippet ClassName="@typeof(AdmonUsuarios).ToString()" Title="Listado de Usuarios">
+<DocsPages Title="Administración Unificada de Usuarios" IdPage="23" ComponentType="typeof(AdmonUsuarios)">
+    <CodeSnippet ClassName="@typeof(AdmonUsuarios).ToString()" Title="Control de Accesos: Operaciones, Admin (Odoo) y Helpdesk">
         <PagesData>
             @if (isloading)
             {
@@ -15,48 +15,132 @@
             }
             else
             {
-                <div class="d-flex justify-end mb-4">
-                    <MudButton OnClick="OpenNewUserDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+                <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-4">
+                    <MudChipSet T="string" @bind-SelectedValue="statusFilter" Mandatory="true">
+                        <MudChip T="string" Value="@("TODOS")" Color="Color.Primary" Variant="Variant.Outlined">
+                            Todos (@Users.Count)
+                        </MudChip>
+                        <MudChip T="string" Value="@("ACTIVOS")" Color="Color.Success" Variant="Variant.Outlined">
+                            Activos (@Users.Count(u => u.activo))
+                        </MudChip>
+                        <MudChip T="string" Value="@("BAJAS")" Color="Color.Error" Variant="Variant.Outlined">
+                            Inactivos / Baja (@Users.Count(u => !u.activo))
+                        </MudChip>
+                    </MudChipSet>
+
+                    <MudButton OnClick="OpenNewUserDialog" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" Class="rounded-pill px-4">
                         Nuevo Usuario
                     </MudButton>
                 </div>
 
-                <MudTable Items="Users" Hover="true" Bordered="true" Striped="true" Filter="new Func<User, bool>(FilterFunc)">
+                <MudTable Items="UsersFiltradosPorEstado" Hover="true" Bordered="true" Striped="true" Dense="true" Filter="new Func<User, bool>(FilterFunc)">
                     <ToolBarContent>
-                        <MudText Typo="Typo.h6">Usuarios Registrados</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 800;">Usuarios y Cuentas Vinculadas</MudText>
                         <MudSpacer />
-                        <MudTextField @bind-Value="searchString" Placeholder="Buscar usuario, email, nombre..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" />
+                        <MudTextField @bind-Value="searchString" Placeholder="Buscar por usuario, correo, empleado, Helpdesk..."
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0" Immediate="true" />
                     </ToolBarContent>
                     <HeaderContent>
                         <MudTh>ID</MudTh>
-                        <MudTh>Usuario</MudTh>
-                        <MudTh>Correo</MudTh>
-                        <MudTh>Nombre Completo</MudTh>
-                        <MudTh>Grupo de Permisos</MudTh>
-                        <MudTh>Usuario Helpdesk</MudTh>
-                        <MudTh Style="width:120px; text-align:center;">Acciones</MudTh>
+                        <MudTh>Estado</MudTh>
+                        <MudTh>Usuario Operaciones</MudTh>
+                        <MudTh>Grupo Permisos</MudTh>
+                        <MudTh>Vínculo Admin (RRHH / Odoo)</MudTh>
+                        <MudTh>Vínculo Helpdesk</MudTh>
+                        <MudTh Style="width: 155px; text-align:center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="ID">@context.id</MudTd>
-                        <MudTd DataLabel="Usuario">@context.username</MudTd>
-                        <MudTd DataLabel="Correo">@context.email</MudTd>
-                        <MudTd DataLabel="Nombre Completo">@context.nombres @context.apellidos</MudTd>
-                        <MudTd DataLabel="Grupo de Permisos">@GetGroupName(context.grupoid)</MudTd>
-                        <MudTd DataLabel="Usuario Helpdesk">
-                            @if (!string.IsNullOrWhiteSpace(context.redmine_user))
+                        <MudTd DataLabel="Estado">
+                            @if (context.activo)
                             {
-                                <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.SupportAgent">
-                                    @context.redmine_user
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle">
+                                    Activo
                                 </MudChip>
                             }
                             else
                             {
-                                <span class="text-muted">-</span>
+                                <MudTooltip Text="@($"{context.motivo_baja ?? "Baja"} ({context.fecha_baja?.ToString("dd/MM/yyyy HH:mm")})")">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Block">
+                                        Baja
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Usuario Operaciones">
+                            <div class="d-flex align-center gap-2">
+                                @if (!string.IsNullOrWhiteSpace(context.foto_url))
+                                {
+                                    <MudAvatar Size="Size.Small">
+                                        <MudImage Src="@context.foto_url" ObjectFit="ObjectFit.Cover" />
+                                    </MudAvatar>
+                                }
+                                <div>
+                                    <div style="font-weight: 700;">@context.nombres @context.apellidos</div>
+                                    <div style="font-size: 0.75rem; color: #64748b;">@@@context.username &bull; @context.email</div>
+                                </div>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Grupo Permisos">@GetGroupName(context.grupoid)</MudTd>
+                        <MudTd DataLabel="Vínculo Admin">
+                            @if (context.odoo_employee_id.HasValue || !string.IsNullOrWhiteSpace(context.odoo_user_login))
+                            {
+                                <div class="d-flex flex-column gap-1">
+                                    @if (context.odoo_employee_id.HasValue)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="@(context.empleado_activo_admin == false ? Color.Error : Color.Primary)" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Badge">
+                                            @(context.codigo_empleado.HasValue ? $"#{context.codigo_empleado} - " : "")@context.empleado_nombre_admin
+                                        </MudChip>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(context.odoo_user_login))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="@(context.odoo_user_activo == false ? Color.Error : Color.Info)" Variant="Variant.Text" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                                            Odoo: @context.odoo_user_login @(context.odoo_user_activo == false ? "(Inactivo)" : "")
+                                        </MudChip>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span style="color: #94a3b8; font-size: 0.8rem;">Sin vincular</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Vínculo Helpdesk">
+                            @if (!string.IsNullOrWhiteSpace(context.redmine_user))
+                            {
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(context.redmine_status == 3 ? Color.Error : Color.Info)"
+                                         Variant="Variant.Outlined"
+                                         Icon="@Icons.Material.Filled.SupportAgent">
+                                    @@@context.redmine_user @(context.redmine_status == 3 ? "(Bloqueado)" : "")
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <span style="color: #94a3b8; font-size: 0.8rem;">Sin vincular</span>
                             }
                         </MudTd>
                         <MudTd Style="text-align:center;">
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditUserDialog(context)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUser(context)" />
+                            <MudTooltip Text="Editar usuario y vínculos">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => OpenEditUserDialog(context)" />
+                            </MudTooltip>
+
+                            @if (context.activo)
+                            {
+                                <MudTooltip Text="Dar de Baja (Deshabilitar Operaciones + Admin + Helpdesk)">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PersonOff" Color="Color.Warning" Size="Size.Small" OnClick="() => OpenToggleStatusDialog(context, false)" />
+                                </MudTooltip>
+                            }
+                            else
+                            {
+                                <MudTooltip Text="Reactivar accesos del usuario">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PersonAddAlt1" Color="Color.Success" Size="Size.Small" OnClick="() => OpenToggleStatusDialog(context, true)" />
+                                </MudTooltip>
+                            }
+
+                            <MudTooltip Text="Eliminar registro permanentemente">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUser(context)" />
+                            </MudTooltip>
                         </MudTd>
                     </RowTemplate>
                     <PagerContent>
@@ -71,8 +155,17 @@
 @code {
     private List<User> Users = new List<User>();
     private List<AdmonGroup> Groups = new List<AdmonGroup>();
+    private UserLinkCatalogsDto LinkCatalogs = new UserLinkCatalogsDto();
     private bool isloading = true;
     private string searchString = "";
+    private string statusFilter = "TODOS";
+
+    private IEnumerable<User> UsersFiltradosPorEstado => statusFilter switch
+    {
+        "ACTIVOS" => Users.Where(u => u.activo),
+        "BAJAS" => Users.Where(u => !u.activo),
+        _ => Users
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,10 +177,16 @@
         try
         {
             isloading = true;
-            var usersResult = await OdooService.GetUsers();
-            var groupsResult = await OdooService.GetGroups();
+            var usersTask = OdooService.GetUsers();
+            var groupsTask = OdooService.GetGroups();
+            var catalogsTask = OdooService.GetUserLinkCatalogs();
+            await Task.WhenAll(usersTask, groupsTask, catalogsTask);
 
-            if (!usersResult.Respuesta.ExisteError)
+            var usersResult = usersTask.Result;
+            var groupsResult = groupsTask.Result;
+            var catalogsResult = catalogsTask.Result;
+
+            if (!usersResult.Respuesta.ExisteError && usersResult.Model != null)
             {
                 Users = usersResult.Model.ToList();
             }
@@ -96,13 +195,14 @@
                 Snackbar.Add("Error al cargar usuarios: " + usersResult.Respuesta.MensajeError, Severity.Error);
             }
 
-            if (!groupsResult.Respuesta.ExisteError)
+            if (!groupsResult.Respuesta.ExisteError && groupsResult.Model != null)
             {
                 Groups = groupsResult.Model.ToList();
             }
-            else
+
+            if (!catalogsResult.Respuesta.ExisteError && catalogsResult.Model != null)
             {
-                Snackbar.Add("Error al cargar grupos: " + groupsResult.Respuesta.MensajeError, Severity.Error);
+                LinkCatalogs = catalogsResult.Model;
             }
         }
         catch (Exception ex)
@@ -123,18 +223,28 @@
     private bool FilterFunc(User element)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
-        if (element.username.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (element.email.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (element.nombres.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (element.apellidos.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
-        if (!string.IsNullOrWhiteSpace(element.redmine_user) && element.redmine_user.Contains(searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.username?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.nombres?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.apellidos?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.empleado_nombre_admin?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.codigo_empleado?.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.odoo_user_login?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.redmine_user?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
         return false;
     }
 
     private async Task OpenNewUserDialog()
     {
-        var parameters = new DialogParameters { ["Title"] = "Nuevo Usuario", ["payload"] = new User(), ["Groups"] = Groups, ["IsEdit"] = false };
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Nuevo Usuario y Vinculación de Sistemas",
+            ["payload"] = new User { activo = true },
+            ["Groups"] = Groups,
+            ["Catalogs"] = LinkCatalogs,
+            ["IsEdit"] = false
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<DialogAddUpdUser>("Nuevo Usuario", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)
@@ -145,7 +255,6 @@
 
     private async Task OpenEditUserDialog(User user)
     {
-        // Clone the user to prevent modifying list in place
         var editUser = new User
         {
             id = user.id,
@@ -155,12 +264,40 @@
             nombres = user.nombres,
             apellidos = user.apellidos,
             grupoid = user.grupoid,
-            redmine_user = user.redmine_user
+            redmine_user = user.redmine_user,
+            redmine_user_id = user.redmine_user_id,
+            odoo_employee_id = user.odoo_employee_id,
+            odoo_user_id = user.odoo_user_id,
+            foto_url = user.foto_url,
+            activo = user.activo
         };
 
-        var parameters = new DialogParameters { ["Title"] = "Editar Usuario", ["payload"] = editUser, ["Groups"] = Groups, ["IsEdit"] = true };
-        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var parameters = new DialogParameters
+        {
+            ["Title"] = $"Editar Usuario y Vínculos: {user.username}",
+            ["payload"] = editUser,
+            ["Groups"] = Groups,
+            ["Catalogs"] = LinkCatalogs,
+            ["IsEdit"] = true
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
         var dialog = await DialogService.ShowAsync<DialogAddUpdUser>("Editar Usuario", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task OpenToggleStatusDialog(User user, bool activar)
+    {
+        var parameters = new DialogParameters
+        {
+            ["TargetUser"] = user,
+            ["Activar"] = activar
+        };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<DialogBajaUsuario>(activar ? "Reactivar Usuario" : "Baja Unificada", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)
         {
@@ -171,8 +308,8 @@
     private async Task DeleteUser(User user)
     {
         bool? confirm = await DialogService.ShowMessageBox(
-            "Confirmar Eliminación",
-            $"¿Desea eliminar de forma permanente al usuario '{user.username}'?",
+            "Confirmar Eliminación Permanente",
+            $"¿Desea eliminar de forma permanente al usuario '{user.username}'? Si es por salida laboral, se recomienda usar 'Dar de Baja' para deshabilitar también Admin y Helpdesk dejando rastro en bitácora.",
             yesText: "Eliminar",
             cancelText: "Cancelar"
         );

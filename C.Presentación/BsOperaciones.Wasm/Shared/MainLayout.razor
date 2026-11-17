@@ -71,9 +71,18 @@
                         <MudText Typo="Typo.caption" Color="Color.Inherit" Style="line-height: 1.1; font-weight: 700;">@_userDisplayName</MudText>
                         <MudText Typo="Typo.caption" Class="text-muted-appbar" Style="font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">@_userRoleName</MudText>
                     </div>
-                    <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled" Style="font-weight: 700; font-size: 0.75rem;">
-                        @_userInitials
-                    </MudAvatar>
+                    @if (!string.IsNullOrWhiteSpace(_iuser?.User?.foto_url))
+                    {
+                        <MudAvatar Size="Size.Small" Style="border: 1.5px solid #f97316;">
+                            <MudImage Src="@_iuser.User.foto_url" Alt="@_userDisplayName" ObjectFit="ObjectFit.Cover" />
+                        </MudAvatar>
+                    }
+                    else
+                    {
+                        <MudAvatar Color="Color.Secondary" Size="Size.Small" Variant="MudBlazor.Variant.Filled" Style="font-weight: 700; font-size: 0.75rem;">
+                            @_userInitials
+                        </MudAvatar>
+                    }
                 </div>
             </ActivatorContent>
             <ChildContent>
@@ -81,6 +90,9 @@
                     <MudText Typo="Typo.subtitle2" Class="fw-bold">@_userDisplayName</MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">@_userRoleName</MudText>
                 </div>
+                <MudMenuItem Icon="@Icons.Material.Filled.AccountCircle" IconColor="Color.Primary" OnClick="@IrAMiPerfil">
+                    Mi Perfil y Datos
+                </MudMenuItem>
                 <MudMenuItem Icon="@Icons.Material.Filled.Apps" OnClick="@IrAInicioModulos">
                     Lanzador de Módulos
                 </MudMenuItem>
@@ -194,6 +206,11 @@
     private void IrAInicioModulos()
     {
         NavigationManager.NavigateTo("/index");
+    }
+
+    private void IrAMiPerfil()
+    {
+        NavigationManager.NavigateTo("/perfil");
     }
 
     protected override void OnInitialized()
