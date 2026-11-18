@@ -298,19 +298,18 @@
                                 <MudText Typo="Typo.body2" Class="font-bold">@CalculatedFfr.ToString("N2")</MudText>
                             </div>
 
-                            <div class="d-flex justify-space-between mb-5 pa-3" style="border-radius: 8px; background-color: rgba(26,35,126,0.08); border-left: 4px solid #1A237E;">
-                                <MudText Typo="Typo.subtitle1" Class="font-bold" Color="Color.Primary">TARIFA MENSUAL SUGERIDA:</MudText>
-                                <MudText Typo="Typo.subtitle1" Class="font-bold" Color="Color.Primary">C$ @CalculatedTarifaSugerida.ToString("N2")</MudText>
-                            </div>
-
-                            <MudGrid Class="mb-4">
-                                <MudItem XS="6" Class="text-center border-r" style="border-color: rgba(0,0,0,0.1) !important;">
-                                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA POR DÍA</MudText>
-                                    <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedTarifaDia.ToString("N2")</MudText>
+                            <MudGrid Class="mb-4 mt-2">
+                                <MudItem XS="6">
+                                    <div class="pa-3 text-center" style="border-radius: 10px; background-color: rgba(26,35,126,0.08); border-left: 4px solid #1A237E;">
+                                        <MudText Typo="Typo.caption" Class="font-bold d-block" Color="Color.Primary">TARIFA POR DÍA</MudText>
+                                        <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Primary">C$ @CalculatedTarifaDia.ToString("N2")</MudText>
+                                    </div>
                                 </MudItem>
-                                <MudItem XS="6" Class="text-center">
-                                    <MudText Typo="Typo.caption" Class="opacity-75 d-block">TARIFA POR HORA</MudText>
-                                    <MudText Typo="Typo.h6" Class="font-bold">C$ @CalculatedTarifaHora.ToString("N2")</MudText>
+                                <MudItem XS="6">
+                                    <div class="pa-3 text-center" style="border-radius: 10px; background-color: rgba(2,136,209,0.10); border-left: 4px solid #0288D1;">
+                                        <MudText Typo="Typo.caption" Class="font-bold d-block" Color="Color.Info">TARIFA POR HORA</MudText>
+                                        <MudText Typo="Typo.h6" Class="font-bold" Color="Color.Info">C$ @CalculatedTarifaHora.ToString("N2")</MudText>
+                                    </div>
                                 </MudItem>
                             </MudGrid>
 
@@ -369,8 +368,8 @@
                                 <MudTh>Turno</MudTh>
                                 <MudTh Style="text-align: center;">Horas</MudTh>
                                 <MudTh Style="text-align: right;">Salario Base</MudTh>
-                                <MudTh Style="text-align: right;">Costo Total</MudTh>
-                                <MudTh Style="text-align: right;">Tarifa Sugerida</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa / Día</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa / Hora</MudTh>
                                 <MudTh Style="text-align: right;">Tarifa Extra / Feriado / Domingo</MudTh>
                                 <MudTh Style="text-align: center; width: 80px;">Quitar</MudTh>
                             </HeaderContent>
@@ -378,8 +377,8 @@
                                 <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
                                 <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
                                 <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
-                                <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
-                                <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                                <MudTd DataLabel="Tarifa / Día" Style="text-align: right;" Class="font-bold text-primary">C$ @GetQuoteTarifaDiaSugerida(context).ToString("N2") / día</MudTd>
+                                <MudTd DataLabel="Tarifa / Hora" Style="text-align: right;" Class="font-bold text-info">C$ @GetQuoteTarifaHoraSugerida(context).ToString("N2") / hora</MudTd>
                                 <MudTd DataLabel="Tarifa Extra / Feriado / Domingo" Style="text-align: right;">C$ @(context.PersonalDetalle?.TarifaExtra.ToString("N2") ?? "0.00") / hora</MudTd>
                                 <MudTd Style="text-align: center;">
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveTemporaryShift(context))" />
@@ -396,7 +395,7 @@
                         <div class="d-flex align-center justify-space-between mb-4">
                             <div>
                                 <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-bold">Turnos Cotizados para @cliente</MudText>
-                                <MudText Typo="Typo.caption" Class="text-muted">Seleccione los turnos que desea consolidar en la cotización oficial para imprimir</MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">Seleccione los turnos que desea consolidar en la cotización oficial (tarifas por Día y por Hora)</MudText>
                             </div>
                             <div class="d-flex gap-2">
                                 <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintConsolidatedCotizacion" Disabled="@(!selectedQuotesForPrint.Any())" Class="font-bold">
@@ -412,21 +411,25 @@
                             <HeaderContent>
                                 <MudTh>Turno</MudTh>
                                 <MudTh Style="text-align: center;">Horas</MudTh>
-                                <MudTh Style="text-align: right;">Salario Base</MudTh>
-                                <MudTh Style="text-align: right;">Costo Total</MudTh>
-                                <MudTh Style="text-align: right;">Tarifa Sugerida</MudTh>
-                                <MudTh Style="text-align: right;">Tarifa Acordada</MudTh>
+                                <MudTh Style="text-align: right;">Sugerida (Día / Hora)</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa por Día Acordada</MudTh>
+                                <MudTh Style="text-align: right;">Tarifa por Hora Acordada</MudTh>
                                 <MudTh Style="text-align: right;">Hora Extra / Feriado / Domingo</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Turno">@(context.PersonalDetalle?.Turno ?? "Sin Turno")</MudTd>
                                 <MudTd DataLabel="Horas" Style="text-align: center;">@(context.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
-                                <MudTd DataLabel="Salario Base" Style="text-align: right;">C$ @(context.PersonalDetalle?.SalarioBase.ToString("N2") ?? "0.00")</MudTd>
-                                <MudTd DataLabel="Costo Total" Style="text-align: right;">C$ @context.CostoTotal.ToString("N2")</MudTd>
-                                <MudTd DataLabel="Tarifa Sugerida" Style="text-align: right;">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
-                                <MudTd DataLabel="Tarifa Acordada" Style="text-align: right;">
+                                <MudTd DataLabel="Sugerida (Día / Hora)" Style="text-align: right;">
+                                    C$ @GetQuoteTarifaDiaSugerida(context).ToString("N2") / día &bull; C$ @GetQuoteTarifaHoraSugerida(context).ToString("N2") / hr
+                                </MudTd>
+                                <MudTd DataLabel="Tarifa por Día Acordada" Style="text-align: right;">
                                     <div class="d-flex align-center justify-end">
-                                        <MudNumericField T="decimal" Value="context.TarifaAcordada" ValueChanged="@((decimal val) => UpdateTarifaAcordada(context, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 150px; text-align: right;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                        <MudNumericField T="decimal" Value="@Math.Round(GetQuoteTarifaDiaAcordada(context), 2)" ValueChanged="@((decimal val) => UpdateTarifaDiaAcordada(context, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 145px; text-align: right;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                    </div>
+                                </MudTd>
+                                <MudTd DataLabel="Tarifa por Hora Acordada" Style="text-align: right;">
+                                    <div class="d-flex align-center justify-end">
+                                        <MudNumericField T="decimal" Value="@Math.Round(GetQuoteTarifaHoraAcordada(context), 2)" ValueChanged="@((decimal val) => UpdateTarifaHoraAcordada(context, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 145px; text-align: right;" Adornment="Adornment.Start" AdornmentText="C$" />
                                     </div>
                                 </MudTd>
                                 <MudTd DataLabel="H. Extra / Feriado / Domingo" Style="text-align: right;">C$ @(context.PersonalDetalle?.TarifaExtra.ToString("N2") ?? "0.00") / hora</MudTd>
@@ -452,8 +455,8 @@
                         <MudTh>Año/Mes</MudTh>
                         <MudTh>Cliente</MudTh>
                         <MudTh>Cant. Turnos</MudTh>
-                        <MudTh>Costo Total Mensual (CMT)</MudTh>
-                        <MudTh>Tarifa Sugerida Total</MudTh>
+                        <MudTh>Unidad de Cobro</MudTh>
+                        <MudTh>Tarifas por Día / Hora</MudTh>
                         <MudTh Style="width:120px; text-align: center;">Acciones</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -467,8 +470,16 @@
                         <MudTd DataLabel="Cant. Turnos">
                             <MudChip T="string" Color="Color.Info" Size="Size.Small">@context.Quotes.Count turnos</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Costo Total Mensual">C$ @context.CostoTotal.ToString("N2")</MudTd>
-                        <MudTd DataLabel="Tarifa Sugerida Total" Class="font-bold text-primary">C$ @context.TarifaSugerida.ToString("N2")</MudTd>
+                        <MudTd DataLabel="Unidad de Cobro">
+                            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">Día y Hora</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Tarifas por Día / Hora" Class="font-bold text-primary">
+                            @if (context.Quotes.Any())
+                            {
+                                var q0 = context.Quotes.First();
+                                <span>C$ @GetQuoteTarifaDiaAcordada(q0).ToString("N2")/día &bull; C$ @GetQuoteTarifaHoraAcordada(q0).ToString("N2")/hr</span>
+                            }
+                        </MudTd>
                         <MudTd Style="text-align: center;">
                             <div class="d-flex justify-center gap-1">
                                 <MudTooltip Text="@($"Re-Imprimir Cotización ({context.SelectedQuotesForPrint.Count} Seleccionados)")">
@@ -496,22 +507,24 @@
                                             <HeaderContent>
                                                 <MudTh>Turno</MudTh>
                                                 <MudTh>Horas</MudTh>
-                                                <MudTh>Salario Base</MudTh>
-                                                <MudTh>Costo Mensual (CMT)</MudTh>
-                                                <MudTh>Tarifa Sugerida</MudTh>
-                                                <MudTh>Tarifa Acordada</MudTh>
+                                                <MudTh>Sugerida (Día / Hora)</MudTh>
+                                                <MudTh>Tarifa Día Acordada</MudTh>
+                                                <MudTh>Tarifa Hora Acordada</MudTh>
+                                                <MudTh>H. Extra / Feriado</MudTh>
                                                 <MudTh>Estado</MudTh>
                                                 <MudTh style="width: 80px; text-align: center;">Acciones</MudTh>
                                             </HeaderContent>
                                             <RowTemplate>
                                                 <MudTd DataLabel="Turno">@detailContext.PersonalDetalle?.Turno</MudTd>
                                                 <MudTd DataLabel="Horas">@(detailContext.PersonalDetalle?.HorasTurnoTexto ?? "8") hrs</MudTd>
-                                                <MudTd DataLabel="Salario Base">C$ @(detailContext.PersonalDetalle?.SalarioBase.ToString("N2") ?? "-")</MudTd>
-                                                <MudTd DataLabel="Costo Mensual">C$ @detailContext.CostoTotal.ToString("N2")</MudTd>
-                                                <MudTd DataLabel="Tarifa Sugerida">C$ @detailContext.TarifaSugerida.ToString("N2")</MudTd>
-                                                <MudTd DataLabel="Tarifa Acordada">
-                                                    <MudNumericField T="decimal" Value="@detailContext.TarifaAcordada" ValueChanged="@((decimal val) => UpdateTarifaAcordada(detailContext, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 140px; background-color: white;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                                <MudTd DataLabel="Sugerida">C$ @GetQuoteTarifaDiaSugerida(detailContext).ToString("N2")/día &bull; C$ @GetQuoteTarifaHoraSugerida(detailContext).ToString("N2")/hr</MudTd>
+                                                <MudTd DataLabel="Tarifa Día Acordada">
+                                                    <MudNumericField T="decimal" Value="@Math.Round(GetQuoteTarifaDiaAcordada(detailContext), 2)" ValueChanged="@((decimal val) => UpdateTarifaDiaAcordada(detailContext, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 135px; background-color: white;" Adornment="Adornment.Start" AdornmentText="C$" />
                                                 </MudTd>
+                                                <MudTd DataLabel="Tarifa Hora Acordada">
+                                                    <MudNumericField T="decimal" Value="@Math.Round(GetQuoteTarifaHoraAcordada(detailContext), 2)" ValueChanged="@((decimal val) => UpdateTarifaHoraAcordada(detailContext, val))" Format="N2" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width: 135px; background-color: white;" Adornment="Adornment.Start" AdornmentText="C$" />
+                                                </MudTd>
+                                                <MudTd DataLabel="H. Extra / Feriado">C$ @(detailContext.PersonalDetalle?.TarifaExtra.ToString("N2") ?? "0.00")/hr</MudTd>
                                                 <MudTd DataLabel="Estado">
                                                     <MudChip T="string" Color="GetStatusColor(detailContext.Estado)" Size="Size.Small">@detailContext.Estado</MudChip>
                                                 </MudTd>

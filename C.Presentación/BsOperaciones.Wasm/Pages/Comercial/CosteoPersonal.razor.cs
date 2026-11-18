@@ -628,13 +628,56 @@ namespace BsOperaciones.Pages.Comercial
             }
         }
 
+        private decimal GetQuoteDiasTrabajoMes(Cotizacion quote)
+        {
+            var d = quote?.PersonalDetalle;
+            decimal dom = cargosConfig != null ? cargosConfig.DomingosDias : 52m;
+            int fer = d != null ? d.DiasFeriados : diasFeriados;
+            decimal dias = (360m - dom - fer) / 12m;
+            return dias > 0m ? dias : 24.4167m;
+        }
+
+        private decimal GetQuoteHorasTurno(Cotizacion quote)
+        {
+            var d = quote?.PersonalDetalle;
+            if (d != null && d.HorasTurno > 0m) return d.HorasTurno;
+            decimal def = CotizacionPersonalDetalle.GetDefaultHorasPorTurno(d?.Turno);
+            return def > 0m ? def : 8m;
+        }
+
+        private decimal GetQuoteTarifaHoraSugerida(Cotizacion quote) =>
+            quote.TarifaSugerida / (GetQuoteDiasTrabajoMes(quote) * GetQuoteHorasTurno(quote));
+
+        private decimal GetQuoteTarifaDiaSugerida(Cotizacion quote) =>
+            GetQuoteTarifaHoraSugerida(quote) * GetQuoteHorasTurno(quote);
+
+        private decimal GetQuoteTarifaHoraAcordada(Cotizacion quote) =>
+            quote.TarifaAcordada / (GetQuoteDiasTrabajoMes(quote) * GetQuoteHorasTurno(quote));
+
+        private decimal GetQuoteTarifaDiaAcordada(Cotizacion quote) =>
+            GetQuoteTarifaHoraAcordada(quote) * GetQuoteHorasTurno(quote);
+
+        private async Task UpdateTarifaDiaAcordada(Cotizacion quote, decimal valDia)
+        {
+            decimal nuevoBase = Math.Round(valDia * GetQuoteDiasTrabajoMes(quote), 2);
+            await UpdateTarifaAcordada(quote, nuevoBase);
+        }
+
+        private async Task UpdateTarifaHoraAcordada(Cotizacion quote, decimal valHora)
+        {
+            decimal nuevoBase = Math.Round(valHora * GetQuoteDiasTrabajoMes(quote) * GetQuoteHorasTurno(quote), 2);
+            await UpdateTarifaAcordada(quote, nuevoBase);
+        }
+
         private async Task UpdateTarifaAcordada(Cotizacion quote, decimal val)
         {
             quote.TarifaAcordada = val;
             var res = await Mediator.Send(new SaveCotizacionCommand(quote));
             if (!res.Respuesta.ExisteError)
             {
-                Snackbar.Add($"Tarifa acordada del turno '{quote.PersonalDetalle?.Turno}' actualizada a C$ {val:N2}.", Severity.Success);
+                decimal tDia = GetQuoteTarifaDiaAcordada(quote);
+                decimal tHora = GetQuoteTarifaHoraAcordada(quote);
+                Snackbar.Add($"Tarifa acordada del turno '{quote.PersonalDetalle?.Turno}' actualizada: C$ {tDia:N2}/día • C$ {tHora:N2}/hora.", Severity.Success);
                 await LoadQuotes();
             }
             else
