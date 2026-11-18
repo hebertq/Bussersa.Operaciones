@@ -596,6 +596,12 @@ namespace BsOperaciones.Pages.Operaciones.AsignacionProduccion
                 return;
             }
 
+            if (marcadasList != null && marcadasList.Any() && marcadasList.All(m => m.id_cierre < 0))
+            {
+                await AbrirModalSellarLote();
+                return;
+            }
+
             string clienteNombre = operacionesList.FirstOrDefault(o => o.id == operacionId)?.nombre ?? "Cliente";
 
             var msgs = new List<string>();

@@ -26,5 +26,10 @@ namespace Modelo.Report
         public decimal horas_normales_cobrables { get; set; }
         public decimal horas_extras_cobrables { get; set; }
         public string? regla_aplicada { get; set; }
+        public decimal horas_extras_autorizadas { get; set; }
+        public string? autorizado_por { get; set; }
+        public int? ticket_autorizacion_id { get; set; }
+        public string? estado_autorizacion_he { get; set; }
+        public string? token_recibo_he { get; set; }
     }
 }

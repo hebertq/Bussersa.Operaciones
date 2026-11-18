@@ -121,6 +121,19 @@
                 </MudButton>
             </MudTooltip>
 
+            @if (TotalConAutorizacionHe > 0)
+            {
+                <MudTooltip Text="Imprimir boletas firmadas de autorización de horas extras por Área para este corte">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                               OnClick="ImprimirBoletasHePeriodo"
+                               Style="height: 36px; white-space: nowrap;"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Class="fw-bold">
+                        Boletas H.E. (@TotalConAutorizacionHe)
+                    </MudButton>
+                </MudTooltip>
+            }
+
             <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                        StartIcon="@Icons.Custom.FileFormats.FileExcel"
                        Disabled="@(DatosCierre == null || !DatosCierre.Any())"
@@ -352,6 +365,43 @@
                     <TemplateColumn Title="Regla Cobro">
                         <CellTemplate>
                             <span class="badge bg-light text-dark border small" title="@context.Item.ReglaAplicada">@context.Item.ReglaAplicada</span>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Autorización H.E.">
+                        <CellTemplate>
+                            @if (context.Item.HorasExtrasAutorizadas > 0 || !string.IsNullOrWhiteSpace(context.Item.EstadoAutorizacionHe))
+                            {
+                                bool aprobada = context.Item.EstadoAutorizacionHe == "AUTORIZADA" || context.Item.EstadoAutorizacionHe == "RESUELTA";
+                                <div class="d-flex flex-column gap-1 py-1">
+                                    <div class="d-flex align-center gap-1 flex-wrap">
+                                        <span class="badge @(aprobada ? "bg-success" : "bg-warning text-dark") fw-bold" style="font-size: 10.5px;">
+                                            @(aprobada ? "✓ AUTORIZADA" : "⏳ PENDIENTE") (@context.Item.HorasExtrasAutorizadas.ToString("N2")h)
+                                        </span>
+                                        @if (context.Item.TicketAutorizacionId.HasValue && context.Item.TicketAutorizacionId.Value > 0)
+                                        {
+                                            <a href="@($"https://helpdesk.bussersa.com/issues/{context.Item.TicketAutorizacionId.Value}")" target="_blank" class="badge bg-primary text-white text-decoration-none" style="font-size: 10px;" title="Ver ticket en Helpdesk">
+                                                #@context.Item.TicketAutorizacionId.Value
+                                            </a>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(context.Item.TokenReciboHe))
+                                        {
+                                            <a href="@($"/recibo-horas-extras/{context.Item.TokenReciboHe}")" target="_blank" class="badge bg-dark text-white text-decoration-none" style="font-size: 10px;" title="Abrir / Imprimir recibo oficial firmado">
+                                                🖨️ Recibo
+                                            </a>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(context.Item.AutorizadoPor))
+                                    {
+                                        <small class="text-secondary fw-semibold" style="font-size: 10.5px; line-height: 1.15;">
+                                            @context.Item.AutorizadoPor
+                                        </small>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">—</span>
+                            }
                         </CellTemplate>
                     </TemplateColumn>
                 </Columns>

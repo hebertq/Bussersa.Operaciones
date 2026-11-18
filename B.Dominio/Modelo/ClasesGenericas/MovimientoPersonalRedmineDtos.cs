@@ -316,6 +316,7 @@ namespace Modelo.ClasesGenericas
         public bool Activo { get; set; } = true;
         public bool AplicaHoras { get; set; } = true;
         public bool AplicaActividades { get; set; } = true;
+        public bool AplicaHorasExtras { get; set; } = false;
         public DateTime? FechaCreacion { get; set; }
         public string? UsuarioCreacion { get; set; }
     }
@@ -330,6 +331,7 @@ namespace Modelo.ClasesGenericas
         public string? NombreSupervisor { get; set; }
         public bool AplicaHoras { get; set; } = true;
         public bool AplicaActividades { get; set; } = true;
+        public bool? AplicaHorasExtras { get; set; }
         public string UsuarioCreacion { get; set; } = string.Empty;
     }
 
@@ -338,6 +340,7 @@ namespace Modelo.ClasesGenericas
         public int Id { get; set; }
         public bool AplicaHoras { get; set; } = true;
         public bool AplicaActividades { get; set; } = true;
+        public bool? AplicaHorasExtras { get; set; }
     }
 
     public class ClienteAreaDto

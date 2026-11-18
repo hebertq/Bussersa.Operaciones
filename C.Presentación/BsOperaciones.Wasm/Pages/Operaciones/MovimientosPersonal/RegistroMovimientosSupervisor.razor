@@ -213,7 +213,7 @@
     </MudPaper>
     @* --- BARRA DE BOTONES DE PESTAÑAS ESTILO APP (RESPONSIVA HORIZONTAL / VERTICAL Y TABLETS) --- *@
     <div class="app-tab-bar-card mb-3">
-        <div class="app-tab-grid">
+        <div class="app-tab-grid @(ClienteActualPermiteHorasExtras ? "has-he-tab" : "")">
             
             @* 1. ASISTENCIAS *@
             <button type="button" 
@@ -317,6 +317,26 @@
                 </div>
             </button>
 
+            @* 7. AUTORIZACIÓN DE HORAS EXTRAS (SOLO EN CLIENTES CONFIGURADOS COMO SINSA) *@
+            @if (ClienteActualPermiteHorasExtras)
+            {
+                <button type="button"
+                        class="app-tab-item @(activeTabIndex == 6 ? "active" : "")"
+                        @onclick="() => SetActiveTab(6)"
+                        title="Autorización de Horas Extras por Área con Firma Digital">
+                    <div class="app-tab-icon-wrap">
+                        <MudIcon Icon="@Icons.Material.Filled.MoreTime" />
+                        @if (TotalBoletasHeCliente > 0)
+                        {
+                            <span class="app-tab-badge badge-warning">@TotalBoletasHeCliente</span>
+                        }
+                    </div>
+                    <div class="app-tab-label-wrap">
+                        <span class="app-tab-label">Horas Extras</span>
+                    </div>
+                </button>
+            }
+
         </div>
     </div>
 
@@ -379,6 +399,18 @@
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
                         </MudButton>
+                        @if (ClienteActualPermiteHorasExtras && empleadosJornada.Any(x => x.Asistio))
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.MoreTime"
+                                       OnClick="@(() => AbrirDialogoAutorizarHorasExtras(null))"
+                                       Class="btn-colab-responsive"
+                                       Title="Generar solicitud firmada de Horas Extras por Área en Helpdesk">
+                                + Autorizar H.E.
+                            </MudButton>
+                        }
                     </div>
                         @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
                         {
@@ -626,6 +658,14 @@
                                             </div>
                                         </CardHeaderContent>
                                         <CardHeaderActions>
+                                            @if (emp.Asistio && ClientePermiteHorasExtras(emp.Cliente))
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
+                                                               Color="Color.Warning"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => AbrirDialogoAutorizarHorasExtras(emp))"
+                                                               Title="Autorizar Horas Extras con Firma (Helpdesk por Área)" />
+                                            }
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                            Color="Color.Primary" 
                                                            Size="Size.Small" 
@@ -748,6 +788,9 @@
                                                    title="@(emp.Asistio ? "Tiempo de comida en horas" : "Comida (0 para ausentes)")" />
                                         </div>
                                         @* Tickets de Helpdesk *@
+                                        @{
+                                            var autHeCard = ObtenerAutorizacionHeEmpleado(emp.CodigoEmpleado);
+                                        }
                                         <div class="d-flex align-center gap-1 flex-wrap pt-1 border-top mt-1" style="font-size: 0.72rem;">
                                             <span class="text-muted fw-bold" style="font-size: 0.68rem;">Tickets:</span>
                                             @if (emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0)
@@ -790,7 +833,27 @@
                                                     </MudLink>
                                                 </MudTooltip>
                                             }
-                                            @if (!emp.TicketRedmineId.HasValue && !emp.TicketViaticoId.HasValue && !emp.TicketBonoId.HasValue && !emp.TicketAusenciaId.HasValue)
+                                            @if (autHeCard != null)
+                                            {
+                                                <MudTooltip Text="@($"H.E. Autorizada: {autHeCard.HorasExtrasAutorizadas:N2}h ({autHeCard.HoraInicioExtra}-{autHeCard.HoraFinExtra}) - Clic para abrir recibo")" Arrow="true">
+                                                    <MudLink Href="@($"/recibo-horas-extras/{autHeCard.TokenRecibo}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="@(autHeCard.Estado == "RESUELTA" ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            H.E. @(autHeCard.TicketRedmineId.HasValue ? $"#{autHeCard.TicketRedmineId}" : $"{autHeCard.HorasExtrasAutorizadas:N1}h")
+                                                        </MudChip>
+                                                    </MudLink>
+                                                </MudTooltip>
+                                                @if (!autHeCard.TieneFirmaGerente)
+                                                {
+                                                    <MudTooltip Text="Agregar Firma del Gerente en esta boleta" Arrow="true">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Draw"
+                                                                       Color="Color.Warning"
+                                                                       Size="Size.Small"
+                                                                       Style="height: 20px; width: 20px; padding: 0;"
+                                                                       OnClick="@(() => AbrirDialogoFirmarAdicionalHe(autHeCard, "GERENTE"))" />
+                                                    </MudTooltip>
+                                                }
+                                            }
+                                            @if (!emp.TicketRedmineId.HasValue && !emp.TicketViaticoId.HasValue && !emp.TicketBonoId.HasValue && !emp.TicketAusenciaId.HasValue && autHeCard == null)
                                             {
                                                 <span class="text-muted font-monospace" style="font-size: 0.68rem;">—</span>
                                             }
@@ -1143,6 +1206,14 @@
                                 </MudTd>
                                 <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        @if (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
+                                                           Color="Color.Warning"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => AbrirDialogoAutorizarHorasExtras(context))"
+                                                           Title="Autorizar Horas Extras con Firma (Helpdesk por Área)" />
+                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -1257,6 +1328,14 @@
                                 </MudTd>
                                 <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        @if (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
+                                                           Color="Color.Warning"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => AbrirDialogoAutorizarHorasExtras(context))"
+                                                           Title="Autorizar Horas Extras con Firma (Helpdesk por Área)" />
+                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -1445,6 +1524,14 @@
                                 </MudTd>
                                 <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                        @if (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
+                                                           Color="Color.Warning"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => AbrirDialogoAutorizarHorasExtras(context))"
+                                                           Title="Autorizar Horas Extras con Firma (Helpdesk por Área)" />
+                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -4325,6 +4412,241 @@
                 }
             </MudPaper>
         </MudTabPanel>
+
+        @* ==========================================
+           TAB 7: AUTORIZACIÓN DE HORAS EXTRAS POR ÁREA (CONDICIONAL POR CLIENTE)
+           ========================================== *@
+        @if (ClienteActualPermiteHorasExtras)
+        {
+            <MudTabPanel Text="Horas Extras" ToolTip="Autorización de Horas Extras por Área" Icon="@Icons.Material.Filled.MoreTime">
+                <MudPaper Class="mobile-compact-paper mt-2 pa-2 pa-sm-3" Elevation="0">
+                    @* Sub-tabs de clientes habilitados para Horas Extras *@
+                    <div class="client-subtabs-container pa-1 mb-3 rounded-lg d-flex align-center gap-1 flex-wrap">
+                        <span class="text-caption text-secondary fw-bold text-uppercase px-2 d-none d-sm-inline" style="font-size: 0.72rem;">
+                            Cliente:
+                        </span>
+                        @foreach (var cliHe in ListaClientesAsistencia.Where(c => ClientePermiteHorasExtras(c)))
+                        {
+                            bool actHe = string.Equals(ClienteActivoAsistenciasSeguro, cliHe, StringComparison.OrdinalIgnoreCase);
+                            <button type="button"
+                                    class="client-tab-pill @(actHe ? "active" : "")"
+                                    @onclick="@(() => CambiarClienteAsistencias(cliHe))">
+                                <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Small" Class="mr-1" />
+                                <span class="client-tab-name">@cliHe</span>
+                            </button>
+                        }
+                    </div>
+
+                    @* Barra de filtros, creación e impresión *@
+                    <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                            <MudItem xs="6" sm="3" md="2">
+                                <MudDatePicker Label="Desde"
+                                               @bind-Date="fechaDesdeFiltroHe"
+                                               DateFormat="dd/MM/yyyy"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="6" sm="3" md="2">
+                                <MudDatePicker Label="Hasta"
+                                               @bind-Date="fechaHastaFiltroHe"
+                                               DateFormat="dd/MM/yyyy"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudTextField @bind-Value="textoBusquedaHe"
+                                              Placeholder="Buscar área, ticket, carnet o colaborador..."
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Immediate="true"
+                                              Clearable="true"
+                                              Style="background: white;" />
+                            </MudItem>
+                            <MudItem xs="12" sm="12" md="5" Class="d-flex justify-end gap-2 flex-wrap">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Search"
+                                           Disabled="@cargandoAutorizacionesHe"
+                                           OnClick="@CargarAutorizacionesHorasExtras">
+                                    Consultar
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Info"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Sync"
+                                           Disabled="@cargandoAutorizacionesHe"
+                                           OnClick="@SincronizarEstadosHeRedmine"
+                                           Title="Sincronizar tickets resueltos de Helpdesk hacia Odoo">
+                                    Sincronizar
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Dark"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Print"
+                                           Disabled="@(cargandoAutorizacionesHe || !BoletasHorasExtrasAgrupadas.Any())"
+                                           OnClick="@ImprimirLoteBoletasHe"
+                                           Title="Imprimir todos los recibos por Área del rango consultado">
+                                    Imprimir Recibos (@BoletasHorasExtrasAgrupadas.Count)
+                                </MudButton>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Warning"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.AddTask"
+                                           OnClick="@(() => AbrirDialogoAutorizarHorasExtras(null))"
+                                           Style="font-weight: 800;">
+                                    + Autorizar por Área
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+
+                    @if (cargandoAutorizacionesHe)
+                    {
+                        <div class="d-flex flex-column align-center justify-center py-8">
+                            <MudProgressCircular Color="Color.Warning" Indeterminate="true" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">Cargando autorizaciones de horas extras...</MudText>
+                        </div>
+                    }
+                    else if (!BoletasHorasExtrasAgrupadas.Any())
+                    {
+                        <MudPaper Class="pa-6 text-center rounded-lg" Elevation="0" Style="border: 2px dashed #cbd5e1; background: #ffffff;">
+                            <MudIcon Icon="@Icons.Material.Filled.MoreTime" Size="Size.Large" Color="Color.Warning" Class="mb-2" />
+                            <MudText Typo="Typo.subtitle1" Class="fw-bold">No hay solicitudes de Horas Extras registradas en este rango</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                Crea una autorización por Área con firma digital del Supervisor y/o Gerente para respaldar el pago y cobro de horas extras en Helpdesk y Odoo.
+                            </MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.AddTask"
+                                       OnClick="@(() => AbrirDialogoAutorizarHorasExtras(null))">
+                                Crear Solicitud H.E. por Área
+                            </MudButton>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <MudGrid Spacing="2">
+                            @foreach (var bol in BoletasHorasExtrasAgrupadas)
+                            {
+                                bool esResuelta = bol.Estado == "RESUELTA" || bol.SincronizadoOdoo;
+                                bool esRechazada = bol.Estado == "RECHAZADA";
+                                var colabsBol = bol.ColaboradoresGrupo != null && bol.ColaboradoresGrupo.Any()
+                                    ? bol.ColaboradoresGrupo
+                                    : new List<ColaboradorAutorizacionItemDto>
+                                    {
+                                        new ColaboradorAutorizacionItemDto { CodigoEmpleado = bol.CodigoEmpleado, NombreEmpleado = bol.NombreEmpleado }
+                                    };
+                                string idsCsvCard = string.Join(", ", colabsBol.Select(c => c.CodigoEmpleado));
+
+                                <MudItem xs="12" md="6" lg="4">
+                                    <MudCard Elevation="2" Style="@($"border-radius: 12px; border-left: 5px solid {(esResuelta ? "#16a34a" : (esRechazada ? "#dc2626" : "#f59e0b"))};")">
+                                        <MudCardContent Class="pa-3">
+                                            <div class="d-flex align-center justify-space-between mb-2">
+                                                <div>
+                                                    <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #013161;">
+                                                        @bol.ClienteNombre &bull; @(string.IsNullOrWhiteSpace(bol.Area) ? "Operaciones" : bol.Area)
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                        Fecha: <b>@bol.Fecha.ToString("dd/MM/yyyy")</b> &bull; <b>@bol.HoraInicioExtra - @bol.HoraFinExtra</b> (@bol.HorasExtrasAutorizadas.ToString("N2")h)
+                                                    </MudText>
+                                                </div>
+                                                <MudChip T="string"
+                                                         Size="Size.Small"
+                                                         Color="@(esResuelta ? Color.Success : (esRechazada ? Color.Error : Color.Warning))"
+                                                         Variant="Variant.Filled"
+                                                         Class="fw-bold">
+                                                    @(esResuelta ? "EN ODOO" : bol.Estado)
+                                                </MudChip>
+                                            </div>
+
+                                            <div class="pa-2 mb-2 rounded" style="background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.76rem;">
+                                                <div class="fw-bold text-dark mb-1">
+                                                    IDs (@colabsBol.Count): <span class="font-monospace text-primary">@idsCsvCard</span>
+                                                </div>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    @foreach (var cb in colabsBol.Take(6))
+                                                    {
+                                                        <span class="badge bg-white text-dark border" style="font-size: 0.68rem;">#@cb.CodigoEmpleado @cb.NombreEmpleado</span>
+                                                    }
+                                                    @if (colabsBol.Count > 6)
+                                                    {
+                                                        <span class="badge bg-secondary text-white" style="font-size: 0.68rem;">+@(colabsBol.Count - 6) más</span>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            @if (!string.IsNullOrWhiteSpace(bol.Motivo))
+                                            {
+                                                <div class="mb-2 text-secondary" style="font-size: 0.76rem;">
+                                                    <b>Observaciones:</b> @bol.Motivo
+                                                </div>
+                                            }
+
+                                            <div class="d-flex align-center gap-2 flex-wrap mb-2" style="font-size: 0.72rem;">
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(bol.TieneFirmaSupervisor ? Color.Success : Color.Default)">
+                                                    @(bol.TieneFirmaSupervisor ? $"✓ Sup: {bol.SupervisorNombre}" : "Sin firma Sup.")
+                                                </MudChip>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(bol.TieneFirmaGerente ? Color.Success : Color.Warning)">
+                                                    @(bol.TieneFirmaGerente ? $"✓ Ger: {bol.GerenteNombre}" : "Pendiente firma Gerente")
+                                                </MudChip>
+                                            </div>
+
+                                            <div class="d-flex align-center justify-space-between pt-2 border-top flex-wrap gap-1">
+                                                <div class="d-flex align-center gap-1 flex-wrap">
+                                                    @if (bol.TicketRedmineId.HasValue && bol.TicketRedmineId.Value > 0)
+                                                    {
+                                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                                   Href="@($"https://helpdesk.bussersa.com/issues/{bol.TicketRedmineId.Value}")"
+                                                                   Target="_blank"
+                                                                   StartIcon="@Icons.Material.Filled.OpenInNew">
+                                                            #@bol.TicketRedmineId
+                                                        </MudButton>
+                                                    }
+                                                    @if (!bol.TieneFirmaGerente)
+                                                    {
+                                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Warning"
+                                                                   StartIcon="@Icons.Material.Filled.Draw"
+                                                                   OnClick="@(() => AbrirDialogoFirmarAdicionalHe(bol, "GERENTE"))">
+                                                            Firmar Gerente
+                                                        </MudButton>
+                                                    }
+                                                </div>
+                                                <div class="d-flex align-center gap-1">
+                                                    <MudTooltip Text="Abrir página oficial del recibo">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.ReceiptLong"
+                                                                       Color="Color.Info"
+                                                                       Size="Size.Small"
+                                                                       Href="@($"/recibo-horas-extras/{bol.TokenRecibo}")"
+                                                                       Target="_blank" />
+                                                    </MudTooltip>
+                                                    <MudTooltip Text="Imprimir boleta por Área con firmas">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Print"
+                                                                       Color="Color.Dark"
+                                                                       Size="Size.Small"
+                                                                       OnClick="@(() => ImprimirBoletaIndividualHe(bol))" />
+                                                    </MudTooltip>
+                                                    @if (!esResuelta)
+                                                    {
+                                                        <MudTooltip Text="Anular solicitud">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                                           Color="Color.Error"
+                                                                           Size="Size.Small"
+                                                                           OnClick="@(() => AnularSolicitudHe(bol))" />
+                                                        </MudTooltip>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudCardContent>
+                                    </MudCard>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </MudPaper>
+            </MudTabPanel>
+        }
             </MudTabs>
 </div>
 <style>
@@ -4357,6 +4679,9 @@
             grid-template-columns: repeat(6, 1fr);
             gap: 8px;
         }
+        .app-tab-grid.has-he-tab {
+            grid-template-columns: repeat(7, 1fr);
+        }
         .app-tab-item {
             flex-direction: row;
             padding: 10px 12px;
@@ -4374,6 +4699,9 @@
         .app-tab-grid {
             grid-template-columns: repeat(6, 1fr);
             gap: 5px;
+        }
+        .app-tab-grid.has-he-tab {
+            grid-template-columns: repeat(7, 1fr);
         }
         .app-tab-item {
             flex-direction: column;

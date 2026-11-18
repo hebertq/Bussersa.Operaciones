@@ -1,0 +1,429 @@
+@using MudBlazor
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _odooService
+@inject IJSRuntime _js
+@inject ISnackbar _snackbar
+@inject NavigationManager _nav
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <div class="d-flex align-center justify-space-between">
+            <div class="d-flex align-center gap-2">
+                <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Medium">
+                    <MudIcon Icon="@Icons.Material.Filled.MoreTime" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="line-height: 1.2;">
+                        Autorización de Horas Extras (Helpdesk)
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Cliente: <b>@ClienteNombre</b> &bull; Fecha: <b>@Fecha.ToString("dd/MM/yyyy")</b>
+                    </MudText>
+                </div>
+            </div>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <div style="max-height: 74vh; overflow-y: auto; padding-right: 4px;">
+            <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3">
+                Se genera <b>1 ticket por Área</b> en Helpdesk con los carnets separados por coma en la descripción (igual que Movimientos) y firma digital adjunta. Al resolverse, las horas pasan a Odoo para <b>pagarse y cobrarse como extras aunque la semana no supere las 48h</b>.
+            </MudAlert>
+
+            @* 1. COLABORADORES A AUTORIZAR *@
+            <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" />
+                        Colaborador(es) que realizan Horas Extras (@ColaboradoresSeleccionados.Count)
+                    </MudText>
+                    @if (CandidatosDisponibles != null && CandidatosDisponibles.Count > 1)
+                    {
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                   StartIcon="@(mostrarSelectorMultiple ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.GroupAdd)"
+                                   OnClick="@(() => mostrarSelectorMultiple = !mostrarSelectorMultiple)">
+                            @(mostrarSelectorMultiple ? "Ocultar lista" : $"Agregar más de la jornada ({CandidatosDisponibles.Count})")
+                        </MudButton>
+                    }
+                </div>
+
+                @if (mostrarSelectorMultiple && CandidatosDisponibles != null && CandidatosDisponibles.Any())
+                {
+                    <div class="mb-2 pa-2 rounded" style="max-height: 150px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1;">
+                        @foreach (var cand in CandidatosDisponibles)
+                        {
+                            bool sel = CodigosSeleccionados.Contains(cand.CodigoEmpleado);
+                            <div class="d-flex align-center justify-space-between py-1 border-bottom" style="font-size: 0.8rem;">
+                                <MudCheckBox T="bool" Dense="true" Color="Color.Primary"
+                                             Value="@sel"
+                                             ValueChanged="@((bool val) => ToggleCandidato(cand, val))"
+                                             Label="@($"#{cand.CodigoEmpleado} - {cand.NombreEmpleado} ({cand.Area})")" />
+                                <span class="font-monospace text-secondary">@cand.HoraEntradaJornada - @cand.HoraSalidaJornada</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var c in ColaboradoresSeleccionados)
+                    {
+                        <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
+                            #@c.CodigoEmpleado - @c.NombreEmpleado (@(string.IsNullOrWhiteSpace(c.Area) ? "Operaciones" : c.Area))
+                        </MudChip>
+                    }
+                </div>
+            </MudPaper>
+
+            @* 2. HORARIO EXTRA Y MOTIVO *@
+            <MudGrid Spacing="2" Class="mb-3">
+                <MudItem xs="6" sm="4">
+                    <MudTextField Value="@HoraInicioExtra"
+                                  ValueChanged="@((string v) => OnHoraCambiada(v, HoraFinExtra))"
+                                  Label="Hora Entrada / Inicio Extra (HH:mm)"
+                                  Placeholder="17:00"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Login" />
+                </MudItem>
+                <MudItem xs="6" sm="4">
+                    <MudTextField Value="@HoraFinExtra"
+                                  ValueChanged="@((string v) => OnHoraCambiada(HoraInicioExtra, v))"
+                                  Label="Hora Salida Extra (HH:mm)"
+                                  Placeholder="20:00"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Logout" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField T="decimal"
+                                     @bind-Value="HorasExtrasAutorizadas"
+                                     Label="Total Horas Extras Autorizadas"
+                                     Format="N2"
+                                     Min="0.25m"
+                                     Max="24.00m"
+                                     Step="0.50m"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="hrs" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Motivo"
+                                  Label="Observaciones (se envía al campo Observaciones en Helpdesk)"
+                                  Placeholder="Ej: Descarga de contenedor urgente / cierre de despacho autorizado en planta..."
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            @* 3. FIRMA DIGITAL DEL SUPERVISOR *@
+            <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #ffffff;">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #013161;">
+                        <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" Class="mr-1" />
+                        1. Firma Digital del Supervisor que Autoriza
+                    </MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.CleaningServices"
+                               OnClick="@(() => LimpiarCanvas("canvas_he_sup"))">
+                        Limpiar Firma
+                    </MudButton>
+                </div>
+                <MudGrid Spacing="2" Class="mb-2">
+                    <MudItem xs="12" sm="7">
+                        <MudTextField @bind-Value="SupervisorNombre" Label="Nombre del Supervisor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="5">
+                        <MudTextField @bind-Value="SupervisorCargo" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+                <div style="border: 2px dashed #64748b; border-radius: 8px; background: #ffffff; overflow: hidden;">
+                    <canvas id="canvas_he_sup" style="width: 100%; height: 145px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
+                    Firme con el dedo, lápiz óptico o mouse dentro del recuadro.
+                </MudText>
+            </MudPaper>
+
+            @* 4. FIRMA DIGITAL DEL GERENTE (EN SITIO O POSTERIOR) *@
+            <MudPaper Class="pa-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #fffbeb;">
+                <div class="d-flex align-center justify-space-between">
+                    <div class="d-flex align-center gap-2">
+                        <MudSwitch T="bool" Value="@incluirFirmaGerenteAhora" ValueChanged="@OnToggleFirmaGerente" Color="Color.Warning" />
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #92400e;">
+                                2. Firma Digital del Gerente / Autorizador Cliente (Opcional ahora)
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Puede firmar ahora mismo en la tablet o agregarse/imprimirse después desde oficina.
+                            </MudText>
+                        </div>
+                    </div>
+                    @if (incluirFirmaGerenteAhora)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CleaningServices"
+                                   OnClick="@(() => LimpiarCanvas("canvas_he_ger"))">
+                            Limpiar Firma
+                        </MudButton>
+                    }
+                </div>
+
+                @if (incluirFirmaGerenteAhora)
+                {
+                    <MudGrid Spacing="2" Class="mt-2 mb-2">
+                        <MudItem xs="12" sm="7">
+                            <MudTextField @bind-Value="GerenteNombre" Label="Nombre del Gerente / Autorizador" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                        </MudItem>
+                        <MudItem xs="12" sm="5">
+                            <MudTextField @bind-Value="GerenteCargo" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                        </MudItem>
+                    </MudGrid>
+                    <div style="border: 2px dashed #d97706; border-radius: 8px; background: #ffffff; overflow: hidden;">
+                        <canvas id="canvas_he_ger" style="width: 100%; height: 145px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+                    </div>
+                }
+            </MudPaper>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@Cancelar" Disabled="@enviando">
+            Cancelar
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                   StartIcon="@(enviando ? null : Icons.Material.Filled.ConfirmationNumber)"
+                   OnClick="@EnviarAutorizacion"
+                   Disabled="@(enviando || !ColaboradoresSeleccionados.Any())"
+                   Style="font-weight: 800;">
+            @if (enviando)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Color="Color.Surface" />
+                <span>Generando Ticket(s) y Grabando Firma...</span>
+            }
+            else
+            {
+                <span>Generar Ticket Helpdesk (@ColaboradoresSeleccionados.Count)</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int OperacionId { get; set; }
+    [Parameter] public string ClienteNombre { get; set; } = string.Empty;
+    [Parameter] public DateTime Fecha { get; set; } = DateTime.Today;
+    [Parameter] public string SupervisorInicial { get; set; } = string.Empty;
+    [Parameter] public string UsuarioRegistro { get; set; } = string.Empty;
+    [Parameter] public List<ColaboradorAutorizacionItemDto> ColaboradoresIniciales { get; set; } = new();
+    [Parameter] public List<ColaboradorAutorizacionItemDto> CandidatosDisponibles { get; set; } = new();
+
+    private HashSet<int> CodigosSeleccionados = new();
+    private List<ColaboradorAutorizacionItemDto> ColaboradoresSeleccionados = new();
+    private bool mostrarSelectorMultiple = false;
+
+    private string HoraInicioExtra = "17:00";
+    private string HoraFinExtra = "20:00";
+    private decimal HorasExtrasAutorizadas = 3.00m;
+    private string Motivo = string.Empty;
+
+    private string SupervisorNombre = string.Empty;
+    private string SupervisorCargo = "Supervisor de Operaciones";
+
+    private bool incluirFirmaGerenteAhora = false;
+    private string GerenteNombre = string.Empty;
+    private string GerenteCargo = "Gerente / Autorizador";
+
+    private bool enviando = false;
+
+    protected override void OnInitialized()
+    {
+        SupervisorNombre = SupervisorInicial ?? string.Empty;
+        if (ColaboradoresIniciales != null && ColaboradoresIniciales.Any())
+        {
+            foreach (var c in ColaboradoresIniciales)
+            {
+                CodigosSeleccionados.Add(c.CodigoEmpleado);
+                ColaboradoresSeleccionados.Add(c);
+            }
+
+            var primero = ColaboradoresIniciales.First();
+            if (!string.IsNullOrWhiteSpace(primero.HoraInicioExtra))
+                HoraInicioExtra = primero.HoraInicioExtra;
+            if (!string.IsNullOrWhiteSpace(primero.HoraFinExtra))
+                HoraFinExtra = primero.HoraFinExtra;
+            RecalcularHoras();
+        }
+        else if (CandidatosDisponibles != null && CandidatosDisponibles.Any())
+        {
+            mostrarSelectorMultiple = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(120);
+            await _js.InvokeVoidAsync("signaturePadInterop.init", "canvas_he_sup");
+        }
+    }
+
+    private void ToggleCandidato(ColaboradorAutorizacionItemDto cand, bool seleccionado)
+    {
+        if (seleccionado)
+        {
+            if (CodigosSeleccionados.Add(cand.CodigoEmpleado))
+                ColaboradoresSeleccionados.Add(cand);
+        }
+        else
+        {
+            CodigosSeleccionados.Remove(cand.CodigoEmpleado);
+            ColaboradoresSeleccionados.RemoveAll(x => x.CodigoEmpleado == cand.CodigoEmpleado);
+        }
+    }
+
+    private void OnHoraCambiada(string ini, string fin)
+    {
+        HoraInicioExtra = ini?.Trim() ?? string.Empty;
+        HoraFinExtra = fin?.Trim() ?? string.Empty;
+        RecalcularHoras();
+    }
+
+    private void RecalcularHoras()
+    {
+        if (TimeSpan.TryParse(HoraInicioExtra, out var tIni) && TimeSpan.TryParse(HoraFinExtra, out var tFin))
+        {
+            double diff = (tFin - tIni).TotalHours;
+            if (diff <= 0) diff += 24.0;
+            if (diff > 0 && diff <= 24)
+            {
+                HorasExtrasAutorizadas = Math.Round((decimal)diff, 2);
+            }
+        }
+    }
+
+    private async Task OnToggleFirmaGerente(bool val)
+    {
+        incluirFirmaGerenteAhora = val;
+        StateHasChanged();
+        if (val)
+        {
+            await Task.Delay(120);
+            await _js.InvokeVoidAsync("signaturePadInterop.init", "canvas_he_ger");
+        }
+    }
+
+    private async Task LimpiarCanvas(string id)
+    {
+        await _js.InvokeVoidAsync("signaturePadInterop.clear", id);
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+
+    private async Task EnviarAutorizacion()
+    {
+        if (!ColaboradoresSeleccionados.Any())
+        {
+            _snackbar.Add("Seleccione al menos un colaborador.", Severity.Warning);
+            return;
+        }
+        if (HorasExtrasAutorizadas <= 0)
+        {
+            _snackbar.Add("Las horas extras autorizadas deben ser mayores a 0.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(Motivo))
+        {
+            _snackbar.Add("Indique brevemente el motivo o actividad de las horas extras.", Severity.Warning);
+            return;
+        }
+
+        bool hayFirmaSup = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_he_sup");
+        bool hayFirmaGer = incluirFirmaGerenteAhora && await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_he_ger");
+
+        if (!hayFirmaSup && !hayFirmaGer)
+        {
+            _snackbar.Add("Debe firmar en el recuadro del Supervisor (y/o del Gerente) antes de generar la tarea.", Severity.Warning);
+            return;
+        }
+        if (hayFirmaSup && string.IsNullOrWhiteSpace(SupervisorNombre))
+        {
+            _snackbar.Add("Ingrese el nombre del Supervisor que firma.", Severity.Warning);
+            return;
+        }
+        if (hayFirmaGer && string.IsNullOrWhiteSpace(GerenteNombre))
+        {
+            _snackbar.Add("Ingrese el nombre del Gerente que firma.", Severity.Warning);
+            return;
+        }
+
+        string? dataSup = hayFirmaSup ? await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_he_sup") : null;
+        string? dataGer = hayFirmaGer ? await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_he_ger") : null;
+
+        foreach (var c in ColaboradoresSeleccionados)
+        {
+            c.HoraInicioExtra = HoraInicioExtra;
+            c.HoraFinExtra = HoraFinExtra;
+            c.HorasExtrasAutorizadas = HorasExtrasAutorizadas;
+        }
+
+        var req = new CrearAutorizacionHorasExtrasRequestDto
+        {
+            OperacionId = OperacionId,
+            ClienteNombre = ClienteNombre,
+            Fecha = Fecha.ToString("yyyy-MM-dd"),
+            HoraInicioExtra = HoraInicioExtra,
+            HoraFinExtra = HoraFinExtra,
+            HorasExtrasAutorizadas = HorasExtrasAutorizadas,
+            Motivo = Motivo.Trim(),
+            SupervisorNombre = SupervisorNombre.Trim(),
+            SupervisorCargo = SupervisorCargo.Trim(),
+            FirmaSupervisorBase64 = dataSup,
+            GerenteNombre = GerenteNombre.Trim(),
+            GerenteCargo = GerenteCargo.Trim(),
+            FirmaGerenteBase64 = dataGer,
+            UsuarioRegistro = UsuarioRegistro,
+            BaseUrlPortal = _nav.BaseUri.TrimEnd('/'),
+            Colaboradores = ColaboradoresSeleccionados
+        };
+
+        enviando = true;
+        try
+        {
+            var resp = await _odooService.CrearAutorizacionHorasExtras(req);
+            if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
+            {
+                var res = resp.Model;
+                if (res.Exitosos > 0)
+                {
+                    _snackbar.Add($"Se generaron {res.Exitosos} ticket(s) de autorización de Horas Extras en Helpdesk con firma digital.", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(res));
+                }
+                else
+                {
+                    string err = res.Detalles.FirstOrDefault()?.Mensaje ?? "No se pudo crear el ticket en Helpdesk.";
+                    _snackbar.Add(err, Severity.Error);
+                }
+            }
+            else
+            {
+                _snackbar.Add(resp?.Respuesta?.MensajeError ?? "Error al procesar la solicitud.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+}

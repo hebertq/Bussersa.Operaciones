@@ -39,6 +39,11 @@ namespace Modelo.Report
         public decimal HorasNormalesDb { get; set; }
         public decimal HorasExtrasDb { get; set; }
         public string ReglaAplicadaDb { get; set; } = string.Empty;
+        public decimal HorasExtrasAutorizadas { get; set; }
+        public string AutorizadoPor { get; set; } = string.Empty;
+        public int? TicketAutorizacionId { get; set; }
+        public string EstadoAutorizacionHe { get; set; } = string.Empty;
+        public string TokenReciboHe { get; set; } = string.Empty;
         public DateTime fecha_registro { get; set; }
         public DateTime? fecha_actualizacion { get; set; }
     }

@@ -367,6 +367,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 emp.Seleccionado = false;
             }
+            if (activeTabIndex == 6 && !ClienteActualPermiteHorasExtras)
+            {
+                activeTabIndex = 0;
+            }
             StateHasChanged();
         }
 
@@ -821,7 +825,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     CargarCatalogoClienteAreas(),
                     CargarCacheReglasViaticos(),
                     CargarMiPlantilla(),
-                    CargarTiposAusencias()
+                    CargarTiposAusencias(),
+                    CargarConfigHorasExtrasClientes()
                 );
                 await RecuperarOperacionPrevia();
                 await CargarJornadaActual();
@@ -1166,6 +1171,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 ValidarConflictosHorarios(out _);
                 ActualizarGruposConsolidadosInterno(false);
+                fechaDesdeFiltroHe = fechaSeleccionada ?? DateTime.Today;
+                fechaHastaFiltroHe = fechaSeleccionada ?? DateTime.Today;
+                await CargarAutorizacionesHorasExtras();
             }
             catch (Exception ex)
             {
@@ -5168,6 +5176,350 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             {
                 estaEnviandoBonos = false;
                 StateHasChanged();
+            }
+        }
+
+        // =========================================================================
+        // AUTORIZACIÓN DE HORAS EXTRAS POR ÁREA (FIRMA DIGITAL + HELPDESK + ODOO)
+        // =========================================================================
+        protected List<ClienteConfigHorasExtrasDto> configClientesHe = new();
+        protected List<AutorizacionHorasExtrasDto> autorizacionesHeLista = new();
+        protected bool cargandoAutorizacionesHe = false;
+        protected DateTime? fechaDesdeFiltroHe = DateTime.Today;
+        protected DateTime? fechaHastaFiltroHe = DateTime.Today;
+        protected string textoBusquedaHe = string.Empty;
+
+        protected bool ClientePermiteHorasExtras(string? clienteNombre)
+        {
+            if (string.IsNullOrWhiteSpace(clienteNombre)) return false;
+            string cli = clienteNombre.Trim();
+
+            var asig = misClientesAsignados.FirstOrDefault(a =>
+                !string.IsNullOrWhiteSpace(a.ClienteNombre) &&
+                string.Equals(a.ClienteNombre.Trim(), cli, StringComparison.OrdinalIgnoreCase));
+            if (asig != null && asig.AplicaHorasExtras)
+                return true;
+
+            var cfg = configClientesHe.FirstOrDefault(c =>
+                !string.IsNullOrWhiteSpace(c.ClienteNombre) &&
+                (string.Equals(c.ClienteNombre.Trim(), cli, StringComparison.OrdinalIgnoreCase) ||
+                 cli.Contains(c.ClienteNombre.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 c.ClienteNombre.Trim().Contains(cli, StringComparison.OrdinalIgnoreCase)));
+            if (cfg != null)
+                return cfg.PermiteAutorizacionHorasExtras;
+
+            return cli.Contains("sinsa", StringComparison.OrdinalIgnoreCase);
+        }
+
+        protected bool ClienteActualPermiteHorasExtras
+        {
+            get
+            {
+                string cli = ClienteActivoAsistenciasSeguro;
+                if (!string.IsNullOrWhiteSpace(cli))
+                    return ClientePermiteHorasExtras(cli);
+
+                return misClientesAsignados.Any(a => a.AplicaHorasExtras)
+                    || empleadosJornada.Any(e => ClientePermiteHorasExtras(e.Cliente));
+            }
+        }
+
+        protected int ResolverOperacionIdCliente(string? clienteNombre)
+        {
+            if (!string.IsNullOrWhiteSpace(clienteNombre))
+            {
+                string cli = clienteNombre.Trim();
+                var opExacta = operacionesList.FirstOrDefault(o =>
+                    !string.IsNullOrWhiteSpace(o.nombre) &&
+                    (string.Equals(o.nombre.Trim(), cli, StringComparison.OrdinalIgnoreCase) ||
+                     cli.Contains(o.nombre.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     o.nombre.Trim().Contains(cli, StringComparison.OrdinalIgnoreCase)));
+                if (opExacta != null && opExacta.id > 0)
+                    return opExacta.id;
+
+                var cfg = configClientesHe.FirstOrDefault(c =>
+                    !string.IsNullOrWhiteSpace(c.ClienteNombre) &&
+                    string.Equals(c.ClienteNombre.Trim(), cli, StringComparison.OrdinalIgnoreCase));
+                if (cfg != null && cfg.OperacionId > 0)
+                    return cfg.OperacionId;
+            }
+            return selectedOperacionId ?? 23;
+        }
+
+        protected async Task CargarConfigHorasExtrasClientes()
+        {
+            try
+            {
+                var resp = await _odooService.GetConfigClientesHorasExtras();
+                if (resp?.Model != null)
+                {
+                    configClientesHe = resp.Model.ToList();
+                }
+            }
+            catch { }
+        }
+
+        protected async Task CargarAutorizacionesHorasExtras()
+        {
+            try
+            {
+                cargandoAutorizacionesHe = true;
+                DateTime ini = (fechaDesdeFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                DateTime fin = (fechaHastaFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                if (fin < ini) fin = ini;
+
+                var resp = await _odooService.GetAutorizacionesHorasExtras(ini, fin, incluirFirmas: false);
+                autorizacionesHeLista = resp?.Model?.ToList() ?? new List<AutorizacionHorasExtrasDto>();
+            }
+            catch
+            {
+                autorizacionesHeLista = new List<AutorizacionHorasExtrasDto>();
+            }
+            finally
+            {
+                cargandoAutorizacionesHe = false;
+            }
+        }
+
+        protected AutorizacionHorasExtrasDto? ObtenerAutorizacionHeEmpleado(int codigoEmpleado)
+        {
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            return autorizacionesHeLista.FirstOrDefault(a =>
+                a.CodigoEmpleado == codigoEmpleado &&
+                a.Fecha.Date == fRef);
+        }
+
+        protected List<AutorizacionHorasExtrasDto> BoletasHorasExtrasAgrupadas
+        {
+            get
+            {
+                var filtradas = autorizacionesHeLista
+                    .Where(a => PerteneceAClienteSeleccionado(a.ClienteNombre))
+                    .ToList();
+
+                var agrupadas = BoletaAutorizacionHeHelper.AgruparPorBoletaArea(filtradas);
+                if (string.IsNullOrWhiteSpace(textoBusquedaHe))
+                    return agrupadas;
+
+                string q = textoBusquedaHe.Trim();
+                return agrupadas.Where(b =>
+                    (!string.IsNullOrWhiteSpace(b.Area) && b.Area.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(b.Motivo) && b.Motivo.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
+                    (b.TicketRedmineId.HasValue && b.TicketRedmineId.Value.ToString().Contains(q)) ||
+                    b.ColaboradoresGrupo.Any(c =>
+                        c.CodigoEmpleado.ToString().Contains(q) ||
+                        (!string.IsNullOrWhiteSpace(c.NombreEmpleado) && c.NombreEmpleado.Contains(q, StringComparison.OrdinalIgnoreCase)))
+                ).ToList();
+            }
+        }
+
+        protected int TotalBoletasHeCliente => BoletasHorasExtrasAgrupadas.Count;
+
+        protected async Task AbrirDialogoAutorizarHorasExtras(EmpleadoJornadaItem? empInicial = null)
+        {
+            string cliNombre = empInicial != null && !string.IsNullOrWhiteSpace(empInicial.Cliente)
+                ? empInicial.Cliente
+                : ClienteActivoAsistenciasSeguro;
+            if (string.IsNullOrWhiteSpace(cliNombre))
+                cliNombre = "SINSA";
+
+            int opId = ResolverOperacionIdCliente(cliNombre);
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+
+            var candidatos = empleadosJornada
+                .Where(e => e.Asistio && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
+                .OrderBy(e => e.Area)
+                .ThenBy(e => e.NombreEmpleado)
+                .Select(e => new ColaboradorAutorizacionItemDto
+                {
+                    MovimientoDiarioId = e.Id > 0 ? e.Id : null,
+                    EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
+                    CodigoEmpleado = e.CodigoEmpleado,
+                    NombreEmpleado = e.NombreEmpleado,
+                    Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area,
+                    Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto,
+                    HoraEntradaJornada = e.HoraEntrada,
+                    HoraSalidaJornada = e.HoraSalida,
+                    HoraInicioExtra = (!string.IsNullOrWhiteSpace(e.HoraSalida) && e.HoraSalida != "--:--") ? e.HoraSalida : "17:00",
+                    HoraFinExtra = "20:00"
+                })
+                .ToList();
+
+            var iniciales = new List<ColaboradorAutorizacionItemDto>();
+            if (empInicial != null)
+            {
+                var match = candidatos.FirstOrDefault(c => c.CodigoEmpleado == empInicial.CodigoEmpleado)
+                    ?? new ColaboradorAutorizacionItemDto
+                    {
+                        MovimientoDiarioId = empInicial.Id > 0 ? empInicial.Id : null,
+                        EmployeeId = empInicial.IdEmpleado > 0 ? empInicial.IdEmpleado : null,
+                        CodigoEmpleado = empInicial.CodigoEmpleado,
+                        NombreEmpleado = empInicial.NombreEmpleado,
+                        Area = string.IsNullOrWhiteSpace(empInicial.Area) ? "Operaciones" : empInicial.Area,
+                        Cargo = string.IsNullOrWhiteSpace(empInicial.Puesto) ? "6-Operador de almacen" : empInicial.Puesto,
+                        HoraEntradaJornada = empInicial.HoraEntrada,
+                        HoraSalidaJornada = empInicial.HoraSalida,
+                        HoraInicioExtra = (!string.IsNullOrWhiteSpace(empInicial.HoraSalida) && empInicial.HoraSalida != "--:--") ? empInicial.HoraSalida : "17:00",
+                        HoraFinExtra = "20:00"
+                    };
+                iniciales.Add(match);
+            }
+            else
+            {
+                var codsSeleccionados = empleadosJornada
+                    .Where(e => e.Seleccionado && e.Asistio && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .Select(e => e.CodigoEmpleado)
+                    .ToHashSet();
+
+                if (codsSeleccionados.Any())
+                {
+                    iniciales.AddRange(candidatos.Where(c => codsSeleccionados.Contains(c.CodigoEmpleado)));
+                }
+            }
+
+            var parameters = new DialogParameters
+            {
+                ["OperacionId"] = opId,
+                ["ClienteNombre"] = cliNombre,
+                ["Fecha"] = fRef,
+                ["SupervisorInicial"] = currentUserName,
+                ["UsuarioRegistro"] = UsuarioRedmineEfectivo,
+                ["ColaboradoresIniciales"] = iniciales,
+                ["CandidatosDisponibles"] = candidatos
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialog = await _dialogService.ShowAsync<DialogAutorizarHorasExtras>("Autorización de Horas Extras por Área", parameters, options);
+            var result = await dialog.Result;
+            if (result != null && !result.Canceled)
+            {
+                await CargarAutorizacionesHorasExtras();
+                StateHasChanged();
+            }
+        }
+
+        protected async Task AbrirDialogoFirmarAdicionalHe(AutorizacionHorasExtrasDto aut, string tipoFirma = "GERENTE")
+        {
+            var parameters = new DialogParameters
+            {
+                ["Autorizacion"] = aut,
+                ["TipoFirma"] = tipoFirma
+            };
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+            var dialog = await _dialogService.ShowAsync<DialogFirmarReciboHe>("Agregar Firma en Autorización", parameters, options);
+            var result = await dialog.Result;
+            if (result != null && !result.Canceled)
+            {
+                await CargarAutorizacionesHorasExtras();
+                StateHasChanged();
+            }
+        }
+
+        protected async Task ImprimirBoletaIndividualHe(AutorizacionHorasExtrasDto aut)
+        {
+            try
+            {
+                AutorizacionHorasExtrasDto boletaFull = aut;
+                if (!string.IsNullOrWhiteSpace(aut.TokenRecibo))
+                {
+                    var resp = await _odooService.GetReciboAutorizacionPorToken(aut.TokenRecibo);
+                    if (resp?.Model != null)
+                        boletaFull = resp.Model;
+                }
+                string html = BoletaAutorizacionHeHelper.ConstruirHtmlBoletaIndividual(boletaFull, false);
+                await _js.InvokeVoidAsync("signaturePadInterop.printHtmlWindow", $"Recibo H.E. #{boletaFull.TicketRedmineId ?? boletaFull.Id}", html);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al preparar impresión: {ex.Message}", Severity.Error);
+            }
+        }
+
+        protected async Task ImprimirLoteBoletasHe()
+        {
+            try
+            {
+                cargandoAutorizacionesHe = true;
+                StateHasChanged();
+
+                DateTime ini = (fechaDesdeFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                DateTime fin = (fechaHastaFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                if (fin < ini) fin = ini;
+
+                int opId = ResolverOperacionIdCliente(ClienteActivoAsistenciasSeguro);
+                var resp = await _odooService.GetAutorizacionesHorasExtras(ini, fin, opId, incluirFirmas: true);
+                var lista = resp?.Model?.ToList() ?? new List<AutorizacionHorasExtrasDto>();
+                if (!lista.Any())
+                {
+                    _snackbar.Add("No hay boletas de horas extras para imprimir en el rango seleccionado.", Severity.Info);
+                    return;
+                }
+
+                string html = BoletaAutorizacionHeHelper.ConstruirHtmlLoteBoletas(lista);
+                await _js.InvokeVoidAsync("signaturePadInterop.printHtmlWindow", $"Boletas Horas Extras ({ini:dd/MM/yyyy} - {fin:dd/MM/yyyy})", html);
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al imprimir lote: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoAutorizacionesHe = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task SincronizarEstadosHeRedmine()
+        {
+            try
+            {
+                cargandoAutorizacionesHe = true;
+                StateHasChanged();
+
+                DateTime ini = (fechaDesdeFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                DateTime fin = (fechaHastaFiltroHe ?? fechaSeleccionada ?? DateTime.Today).Date;
+                int opId = ResolverOperacionIdCliente(ClienteActivoAsistenciasSeguro);
+
+                var syncResp = await _odooService.SincronizarAutorizacionesRedmine(ini, fin, opId);
+                await CargarAutorizacionesHorasExtras();
+
+                if (syncResp?.Model != null && !string.IsNullOrWhiteSpace(syncResp.Model.Mensaje))
+                {
+                    _snackbar.Add(syncResp.Model.Mensaje, Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al sincronizar con Helpdesk: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                cargandoAutorizacionesHe = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task AnularSolicitudHe(AutorizacionHorasExtrasDto aut)
+        {
+            bool? confirmar = await _dialogService.ShowMessageBox(
+                "Anular Autorización de Horas Extras",
+                $"¿Desea anular la boleta de Horas Extras del área '{aut.Area}' ({aut.Fecha:dd/MM/yyyy})?",
+                yesText: "Sí, Anular",
+                cancelText: "Cancelar");
+
+            if (confirmar == true)
+            {
+                var res = await _odooService.AnularAutorizacionHorasExtras(aut.Id);
+                if (res?.Respuesta?.ExisteError == false)
+                {
+                    _snackbar.Add("Autorización de horas extras anulada.", Severity.Info);
+                    await CargarAutorizacionesHorasExtras();
+                    StateHasChanged();
+                }
+                else
+                {
+                    _snackbar.Add(res?.Respuesta?.MensajeError ?? "No se pudo anular.", Severity.Error);
+                }
             }
         }
 }

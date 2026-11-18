@@ -220,7 +220,18 @@ namespace HostService.Interfaces
         Task<IListResponse<Modelo.ClasesGenericas.SupervisorClienteDto>> GetSupervisorClientes(string usuario = "", string cliente = "");
         Task<IResponse> SaveSupervisorCliente(Modelo.ClasesGenericas.GuardarSupervisorClienteRequest request);
         Task<IResponse> DeleteSupervisorCliente(int id);
-        Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades);
+        Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades, bool? aplicaHorasExtras = null);
+
+        // --- AUTORIZACIÓN DE HORAS EXTRAS CON FIRMA DIGITAL, HELPDESK Y RECIBOS ---
+        Task<IListResponse<Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto>> GetConfigClientesHorasExtras();
+        Task<IResponse> SaveConfigClienteHorasExtras(Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto request);
+        Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAutorizacionHeDto>> CrearAutorizacionHorasExtras(Modelo.ClasesGenericas.CrearAutorizacionHorasExtrasRequestDto request);
+        Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> AgregarFirmaAutorizacionHorasExtras(Modelo.ClasesGenericas.AgregarFirmaAutorizacionRequestDto request);
+        Task<IListResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetAutorizacionesHorasExtras(DateTime? fechaDesde = null, DateTime? fechaHasta = null, int? operacionId = null, string? cliente = null, int? codigoEmpleado = null, string? estado = null, bool incluirFirmas = true);
+        Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetReciboAutorizacionPorToken(string token);
+        Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetReciboAutorizacionPorId(int id);
+        Task<IResponse> AnularAutorizacionHorasExtras(int id);
+        Task<ISingleResponse<Modelo.ClasesGenericas.SincronizarAutorizacionesHeResultDto>> SincronizarAutorizacionesRedmine(DateTime? fechaDesde = null, DateTime? fechaHasta = null, int? operacionId = null);
 
         // --- PLANTILLA DE REQUERIMIENTOS / TURNOS DEL CLIENTE (PRECARGA EXCEL / SHEETS) ---
         Task<IListResponse<Modelo.ClasesGenericas.PlantillaClienteTurnoDto>> GetPlantillaClienteTurnos(string cliente = "");

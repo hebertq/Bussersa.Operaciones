@@ -4710,7 +4710,7 @@ namespace HostService.Clases
             return response;
         }
 
-        public async Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades)
+        public async Task<IResponse> UpdateSupervisorClienteModulos(int id, bool aplicaHoras, bool aplicaActividades, bool? aplicaHorasExtras = null)
         {
             string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
             IResponse response = new ErrorResponse();
@@ -4720,7 +4720,8 @@ namespace HostService.Clases
                 {
                     Id = id,
                     AplicaHoras = aplicaHoras,
-                    AplicaActividades = aplicaActividades
+                    AplicaActividades = aplicaActividades,
+                    AplicaHorasExtras = aplicaHorasExtras
                 };
                 var requestUrl = CreateRequestUri("Operaciones/UpdateSupervisorClienteModulos");
                 var registro = await PostAsync(requestUrl, request);
@@ -5242,6 +5243,261 @@ namespace HostService.Clases
                     var reg = registro.Data;
                     if (reg.sucess)
                         response.Model = _Util.ObtenerRegistro<ToggleUserStatusResultDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        // --- AUTORIZACIÓN DE HORAS EXTRAS CON FIRMA DIGITAL, HELPDESK Y RECIBOS ---
+        public async Task<IListResponse<Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto>> GetConfigClientesHorasExtras()
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/GetConfigClientesHorasExtras");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> SaveConfigClienteHorasExtras(Modelo.ClasesGenericas.ClienteConfigHorasExtrasDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/SaveConfigClienteHorasExtras");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAutorizacionHeDto>> CrearAutorizacionHorasExtras(Modelo.ClasesGenericas.CrearAutorizacionHorasExtrasRequestDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.ClasesGenericas.ResultadoCreacionAutorizacionHeDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/CrearAutorizacionHorasExtras");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.ResultadoCreacionAutorizacionHeDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> AgregarFirmaAutorizacionHorasExtras(Modelo.ClasesGenericas.AgregarFirmaAutorizacionRequestDto request)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri("Operaciones/AgregarFirmaAutorizacionHorasExtras");
+                var registro = await PostAsync(requestUrl, request);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IListResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetAutorizacionesHorasExtras(
+            DateTime? fechaDesde = null,
+            DateTime? fechaHasta = null,
+            int? operacionId = null,
+            string? cliente = null,
+            int? codigoEmpleado = null,
+            string? estado = null,
+            bool incluirFirmas = true)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new ListResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>();
+            try
+            {
+                var qs = new List<string> { $"incluirFirmas={(incluirFirmas ? "true" : "false")}" };
+                if (fechaDesde.HasValue) qs.Add($"fechaDesde={fechaDesde.Value:yyyy-MM-dd}");
+                if (fechaHasta.HasValue) qs.Add($"fechaHasta={fechaHasta.Value:yyyy-MM-dd}");
+                if (operacionId.HasValue && operacionId.Value > 0) qs.Add($"operacionId={operacionId.Value}");
+                if (!string.IsNullOrWhiteSpace(cliente)) qs.Add($"cliente={Uri.EscapeDataString(cliente)}");
+                if (codigoEmpleado.HasValue && codigoEmpleado.Value > 0) qs.Add($"codigoEmpleado={codigoEmpleado.Value}");
+                if (!string.IsNullOrWhiteSpace(estado)) qs.Add($"estado={Uri.EscapeDataString(estado)}");
+
+                var requestUrl = CreateRequestUri("Operaciones/GetAutorizacionesHorasExtras", string.Join("&", qs));
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerDato<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetReciboAutorizacionPorToken(string token)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/GetReciboAutorizacionPorToken/{Uri.EscapeDataString(token)}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>> GetReciboAutorizacionPorId(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/GetReciboAutorizacionPorId/{id}");
+                var registro = await GetAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.AutorizacionHorasExtrasDto>(reg.detail.ToString());
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<IResponse> AnularAutorizacionHorasExtras(int id)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            IResponse response = new ErrorResponse();
+            try
+            {
+                var requestUrl = CreateRequestUri($"Operaciones/AnularAutorizacionHorasExtras/{id}");
+                var registro = await DeleteAsync(requestUrl);
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Respuesta.SetErrHost(reg);
+                    else
+                        response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
+                }
+                else
+                    response.Respuesta.SetErrorApi(registro.ReturnMessage, metodo);
+            }
+            catch (Exception ex)
+            {
+                response.Respuesta.SetErrorExep(ErrorType.Datos, ex, metodo);
+            }
+            return response;
+        }
+
+        public async Task<ISingleResponse<Modelo.ClasesGenericas.SincronizarAutorizacionesHeResultDto>> SincronizarAutorizacionesRedmine(DateTime? fechaDesde = null, DateTime? fechaHasta = null, int? operacionId = null)
+        {
+            string metodo = $"OdooService_{MethodBase.GetCurrentMethod().Name}";
+            var response = new SingleResponse<Modelo.ClasesGenericas.SincronizarAutorizacionesHeResultDto>();
+            try
+            {
+                var qs = new List<string>();
+                if (fechaDesde.HasValue) qs.Add($"fechaDesde={fechaDesde.Value:yyyy-MM-dd}");
+                if (fechaHasta.HasValue) qs.Add($"fechaHasta={fechaHasta.Value:yyyy-MM-dd}");
+                if (operacionId.HasValue && operacionId.Value > 0) qs.Add($"operacionId={operacionId.Value}");
+
+                var requestUrl = CreateRequestUri("Operaciones/SincronizarAutorizacionesRedmine", string.Join("&", qs));
+                var registro = await PostAsync(requestUrl, new { });
+                if (registro.IsSuccess)
+                {
+                    var reg = registro.Data;
+                    if (reg.sucess)
+                        response.Model = _Util.ObtenerRegistro<Modelo.ClasesGenericas.SincronizarAutorizacionesHeResultDto>(reg.detail.ToString());
                     else
                         response.Respuesta.SetError(reg.errors.ToString(), ErrorType.Servicio, "");
                 }

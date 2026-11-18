@@ -142,6 +142,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                             HorasNormalesDb = x.horas_normales_cobrables,
                             HorasExtrasDb = x.horas_extras_cobrables,
                             ReglaAplicadaDb = x.regla_aplicada ?? string.Empty,
+                            HorasExtrasAutorizadas = x.horas_extras_autorizadas,
+                            AutorizadoPor = x.autorizado_por ?? string.Empty,
+                            TicketAutorizacionId = x.ticket_autorizacion_id,
+                            EstadoAutorizacionHe = x.estado_autorizacion_he ?? string.Empty,
+                            TokenReciboHe = x.token_recibo_he ?? string.Empty,
                             Turno = DeterminarTurnoOperativo(operacionId, x.entrada_movimiento, x.salida_movimiento)
                         };
                     }).ToList();
@@ -934,6 +939,38 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
 
         protected int CantidadSupervisoresConfigurados => supervisoresIds.Count;
         protected int CantidadMarcacionesExcluidas => DatosCierreRaw.Count(EsSupervisor);
+        protected int TotalConAutorizacionHe => DatosCierre?.Count(x => x.HorasExtrasAutorizadas > 0 || !string.IsNullOrWhiteSpace(x.EstadoAutorizacionHe)) ?? 0;
+
+        protected async Task ImprimirBoletasHePeriodo()
+        {
+            if (operacionId <= 0) return;
+            isloading = true;
+            StateHasChanged();
+            try
+            {
+                DateTime ini = esRango ? (fchaInicio?.Date ?? DateTime.Today.AddDays(-30)) : new DateTime(anio, mes, 1);
+                DateTime fin = esRango ? (fchaFin?.Date ?? DateTime.Today) : new DateTime(anio, mes, DateTime.DaysInMonth(anio, mes));
+                var resp = await OdooService.GetAutorizacionesHorasExtras(ini, fin, operacionId, incluirFirmas: true);
+                var boletas = resp?.Model?.ToList() ?? new List<AutorizacionHorasExtrasDto>();
+                if (!boletas.Any())
+                {
+                    Snackbar.Add("No se encontraron boletas de horas extras con firma en el período consultado.", Severity.Info);
+                    return;
+                }
+
+                string html = BsOperaciones.Pages.Operaciones.MovimientosPersonal.BoletaAutorizacionHeHelper.ConstruirHtmlLoteBoletas(boletas);
+                await JS.InvokeVoidAsync("signaturePadInterop.printHtmlWindow", $"Boletas Horas Extras - {ini:dd/MM/yyyy} al {fin:dd/MM/yyyy}", html);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al imprimir boletas: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                isloading = false;
+                StateHasChanged();
+            }
+        }
 
         protected async Task ExportarExcelCompleto()
         {
@@ -978,7 +1015,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     Horas_Cobrables = x.HorasNormalesCobrables,
                     Extras_Cobrables = x.HorasExtrasCobrables,
                     Total_Cobrable = x.HorasNormalesCobrables + x.HorasExtrasCobrables,
-                    Regla_Aplicada = x.ReglaAplicada
+                    Regla_Aplicada = x.ReglaAplicada,
+                    Estado_Autorizacion_HE = string.IsNullOrWhiteSpace(x.EstadoAutorizacionHe) ? "N/A" : x.EstadoAutorizacionHe,
+                    Horas_Extras_Autorizadas = x.HorasExtrasAutorizadas,
+                    Ticket_Autorizacion = x.TicketAutorizacionId.HasValue ? $"#{x.TicketAutorizacionId.Value}" : "",
+                    Autorizado_Por = x.AutorizadoPor
                 }).ToList();
 
                 var request = new MultiSheetExcelRequest
@@ -1075,6 +1116,8 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
             (x.nombre_empleado != null && x.nombre_empleado.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
             (x.cargo != null && x.cargo.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
             (x.Turno != null && x.Turno.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
-            (x.area_nombre != null && x.area_nombre.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase));
+            (x.area_nombre != null && x.area_nombre.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(x.AutorizadoPor) && x.AutorizadoPor.Contains(_searchDetalle, StringComparison.OrdinalIgnoreCase)) ||
+            (x.TicketAutorizacionId.HasValue && x.TicketAutorizacionId.Value.ToString().Contains(_searchDetalle));
     }
 }

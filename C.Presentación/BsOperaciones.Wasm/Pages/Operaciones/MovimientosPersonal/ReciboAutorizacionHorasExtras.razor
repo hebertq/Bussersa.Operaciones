@@ -1,0 +1,238 @@
+@page "/recibo-horas-extras/{Token}"
+@layout EmptyPrintLayout
+@attribute [AllowAnonymous]
+@using Modelo.ClasesGenericas
+@using HostService.Interfaces
+@inject IOdooService _odooService
+@inject IJSRuntime _js
+@inject ISnackbar _snackbar
+
+<PageTitle>Boleta de Autorización de Horas Extras - BUSSERSA</PageTitle>
+
+<style>
+    @@media print {
+        .no-print { display: none !important; }
+        body { background: #ffffff !important; }
+        .recibo-wrapper { padding: 0 !important; background: #ffffff !important; min-height: auto !important; }
+    }
+    .recibo-wrapper {
+        min-height: 100vh;
+        background: #f1f5f9;
+        padding: 24px 16px;
+    }
+</style>
+
+<div class="recibo-wrapper">
+    @if (cargando)
+    {
+        <div class="d-flex flex-column align-center justify-center py-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.body1" Class="mt-3 fw-bold">Cargando boleta oficial de autorización...</MudText>
+        </div>
+    }
+    else if (boleta == null)
+    {
+        <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                @(string.IsNullOrWhiteSpace(mensajeError) ? "No se encontró el recibo de autorización solicitado o fue anulado." : mensajeError)
+            </MudAlert>
+        </MudContainer>
+    }
+    else
+    {
+        <div class="no-print" style="max-width: 820px; margin: 0 auto 16px auto;">
+            <MudPaper Class="pa-3 rounded-lg d-flex align-center justify-space-between flex-wrap gap-2" Elevation="2">
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Primary" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Recibo Oficial de Horas Extras #@boleta.Id</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @(boleta.TicketRedmineId.HasValue ? $"Vinculado a Helpdesk Ticket #{boleta.TicketRedmineId.Value}" : "Respaldo digital BUSSERSA")
+                        </MudText>
+                    </div>
+                </div>
+                <div class="d-flex align-center gap-2 flex-wrap">
+                    @if (!boleta.TieneFirmaGerente && !modoFirmarGerente)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Draw"
+                                   OnClick="@ActivarModoFirmaGerente">
+                            Agregar Firma de Gerente
+                        </MudButton>
+                    }
+                    @if (boleta.TicketRedmineId.HasValue && boleta.TicketRedmineId.Value > 0)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.OpenInNew"
+                                   Href="@($"https://helpdesk.bussersa.com/issues/{boleta.TicketRedmineId.Value}")"
+                                   Target="_blank">
+                            Ver Ticket #@boleta.TicketRedmineId
+                        </MudButton>
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               OnClick="@ImprimirPagina">
+                        Imprimir / Guardar PDF
+                    </MudButton>
+                </div>
+            </MudPaper>
+
+            @if (modoFirmarGerente)
+            {
+                <MudPaper Class="pa-4 mt-3 rounded-lg" Elevation="3" Style="border: 2px solid #f59e0b; background: #fffbeb;">
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold mb-2" Style="color: #92400e;">
+                        <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" Class="mr-1" />
+                        Capturar Firma Digital del Gerente / Autorizador
+                    </MudText>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="nombreGerente" Label="Nombre completo del Gerente" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="cargoGerente" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <div style="border: 2px dashed #64748b; border-radius: 8px; background: #ffffff; padding: 4px;">
+                                <canvas id="canvas_recibo_gerente" style="width: 100%; height: 155px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+                            </div>
+                            <div class="d-flex justify-space-between align-center mt-2">
+                                <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.CleaningServices" OnClick="@LimpiarCanvasGerente">
+                                    Limpiar trazo
+                                </MudButton>
+                                <div class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small" OnClick="@(() => modoFirmarGerente = false)" Disabled="@guardandoFirma">
+                                        Cancelar
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarFirmaGerente" Disabled="@guardandoFirma">
+                                        @(guardandoFirma ? "Guardando y enviando a Helpdesk..." : "Guardar Firma en Recibo y Helpdesk")
+                                    </MudButton>
+                                </div>
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+        </div>
+
+        <div style="max-width: 820px; margin: 0 auto;">
+            @((MarkupString)BoletaAutorizacionHeHelper.ConstruirHtmlBoletaIndividual(boleta, false))
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+
+    private bool cargando = true;
+    private string mensajeError = string.Empty;
+    private AutorizacionHorasExtrasDto? boleta;
+
+    private bool modoFirmarGerente = false;
+    private bool guardandoFirma = false;
+    private string nombreGerente = string.Empty;
+    private string cargoGerente = "Gerente / Autorizador";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CargarBoleta();
+    }
+
+    private async Task CargarBoleta()
+    {
+        cargando = true;
+        mensajeError = string.Empty;
+        try
+        {
+            var resp = await _odooService.GetReciboAutorizacionPorToken(Token);
+            if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
+            {
+                boleta = resp.Model;
+                nombreGerente = boleta.GerenteNombre ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(boleta.GerenteCargo))
+                    cargoGerente = boleta.GerenteCargo;
+            }
+            else
+            {
+                mensajeError = resp?.Respuesta?.MensajeError ?? "Recibo no encontrado.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ActivarModoFirmaGerente()
+    {
+        modoFirmarGerente = true;
+        StateHasChanged();
+        await Task.Delay(120);
+        await _js.InvokeVoidAsync("signaturePadInterop.init", "canvas_recibo_gerente");
+    }
+
+    private async Task LimpiarCanvasGerente()
+    {
+        await _js.InvokeVoidAsync("signaturePadInterop.clear", "canvas_recibo_gerente");
+    }
+
+    private async Task GuardarFirmaGerente()
+    {
+        if (boleta == null) return;
+        if (string.IsNullOrWhiteSpace(nombreGerente))
+        {
+            _snackbar.Add("Ingrese el nombre del Gerente o Autorizador.", Severity.Warning);
+            return;
+        }
+
+        var tieneTrazo = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_recibo_gerente");
+        if (!tieneTrazo)
+        {
+            _snackbar.Add("Por favor dibuje la firma en el recuadro blanco.", Severity.Warning);
+            return;
+        }
+
+        var dataUrl = await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_recibo_gerente");
+        guardandoFirma = true;
+        try
+        {
+            var req = new AgregarFirmaAutorizacionRequestDto
+            {
+                AutorizacionId = boleta.Id,
+                TipoFirma = "GERENTE",
+                NombreFirmante = nombreGerente.Trim(),
+                CargoFirmante = cargoGerente.Trim(),
+                FirmaBase64 = dataUrl,
+                UsuarioActualizacion = nombreGerente.Trim()
+            };
+
+            var resp = await _odooService.AgregarFirmaAutorizacionHorasExtras(req);
+            if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
+            {
+                boleta = resp.Model;
+                modoFirmarGerente = false;
+                _snackbar.Add("Firma digital guardada y adjuntada al ticket de Helpdesk.", Severity.Success);
+            }
+            else
+            {
+                _snackbar.Add(resp?.Respuesta?.MensajeError ?? "Error al guardar la firma.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            guardandoFirma = false;
+        }
+    }
+
+    private async Task ImprimirPagina()
+    {
+        await _js.InvokeVoidAsync("window.print");
+    }
+}
