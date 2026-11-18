@@ -34,11 +34,11 @@ namespace Modelo.ClasesGenericas
         public decimal HorasExtrasAutorizadas { get; set; }
         public string Motivo { get; set; } = string.Empty;
         public string SupervisorNombre { get; set; } = string.Empty;
-        public string SupervisorCargo { get; set; } = "Supervisor de Operaciones";
+        public string SupervisorCargo { get; set; } = "Supervisor del Cliente";
         public string? FirmaSupervisorBase64 { get; set; }
         public DateTime? FechaFirmaSupervisor { get; set; }
         public string GerenteNombre { get; set; } = string.Empty;
-        public string GerenteCargo { get; set; } = "Gerente / Autorizador";
+        public string GerenteCargo { get; set; } = "Gerente del Cliente";
         public string? FirmaGerenteBase64 { get; set; }
         public DateTime? FechaFirmaGerente { get; set; }
         public int? RedmineAutorizadoPorId { get; set; }
@@ -82,10 +82,10 @@ namespace Modelo.ClasesGenericas
         public decimal HorasExtrasAutorizadas { get; set; }
         public string Motivo { get; set; } = string.Empty;
         public string SupervisorNombre { get; set; } = string.Empty;
-        public string SupervisorCargo { get; set; } = "Supervisor de Operaciones";
+        public string SupervisorCargo { get; set; } = "Supervisor del Cliente";
         public string? FirmaSupervisorBase64 { get; set; }
         public string GerenteNombre { get; set; } = string.Empty;
-        public string GerenteCargo { get; set; } = "Gerente / Autorizador";
+        public string GerenteCargo { get; set; } = "Gerente del Cliente";
         public string? FirmaGerenteBase64 { get; set; }
         public int? RedmineAutorizadoPorId { get; set; }
         public string UsuarioRegistro { get; set; } = string.Empty;

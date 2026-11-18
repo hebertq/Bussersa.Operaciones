@@ -13,7 +13,7 @@
             </MudAvatar>
             <div>
                 <MudText Typo="Typo.subtitle1" Class="fw-bold">
-                    Agregar Firma de @(TipoFirma == "SUPERVISOR" ? "Supervisor" : "Gerente / Autorizador")
+                    Agregar Firma de @(TipoFirma == "SUPERVISOR" ? "Supervisor del Cliente" : "Gerente del Cliente")
                 </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     #@Autorizacion.CodigoEmpleado @Autorizacion.NombreEmpleado &bull; @Autorizacion.HorasExtrasAutorizadas.ToString("N2")h (@Autorizacion.Fecha.ToString("dd/MM/yyyy"))
@@ -50,7 +50,7 @@
     [Parameter] public string TipoFirma { get; set; } = "GERENTE";
 
     private string nombreFirmante = string.Empty;
-    private string cargoFirmante = "Gerente / Autorizador";
+    private string cargoFirmante = "Gerente del Cliente";
     private bool guardando = false;
 
     protected override void OnInitialized()
@@ -58,12 +58,12 @@
         if (TipoFirma == "SUPERVISOR")
         {
             nombreFirmante = Autorizacion.SupervisorNombre ?? string.Empty;
-            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.SupervisorCargo) ? "Supervisor de Operaciones" : Autorizacion.SupervisorCargo;
+            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.SupervisorCargo) ? "Supervisor del Cliente" : Autorizacion.SupervisorCargo;
         }
         else
         {
             nombreFirmante = Autorizacion.GerenteNombre ?? string.Empty;
-            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.GerenteCargo) ? "Gerente / Autorizador" : Autorizacion.GerenteCargo;
+            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.GerenteCargo) ? "Gerente del Cliente" : Autorizacion.GerenteCargo;
         }
     }
 

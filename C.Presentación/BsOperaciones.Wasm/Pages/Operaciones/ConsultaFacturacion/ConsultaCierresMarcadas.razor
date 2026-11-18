@@ -606,6 +606,7 @@
                                         <label class="small fw-bold text-secondary mb-1">Tipo / Comportamiento de Cobro:</label>
                                         <select class="form-select form-select-sm" value="@editingRegla.TipoRegla" @onchange="OnTipoReglaChanged">
                                             <option value="REGLA_48H_SEMANAL">⚖️ Regla 48h Semanal (Alineada con Nómina)</option>
+                                            <option value="SINSA_MARCACION_AUTORIZADA">✅ Marcación por Área/Turno + H.E. Solo Autorizada</option>
                                             <option value="DOMINGO_SIEMPRE_EXTRA">📅 Domingo Siempre Extra (Sin regla 48h)</option>
                                             <option value="MONTACARGA_12H">🚜 Montacargas 12h (12 Cobrables + Exceso a Extras)</option>
                                             <option value="NOCTURNO_EQUIVALENCIA">🌙 Nocturno Equivalente (7h → 8N)</option>
@@ -733,6 +734,12 @@
                                                                     break;
                                                                 case "TOPE_DIARIO":
                                                                     <span>⏱️ Tope Diario</span>
+                                                                    break;
+                                                                case "SINSA_MARCACION_AUTORIZADA":
+                                                                    <span>✅ Marcación + H.E. Autorizada</span>
+                                                                    break;
+                                                                case "REGLA_48H_SEMANAL":
+                                                                    <span>⚖️ Regla 48h Semanal</span>
                                                                     break;
                                                                 default:
                                                                     <span>⚙️ Personalizada</span>

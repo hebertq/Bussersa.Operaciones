@@ -5345,6 +5345,64 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 })
                 .ToList();
 
+            // Si la jornada del día aún no tiene presentes cargados, respaldar con Mi Plantilla o Personal Maestro del Cliente
+            if (!candidatos.Any())
+            {
+                var dePlantilla = miPlantillaPersonal
+                    .Where(p => p.Activo && !string.IsNullOrWhiteSpace(p.ClienteDefault) &&
+                                string.Equals(p.ClienteDefault.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(p => p.AreaDefault)
+                    .ThenBy(p => p.NombreEmpleado)
+                    .Select(p => new ColaboradorAutorizacionItemDto
+                    {
+                        EmployeeId = p.IdEmpleado > 0 ? p.IdEmpleado : null,
+                        CodigoEmpleado = p.CodigoEmpleado,
+                        NombreEmpleado = p.NombreEmpleado,
+                        Area = string.IsNullOrWhiteSpace(p.AreaDefault) ? "Operaciones" : p.AreaDefault,
+                        Cargo = string.IsNullOrWhiteSpace(p.PuestoDefault) ? "6-Operador de almacen" : p.PuestoDefault,
+                        HoraEntradaJornada = p.HoraEntradaDefault,
+                        HoraSalidaJornada = p.HoraSalidaDefault,
+                        HoraInicioExtra = (!string.IsNullOrWhiteSpace(p.HoraSalidaDefault) && p.HoraSalidaDefault != "--:--") ? p.HoraSalidaDefault : "17:00",
+                        HoraFinExtra = "20:00"
+                    })
+                    .ToList();
+
+                if (dePlantilla.Any())
+                {
+                    candidatos = dePlantilla;
+                }
+                else
+                {
+                    try
+                    {
+                        var respPersonal = await _odooService.GetPersonalCliente(cliente: cliNombre);
+                        if (respPersonal?.Model != null && respPersonal.Model.Any())
+                        {
+                            candidatos = respPersonal.Model
+                                .Where(p => p.Activo && p.CodigoEmpleado > 0)
+                                .GroupBy(p => p.CodigoEmpleado)
+                                .Select(g => g.First())
+                                .OrderBy(p => p.AreaDefault)
+                                .ThenBy(p => p.NombreEmpleado)
+                                .Select(p => new ColaboradorAutorizacionItemDto
+                                {
+                                    EmployeeId = p.IdEmpleado > 0 ? p.IdEmpleado : null,
+                                    CodigoEmpleado = p.CodigoEmpleado,
+                                    NombreEmpleado = p.NombreEmpleado,
+                                    Area = string.IsNullOrWhiteSpace(p.AreaDefault) ? "Operaciones" : p.AreaDefault,
+                                    Cargo = string.IsNullOrWhiteSpace(p.PuestoDefault) ? "6-Operador de almacen" : p.PuestoDefault,
+                                    HoraEntradaJornada = p.HoraEntradaDefault,
+                                    HoraSalidaJornada = p.HoraSalidaDefault,
+                                    HoraInicioExtra = (!string.IsNullOrWhiteSpace(p.HoraSalidaDefault) && p.HoraSalidaDefault != "--:--") ? p.HoraSalidaDefault : "17:00",
+                                    HoraFinExtra = "20:00"
+                                })
+                                .ToList();
+                        }
+                    }
+                    catch { }
+                }
+            }
+
             var iniciales = new List<ColaboradorAutorizacionItemDto>();
             if (empInicial != null)
             {
@@ -5377,12 +5435,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
             }
 
+            // Nuestro supervisor de BUSSERSA NO autoriza ni firma; solo firma el Supervisor o Gerente del Cliente.
             var parameters = new DialogParameters
             {
                 ["OperacionId"] = opId,
                 ["ClienteNombre"] = cliNombre,
                 ["Fecha"] = fRef,
-                ["SupervisorInicial"] = currentUserName,
+                ["SupervisorInicial"] = string.Empty,
                 ["UsuarioRegistro"] = UsuarioRedmineEfectivo,
                 ["ColaboradoresIniciales"] = iniciales,
                 ["CandidatosDisponibles"] = candidatos

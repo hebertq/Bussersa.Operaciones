@@ -115,17 +115,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             string imgSup = (!string.IsNullOrWhiteSpace(b.FirmaSupervisorBase64) && b.FirmaSupervisorBase64 != "HAS_SIG")
-                ? $"<img src=\"{b.FirmaSupervisorBase64}\" alt=\"Firma Supervisor\" style=\"max-height:74px; max-width:230px; object-fit:contain; display:block; margin:0 auto;\" />"
-                : "<div style=\"height:74px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:11px; font-style:italic;\">(Espacio para firma del Supervisor)</div>";
+                ? $"<img src=\"{b.FirmaSupervisorBase64}\" alt=\"Firma Supervisor Cliente\" style=\"max-height:74px; max-width:230px; object-fit:contain; display:block; margin:0 auto;\" />"
+                : "<div style=\"height:74px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:11px; font-style:italic;\">(Espacio para firma del Supervisor del Cliente)</div>";
 
             string imgGer = (!string.IsNullOrWhiteSpace(b.FirmaGerenteBase64) && b.FirmaGerenteBase64 != "HAS_SIG")
-                ? $"<img src=\"{b.FirmaGerenteBase64}\" alt=\"Firma Gerente\" style=\"max-height:74px; max-width:230px; object-fit:contain; display:block; margin:0 auto;\" />"
-                : "<div style=\"height:74px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:11px; font-style:italic;\">(Pendiente firma de Gerencia / Cliente)</div>";
+                ? $"<img src=\"{b.FirmaGerenteBase64}\" alt=\"Firma Gerente Cliente\" style=\"max-height:74px; max-width:230px; object-fit:contain; display:block; margin:0 auto;\" />"
+                : "<div style=\"height:74px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:11px; font-style:italic;\">(Espacio para firma del Gerente del Cliente)</div>";
 
-            string supNombre = !string.IsNullOrWhiteSpace(b.SupervisorNombre) ? WebUtility.HtmlEncode(b.SupervisorNombre) : "Supervisor de Operaciones";
-            string supCargo = !string.IsNullOrWhiteSpace(b.SupervisorCargo) ? WebUtility.HtmlEncode(b.SupervisorCargo) : "Supervisor que Autoriza";
-            string gerNombre = !string.IsNullOrWhiteSpace(b.GerenteNombre) ? WebUtility.HtmlEncode(b.GerenteNombre) : "Nombre y Firma Gerente";
-            string gerCargo = !string.IsNullOrWhiteSpace(b.GerenteCargo) ? WebUtility.HtmlEncode(b.GerenteCargo) : "Gerente / Autorizador";
+            string supNombre = !string.IsNullOrWhiteSpace(b.SupervisorNombre) ? WebUtility.HtmlEncode(b.SupervisorNombre) : "Supervisor del Cliente";
+            string supCargo = !string.IsNullOrWhiteSpace(b.SupervisorCargo) ? WebUtility.HtmlEncode(b.SupervisorCargo) : "Supervisor del Cliente";
+            string gerNombre = !string.IsNullOrWhiteSpace(b.GerenteNombre) ? WebUtility.HtmlEncode(b.GerenteNombre) : "Gerente del Cliente";
+            string gerCargo = !string.IsNullOrWhiteSpace(b.GerenteCargo) ? WebUtility.HtmlEncode(b.GerenteCargo) : "Gerente del Cliente";
 
             return $@"
 <div class=""boleta-sheet {(incluirSaltoPagina ? "boleta-break" : "")}"">

@@ -31,45 +31,83 @@
                 Se genera <b>1 ticket por Área</b> en Helpdesk con los carnets separados por coma en la descripción (igual que Movimientos) y firma digital adjunta. Al resolverse, las horas pasan a Odoo para <b>pagarse y cobrarse como extras aunque la semana no supere las 48h</b>.
             </MudAlert>
 
-            @* 1. COLABORADORES A AUTORIZAR *@
+            @* 1. COLABORADORES A AUTORIZAR POR ÁREA *@
             <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
-                <div class="d-flex align-center justify-space-between mb-2">
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
                     <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary">
                         <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" />
-                        Colaborador(es) que realizan Horas Extras (@ColaboradoresSeleccionados.Count)
+                        Colaborador(es) por Área que realizan Horas Extras (@ColaboradoresSeleccionados.Count)
                     </MudText>
-                    @if (CandidatosDisponibles != null && CandidatosDisponibles.Count > 1)
+                    @if (CandidatosDisponibles != null && CandidatosDisponibles.Any())
                     {
                         <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
                                    StartIcon="@(mostrarSelectorMultiple ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.GroupAdd)"
                                    OnClick="@(() => mostrarSelectorMultiple = !mostrarSelectorMultiple)">
-                            @(mostrarSelectorMultiple ? "Ocultar lista" : $"Agregar más de la jornada ({CandidatosDisponibles.Count})")
+                            @(mostrarSelectorMultiple ? "Ocultar lista" : $"Seleccionar por Área / Personal ({CandidatosDisponibles.Count})")
                         </MudButton>
                     }
                 </div>
 
                 @if (mostrarSelectorMultiple && CandidatosDisponibles != null && CandidatosDisponibles.Any())
                 {
-                    <div class="mb-2 pa-2 rounded" style="max-height: 150px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1;">
-                        @foreach (var cand in CandidatosDisponibles)
+                    <MudGrid Spacing="2" Class="mb-2">
+                        <MudItem xs="12" sm="5">
+                            <MudSelect T="string" Value="@areaFiltroSeleccionada" ValueChanged="@OnAreaFiltroChanged"
+                                       Label="Filtrar por Área del Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                                       Style="background: white;">
+                                <MudSelectItem T="string" Value="@string.Empty">-- Todas las Áreas (@CandidatosDisponibles.Count) --</MudSelectItem>
+                                @foreach (var ar in AreasDisponibles)
+                                {
+                                    <MudSelectItem T="string" Value="@ar">@ar (@CandidatosDisponibles.Count(c => string.Equals(NormalizarArea(c.Area), ar, StringComparison.OrdinalIgnoreCase)))</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudTextField @bind-Value="busquedaCandidato" Placeholder="Buscar carnet o nombre..."
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Style="background: white;" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3" Class="d-flex align-center gap-1">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" FullWidth="true"
+                                       OnClick="@SeleccionarFiltrados">
+                                Marcar @(string.IsNullOrWhiteSpace(areaFiltroSeleccionada) ? "Visibles" : "Área")
+                            </MudButton>
+                            @if (ColaboradoresSeleccionados.Any())
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.ClearAll" Color="Color.Error" Size="Size.Small"
+                                               Title="Quitar todos" OnClick="@LimpiarSeleccionColaboradores" />
+                            }
+                        </MudItem>
+                    </MudGrid>
+
+                    <div class="mb-2 pa-2 rounded" style="max-height: 165px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1;">
+                        @foreach (var cand in CandidatosFiltrados)
                         {
                             bool sel = CodigosSeleccionados.Contains(cand.CodigoEmpleado);
                             <div class="d-flex align-center justify-space-between py-1 border-bottom" style="font-size: 0.8rem;">
                                 <MudCheckBox T="bool" Dense="true" Color="Color.Primary"
                                              Value="@sel"
                                              ValueChanged="@((bool val) => ToggleCandidato(cand, val))"
-                                             Label="@($"#{cand.CodigoEmpleado} - {cand.NombreEmpleado} ({cand.Area})")" />
+                                             Label="@($"#{cand.CodigoEmpleado} - {cand.NombreEmpleado} ({NormalizarArea(cand.Area)})")" />
                                 <span class="font-monospace text-secondary">@cand.HoraEntradaJornada - @cand.HoraSalidaJornada</span>
                             </div>
                         }
                     </div>
                 }
+                else if (CandidatosDisponibles == null || !CandidatosDisponibles.Any())
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Text" Class="mb-1">
+                        No hay colaboradores cargados para @ClienteNombre. Verifique la plantilla del cliente en la pestaña Mi Personal.
+                    </MudAlert>
+                }
 
                 <div class="d-flex flex-wrap gap-1">
                     @foreach (var c in ColaboradoresSeleccionados)
                     {
-                        <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold">
-                            #@c.CodigoEmpleado - @c.NombreEmpleado (@(string.IsNullOrWhiteSpace(c.Area) ? "Operaciones" : c.Area))
+                        <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold"
+                                 OnClose="@(() => ToggleCandidato(c, false))">
+                            #@c.CodigoEmpleado - @c.NombreEmpleado (@NormalizarArea(c.Area))
                         </MudChip>
                     }
                 </div>
@@ -120,46 +158,59 @@
                 </MudItem>
             </MudGrid>
 
-            @* 3. FIRMA DIGITAL DEL SUPERVISOR *@
+            @* 3. FIRMA DIGITAL DEL SUPERVISOR DEL CLIENTE (EL SUPERVISOR NUESTRO NO AUTORIZA) *@
             <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #ffffff;">
-                <div class="d-flex align-center justify-space-between mb-2">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #013161;">
-                        <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" Class="mr-1" />
-                        1. Firma Digital del Supervisor que Autoriza
-                    </MudText>
+                <div class="d-flex align-center justify-space-between mb-1">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #013161;">
+                            <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" Class="mr-1" />
+                            1. Firma Digital del Supervisor del Cliente (Quien Autoriza)
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Autoriza únicamente el Supervisor / Encargado de <b>@ClienteNombre</b> (el supervisor de BUSSERSA no autoriza).
+                        </MudText>
+                    </div>
                     <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.CleaningServices"
                                OnClick="@(() => LimpiarCanvas("canvas_he_sup"))">
                         Limpiar Firma
                     </MudButton>
                 </div>
-                <MudGrid Spacing="2" Class="mb-2">
+                <MudGrid Spacing="2" Class="mb-2 mt-1">
                     <MudItem xs="12" sm="7">
-                        <MudTextField @bind-Value="SupervisorNombre" Label="Nombre del Supervisor" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField @bind-Value="SupervisorNombre"
+                                      Label="Nombre del Supervisor del Cliente"
+                                      Placeholder="Ej: Ing. Carlos Pérez (Supervisor del Cliente)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" sm="5">
-                        <MudTextField @bind-Value="SupervisorCargo" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField @bind-Value="SupervisorCargo"
+                                      Label="Cargo en el Cliente"
+                                      Placeholder="Supervisor del Cliente"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
                     </MudItem>
                 </MudGrid>
                 <div style="border: 2px dashed #64748b; border-radius: 8px; background: #ffffff; overflow: hidden;">
                     <canvas id="canvas_he_sup" style="width: 100%; height: 145px; display: block; touch-action: none; cursor: crosshair;"></canvas>
                 </div>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
-                    Firme con el dedo, lápiz óptico o mouse dentro del recuadro.
+                    El Supervisor del Cliente debe firmar con el dedo, lápiz óptico o mouse dentro del recuadro.
                 </MudText>
             </MudPaper>
 
-            @* 4. FIRMA DIGITAL DEL GERENTE (EN SITIO O POSTERIOR) *@
+            @* 4. FIRMA DIGITAL DEL GERENTE DEL CLIENTE (EN SITIO O POSTERIOR) *@
             <MudPaper Class="pa-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #fffbeb;">
                 <div class="d-flex align-center justify-space-between">
                     <div class="d-flex align-center gap-2">
                         <MudSwitch T="bool" Value="@incluirFirmaGerenteAhora" ValueChanged="@OnToggleFirmaGerente" Color="Color.Warning" />
                         <div>
                             <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #92400e;">
-                                2. Firma Digital del Gerente / Autorizador Cliente (Opcional ahora)
+                                2. Firma Digital del Gerente del Cliente (Opcional ahora / posterior)
                             </MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                Puede firmar ahora mismo en la tablet o agregarse/imprimirse después desde oficina.
+                                Puede firmar ahora mismo en la tablet o agregarse/imprimirse después en el recibo oficial.
                             </MudText>
                         </div>
                     </div>
@@ -177,10 +228,19 @@
                 {
                     <MudGrid Spacing="2" Class="mt-2 mb-2">
                         <MudItem xs="12" sm="7">
-                            <MudTextField @bind-Value="GerenteNombre" Label="Nombre del Gerente / Autorizador" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                            <MudTextField @bind-Value="GerenteNombre"
+                                          Label="Nombre del Gerente del Cliente"
+                                          Placeholder="Nombre completo del Gerente / Autorizador del Cliente"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Style="background: white;" />
                         </MudItem>
                         <MudItem xs="12" sm="5">
-                            <MudTextField @bind-Value="GerenteCargo" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" Style="background: white;" />
+                            <MudTextField @bind-Value="GerenteCargo"
+                                          Label="Cargo en el Cliente"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Style="background: white;" />
                         </MudItem>
                     </MudGrid>
                     <div style="border: 2px dashed #d97706; border-radius: 8px; background: #ffffff; overflow: hidden;">
@@ -227,6 +287,8 @@
     private HashSet<int> CodigosSeleccionados = new();
     private List<ColaboradorAutorizacionItemDto> ColaboradoresSeleccionados = new();
     private bool mostrarSelectorMultiple = false;
+    private string areaFiltroSeleccionada = string.Empty;
+    private string busquedaCandidato = string.Empty;
 
     private string HoraInicioExtra = "17:00";
     private string HoraFinExtra = "20:00";
@@ -234,17 +296,52 @@
     private string Motivo = string.Empty;
 
     private string SupervisorNombre = string.Empty;
-    private string SupervisorCargo = "Supervisor de Operaciones";
+    private string SupervisorCargo = "Supervisor del Cliente";
 
     private bool incluirFirmaGerenteAhora = false;
     private string GerenteNombre = string.Empty;
-    private string GerenteCargo = "Gerente / Autorizador";
+    private string GerenteCargo = "Gerente del Cliente";
 
     private bool enviando = false;
 
+    private static string NormalizarArea(string? area) =>
+        string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
+
+    private List<string> AreasDisponibles =>
+        (CandidatosDisponibles ?? new List<ColaboradorAutorizacionItemDto>())
+            .Select(c => NormalizarArea(c.Area))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(a => a)
+            .ToList();
+
+    private List<ColaboradorAutorizacionItemDto> CandidatosFiltrados
+    {
+        get
+        {
+            IEnumerable<ColaboradorAutorizacionItemDto> q = CandidatosDisponibles ?? new List<ColaboradorAutorizacionItemDto>();
+            if (!string.IsNullOrWhiteSpace(areaFiltroSeleccionada))
+            {
+                q = q.Where(c => string.Equals(NormalizarArea(c.Area), areaFiltroSeleccionada, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(busquedaCandidato))
+            {
+                string term = busquedaCandidato.Trim();
+                q = q.Where(c =>
+                    c.CodigoEmpleado.ToString().Contains(term) ||
+                    (!string.IsNullOrWhiteSpace(c.NombreEmpleado) && c.NombreEmpleado.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    NormalizarArea(c.Area).Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+            return q.OrderBy(c => NormalizarArea(c.Area)).ThenBy(c => c.NombreEmpleado).ToList();
+        }
+    }
+
     protected override void OnInitialized()
     {
-        SupervisorNombre = SupervisorInicial ?? string.Empty;
+        // Solo firma el Supervisor o Gerente del Cliente; nunca precargar un correo de @bussersa.com
+        if (!string.IsNullOrWhiteSpace(SupervisorInicial) && !SupervisorInicial.Contains("@bussersa", StringComparison.OrdinalIgnoreCase))
+        {
+            SupervisorNombre = SupervisorInicial.Trim();
+        }
         if (ColaboradoresIniciales != null && ColaboradoresIniciales.Any())
         {
             foreach (var c in ColaboradoresIniciales)
@@ -264,6 +361,26 @@
         {
             mostrarSelectorMultiple = true;
         }
+    }
+
+    private void OnAreaFiltroChanged(string nuevaArea)
+    {
+        areaFiltroSeleccionada = nuevaArea ?? string.Empty;
+    }
+
+    private void SeleccionarFiltrados()
+    {
+        foreach (var cand in CandidatosFiltrados)
+        {
+            if (CodigosSeleccionados.Add(cand.CodigoEmpleado))
+                ColaboradoresSeleccionados.Add(cand);
+        }
+    }
+
+    private void LimpiarSeleccionColaboradores()
+    {
+        CodigosSeleccionados.Clear();
+        ColaboradoresSeleccionados.Clear();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

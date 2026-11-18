@@ -588,6 +588,11 @@ namespace BsOperaciones.Pages.Operaciones.ConsultaFacturacion
                     editingRegla.HorasExtrasBase = 0.00m;
                     editingRegla.HorasBaseTurno = 8.00m;
                     break;
+                case "SINSA_MARCACION_AUTORIZADA":
+                    editingRegla.HorasNormales = 8.00m;
+                    editingRegla.HorasExtrasBase = 0.00m;
+                    editingRegla.HorasBaseTurno = 8.00m;
+                    break;
             }
         }
 
