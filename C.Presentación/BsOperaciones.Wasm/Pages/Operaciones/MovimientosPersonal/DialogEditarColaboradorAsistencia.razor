@@ -18,7 +18,157 @@
         </MudStack>
     </TitleContent>
     <DialogContent>
-        <MudContainer Class="pa-0">
+        <MudContainer Class="pa-0" Style="max-height: 75vh; overflow-y: auto; padding-right: 4px;">
+            @if (RegistroSinsa != null)
+            {
+                <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f0fdf4; border: 1.5px solid #86efac;">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-1 mb-2">
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #166534;">
+                                Datos del Archivo SINSA (@(RegistroSinsa.Fecha?.ToString("dd/MM/yyyy") ?? ""))
+                            </MudText>
+                        </div>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Success"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.AutoFixHigh"
+                                   OnClick="@AplicarTodoSegunSinsa"
+                                   Style="height: 26px; font-size: 0.72rem; font-weight: 800;">
+                            Cuadrar Todo con SINSA
+                        </MudButton>
+                    </div>
+
+                    @* 1. ELEGIR ÁREA *@
+                    <div class="mb-2">
+                        <div class="text-caption fw-bold mb-1" style="color: #1e293b; font-size: 0.73rem;">
+                            1. Elegir Área (Zona SINSA: <b>@ZonaSinsaCanonica</b>):
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(string.Equals(Area, ZonaSinsaCanonica, StringComparison.OrdinalIgnoreCase) ? Color.Success : Color.Default)"
+                                     Variant="@(string.Equals(Area, ZonaSinsaCanonica, StringComparison.OrdinalIgnoreCase) ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => SeleccionarAreaSinsa(ZonaSinsaCanonica))"
+                                     Class="my-0 fw-bold">
+                                Zona SINSA: @ZonaSinsaCanonica
+                            </MudChip>
+                            @if (!string.IsNullOrWhiteSpace(ItemOriginal.Area) && !string.Equals(ItemOriginal.Area, ZonaSinsaCanonica, StringComparison.OrdinalIgnoreCase))
+                            {
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(string.Equals(Area, ItemOriginal.Area, StringComparison.OrdinalIgnoreCase) ? Color.Primary : Color.Default)"
+                                         Variant="@(string.Equals(Area, ItemOriginal.Area, StringComparison.OrdinalIgnoreCase) ? Variant.Filled : Variant.Outlined)"
+                                         OnClick="@(() => SeleccionarAreaSinsa(ItemOriginal.Area))"
+                                         Class="my-0">
+                                    Actual: @ItemOriginal.Area
+                                </MudChip>
+                            }
+                        </div>
+                    </div>
+
+                    @* 2. ELEGIR HORARIO *@
+                    <div class="mb-2">
+                        <div class="text-caption fw-bold mb-1" style="color: #1e293b; font-size: 0.73rem;">
+                            2. Elegir Horario (Ord: <b>@RegistroSinsa.HorasOrdinarias.ToString("0.##")h</b> &bull; Reloj: <b>@RegistroSinsa.HoraEntradaRelojHm - @RegistroSinsa.HoraSalidaRelojHm</b>):
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            @{
+                                string salTurnoConHe = HorasExtrasEdit > 0m
+                                    ? ConciliacionSinsaHelper.SumarHorasHm(RegistroSinsa.TurnoFin, HorasExtrasEdit)
+                                    : RegistroSinsa.TurnoFin;
+                                bool esTurnoActivo = string.Equals(HoraEntrada, RegistroSinsa.TurnoInicio, StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(HoraSalida, salTurnoConHe, StringComparison.OrdinalIgnoreCase);
+                                bool esRelojActivo = string.Equals(HoraEntrada, RegistroSinsa.HoraEntradaRelojHm, StringComparison.OrdinalIgnoreCase)
+                                    && string.Equals(HoraSalida, RegistroSinsa.HoraSalidaRelojHm, StringComparison.OrdinalIgnoreCase);
+                            }
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(esTurnoActivo ? Color.Success : Color.Default)"
+                                     Variant="@(esTurnoActivo ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@AplicarHorarioTurnoSinsa"
+                                     Class="my-0 font-monospace fw-bold">
+                                Turno SINSA: @RegistroSinsa.TurnoInicio - @salTurnoConHe
+                            </MudChip>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(esRelojActivo ? Color.Info : Color.Default)"
+                                     Variant="@(esRelojActivo ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@AplicarHorarioRelojSinsa"
+                                     Class="my-0 font-monospace fw-bold">
+                                Reloj SINSA: @RegistroSinsa.HoraEntradaRelojHm - @RegistroSinsa.HoraSalidaRelojHm
+                            </MudChip>
+                            @if (HorasExtrasEdit > 0m)
+                            {
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="Color.Default"
+                                         Variant="Variant.Outlined"
+                                         OnClick="@AplicarSoloTurnoSinHe"
+                                         Class="my-0 font-monospace">
+                                    Solo Turno: @RegistroSinsa.TurnoInicio - @RegistroSinsa.TurnoFin
+                                </MudChip>
+                            }
+                        </div>
+                    </div>
+
+                    @* 3. HORAS EXTRAS CONFORME AL ARCHIVO SINSA *@
+                    <div class="pt-1" style="border-top: 1px dashed #86efac;">
+                        <div class="d-flex align-center justify-space-between flex-wrap gap-1 mb-1">
+                            <MudCheckBox T="bool"
+                                         Dense="true"
+                                         Color="Color.Warning"
+                                         @bind-Value="AplicarCuadreHorasExtras"
+                                         Label="@($"Generar / cuadrar Horas Extras (Archivo SINSA: {RegistroSinsa.HorasExtra:0.##} hrs)")" />
+                            @if (RegistroSinsa.ExcesoRelojSobreTurnoHoras >= 0.75m && HorasExtrasEdit == 0m)
+                            {
+                                <MudButton Variant="Variant.Text"
+                                           Color="Color.Warning"
+                                           Size="Size.Small"
+                                           OnClick="@UsarSalidaRelojComoHe"
+                                           Style="height: 22px; font-size: 0.68rem; font-weight: 700;">
+                                    Usar exceso reloj (+@RegistroSinsa.ExcesoRelojSobreTurnoHoras.ToString("0.##")h)
+                                </MudButton>
+                            }
+                        </div>
+                        @if (AplicarCuadreHorasExtras)
+                        {
+                            <MudGrid Spacing="1">
+                                <MudItem xs="4">
+                                    <MudTextField T="string"
+                                                  Label="Inicio Extra"
+                                                  Value="@HoraInicioExtraEdit"
+                                                  ValueChanged="@OnInicioExtraChanged"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Style="background: white; font-family: monospace; font-size: 0.78rem;" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudTextField T="string"
+                                                  Label="Fin Extra"
+                                                  Value="@HoraFinExtraEdit"
+                                                  ValueChanged="@OnFinExtraChanged"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Style="background: white; font-family: monospace; font-size: 0.78rem;" />
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudNumericField T="decimal"
+                                                     Label="Cant. H.E."
+                                                     Value="@HorasExtrasEdit"
+                                                     ValueChanged="@OnCantidadHeChanged"
+                                                     Min="0m"
+                                                     Max="16m"
+                                                     Step="0.25m"
+                                                     Format="F2"
+                                                     HideSpinButtons="true"
+                                                     Variant="Variant.Outlined"
+                                                     Margin="Margin.Dense"
+                                                     Adornment="Adornment.End"
+                                                     AdornmentText="h"
+                                                     Style="background: white; font-family: monospace; font-weight: 700; font-size: 0.78rem;" />
+                                </MudItem>
+                            </MudGrid>
+                        }
+                    </div>
+                </MudPaper>
+            }
+
             <MudGrid Spacing="2">
                 @* Cliente y Área *@
                 <MudItem xs="12" md="6">
@@ -215,6 +365,15 @@
 </MudDialog>
 
 @code {
+    public class ResultadoEdicionAsistencia
+    {
+        public EmpleadoJornadaItem EmpleadoModificado { get; set; } = new();
+        public bool AplicarCuadreHorasExtras { get; set; }
+        public decimal HorasExtrasAutorizadas { get; set; }
+        public string HoraInicioExtra { get; set; } = "17:00";
+        public string HoraFinExtra { get; set; } = "18:00";
+    }
+
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public EmpleadoJornadaItem ItemOriginal { get; set; } = new();
@@ -223,6 +382,10 @@
     [Parameter] public Dictionary<string, List<string>> AreasPorCliente { get; set; } = new();
     [Parameter] public List<string> CargosDisponibles { get; set; } = new();
     [Parameter] public List<string> ClientesAsignadosSupervisor { get; set; } = new();
+    [Parameter] public RegistroArchivoSinsaItem? RegistroSinsa { get; set; }
+    [Parameter] public decimal? HorasExtrasActuales { get; set; }
+    [Parameter] public string? HoraInicioExtraActual { get; set; }
+    [Parameter] public string? HoraFinExtraActual { get; set; }
 
     private string Cliente { get; set; } = string.Empty;
     private string Area { get; set; } = string.Empty;
@@ -238,7 +401,17 @@
     private decimal BonoBnc { get; set; } = 0;
     private string Observaciones { get; set; } = string.Empty;
 
+    private bool AplicarCuadreHorasExtras { get; set; }
+    private decimal HorasExtrasEdit { get; set; }
+    private string HoraInicioExtraEdit { get; set; } = "17:00";
+    private string HoraFinExtraEdit { get; set; } = "18:00";
+
     private List<string> areasFiltradas = new();
+
+    private string ZonaSinsaCanonica =>
+        RegistroSinsa != null
+            ? ConciliacionSinsaHelper.ResolverAreaCanonica(RegistroSinsa.Zona, areasFiltradas)
+            : string.Empty;
 
     protected override void OnInitialized()
     {
@@ -258,12 +431,112 @@
 
         VtcoTrasp = ItemOriginal.VtcoTrasp;
         VtcoAlim = ItemOriginal.VtcoAlim;
-
         BonoBnc = ItemOriginal.BonoBnc;
-
         Observaciones = ItemOriginal.Observaciones ?? "";
 
         CargarAreasCliente(Cliente);
+
+        if (RegistroSinsa != null)
+        {
+            if (!string.IsNullOrWhiteSpace(RegistroSinsa.Zona) && !areasFiltradas.Contains(RegistroSinsa.Zona, StringComparer.OrdinalIgnoreCase))
+            {
+                areasFiltradas.Insert(0, RegistroSinsa.Zona.Trim());
+            }
+            AplicarCuadreHorasExtras = true;
+            HorasExtrasEdit = HorasExtrasActuales ?? RegistroSinsa.HorasExtra;
+            HoraInicioExtraEdit = !string.IsNullOrWhiteSpace(HoraInicioExtraActual) ? HoraInicioExtraActual! : RegistroSinsa.HoraInicioExtraSugerida;
+            HoraFinExtraEdit = !string.IsNullOrWhiteSpace(HoraFinExtraActual)
+                ? HoraFinExtraActual!
+                : (HorasExtrasEdit > 0m ? ConciliacionSinsaHelper.SumarHorasHm(HoraInicioExtraEdit, HorasExtrasEdit) : RegistroSinsa.TurnoFin);
+        }
+    }
+
+    private void SeleccionarAreaSinsa(string nuevaArea)
+    {
+        if (string.IsNullOrWhiteSpace(nuevaArea)) return;
+        if (!areasFiltradas.Contains(nuevaArea, StringComparer.OrdinalIgnoreCase))
+            areasFiltradas.Insert(0, nuevaArea);
+        Area = nuevaArea;
+    }
+
+    private void AplicarHorarioTurnoSinsa()
+    {
+        if (RegistroSinsa == null) return;
+        Asistio = true;
+        HoraEntrada = RegistroSinsa.TurnoInicio;
+        HoraSalida = HorasExtrasEdit > 0m
+            ? ConciliacionSinsaHelper.SumarHorasHm(RegistroSinsa.TurnoFin, HorasExtrasEdit)
+            : RegistroSinsa.TurnoFin;
+        TiempoComida = RegistroSinsa.TiempoComidaSugeridoTurno;
+    }
+
+    private void AplicarSoloTurnoSinHe()
+    {
+        if (RegistroSinsa == null) return;
+        Asistio = true;
+        HoraEntrada = RegistroSinsa.TurnoInicio;
+        HoraSalida = RegistroSinsa.TurnoFin;
+        TiempoComida = RegistroSinsa.TiempoComidaSugeridoTurno;
+    }
+
+    private void AplicarHorarioRelojSinsa()
+    {
+        if (RegistroSinsa == null) return;
+        Asistio = true;
+        HoraEntrada = RegistroSinsa.HoraEntradaRelojHm;
+        HoraSalida = RegistroSinsa.HoraSalidaRelojHm;
+        TiempoComida = RegistroSinsa.TiempoComidaSugeridoTurno;
+    }
+
+    private void UsarSalidaRelojComoHe()
+    {
+        if (RegistroSinsa == null) return;
+        AplicarCuadreHorasExtras = true;
+        HoraInicioExtraEdit = RegistroSinsa.TurnoFin;
+        HoraFinExtraEdit = RegistroSinsa.HoraSalidaRelojHm;
+        HorasExtrasEdit = RegistroSinsa.ExcesoRelojSobreTurnoHoras;
+        HoraEntrada = RegistroSinsa.HoraEntradaRelojHm;
+        HoraSalida = RegistroSinsa.HoraSalidaRelojHm;
+        TiempoComida = RegistroSinsa.TiempoComidaSugeridoTurno;
+    }
+
+    private void AplicarTodoSegunSinsa()
+    {
+        if (RegistroSinsa == null) return;
+        Asistio = true;
+        SeleccionarAreaSinsa(ZonaSinsaCanonica);
+        AplicarCuadreHorasExtras = true;
+        HorasExtrasEdit = RegistroSinsa.HorasExtra;
+        HoraInicioExtraEdit = RegistroSinsa.HoraInicioExtraSugerida;
+        HoraFinExtraEdit = HorasExtrasEdit > 0m
+            ? ConciliacionSinsaHelper.SumarHorasHm(HoraInicioExtraEdit, HorasExtrasEdit)
+            : RegistroSinsa.TurnoFin;
+        HoraEntrada = RegistroSinsa.TurnoInicio;
+        HoraSalida = HorasExtrasEdit > 0m ? HoraFinExtraEdit : RegistroSinsa.TurnoFin;
+        TiempoComida = RegistroSinsa.TiempoComidaSugeridoTurno;
+    }
+
+    private void OnInicioExtraChanged(string val)
+    {
+        HoraInicioExtraEdit = val?.Trim() ?? "17:00";
+        decimal d = ConciliacionSinsaHelper.CalcularDiferenciaHoras(HoraInicioExtraEdit, HoraFinExtraEdit);
+        if (d > 0m && d <= 16m) HorasExtrasEdit = d;
+    }
+
+    private void OnFinExtraChanged(string val)
+    {
+        HoraFinExtraEdit = val?.Trim() ?? "18:00";
+        decimal d = ConciliacionSinsaHelper.CalcularDiferenciaHoras(HoraInicioExtraEdit, HoraFinExtraEdit);
+        if (d > 0m && d <= 16m) HorasExtrasEdit = d;
+    }
+
+    private void OnCantidadHeChanged(decimal val)
+    {
+        HorasExtrasEdit = Math.Round(Math.Max(0m, val), 2);
+        if (HorasExtrasEdit > 0m)
+        {
+            HoraFinExtraEdit = ConciliacionSinsaHelper.SumarHorasHm(HoraInicioExtraEdit, HorasExtrasEdit);
+        }
     }
 
     private void OnClienteChanged(string nuevoCliente)
@@ -271,7 +544,6 @@
         Cliente = nuevoCliente;
         CargarAreasCliente(nuevoCliente);
 
-        // Si cambia a un cliente distinto del original, sugerir condición de Préstamo
         if (!string.Equals(ItemOriginal.Cliente, nuevoCliente, StringComparison.OrdinalIgnoreCase))
         {
             TipoEmpleado = "Prestamo";
@@ -328,6 +600,18 @@
 
     private void Guardar()
     {
+        string turnoFinal = ItemOriginal.TurnoNombre;
+        if (!Asistio)
+        {
+            turnoFinal = "Ausente";
+        }
+        else if (TimeSpan.TryParse(HoraEntrada, out var tEnt))
+        {
+            if (tEnt.Hours >= 18) turnoFinal = "Nocturno";
+            else if (tEnt.Hours >= 13) turnoFinal = "Mixto";
+            else turnoFinal = "Diurno";
+        }
+
         var modificado = new EmpleadoJornadaItem
         {
             Id = ItemOriginal.Id,
@@ -348,7 +632,7 @@
             BonoBnc = Asistio ? BonoBnc : 0m,
             Bnc = Asistio ? BonoBnc.ToString("F2", CultureInfo.InvariantCulture) : "0",
             Observaciones = Observaciones,
-            TurnoNombre = Asistio ? ItemOriginal.TurnoNombre : "Ausente",
+            TurnoNombre = turnoFinal,
             Estado = ItemOriginal.Estado,
             TicketRedmineId = ItemOriginal.TicketRedmineId,
             TicketViaticoId = ItemOriginal.TicketViaticoId,
@@ -362,6 +646,13 @@
             Modificado = true
         };
 
-        MudDialog.Close(DialogResult.Ok(modificado));
+        MudDialog.Close(DialogResult.Ok(new ResultadoEdicionAsistencia
+        {
+            EmpleadoModificado = modificado,
+            AplicarCuadreHorasExtras = AplicarCuadreHorasExtras && Asistio,
+            HorasExtrasAutorizadas = Asistio ? Math.Round(Math.Max(0m, HorasExtrasEdit), 2) : 0m,
+            HoraInicioExtra = HoraInicioExtraEdit,
+            HoraFinExtra = HoraFinExtraEdit
+        }));
     }
 }

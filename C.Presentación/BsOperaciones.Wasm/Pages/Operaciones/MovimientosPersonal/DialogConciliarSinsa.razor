@@ -1,0 +1,485 @@
+@using System.Globalization
+@using MudBlazor
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+
+<MudDialog MaxWidth="MaxWidth.ExtraLarge" FullWidth="true">
+    <TitleContent>
+        <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+            <div class="d-flex align-center gap-2">
+                <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Medium">
+                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h6" Class="fw-bold" Style="line-height: 1.2;">
+                        Conciliación de Asistencia y Horas Extras — Archivo SINSA
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Archivo: <b>@NombreArchivo</b> &bull; Fecha: <b>@FechaJornada.ToString("dd/MM/yyyy")</b>
+                    </MudText>
+                </div>
+            </div>
+            <div class="d-flex align-center gap-1 flex-wrap">
+                <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
+                    Archivo SINSA: @Filas.Count
+                </MudChip>
+                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Class="fw-bold">
+                    Ya Ingresados: @TotalYaIngresados
+                </MudChip>
+                @if (TotalPorIngresar > 0)
+                {
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.PersonAdd" Class="fw-bold">
+                        Faltan Ingresar: @TotalPorIngresar
+                    </MudChip>
+                }
+                <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.MoreTime" Class="fw-bold">
+                    H.E. a Generar: @TotalConHorasExtras pers. (@SumaHorasExtras.ToString("N2") hrs)
+                </MudChip>
+            </div>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <div style="max-height: 76vh; overflow-y: auto; padding-right: 4px;">
+            @* ALERTA DE PERSONAS EN ASISTENCIA QUE NO APARECEN EN EL ARCHIVO SINSA *@
+            @if (NoEnArchivoSinsa.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                    <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                        <div>
+                            <b>Atención (@NoEnArchivoSinsa.Count en Asistencia no aparecen en el archivo SINSA):</b>
+                            <span style="font-size: 0.8rem;">
+                                @string.Join(", ", NoEnArchivoSinsa.Take(5).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado}"))@(NoEnArchivoSinsa.Count > 5 ? $" y {NoEnArchivoSinsa.Count - 5} más..." : "")
+                            </span>
+                        </div>
+                        <MudCheckBox T="bool"
+                                     Dense="true"
+                                     Color="Color.Warning"
+                                     @bind-Value="marcarAusentesNoEnSinsa"
+                                     Label="Marcar como AUSENTES al conciliar" />
+                    </div>
+                </MudAlert>
+            }
+
+            @* BARRA DE FILTROS Y SELECCIÓN RÁPIDA MASIVA *@
+            <MudPaper Class="pa-2 px-3 mb-2 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                    <div class="d-flex align-center gap-1 flex-wrap">
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(filtroEstado == "TODOS" ? Color.Primary : Color.Default)"
+                                 Variant="@(filtroEstado == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => filtroEstado = "TODOS")">
+                            Todos (@Filas.Count)
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(filtroEstado == "INGRESADOS" ? Color.Success : Color.Default)"
+                                 Variant="@(filtroEstado == "INGRESADOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => filtroEstado = "INGRESADOS")">
+                            Ya Ingresados (@TotalYaIngresados)
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(filtroEstado == "FALTANTES" ? Color.Info : Color.Default)"
+                                 Variant="@(filtroEstado == "FALTANTES" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => filtroEstado = "FALTANTES")">
+                            Por Ingresar (@(Filas.Count - TotalYaIngresados))
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(filtroEstado == "DIFERENCIAS" ? Color.Warning : Color.Default)"
+                                 Variant="@(filtroEstado == "DIFERENCIAS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => filtroEstado = "DIFERENCIAS")">
+                            Con Diferencias (@Filas.Count(f => f.TieneDiferenciaArea || f.TieneDiferenciaHorario))
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small"
+                                 Color="@(filtroEstado == "CON_HE" ? Color.Secondary : Color.Default)"
+                                 Variant="@(filtroEstado == "CON_HE" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => filtroEstado = "CON_HE")">
+                            Con H.E. / Exceso Reloj (@Filas.Count(f => f.HorasExtrasElegidas > 0 || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m))
+                        </MudChip>
+                    </div>
+
+                    <div class="d-flex align-center gap-2 flex-wrap">
+                        <MudTextField @bind-Value="textoBusqueda"
+                                      Placeholder="Buscar colaborador o zona..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Style="background: white; min-width: 210px;" />
+
+                        <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
+                            <MudButton OnClick="@(() => AplicarModoHorarioMasivo("TURNO_CON_HE"))"
+                                       Variant="@(modoMasivoActivo == "TURNO_CON_HE" ? Variant.Filled : Variant.Outlined)"
+                                       Title="Usar el Turno programado en SINSA (+ Horas Extra del archivo) en todos">
+                                Turno SINSA
+                            </MudButton>
+                            <MudButton OnClick="@(() => AplicarModoHorarioMasivo("MARCACION_RELOJ"))"
+                                       Variant="@(modoMasivoActivo == "MARCACION_RELOJ" ? Variant.Filled : Variant.Outlined)"
+                                       Title="Usar la Hora Entrada y Hora Salida del reloj biométrico de SINSA en todos">
+                                Reloj SINSA
+                            </MudButton>
+                        </MudButtonGroup>
+                    </div>
+                </div>
+            </MudPaper>
+
+            @* TABLA INTERACTIVA DE CONCILIACIÓN *@
+            <div style="overflow-x: auto;">
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="min-width: 1040px;">
+                    <thead>
+                        <tr style="background: #f1f5f9;">
+                            <th style="width: 42px; text-align: center;">
+                                <MudCheckBox T="bool"
+                                             Dense="true"
+                                             Color="Color.Primary"
+                                             Value="@(FilasFiltradas.Any(f => f.Vinculado) && FilasFiltradas.Where(f => f.Vinculado).All(f => f.SeleccionadoAplicar))"
+                                             ValueChanged="@MarcarVisibles" />
+                            </th>
+                            <th style="width: 135px;">Estado Asistencia</th>
+                            <th style="min-width: 230px;">Colaborador (Bussersa / SINSA)</th>
+                            <th style="min-width: 210px;">Área Operativa (Elegir)</th>
+                            <th style="min-width: 235px;">Horario a Registrar (Elegir)</th>
+                            <th style="width: 175px;">Horas Extras (Archivo)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fila in FilasFiltradas)
+                        {
+                            <tr style="@(fila.YaIngresadoEnAsistencia ? "background: #f0fdf433;" : "")">
+                                <td style="text-align: center;">
+                                    <MudCheckBox T="bool"
+                                                 Dense="true"
+                                                 Color="Color.Primary"
+                                                 Disabled="@(!fila.Vinculado)"
+                                                 @bind-Value="fila.SeleccionadoAplicar" />
+                                </td>
+                                <td>
+                                    @if (fila.YaIngresadoEnAsistencia)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Class="fw-bold my-0" Style="font-size: 0.7rem;">
+                                            Ya Ingresado
+                                        </MudChip>
+                                        @if (!fila.AsistioActual)
+                                        {
+                                            <span class="text-danger d-block fw-bold" style="font-size: 0.68rem;">(Estaba Ausente)</span>
+                                        }
+                                    }
+                                    else if (fila.Vinculado)
+                                    {
+                                        <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.PersonAdd" Class="fw-bold my-0" Style="font-size: 0.7rem;">
+                                            Por Ingresar
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.LinkOff" Class="fw-bold my-0" Style="font-size: 0.7rem;">
+                                            Sin Vincular
+                                        </MudChip>
+                                    }
+                                </td>
+                                <td>
+                                    @if (fila.Vinculado)
+                                    {
+                                        <div class="d-flex align-center gap-1">
+                                            <span class="font-monospace fw-bold px-1 rounded" style="background: #1e293b; color: white; font-size: 0.72rem;">
+                                                #@fila.CodigoEmpleado
+                                            </span>
+                                            <span class="fw-bold" style="font-size: 0.8rem; color: #0f172a;">
+                                                @fila.NombreEmpleadoBussersa
+                                            </span>
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.7rem;">
+                                            SINSA: @fila.Sinsa.NombreEmpleadoSinsa &bull; @fila.Sinsa.PuestoSinsa
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="fw-bold text-danger mb-1" style="font-size: 0.78rem;">
+                                            SINSA: @fila.Sinsa.NombreEmpleadoSinsa (@fila.Sinsa.PuestoSinsa)
+                                        </div>
+                                        <MudSelect T="int?"
+                                                   Placeholder="Vincular con colaborador..."
+                                                   Value="@fila.CodigoEmpleado"
+                                                   ValueChanged="@((int? cod) => VincularManual(fila, cod))"
+                                                   Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense"
+                                                   Dense="true"
+                                                   Style="background: white; font-size: 0.75rem;">
+                                            @foreach (var opt in OpcionesVinculacionManual)
+                                            {
+                                                <MudSelectItem T="int?" Value="@((int?)opt.Codigo)">#@opt.Codigo - @opt.Nombre</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                </td>
+                                <td>
+                                    <MudSelect T="string"
+                                               @bind-Value="fila.AreaElegida"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense"
+                                               Dense="true"
+                                               Style="background: white; font-size: 0.78rem;">
+                                        @foreach (var ar in ObtenerOpcionesAreaFila(fila))
+                                        {
+                                            <MudSelectItem T="string" Value="@ar">
+                                                @ar @(string.Equals(ar, fila.Sinsa.Zona, StringComparison.OrdinalIgnoreCase) ? " (SINSA)" : "")
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    @if (fila.TieneDiferenciaArea)
+                                    {
+                                        <div class="d-flex align-center justify-space-between mt-1" style="font-size: 0.68rem;">
+                                            <span style="color: #b45309;">Actual: <b>@fila.AreaActualAsistencia</b></span>
+                                            @if (!string.Equals(fila.AreaElegida, fila.AreaActualAsistencia, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <a href="javascript:void(0)" @onclick="@(() => fila.AreaElegida = fila.AreaActualAsistencia)" style="color: #2563eb; text-decoration: underline;">
+                                                    Usar actual
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    <MudSelect T="string"
+                                               @bind-Value="fila.ModoHorarioElegido"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense"
+                                               Dense="true"
+                                               Style="background: white; font-size: 0.76rem; font-family: monospace;">
+                                        <MudSelectItem T="string" Value="@("TURNO_CON_HE")">
+                                            Turno SINSA: @fila.Sinsa.TurnoInicio - @(fila.HorasExtrasElegidas > 0m ? ConciliacionSinsaHelper.SumarHorasHm(fila.Sinsa.TurnoFin, fila.HorasExtrasElegidas) : fila.Sinsa.TurnoFin) (@fila.Sinsa.HorasOrdinarias.ToString("0.##")h ord)
+                                        </MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("MARCACION_RELOJ")">
+                                            Reloj SINSA: @fila.Sinsa.HoraEntradaRelojHm - @fila.Sinsa.HoraSalidaRelojHm
+                                        </MudSelectItem>
+                                        @if (fila.HorasExtrasElegidas > 0m)
+                                        {
+                                            <MudSelectItem T="string" Value="@("TURNO_PURO")">
+                                                Solo Turno: @fila.Sinsa.TurnoInicio - @fila.Sinsa.TurnoFin
+                                            </MudSelectItem>
+                                        }
+                                        @if (fila.YaIngresadoEnAsistencia && !string.IsNullOrWhiteSpace(fila.HoraEntradaActual) && fila.HoraEntradaActual != "--:--")
+                                        {
+                                            <MudSelectItem T="string" Value="@("MANTENER_ACTUAL")">
+                                                Actual: @fila.HoraEntradaActual - @fila.HoraSalidaActual
+                                            </MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <div class="text-muted font-monospace mt-1" style="font-size: 0.68rem;">
+                                        Reloj: @fila.Sinsa.HoraEntradaRelojHm-@fila.Sinsa.HoraSalidaRelojHm
+                                        @if (fila.YaIngresadoEnAsistencia && fila.TieneDiferenciaHorario)
+                                        {
+                                            <span style="color: #b45309;"> &bull; En Asist.: @fila.HoraEntradaActual-@fila.HoraSalidaActual</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-center gap-1">
+                                        <MudNumericField T="decimal"
+                                                         Value="@fila.HorasExtrasElegidas"
+                                                         ValueChanged="@((decimal v) => OnHorasExtrasFilaChanged(fila, v))"
+                                                         Min="0m"
+                                                         Max="16m"
+                                                         Step="0.25m"
+                                                         Format="F2"
+                                                         Variant="Variant.Outlined"
+                                                         Margin="Margin.Dense"
+                                                         HideSpinButtons="true"
+                                                         Adornment="Adornment.End"
+                                                         AdornmentText="hrs"
+                                                         Style="@(fila.HorasExtrasElegidas > 0m ? "background: #fffbeb; font-weight: 800; font-family: monospace;" : "background: white; font-family: monospace;")" />
+                                    </div>
+                                    @if (fila.HorasExtrasElegidas > 0m)
+                                    {
+                                        <div class="font-monospace fw-bold mt-1" style="font-size: 0.68rem; color: #92400e;">
+                                            Tarjeta: @fila.HoraInicioExtraElegida - @fila.HoraFinExtraElegida
+                                        </div>
+                                    }
+                                    else if (fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m)
+                                    {
+                                        <div class="d-flex align-center justify-space-between mt-1" style="font-size: 0.67rem;">
+                                            <span class="text-muted">Reloj +@fila.Sinsa.ExcesoRelojSobreTurnoHoras.ToString("0.##")h</span>
+                                            <a href="javascript:void(0)"
+                                               @onclick="@(() => UsarExcesoRelojComoHe(fila))"
+                                               style="color: #d97706; font-weight: 700; text-decoration: underline;"
+                                               title="Asignar la salida del reloj como Horas Extras">
+                                                Usar reloj
+                                            </a>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </div>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => MudDialog.Cancel())">
+            Cancelar
+        </MudButton>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Info"
+                   StartIcon="@Icons.Material.Filled.Visibility"
+                   OnClick="@SoloMarcarReferencia"
+                   Title="Mantiene los indicadores del archivo SINSA en la lista de Asistencia para que el supervisor edite persona por persona">
+            Solo Marcar en Lista (Editar 1 a 1)
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.DoneAll"
+                   Disabled="@(TotalSeleccionadosAplicar == 0)"
+                   OnClick="@ConfirmarConciliacion"
+                   Style="font-weight: 800;">
+            Conciliar Seleccionados y Generar H.E. (@TotalSeleccionadosAplicar)
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string NombreArchivo { get; set; } = string.Empty;
+    [Parameter] public DateTime FechaJornada { get; set; } = DateTime.Today;
+    [Parameter] public List<FilaConciliacionSinsaVm> Filas { get; set; } = new();
+    [Parameter] public List<EmpleadoJornadaItem> NoEnArchivoSinsa { get; set; } = new();
+    [Parameter] public List<string> AreasCatalogoSinsa { get; set; } = new();
+    [Parameter] public List<(int Codigo, int IdEmpleado, string Nombre, string Puesto)> OpcionesVinculacionManual { get; set; } = new();
+
+    private string filtroEstado = "TODOS";
+    private string textoBusqueda = string.Empty;
+    private string modoMasivoActivo = "TURNO_CON_HE";
+    private bool marcarAusentesNoEnSinsa = false;
+
+    private int TotalYaIngresados => Filas.Count(f => f.YaIngresadoEnAsistencia);
+    private int TotalPorIngresar => Filas.Count(f => !f.YaIngresadoEnAsistencia && f.Vinculado);
+    private int TotalSeleccionadosAplicar => Filas.Count(f => f.Vinculado && f.SeleccionadoAplicar);
+    private int TotalConHorasExtras => Filas.Count(f => f.Vinculado && f.SeleccionadoAplicar && f.HorasExtrasElegidas > 0m);
+    private decimal SumaHorasExtras => Math.Round(Filas.Where(f => f.Vinculado && f.SeleccionadoAplicar && f.HorasExtrasElegidas > 0m).Sum(f => f.HorasExtrasElegidas), 2);
+
+    private List<FilaConciliacionSinsaVm> FilasFiltradas
+    {
+        get
+        {
+            IEnumerable<FilaConciliacionSinsaVm> q = Filas;
+            switch (filtroEstado)
+            {
+                case "INGRESADOS":
+                    q = q.Where(f => f.YaIngresadoEnAsistencia);
+                    break;
+                case "FALTANTES":
+                    q = q.Where(f => !f.YaIngresadoEnAsistencia);
+                    break;
+                case "DIFERENCIAS":
+                    q = q.Where(f => f.TieneDiferenciaArea || f.TieneDiferenciaHorario);
+                    break;
+                case "CON_HE":
+                    q = q.Where(f => f.HorasExtrasElegidas > 0m || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m);
+                    break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(textoBusqueda))
+            {
+                string term = textoBusqueda.Trim();
+                q = q.Where(f =>
+                    (f.CodigoEmpleado.HasValue && f.CodigoEmpleado.Value.ToString().Contains(term)) ||
+                    (!string.IsNullOrWhiteSpace(f.NombreEmpleadoBussersa) && f.NombreEmpleadoBussersa.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(f.Sinsa.NombreEmpleadoSinsa) && f.Sinsa.NombreEmpleadoSinsa.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(f.Sinsa.Zona) && f.Sinsa.Zona.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(f.AreaElegida) && f.AreaElegida.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return q.ToList();
+        }
+    }
+
+    private List<string> ObtenerOpcionesAreaFila(FilaConciliacionSinsaVm fila)
+    {
+        var list = new List<string>();
+        if (!string.IsNullOrWhiteSpace(fila.Sinsa.Zona))
+            list.Add(fila.Sinsa.Zona.Trim());
+        if (!string.IsNullOrWhiteSpace(fila.AreaElegida))
+            list.Add(fila.AreaElegida.Trim());
+        if (!string.IsNullOrWhiteSpace(fila.AreaActualAsistencia))
+            list.Add(fila.AreaActualAsistencia.Trim());
+        if (AreasCatalogoSinsa != null)
+            list.AddRange(AreasCatalogoSinsa.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()));
+
+        return list.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(a => a).ToList();
+    }
+
+    private void MarcarVisibles(bool val)
+    {
+        foreach (var f in FilasFiltradas.Where(x => x.Vinculado))
+        {
+            f.SeleccionadoAplicar = val;
+        }
+    }
+
+    private void AplicarModoHorarioMasivo(string modo)
+    {
+        modoMasivoActivo = modo;
+        foreach (var f in Filas)
+        {
+            f.ModoHorarioElegido = modo;
+        }
+    }
+
+    private void OnHorasExtrasFilaChanged(FilaConciliacionSinsaVm fila, decimal nuevoValor)
+    {
+        fila.HorasExtrasElegidas = Math.Round(Math.Max(0m, nuevoValor), 2);
+        fila.HoraInicioExtraElegida = fila.Sinsa.TurnoFin;
+        fila.HoraFinExtraElegida = fila.HorasExtrasElegidas > 0m
+            ? ConciliacionSinsaHelper.SumarHorasHm(fila.Sinsa.TurnoFin, fila.HorasExtrasElegidas)
+            : fila.Sinsa.TurnoFin;
+    }
+
+    private void UsarExcesoRelojComoHe(FilaConciliacionSinsaVm fila)
+    {
+        fila.ModoHorarioElegido = "MARCACION_RELOJ";
+        fila.HorasExtrasElegidas = fila.Sinsa.ExcesoRelojSobreTurnoHoras;
+        fila.HoraInicioExtraElegida = fila.Sinsa.TurnoFin;
+        fila.HoraFinExtraElegida = fila.Sinsa.HoraSalidaRelojHm;
+    }
+
+    private void VincularManual(FilaConciliacionSinsaVm fila, int? codigo)
+    {
+        if (!codigo.HasValue) return;
+        var opt = OpcionesVinculacionManual.FirstOrDefault(x => x.Codigo == codigo.Value);
+        if (opt.Codigo > 0)
+        {
+            fila.CodigoEmpleado = opt.Codigo;
+            fila.IdEmpleado = opt.IdEmpleado > 0 ? opt.IdEmpleado : null;
+            fila.NombreEmpleadoBussersa = opt.Nombre;
+            if (!string.IsNullOrWhiteSpace(opt.Puesto))
+                fila.PuestoBussersa = opt.Puesto;
+            fila.SeleccionadoAplicar = true;
+        }
+    }
+
+    private void SoloMarcarReferencia()
+    {
+        MudDialog.Close(DialogResult.Ok(new ResultadoDialogConciliarSinsa
+        {
+            AplicarCambiosMasivos = false,
+            Filas = Filas,
+            CodigosNoEnSinsaMarcarAusentes = new List<int>()
+        }));
+    }
+
+    private void ConfirmarConciliacion()
+    {
+        var codigosAusentes = marcarAusentesNoEnSinsa
+            ? NoEnArchivoSinsa.Select(e => e.CodigoEmpleado).Where(c => c > 0).Distinct().ToList()
+            : new List<int>();
+
+        MudDialog.Close(DialogResult.Ok(new ResultadoDialogConciliarSinsa
+        {
+            AplicarCambiosMasivos = true,
+            Filas = Filas,
+            CodigosNoEnSinsaMarcarAusentes = codigosAusentes
+        }));
+    }
+}

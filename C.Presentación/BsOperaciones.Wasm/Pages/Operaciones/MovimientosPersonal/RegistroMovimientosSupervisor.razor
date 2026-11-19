@@ -399,6 +399,24 @@
                                    Title="Agregar colaborador a la jornada">
                             + Colaborador
                         </MudButton>
+                        @if (MostrarBotonConciliarSinsa)
+                        {
+                            <MudFileUpload T="IBrowserFile"
+                                           Accept=".xlsx,.csv"
+                                           FilesChanged="OnArchivoSinsaBrowserFileSelected"
+                                           Class="ma-0 pa-0 d-inline-flex">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Success"
+                                               Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.FactCheck"
+                                               Class="btn-colab-responsive"
+                                               Style="background: #059669; color: white;">
+                                        Conciliar SINSA
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                        }
                         @if (ClienteActualPermiteHorasExtras && GruposHorasExtrasFiltrados.Any())
                         {
                             <MudButton Variant="Variant.Filled"
@@ -499,6 +517,65 @@
                         </div>
                     </div>
                 </div>
+
+                @* BARRA DE CONCILIACIÓN CON ARCHIVO SINSA ACTIVA *@
+                @if (TieneArchivoSinsaActivo)
+                {
+                    <MudPaper Elevation="0" Class="pa-2 px-3 mb-3 d-flex align-center justify-space-between flex-wrap gap-2" Style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px;">
+                        <div class="d-flex align-center gap-2 flex-wrap">
+                            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Success" Size="Size.Small" />
+                            <span class="fw-bold" style="font-size: 0.8rem; color: #14532d;">
+                                Conciliación SINSA: <span class="font-monospace">@nombreArchivoSinsaCargado</span>
+                            </span>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(filtroConciliacionSinsa == "TODOS" ? Color.Dark : Color.Default)"
+                                     Variant="@(filtroConciliacionSinsa == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => filtroConciliacionSinsa = "TODOS")"
+                                     Class="my-0">
+                                Todos
+                            </MudChip>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="Color.Success"
+                                     Variant="@(filtroConciliacionSinsa == "OK" ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => filtroConciliacionSinsa = filtroConciliacionSinsa == "OK" ? "TODOS" : "OK")"
+                                     Class="my-0 fw-bold">
+                                Cuadrados: @TotalSinsaCuadrados
+                            </MudChip>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="Color.Warning"
+                                     Variant="@(filtroConciliacionSinsa == "DIF" ? Variant.Filled : Variant.Outlined)"
+                                     OnClick="@(() => filtroConciliacionSinsa = filtroConciliacionSinsa == "DIF" ? "TODOS" : "DIF")"
+                                     Class="my-0 fw-bold">
+                                Con Diferencias: @TotalSinsaConDiferencia
+                            </MudChip>
+                            @if (TotalSinsaNoEnArchivo > 0)
+                            {
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="Color.Error"
+                                         Variant="@(filtroConciliacionSinsa == "NO_EN_SINSA" ? Variant.Filled : Variant.Outlined)"
+                                         OnClick="@(() => filtroConciliacionSinsa = filtroConciliacionSinsa == "NO_EN_SINSA" ? "TODOS" : "NO_EN_SINSA")"
+                                         Class="my-0 fw-bold">
+                                    No en Archivo: @TotalSinsaNoEnArchivo
+                                </MudChip>
+                            }
+                        </div>
+                        <div class="d-flex align-center gap-1">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Success"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.TableView"
+                                       OnClick="@AbrirModalConciliacionSinsa"
+                                       Style="font-weight: 700;">
+                                Revisar Conciliación (@registrosArchivoSinsaActual.Count)
+                            </MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                           Size="Size.Small"
+                                           Color="Color.Default"
+                                           OnClick="@LimpiarArchivoConciliacionSinsa" />
+                        </div>
+                    </MudPaper>
+                }
+
                 @* BARRA DE ACCIÓN FLOTANTE / MASIVA (Cuando hay seleccionados) *@
                 @if (CantidadSeleccionados > 0)
                 {
@@ -592,6 +669,23 @@
                                     <span>COPIAR JORNADA DE AYER</span>
                                 }
                             </MudButton>
+                            @if (MostrarBotonConciliarSinsa)
+                            {
+                                <MudFileUpload T="IBrowserFile"
+                                               Accept=".xlsx,.csv"
+                                               FilesChanged="OnArchivoSinsaBrowserFileSelected"
+                                               Class="ma-0 pa-0 d-inline-flex">
+                                    <ActivatorContent>
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   StartIcon="@Icons.Material.Filled.FactCheck"
+                                                   Disabled="@estaOperandoEnBd"
+                                                   Style="text-transform: none; font-weight: 700; background: #059669; color: white;">
+                                            CONCILIAR ARCHIVO SINSA (.XLSX)
+                                        </MudButton>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+                            }
                         </MudStack>
                     </MudPaper>
                 }
@@ -651,6 +745,34 @@
                                                     <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
                                                         PRÉSTAMO
                                                     </MudChip>
+                                                }
+                                                @if (TieneArchivoSinsaActivo)
+                                                {
+                                                    var stCardSinsa = ObtenerEstadoConciliacionSinsa(emp);
+                                                    if (stCardSinsa.Estado == "OK")
+                                                    {
+                                                        <MudTooltip Text="@stCardSinsa.Detalle" Arrow="true">
+                                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FactCheck" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                                SINSA OK
+                                                            </MudChip>
+                                                        </MudTooltip>
+                                                    }
+                                                    else if (stCardSinsa.Estado == "DIF")
+                                                    {
+                                                        <MudTooltip Text="@stCardSinsa.Detalle" Arrow="true">
+                                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CompareArrows" OnClick="@(() => AbrirDialogoEditarAsistencia(emp))" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                                Dif. SINSA
+                                                            </MudChip>
+                                                        </MudTooltip>
+                                                    }
+                                                    else if (stCardSinsa.Estado == "NO_EN_SINSA")
+                                                    {
+                                                        <MudTooltip Text="@stCardSinsa.Detalle" Arrow="true">
+                                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.HelpOutline" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                                No en SINSA
+                                                            </MudChip>
+                                                        </MudTooltip>
+                                                    }
                                                 }
                                                 <MudText Typo="Typo.subtitle2" Class="fw-bold text-truncate" Style="max-width: 140px;" Title="@emp.NombreEmpleado">
                                                     @emp.NombreEmpleado
@@ -1091,6 +1213,34 @@
                                                     PRÉSTAMO
                                                 </MudChip>
                                             }
+                                            @if (TieneArchivoSinsaActivo)
+                                            {
+                                                var stRowSinsa = ObtenerEstadoConciliacionSinsa(context);
+                                                if (stRowSinsa.Estado == "OK")
+                                                {
+                                                    <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FactCheck" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                            SINSA OK
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                                else if (stRowSinsa.Estado == "DIF")
+                                                {
+                                                    <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CompareArrows" OnClick="@(() => AbrirDialogoEditarAsistencia(context))" Class="my-0 cursor-pointer" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                            Dif. SINSA (Editar)
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                                else if (stRowSinsa.Estado == "NO_EN_SINSA")
+                                                {
+                                                    <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                        <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.HelpOutline" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                            No en SINSA
+                                                        </MudChip>
+                                                    </MudTooltip>
+                                                }
+                                            }
                                         </div>
                                         <div class="d-flex align-center gap-1 mt-1 text-secondary" style="font-size: 0.72rem;">
                                             <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.8rem;" Color="Color.Primary" />
@@ -1231,7 +1381,7 @@
                                     <MudCheckBox @bind-Value="@context.Seleccionado" Color="Color.Primary" />
                                 </MudTd>
                                 <MudTd>
-                                    <div class="d-flex align-center gap-2">
+                                    <div class="d-flex align-center gap-2 flex-wrap">
                                         <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem; min-width: 48px; justify-content: center;">
                                             #@context.CodigoEmpleado
                                         </MudChip>
@@ -1243,6 +1393,34 @@
                                             <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
                                                 PRÉSTAMO
                                             </MudChip>
+                                        }
+                                        @if (TieneArchivoSinsaActivo)
+                                        {
+                                            var stRowSinsa = ObtenerEstadoConciliacionSinsa(context);
+                                            if (stRowSinsa.Estado == "OK")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FactCheck" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        SINSA OK
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
+                                            else if (stRowSinsa.Estado == "DIF")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CompareArrows" OnClick="@(() => AbrirDialogoEditarAsistencia(context))" Class="my-0 cursor-pointer" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        Dif. SINSA (Editar)
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
+                                            else if (stRowSinsa.Estado == "NO_EN_SINSA")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.HelpOutline" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        No en SINSA
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
                                         }
                                     </div>
                                 </MudTd>
@@ -1355,7 +1533,7 @@
                                     <MudCheckBox @bind-Value="@context.Seleccionado" Color="Color.Primary" />
                                 </MudTd>
                                 <MudTd>
-                                    <div class="d-flex align-center gap-2">
+                                    <div class="d-flex align-center gap-2 flex-wrap">
                                         <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="px-1 font-monospace fw-bold" Style="height: 20px; font-size: 0.72rem; min-width: 48px; justify-content: center;">
                                             #@context.CodigoEmpleado
                                         </MudChip>
@@ -1367,6 +1545,34 @@
                                             <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="px-1 fw-bold" Style="height: 18px; font-size: 0.65rem; background: #ea580c; color: white;">
                                                 PRÉSTAMO
                                             </MudChip>
+                                        }
+                                        @if (TieneArchivoSinsaActivo)
+                                        {
+                                            var stRowSinsa = ObtenerEstadoConciliacionSinsa(context);
+                                            if (stRowSinsa.Estado == "OK")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.FactCheck" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        SINSA OK
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
+                                            else if (stRowSinsa.Estado == "DIF")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CompareArrows" OnClick="@(() => AbrirDialogoEditarAsistencia(context))" Class="my-0 cursor-pointer" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        Dif. SINSA (Editar)
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
+                                            else if (stRowSinsa.Estado == "NO_EN_SINSA")
+                                            {
+                                                <MudTooltip Text="@stRowSinsa.Detalle" Arrow="true">
+                                                    <MudChip T="string" Color="Color.Error" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.HelpOutline" Class="my-0" Style="height: 19px; font-size: 0.66rem; font-weight: 700;">
+                                                        No en SINSA
+                                                    </MudChip>
+                                                </MudTooltip>
+                                            }
                                         }
                                     </div>
                                 </MudTd>

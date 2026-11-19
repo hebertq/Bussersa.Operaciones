@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using HostService.Interfaces;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using Modelo.Admin;
 using Modelo.ClasesGenericas;
@@ -1966,6 +1967,38 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 .OrderBy(c => c)
                 .ToList();
 
+            RegistroArchivoSinsaItem? regSinsa = null;
+            if (TieneArchivoSinsaActivo && item.CodigoEmpleado > 0)
+            {
+                registrosSinsaPorCodigo.TryGetValue(item.CodigoEmpleado, out regSinsa);
+            }
+
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            decimal? heActual = null;
+            string? iniExtraActual = null;
+            string? finExtraActual = null;
+            var manItem = itemsHorasExtrasManuales.FirstOrDefault(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == item.CodigoEmpleado);
+            if (manItem.Dto != null)
+            {
+                heActual = manItem.Dto.HorasExtrasAutorizadas;
+                iniExtraActual = manItem.Dto.HoraInicioExtra;
+                finExtraActual = manItem.Dto.HoraFinExtra;
+            }
+            else if (empleadosSinHorasExtrasConciliadosSinsa.ContainsKey(item.CodigoEmpleado))
+            {
+                heActual = 0m;
+            }
+            else if (item.Asistio)
+            {
+                var calcPrev = CalcularHorasExtrasSegunRegla(item, fRef);
+                if (calcPrev.HorasExtras > 0m)
+                {
+                    heActual = calcPrev.HorasExtras;
+                    iniExtraActual = calcPrev.HoraInicioExtra;
+                    finExtraActual = calcPrev.HoraFinExtra;
+                }
+            }
+
             var parameters = new DialogParameters
             {
                 ["ItemOriginal"] = item,
@@ -1973,14 +2006,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["ClientesSugeridos"] = clientesDisponibles,
                 ["AreasPorCliente"] = areasPorCliente,
                 ["CargosDisponibles"] = cargosDisponibles,
-                ["ClientesAsignadosSupervisor"] = NombresMisClientes
+                ["ClientesAsignadosSupervisor"] = NombresMisClientes,
+                ["RegistroSinsa"] = regSinsa,
+                ["HorasExtrasActuales"] = heActual,
+                ["HoraInicioExtraActual"] = iniExtraActual,
+                ["HoraFinExtraActual"] = finExtraActual
             };
 
             var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
             var dialog = await _dialogService.ShowAsync<DialogEditarColaboradorAsistencia>("Editar Asistencia de Colaborador", parameters, options);
             var result = await dialog.Result;
 
-            if (!result.Canceled && result.Data is EmpleadoJornadaItem modificado)
+            EmpleadoJornadaItem? modificado = null;
+            DialogEditarColaboradorAsistencia.ResultadoEdicionAsistencia? resCompleta = null;
+            if (result != null && !result.Canceled)
+            {
+                if (result.Data is DialogEditarColaboradorAsistencia.ResultadoEdicionAsistencia rEd)
+                {
+                    resCompleta = rEd;
+                    modificado = rEd.EmpleadoModificado;
+                }
+                else if (result.Data is EmpleadoJornadaItem eDirecto)
+                {
+                    modificado = eDirecto;
+                }
+            }
+
+            if (modificado != null)
             {
                 string clienteAnterior = item.Cliente;
                 string nuevoCliente = modificado.Cliente;
@@ -2002,6 +2054,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 item.TurnoNombre = modificado.TurnoNombre;
                 item.Modificado = true;
 
+                AsegurarAreaEnCatalogoMemoria(nuevoCliente, item.Area);
+
                 if (!string.Equals(clienteAnterior, nuevoCliente, StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.IsNullOrWhiteSpace(item.ClienteOrigenNomina))
@@ -2014,9 +2068,25 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     }
                 }
 
+                if (resCompleta != null && resCompleta.AplicarCuadreHorasExtras)
+                {
+                    AplicarCuadreHorasExtrasColaborador(
+                        item,
+                        resCompleta.HorasExtrasAutorizadas,
+                        resCompleta.HoraInicioExtra,
+                        resCompleta.HoraFinExtra);
+                }
+                else if (!item.Asistio)
+                {
+                    itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == item.CodigoEmpleado);
+                    edicionesHorarioHePorEmpleado.Remove(item.CodigoEmpleado);
+                    empleadosSinHorasExtrasConciliadosSinsa.Remove(item.CodigoEmpleado);
+                }
+
                 AplicarReglasViaticosEnMemoria(item);
                 ValidarConflictosHorarios(out _);
                 ActualizarGruposConsolidadosInterno(false);
+                ActualizarGruposHorasExtrasInterno();
                 await AutoGuardarBorradorLocal();
 
                 if (!string.Equals(clienteAnterior, nuevoCliente, StringComparison.OrdinalIgnoreCase))
@@ -3720,6 +3790,21 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 else if (filtroAsistencia == "AUSENTES")
                     query = query.Where(x => !x.Asistio);
 
+                if (TieneArchivoSinsaActivo && filtroConciliacionSinsa != "TODOS")
+                {
+                    query = query.Where(x =>
+                    {
+                        var st = ObtenerEstadoConciliacionSinsa(x).Estado;
+                        return filtroConciliacionSinsa switch
+                        {
+                            "OK" => st == "OK",
+                            "DIF" => st == "DIF",
+                            "NO_EN_SINSA" => st == "NO_EN_SINSA",
+                            _ => true
+                        };
+                    });
+                }
+
                 return query.OrderBy(x => x.Cliente).ThenBy(x => x.Area).ThenBy(x => x.NombreEmpleado);
             }
         }
@@ -5416,6 +5501,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             string hInicioExtra = $"{minsMod / 60:D2}:{minsMod % 60:D2}";
 
             string claveJornadaActual = $"{hEntStr}-{hSalStr}";
+            if (emp.CodigoEmpleado > 0
+                && empleadosSinHorasExtrasConciliadosSinsa.TryGetValue(emp.CodigoEmpleado, out var claveSinHeSinsa)
+                && string.Equals(claveSinHeSinsa, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
+            {
+                return (0m, topeOrdinario, horasNetas, hSalStr, hSalStr, "Conciliado SINSA (0 H.E.)");
+            }
+
             if (emp.CodigoEmpleado > 0 && edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edManual)
                 && string.Equals(edManual.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
             {
@@ -5503,13 +5595,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             foreach (var m in manualesHoy)
             {
                 var empEnJornada = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == m.Dto.CodigoEmpleado);
-                if (empEnJornada != null && empEnJornada.Id > 0)
-                    m.Dto.MovimientoDiarioId = empEnJornada.Id;
-                if (empEnJornada != null && empEnJornada.IdEmpleado > 0 && !m.Dto.EmployeeId.HasValue)
-                    m.Dto.EmployeeId = empEnJornada.IdEmpleado;
+                if (empEnJornada != null)
+                {
+                    if (empEnJornada.Id > 0)
+                        m.Dto.MovimientoDiarioId = empEnJornada.Id;
+                    if (empEnJornada.IdEmpleado > 0 && !m.Dto.EmployeeId.HasValue)
+                        m.Dto.EmployeeId = empEnJornada.IdEmpleado;
+                    if (!string.IsNullOrWhiteSpace(empEnJornada.Area))
+                        m.Dto.Area = empEnJornada.Area.Trim();
+                    if (!string.IsNullOrWhiteSpace(empEnJornada.Puesto))
+                        m.Dto.Cargo = empEnJornada.Puesto.Trim();
+                    if (!string.IsNullOrWhiteSpace(empEnJornada.HoraEntrada) && empEnJornada.HoraEntrada != "--:--")
+                        m.Dto.HoraEntradaJornada = NormalizarFormatoHora(empEnJornada.HoraEntrada);
+                    if (!string.IsNullOrWhiteSpace(empEnJornada.HoraSalida) && empEnJornada.HoraSalida != "--:--")
+                        m.Dto.HoraSalidaJornada = NormalizarFormatoHora(empEnJornada.HoraSalida);
+                }
 
                 string cliMan = string.IsNullOrWhiteSpace(m.Cliente) ? "SINSA" : m.Cliente.Trim();
-                itemsConExtras.Add((cliMan, m.Dto, "Manual", true));
+                itemsConExtras.Add((cliMan, m.Dto, string.IsNullOrWhiteSpace(m.Dto.MotivoIndividual) ? "Manual" : m.Dto.MotivoIndividual!, true));
             }
 
             var codsYaIncluidos = itemsConExtras.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
@@ -6362,6 +6465,399 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     _snackbar.Add(res?.Respuesta?.MensajeError ?? "No se pudo anular.", Severity.Error);
                 }
             }
+        }
+
+        // =========================================================================
+        // CONCILIACIÓN DIRECTA DE ASISTENCIA Y HORAS EXTRAS CON ARCHIVO SINSA (.XLSX)
+        // =========================================================================
+        protected List<RegistroArchivoSinsaItem> registrosArchivoSinsaActual = new();
+        protected Dictionary<int, RegistroArchivoSinsaItem> registrosSinsaPorCodigo = new();
+        protected Dictionary<int, string> empleadosSinHorasExtrasConciliadosSinsa = new();
+        protected string nombreArchivoSinsaCargado = string.Empty;
+        protected DateTime? fechaArchivoSinsaCargado = null;
+        protected string filtroConciliacionSinsa = "TODOS";
+
+        protected bool MostrarBotonConciliarSinsa =>
+            string.IsNullOrWhiteSpace(ClienteActivoAsistenciasSeguro)
+            || ClienteActivoAsistenciasSeguro.Contains("sinsa", StringComparison.OrdinalIgnoreCase)
+            || misClientesAsignados.Any(c => c.ClienteNombre?.Contains("sinsa", StringComparison.OrdinalIgnoreCase) == true)
+            || operacionesList.Any(o => o.nombre?.Contains("sinsa", StringComparison.OrdinalIgnoreCase) == true);
+
+        protected bool TieneArchivoSinsaActivo =>
+            registrosArchivoSinsaActual.Any()
+            && (!fechaArchivoSinsaCargado.HasValue || fechaArchivoSinsaCargado.Value.Date == (fechaSeleccionada ?? DateTime.Today).Date);
+
+        protected int TotalSinsaCuadrados =>
+            TieneArchivoSinsaActivo
+                ? empleadosJornada.Count(e => e.Cliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase) && ObtenerEstadoConciliacionSinsa(e).Estado == "OK")
+                : 0;
+
+        protected int TotalSinsaConDiferencia =>
+            TieneArchivoSinsaActivo
+                ? empleadosJornada.Count(e => e.Cliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase) && ObtenerEstadoConciliacionSinsa(e).Estado == "DIF")
+                : 0;
+
+        protected int TotalSinsaNoEnArchivo =>
+            TieneArchivoSinsaActivo
+                ? empleadosJornada.Count(e => e.Cliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase) && ObtenerEstadoConciliacionSinsa(e).Estado == "NO_EN_SINSA")
+                : 0;
+
+        protected (string Estado, string Detalle) ObtenerEstadoConciliacionSinsa(EmpleadoJornadaItem? emp)
+        {
+            if (emp == null || !TieneArchivoSinsaActivo || string.IsNullOrWhiteSpace(emp.Cliente) || !emp.Cliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                return ("", "");
+
+            if (registrosSinsaPorCodigo.TryGetValue(emp.CodigoEmpleado, out var reg))
+            {
+                bool areaOk = ConciliacionSinsaHelper.NormalizarTextoBusqueda(emp.Area) == ConciliacionSinsaHelper.NormalizarTextoBusqueda(reg.Zona);
+                string hEnt = NormalizarFormatoHora(emp.HoraEntrada);
+                string hSal = NormalizarFormatoHora(emp.HoraSalida);
+                string salTurnoConHe = reg.HoraSalidaTurnoConExtras;
+
+                bool horarioOk = emp.Asistio && (
+                    (string.Equals(hEnt, reg.TurnoInicio, StringComparison.OrdinalIgnoreCase)
+                        && (string.Equals(hSal, salTurnoConHe, StringComparison.OrdinalIgnoreCase) || string.Equals(hSal, reg.TurnoFin, StringComparison.OrdinalIgnoreCase)))
+                    || (string.Equals(hEnt, reg.HoraEntradaRelojHm, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(hSal, reg.HoraSalidaRelojHm, StringComparison.OrdinalIgnoreCase)));
+
+                string detalle = $"SINSA: Zona '{reg.Zona}' | Turno {reg.TurnoTexto} ({reg.HorasOrdinarias:0.##}h ord) | Reloj {reg.HoraEntradaRelojHm}-{reg.HoraSalidaRelojHm} | H.E.: {reg.HorasExtra:0.##}h";
+                return (emp.Asistio && areaOk && horarioOk) ? ("OK", detalle) : ("DIF", detalle);
+            }
+
+            if (emp.Asistio)
+            {
+                return ("NO_EN_SINSA", "Este colaborador figura PRESENTE en Asistencias, pero NO aparece en el archivo cargado de SINSA.");
+            }
+
+            return ("", "");
+        }
+
+        private void AsegurarAreaEnCatalogoMemoria(string? cliente, string? area)
+        {
+            if (string.IsNullOrWhiteSpace(cliente) || string.IsNullOrWhiteSpace(area)) return;
+            string cliKey = areasPorCliente.Keys.FirstOrDefault(k => string.Equals(k, cliente.Trim(), StringComparison.OrdinalIgnoreCase)) ?? cliente.Trim();
+            if (!areasPorCliente.TryGetValue(cliKey, out var list))
+            {
+                list = new List<string>();
+                areasPorCliente[cliKey] = list;
+            }
+            if (!list.Contains(area.Trim(), StringComparer.OrdinalIgnoreCase))
+            {
+                list.Add(area.Trim());
+            }
+        }
+
+        protected void AplicarCuadreHorasExtrasColaborador(EmpleadoJornadaItem emp, decimal horasExtras, string? horaInicioExtra, string? horaFinExtra)
+        {
+            if (emp == null || emp.CodigoEmpleado <= 0) return;
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            string hEntNorm = NormalizarFormatoHora(emp.HoraEntrada);
+            string hSalNorm = NormalizarFormatoHora(emp.HoraSalida);
+            string claveBase = $"{hEntNorm}-{hSalNorm}";
+
+            itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == emp.CodigoEmpleado);
+
+            if (horasExtras > 0m && emp.Asistio)
+            {
+                empleadosSinHorasExtrasConciliadosSinsa.Remove(emp.CodigoEmpleado);
+                string iniEx = string.IsNullOrWhiteSpace(horaInicioExtra) ? "17:00" : NormalizarFormatoHora(horaInicioExtra);
+                string finEx = string.IsNullOrWhiteSpace(horaFinExtra)
+                    ? ConciliacionSinsaHelper.SumarHorasHm(iniEx, horasExtras)
+                    : NormalizarFormatoHora(horaFinExtra);
+
+                edicionesHorarioHePorEmpleado[emp.CodigoEmpleado] = (claveBase, iniEx, finEx, Math.Round(horasExtras, 2));
+
+                itemsHorasExtrasManuales.Add((
+                    string.IsNullOrWhiteSpace(emp.Cliente) ? "Sinsa" : emp.Cliente.Trim(),
+                    fRef,
+                    new ColaboradorAutorizacionItemDto
+                    {
+                        MovimientoDiarioId = emp.Id > 0 ? emp.Id : null,
+                        EmployeeId = emp.IdEmpleado > 0 ? emp.IdEmpleado : null,
+                        CodigoEmpleado = emp.CodigoEmpleado,
+                        NombreEmpleado = emp.NombreEmpleado,
+                        Area = string.IsNullOrWhiteSpace(emp.Area) ? "Operaciones" : emp.Area.Trim(),
+                        Cargo = string.IsNullOrWhiteSpace(emp.Puesto) ? "6-Operador de almacen" : emp.Puesto.Trim(),
+                        HoraEntradaJornada = hEntNorm,
+                        HoraSalidaJornada = hSalNorm,
+                        HoraInicioExtra = iniEx,
+                        HoraFinExtra = finEx,
+                        HorasExtrasAutorizadas = Math.Round(horasExtras, 2),
+                        MotivoIndividual = "Conciliación SINSA"
+                    }));
+            }
+            else
+            {
+                edicionesHorarioHePorEmpleado.Remove(emp.CodigoEmpleado);
+                empleadosSinHorasExtrasConciliadosSinsa[emp.CodigoEmpleado] = claveBase;
+            }
+        }
+
+        protected void LimpiarArchivoConciliacionSinsa()
+        {
+            registrosArchivoSinsaActual.Clear();
+            registrosSinsaPorCodigo.Clear();
+            nombreArchivoSinsaCargado = string.Empty;
+            fechaArchivoSinsaCargado = null;
+            filtroConciliacionSinsa = "TODOS";
+            StateHasChanged();
+        }
+
+        protected Task OnArchivoConciliacionSinsaSeleccionado(InputFileChangeEventArgs e) =>
+            OnArchivoSinsaBrowserFileSelected(e.File);
+
+        protected async Task OnArchivoSinsaBrowserFileSelected(IBrowserFile? file)
+        {
+            if (file == null) return;
+
+            try
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+
+                var registros = ConciliacionSinsaHelper.LeerArchivoSinsa(bytes, file.Name);
+                if (!registros.Any())
+                {
+                    _snackbar.Add("No se encontraron registros válidos en el archivo de SINSA seleccionado.", Severity.Warning);
+                    return;
+                }
+
+                var fechaDetectada = registros.Select(r => r.Fecha).FirstOrDefault(f => f.HasValue);
+                DateTime fechaActiva = (fechaSeleccionada ?? DateTime.Today).Date;
+
+                if (fechaDetectada.HasValue && fechaDetectada.Value.Date != fechaActiva)
+                {
+                    bool? cambiarFecha = await _dialogService.ShowMessageBox(
+                        "Fecha del Archivo SINSA Distinta",
+                        $"El archivo '{file.Name}' contiene marcaciones de la fecha {fechaDetectada.Value:dd/MM/yyyy}, mientras que la pantalla está en {fechaActiva:dd/MM/yyyy}.\n\n¿Deseas cambiar a la fecha {fechaDetectada.Value:dd/MM/yyyy} y cargar sus asistencias para conciliar?",
+                        yesText: $"Sí, ir al {fechaDetectada.Value:dd/MM/yyyy}",
+                        cancelText: "Mantener fecha actual");
+
+                    if (cambiarFecha == true)
+                    {
+                        await OnFechaSeleccionadaChanged(fechaDetectada.Value.Date);
+                    }
+                }
+
+                string cliSinsa = ListaClientesAsistencia.FirstOrDefault(c => c.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                    ?? NombresMisClientes.FirstOrDefault(c => c.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                    ?? operacionesList.FirstOrDefault(o => o.nombre?.Contains("sinsa", StringComparison.OrdinalIgnoreCase) == true)?.nombre
+                    ?? "Sinsa";
+
+                if (!string.Equals(ClienteActivoAsistenciasSeguro, cliSinsa, StringComparison.OrdinalIgnoreCase))
+                {
+                    CambiarClienteAsistencias(cliSinsa);
+                }
+
+                if (!catalogoEmpleadosOdoo.Any())
+                {
+                    try
+                    {
+                        var respEmp = await _odooService.GetAllActiveEmployeesForRotation();
+                        if (respEmp?.Model != null)
+                            catalogoEmpleadosOdoo = respEmp.Model.ToList();
+                    }
+                    catch { }
+                }
+
+                registrosArchivoSinsaActual = registros;
+                nombreArchivoSinsaCargado = file.Name;
+                fechaArchivoSinsaCargado = (fechaSeleccionada ?? DateTime.Today).Date;
+                filtroConciliacionSinsa = "TODOS";
+
+                await AbrirModalConciliacionSinsa();
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al leer el archivo SINSA: {ex.Message}", Severity.Error);
+            }
+        }
+
+        protected async Task AbrirModalConciliacionSinsa()
+        {
+            if (!registrosArchivoSinsaActual.Any()) return;
+
+            string cliSinsa = ListaClientesAsistencia.FirstOrDefault(c => c.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                ?? NombresMisClientes.FirstOrDefault(c => c.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                ?? "Sinsa";
+
+            var areasSinsa = GetAreasParaCliente(cliSinsa).ToList();
+            var jornadaSinsa = empleadosJornada
+                .Where(e => string.IsNullOrWhiteSpace(e.Cliente) || e.Cliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var filas = ConciliacionSinsaHelper.ConstruirFilasConciliacion(
+                registrosArchivoSinsaActual,
+                jornadaSinsa,
+                miPlantillaPersonal,
+                catalogoEmpleadosOdoo,
+                areasSinsa);
+
+            registrosSinsaPorCodigo.Clear();
+            foreach (var f in filas.Where(x => x.Vinculado))
+            {
+                registrosSinsaPorCodigo[f.CodigoEmpleado!.Value] = f.Sinsa;
+            }
+
+            var codsEnSinsa = filas.Where(f => f.Vinculado).Select(f => f.CodigoEmpleado!.Value).ToHashSet();
+            var noEnSinsa = jornadaSinsa
+                .Where(e => e.Asistio && e.CodigoEmpleado > 0 && !codsEnSinsa.Contains(e.CodigoEmpleado))
+                .OrderBy(e => e.NombreEmpleado)
+                .ToList();
+
+            var opcionesManuales = miPlantillaPersonal
+                .Where(p => p.CodigoEmpleado > 0)
+                .Select(p => (Codigo: p.CodigoEmpleado, IdEmpleado: p.IdEmpleado, Nombre: p.NombreEmpleado, Puesto: p.PuestoDefault))
+                .Concat(catalogoEmpleadosOdoo
+                    .Where(o => o.CodigoEmpleado.HasValue && o.CodigoEmpleado.Value > 0)
+                    .Select(o => (Codigo: o.CodigoEmpleado!.Value, IdEmpleado: o.Id, Nombre: o.Name, Puesto: "6-Operador de almacen")))
+                .GroupBy(x => x.Codigo)
+                .Select(g => g.First())
+                .OrderBy(x => x.Nombre)
+                .ToList();
+
+            var parameters = new DialogParameters
+            {
+                ["NombreArchivo"] = nombreArchivoSinsaCargado,
+                ["FechaJornada"] = (fechaSeleccionada ?? DateTime.Today).Date,
+                ["Filas"] = filas,
+                ["NoEnArchivoSinsa"] = noEnSinsa,
+                ["AreasCatalogoSinsa"] = areasSinsa,
+                ["OpcionesVinculacionManual"] = opcionesManuales
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge, FullWidth = true };
+            var dialog = await _dialogService.ShowAsync<DialogConciliarSinsa>("Conciliación con Archivo SINSA", parameters, options);
+            var result = await dialog.Result;
+
+            if (result != null && !result.Canceled && result.Data is ResultadoDialogConciliarSinsa res)
+            {
+                registrosSinsaPorCodigo.Clear();
+                foreach (var f in res.Filas.Where(x => x.Vinculado))
+                {
+                    registrosSinsaPorCodigo[f.CodigoEmpleado!.Value] = f.Sinsa;
+                }
+
+                if (res.AplicarCambiosMasivos)
+                {
+                    await AplicarResultadoConciliacionSinsa(res, cliSinsa);
+                }
+                else
+                {
+                    _snackbar.Add("Indicadores de conciliación SINSA activos en la lista de Asistencia. Puedes revisar y editar cada persona.", Severity.Info);
+                    StateHasChanged();
+                }
+            }
+        }
+
+        private async Task AplicarResultadoConciliacionSinsa(ResultadoDialogConciliarSinsa res, string cliSinsa)
+        {
+            int actualizados = 0;
+            int nuevosAgregados = 0;
+            int conHorasExtras = 0;
+
+            foreach (var fila in res.Filas.Where(f => f.Vinculado && f.SeleccionadoAplicar))
+            {
+                int cod = fila.CodigoEmpleado!.Value;
+                var emp = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == cod);
+                var (hEnt, hSal, comidaStr) = fila.ObtenerHorarioDestino();
+                string areaFinal = string.IsNullOrWhiteSpace(fila.AreaElegida) ? fila.Sinsa.Zona : fila.AreaElegida.Trim();
+                AsegurarAreaEnCatalogoMemoria(cliSinsa, areaFinal);
+
+                string turnoFinal = "Diurno";
+                if (TimeSpan.TryParse(hEnt, out var tEnt))
+                {
+                    if (tEnt.Hours >= 18) turnoFinal = "Nocturno";
+                    else if (tEnt.Hours >= 13) turnoFinal = "Mixto";
+                }
+
+                if (emp == null)
+                {
+                    var pl = miPlantillaPersonal.FirstOrDefault(p => p.CodigoEmpleado == cod);
+                    emp = new EmpleadoJornadaItem
+                    {
+                        Id = 0,
+                        IdEmpleado = fila.IdEmpleado ?? pl?.IdEmpleado ?? 0,
+                        CodigoEmpleado = cod,
+                        NombreEmpleado = fila.NombreEmpleadoBussersa,
+                        Cliente = cliSinsa,
+                        Area = areaFinal,
+                        Puesto = !string.IsNullOrWhiteSpace(fila.PuestoBussersa)
+                            ? fila.PuestoBussersa
+                            : (!string.IsNullOrWhiteSpace(pl?.PuestoDefault) ? pl!.PuestoDefault : ConciliacionSinsaHelper.SugerirPuestoBussersa(fila.Sinsa.PuestoSinsa)),
+                        TurnoNombre = turnoFinal,
+                        HoraEntrada = hEnt,
+                        HoraSalida = hSal,
+                        TiempoComida = comidaStr,
+                        VtcoTrasp = pl?.VtcoTraspDefault ?? 0m,
+                        VtcoAlim = pl?.VtcoAlimDefault ?? 0m,
+                        BonoBnc = pl?.BonoBncDefault ?? 0m,
+                        TipoEmpleado = !string.IsNullOrWhiteSpace(pl?.TipoEmpleado) ? pl!.TipoEmpleado : "Permanente",
+                        ClienteOrigenNomina = pl?.ClienteOrigenNomina ?? string.Empty,
+                        Asistio = true,
+                        Modificado = true
+                    };
+                    empleadosJornada.Add(emp);
+                    nuevosAgregados++;
+                }
+                else
+                {
+                    emp.Cliente = cliSinsa;
+                    emp.Area = areaFinal;
+                    emp.Asistio = true;
+                    emp.HoraEntrada = hEnt;
+                    emp.HoraSalida = hSal;
+                    emp.TiempoComida = comidaStr;
+                    emp.TurnoNombre = turnoFinal;
+                    if (string.IsNullOrWhiteSpace(emp.Puesto))
+                        emp.Puesto = fila.PuestoBussersa;
+                    emp.Modificado = true;
+                    actualizados++;
+                }
+
+                AplicarCuadreHorasExtrasColaborador(
+                    emp,
+                    fila.HorasExtrasElegidas,
+                    fila.HoraInicioExtraElegida,
+                    fila.HoraFinExtraElegida);
+
+                if (fila.HorasExtrasElegidas > 0m)
+                    conHorasExtras++;
+
+                AplicarReglasViaticosEnMemoria(emp);
+            }
+
+            if (res.CodigosNoEnSinsaMarcarAusentes != null && res.CodigosNoEnSinsaMarcarAusentes.Any())
+            {
+                var setAus = res.CodigosNoEnSinsaMarcarAusentes.ToHashSet();
+                DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+                foreach (var empAus in empleadosJornada.Where(e => setAus.Contains(e.CodigoEmpleado)))
+                {
+                    empAus.Asistio = false;
+                    empAus.HoraEntrada = "--:--";
+                    empAus.HoraSalida = "--:--";
+                    empAus.TiempoComida = "0";
+                    empAus.VtcoTrasp = 0m;
+                    empAus.VtcoAlim = 0m;
+                    empAus.BonoBnc = 0m;
+                    empAus.TurnoNombre = "Ausente";
+                    empAus.Modificado = true;
+                    itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == empAus.CodigoEmpleado);
+                    edicionesHorarioHePorEmpleado.Remove(empAus.CodigoEmpleado);
+                }
+            }
+
+            ValidarConflictosHorarios(out _);
+            ActualizarGruposConsolidadosInterno(false);
+            ActualizarGruposHorasExtrasInterno();
+            await AutoGuardarBorradorLocal();
+
+            _snackbar.Add(
+                $"Conciliación SINSA completada: {actualizados} actualizados, {nuevosAgregados} agregados y {conHorasExtras} con Horas Extras cuadradas. Haz clic en 'GUARDAR EN BD'.",
+                Severity.Success);
+            StateHasChanged();
         }
 }
     }
