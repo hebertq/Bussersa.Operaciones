@@ -2632,16 +2632,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
                 else
                 {
+                    // No sobreescribir el horario ordinario base de Mi Personal con las horas de un día puntual
                     itemPlantilla.ClienteDefault = nuevo.Cliente;
                     itemPlantilla.AreaDefault = nuevo.Area;
                     itemPlantilla.PuestoDefault = nuevo.Puesto;
-                    itemPlantilla.TurnoDefault = nuevo.TurnoNombre;
-                    itemPlantilla.HoraEntradaDefault = nuevo.HoraEntrada;
-                    itemPlantilla.HoraSalidaDefault = nuevo.HoraSalida;
-                    itemPlantilla.TiempoComidaDefault = nuevo.TiempoComida;
-                    itemPlantilla.VtcoTraspDefault = nuevo.VtcoTrasp;
-                    itemPlantilla.VtcoAlimDefault = nuevo.VtcoAlim;
-                    itemPlantilla.BonoBncDefault = nuevo.BonoBnc;
                     itemPlantilla.TipoEmpleado = nuevo.TipoEmpleado;
                     itemPlantilla.ClienteOrigenNomina = nuevo.ClienteOrigenNomina;
                     await _odooService.SaveSupervisorPlantillaItem(itemPlantilla);
@@ -5252,6 +5246,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected List<AutorizacionHorasExtrasDto> autorizacionesHeLista = new();
         protected Dictionary<string, string> observacionesPorAreaHe = new(StringComparer.OrdinalIgnoreCase);
         protected Dictionary<string, FirmaLocalTarjetaHe> firmasPorTarjetaHe = new(StringComparer.OrdinalIgnoreCase);
+        protected Dictionary<int, (string HoraBaseJornada, string HoraIni, string HoraFin, decimal Horas)> edicionesHorarioHePorEmpleado = new();
         protected bool cargandoAutorizacionesHe = false;
         protected bool enviandoTicketsHe = false;
         protected DateTime? fechaDesdeFiltroHe = DateTime.Today;
@@ -5298,8 +5293,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (!TimeSpan.TryParse(hEntStr, out var tEnt) || !TimeSpan.TryParse(hSalStr, out var tSal))
                 return (0m, 8m, 0m, "17:00", "20:00", "");
 
+            // Descartar registros sin marcación válida (ej. 00:00 - 00:00 o entrada == salida)
+            if (tSal == tEnt || (hEntStr == "00:00" && hSalStr == "00:00"))
+                return (0m, 8m, 0m, "17:00", "20:00", "");
+
             double diffHrs = (tSal - tEnt).TotalHours;
-            if (diffHrs <= 0) diffHrs += 24.0;
+            if (diffHrs < 0)
+            {
+                // Solo cruzar medianoche en turnos vespertinos/nocturnos reales (nunca salida 00:00 con entrada de mañana)
+                if (tEnt.Hours >= 14 || tSal.Hours <= 10)
+                    diffHrs += 24.0;
+                else
+                    return (0m, 8m, 0m, "17:00", "20:00", "");
+            }
+
+            if (diffHrs <= 0 || diffHrs > 18.0)
+                return (0m, 8m, 0m, "17:00", "20:00", "");
+
             decimal horasBrutas = (decimal)diffHrs;
 
             decimal comida = decimal.TryParse(emp.TiempoComida?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var tc)
@@ -5377,12 +5387,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
 
             decimal horasExtras = Math.Round(Math.Max(0m, horasNetas - topeOrdinario), 2);
-            if (horasExtras <= 0m)
+            // Ignorar variaciones menores a 15 minutos (< 0.25h) propias de fila en reloj biométrico
+            if (horasExtras < 0.25m)
                 return (0m, topeOrdinario, horasNetas, hSalStr, hSalStr, reglaResumen);
 
             double inicioExtraMinutos = (tEnt.TotalHours + (double)(topeOrdinario + comidaEfectiva)) * 60.0;
             int minsMod = ((int)Math.Round(inicioExtraMinutos) % 1440 + 1440) % 1440;
             string hInicioExtra = $"{minsMod / 60:D2}:{minsMod % 60:D2}";
+
+            string claveJornadaActual = $"{hEntStr}-{hSalStr}";
+            if (emp.CodigoEmpleado > 0 && edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edManual)
+                && string.Equals(edManual.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
+            {
+                return (edManual.Horas, topeOrdinario, horasNetas, edManual.HoraIni, edManual.HoraFin, reglaResumen);
+            }
 
             return (horasExtras, topeOrdinario, horasNetas, hInicioExtra, hSalStr, reglaResumen);
         }
@@ -5622,48 +5640,76 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["TipoFirma"] = tipoInicial,
                 ["ResumenTarjeta"] = $"{grp.Cliente} • {grp.Area} • {grp.Puesto}",
                 ["DetalleHorarioTarjeta"] = $"{grp.HoraInicioMin} - {grp.HoraFinMax} • {grp.HorasExtrasPorPersona:N2} hrs c/u ({grp.Colaboradores.Count} pers.)",
+                ["ObservacionesIniciales"] = grp.Observaciones,
                 ["TicketRedmineId"] = grp.TicketRedmineId,
                 ["FirmaSupervisorPrevia"] = prevSup,
                 ["FirmaGerentePrevia"] = prevGer
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
-            var dialog = await _dialogService.ShowAsync<DialogFirmarReciboHe>("Editar Firma de la Tarjeta", parameters, options);
+            var dialog = await _dialogService.ShowAsync<DialogFirmarReciboHe>("Editar Tarjeta y Firma", parameters, options);
             var result = await dialog.Result;
 
             if (result != null && !result.Canceled && result.Data is DialogFirmarReciboHe.ResultadoFirmaTarjetaHe resFirma)
             {
-                if (!firmasPorTarjetaHe.TryGetValue(grp.KeyTarjeta, out var slot))
+                string oldKey = grp.KeyTarjeta;
+
+                // Si la tarjeta aún no se ha enviado a Helpdesk, aplicar el horario extra y observaciones editadas
+                if (!grp.Sincronizado && !string.IsNullOrWhiteSpace(resFirma.HoraInicioExtra) && !string.IsNullOrWhiteSpace(resFirma.HoraFinExtra) && resFirma.HorasExtrasAutorizadas > 0m)
                 {
-                    slot = new FirmaLocalTarjetaHe
+                    foreach (var col in grp.Colaboradores)
                     {
-                        SupervisorNombre = grp.SupervisorNombre,
-                        SupervisorCargo = grp.SupervisorCargo,
-                        FirmaSupervisorBase64 = grp.FirmaSupervisorBase64,
-                        GerenteNombre = grp.GerenteNombre,
-                        GerenteCargo = grp.GerenteCargo,
-                        FirmaGerenteBase64 = grp.FirmaGerenteBase64
-                    };
-                    firmasPorTarjetaHe[grp.KeyTarjeta] = slot;
+                        string baseJ = $"{col.HoraEntradaJornada}-{col.HoraSalidaJornada}";
+                        edicionesHorarioHePorEmpleado[col.CodigoEmpleado] = (baseJ, resFirma.HoraInicioExtra, resFirma.HoraFinExtra, resFirma.HorasExtrasAutorizadas);
+                    }
+                    grp.HoraInicioExtra = resFirma.HoraInicioExtra;
+                    grp.HoraFinExtra = resFirma.HoraFinExtra;
+                    grp.HorasExtrasPorPersona = resFirma.HorasExtrasAutorizadas;
                 }
 
-                if (string.Equals(resFirma.TipoFirma, "GERENTE", StringComparison.OrdinalIgnoreCase))
+                string newKey = grp.KeyTarjeta;
+                if (!string.Equals(oldKey, newKey, StringComparison.OrdinalIgnoreCase) && firmasPorTarjetaHe.TryGetValue(oldKey, out var oldSlot))
                 {
-                    slot.GerenteNombre = resFirma.NombreFirmante;
-                    slot.GerenteCargo = resFirma.CargoFirmante;
-                    slot.FirmaGerenteBase64 = resFirma.FirmaBase64;
-                    grp.GerenteNombre = resFirma.NombreFirmante;
-                    grp.GerenteCargo = resFirma.CargoFirmante;
-                    grp.FirmaGerenteBase64 = resFirma.FirmaBase64;
+                    firmasPorTarjetaHe[newKey] = oldSlot;
                 }
-                else
+
+                observacionesPorAreaHe[newKey] = resFirma.Observaciones ?? string.Empty;
+                grp.Observaciones = resFirma.Observaciones ?? string.Empty;
+
+                if (resFirma.ActualizoFirma)
                 {
-                    slot.SupervisorNombre = resFirma.NombreFirmante;
-                    slot.SupervisorCargo = resFirma.CargoFirmante;
-                    slot.FirmaSupervisorBase64 = resFirma.FirmaBase64;
-                    grp.SupervisorNombre = resFirma.NombreFirmante;
-                    grp.SupervisorCargo = resFirma.CargoFirmante;
-                    grp.FirmaSupervisorBase64 = resFirma.FirmaBase64;
+                    if (!firmasPorTarjetaHe.TryGetValue(newKey, out var slot))
+                    {
+                        slot = new FirmaLocalTarjetaHe
+                        {
+                            SupervisorNombre = grp.SupervisorNombre,
+                            SupervisorCargo = grp.SupervisorCargo,
+                            FirmaSupervisorBase64 = grp.FirmaSupervisorBase64,
+                            GerenteNombre = grp.GerenteNombre,
+                            GerenteCargo = grp.GerenteCargo,
+                            FirmaGerenteBase64 = grp.FirmaGerenteBase64
+                        };
+                        firmasPorTarjetaHe[newKey] = slot;
+                    }
+
+                    if (string.Equals(resFirma.TipoFirma, "GERENTE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        slot.GerenteNombre = resFirma.NombreFirmante;
+                        slot.GerenteCargo = resFirma.CargoFirmante;
+                        slot.FirmaGerenteBase64 = resFirma.FirmaBase64;
+                        grp.GerenteNombre = resFirma.NombreFirmante;
+                        grp.GerenteCargo = resFirma.CargoFirmante;
+                        grp.FirmaGerenteBase64 = resFirma.FirmaBase64;
+                    }
+                    else
+                    {
+                        slot.SupervisorNombre = resFirma.NombreFirmante;
+                        slot.SupervisorCargo = resFirma.CargoFirmante;
+                        slot.FirmaSupervisorBase64 = resFirma.FirmaBase64;
+                        grp.SupervisorNombre = resFirma.NombreFirmante;
+                        grp.SupervisorCargo = resFirma.CargoFirmante;
+                        grp.FirmaSupervisorBase64 = resFirma.FirmaBase64;
+                    }
                 }
 
                 if (grp.AutorizacionId.HasValue && grp.AutorizacionId.Value > 0)

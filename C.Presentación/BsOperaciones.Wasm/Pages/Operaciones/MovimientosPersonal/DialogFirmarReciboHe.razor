@@ -1,3 +1,4 @@
+@using System.Globalization
 @using MudBlazor
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
@@ -9,11 +10,11 @@
     <TitleContent>
         <div class="d-flex align-center gap-2">
             <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
-                <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" />
+                <MudIcon Icon="@Icons.Material.Filled.EditNote" Size="Size.Small" />
             </MudAvatar>
             <div>
                 <MudText Typo="Typo.subtitle1" Class="fw-bold">
-                    Firma del Autorizador del Cliente
+                    Editar Tarjeta de Horas Extras y Firma
                 </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
                     @TextoEncabezadoTarjeta
@@ -22,11 +23,12 @@
         </div>
     </TitleContent>
     <DialogContent>
-        @if (!string.IsNullOrWhiteSpace(DetalleHorarioTarjeta))
-        {
-            <div class="pa-2 mb-3 rounded d-flex align-center justify-space-between flex-wrap gap-2"
-                 style="background: #fffbeb; border: 1px solid #fde68a; font-size: 0.8rem;">
-                <span class="fw-bold" style="color: #92400e;">@DetalleHorarioTarjeta</span>
+        @* 1. EDICIÓN DE HORARIO EXTRA Y OBSERVACIONES DE LA TARJETA *@
+        <div class="pa-3 mb-3 rounded-lg" style="background: #fffbeb; border: 1px solid #fde68a;">
+            <div class="d-flex align-center justify-space-between mb-2">
+                <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #92400e;">
+                    1. Horario de Horas Extras de la Tarjeta
+                </MudText>
                 @if (TicketRedmineId.HasValue && TicketRedmineId.Value > 0)
                 {
                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Class="my-0 fw-bold">
@@ -34,73 +36,128 @@
                     </MudChip>
                 }
             </div>
-        }
 
-        <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3" Style="font-size: 0.76rem;">
-            Autoriza únicamente personal del <b>Cliente</b> (Supervisor o Gerente del Cliente).
-        </MudAlert>
-
-        @* Selector de rol del cliente que firma *@
-        <div class="d-flex gap-2 mb-3">
-            <MudButton Variant="@(tipoSeleccionado == "SUPERVISOR" ? Variant.Filled : Variant.Outlined)"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.SupervisorAccount"
-                       OnClick="@(() => CambiarTipoFirma("SUPERVISOR"))"
-                       Class="fw-bold">
-                Supervisor del Cliente @(TieneFirmaSupActual ? "✓" : "")
-            </MudButton>
-            <MudButton Variant="@(tipoSeleccionado == "GERENTE" ? Variant.Filled : Variant.Outlined)"
-                       Color="Color.Secondary"
-                       Size="Size.Small"
-                       FullWidth="true"
-                       StartIcon="@Icons.Material.Filled.VerifiedUser"
-                       OnClick="@(() => CambiarTipoFirma("GERENTE"))"
-                       Class="fw-bold">
-                Gerente del Cliente @(TieneFirmaGerActual ? "✓" : "")
-            </MudButton>
+            <MudGrid Spacing="2">
+                <MudItem xs="4">
+                    <div class="text-caption fw-bold text-secondary mb-1">Inicio Extra</div>
+                    <MudTextField T="string"
+                                  Value="@horaInicioEdit"
+                                  ValueChanged="@OnHoraInicioChanged"
+                                  Placeholder="17:00"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Disabled="@(IdAutorizacionEfectivo > 0)"
+                                  Style="background: white; font-family: monospace; font-weight: 700;" />
+                </MudItem>
+                <MudItem xs="4">
+                    <div class="text-caption fw-bold text-secondary mb-1">Fin Extra</div>
+                    <MudTextField T="string"
+                                  Value="@horaFinEdit"
+                                  ValueChanged="@OnHoraFinChanged"
+                                  Placeholder="19:00"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Disabled="@(IdAutorizacionEfectivo > 0)"
+                                  Style="background: white; font-family: monospace; font-weight: 700;" />
+                </MudItem>
+                <MudItem xs="4">
+                    <div class="text-caption fw-bold text-secondary mb-1">Cantidad H.E.</div>
+                    <MudNumericField T="decimal"
+                                     @bind-Value="horasExtrasEdit"
+                                     Min="0.25m"
+                                     Max="16.00m"
+                                     Step="0.25m"
+                                     Format="F2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="hrs"
+                                     Disabled="@(IdAutorizacionEfectivo > 0)"
+                                     Style="background: white; font-family: monospace; font-weight: 700;" />
+                </MudItem>
+                <MudItem xs="12">
+                    <div class="text-caption fw-bold text-secondary mb-1">Observaciones (Helpdesk)</div>
+                    <MudTextField T="string"
+                                  @bind-Value="observacionesEdit"
+                                  Placeholder="Ej: Descarga / despacho autorizado por el cliente..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Disabled="@(IdAutorizacionEfectivo > 0)"
+                                  Style="background: white;" />
+                </MudItem>
+            </MudGrid>
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(FirmaPreviaActivaBase64) && FirmaPreviaActivaBase64.StartsWith("data:image"))
-        {
-            <div class="pa-2 mb-2 rounded d-flex align-center justify-space-between gap-2"
-                 style="background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 0.75rem;">
-                <span class="text-success fw-bold">Firma actual registrada. Dibuje abajo si desea reemplazarla:</span>
-                <img src="@FirmaPreviaActivaBase64" alt="Firma actual" style="max-height: 36px; max-width: 110px; object-fit: contain; background: white; border-radius: 4px; padding: 2px;" />
+        @* 2. FIRMA DIGITAL DEL AUTORIZADOR DEL CLIENTE *@
+        <div class="pa-3 rounded-lg" style="background: #f8fafc; border: 1px solid #cbd5e1;">
+            <MudText Typo="Typo.caption" Class="fw-bold text-uppercase d-block mb-2" Style="color: #013161;">
+                2. Firma del Autorizador del Cliente (Supervisor / Gerente del Cliente)
+            </MudText>
+
+            <div class="d-flex gap-2 mb-3">
+                <MudButton Variant="@(tipoSeleccionado == "SUPERVISOR" ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                           OnClick="@(() => CambiarTipoFirma("SUPERVISOR"))"
+                           Class="fw-bold">
+                    Supervisor Cliente @(TieneFirmaSupActual ? "✓" : "")
+                </MudButton>
+                <MudButton Variant="@(tipoSeleccionado == "GERENTE" ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Secondary"
+                           Size="Size.Small"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.VerifiedUser"
+                           OnClick="@(() => CambiarTipoFirma("GERENTE"))"
+                           Class="fw-bold">
+                    Gerente Cliente @(TieneFirmaGerActual ? "✓" : "")
+                </MudButton>
             </div>
-        }
 
-        <div class="mb-2">
-            <div class="text-caption fw-bold text-secondary mb-1">Nombre completo de quien autoriza (Cliente)</div>
-            <MudTextField @bind-Value="nombreFirmante"
-                          Placeholder="Ej: Ing. Carlos Pérez"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense" />
-        </div>
+            @if (!string.IsNullOrWhiteSpace(FirmaPreviaActivaBase64) && FirmaPreviaActivaBase64.StartsWith("data:image"))
+            {
+                <div class="pa-2 mb-2 rounded d-flex align-center justify-space-between gap-2"
+                     style="background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 0.75rem;">
+                    <span class="text-success fw-bold">Firma actual registrada (dibuje abajo si desea cambiarla):</span>
+                    <img src="@FirmaPreviaActivaBase64" alt="Firma actual" style="max-height: 36px; max-width: 110px; object-fit: contain; background: white; border-radius: 4px; padding: 2px;" />
+                </div>
+            }
 
-        <div class="mb-3">
-            <div class="text-caption fw-bold text-secondary mb-1">Cargo en el Cliente</div>
-            <MudTextField @bind-Value="cargoFirmante"
-                          Placeholder="Supervisor del Cliente"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense" />
-        </div>
+            <MudGrid Spacing="2" Class="mb-2">
+                <MudItem xs="12" sm="7">
+                    <div class="text-caption fw-bold text-secondary mb-1">Nombre completo (Cliente)</div>
+                    <MudTextField @bind-Value="nombreFirmante"
+                                  Placeholder="Ej: Ing. Carlos Pérez"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Style="background: white;" />
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    <div class="text-caption fw-bold text-secondary mb-1">Cargo en el Cliente</div>
+                    <MudTextField @bind-Value="cargoFirmante"
+                                  Placeholder="Supervisor del Cliente"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Style="background: white;" />
+                </MudItem>
+            </MudGrid>
 
-        <div class="d-flex justify-space-between align-center mb-1">
-            <MudText Typo="Typo.caption" Class="fw-bold">Firme con el dedo, lápiz óptico o mouse:</MudText>
-            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" StartIcon="@Icons.Material.Filled.CleaningServices" OnClick="@Limpiar">
-                Limpiar Firma
-            </MudButton>
-        </div>
-        <div style="border: 2px dashed #475569; border-radius: 8px; background: #ffffff; overflow: hidden;">
-            <canvas id="canvas_firma_adicional" style="width: 100%; height: 165px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+            <div class="d-flex justify-space-between align-center mb-1">
+                <MudText Typo="Typo.caption" Class="fw-bold">Firme aquí (dedo, lápiz o mouse):</MudText>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" StartIcon="@Icons.Material.Filled.CleaningServices" OnClick="@Limpiar">
+                    Limpiar Firma
+                </MudButton>
+            </div>
+            <div style="border: 2px dashed #475569; border-radius: 8px; background: #ffffff; overflow: hidden;">
+                <canvas id="canvas_firma_adicional" style="width: 100%; height: 155px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+            </div>
         </div>
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Outlined" OnClick="@(() => MudDialog.Cancel())" Disabled="@guardando">Cancelar</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="@Guardar" Disabled="@guardando" Class="fw-bold">
-            @(guardando ? "Guardando Firma..." : "Guardar Firma en Tarjeta")
+            @(guardando ? "Guardando..." : "Guardar Tarjeta y Firma")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -108,6 +165,11 @@
 @code {
     public class ResultadoFirmaTarjetaHe
     {
+        public string HoraInicioExtra { get; set; } = string.Empty;
+        public string HoraFinExtra { get; set; } = string.Empty;
+        public decimal HorasExtrasAutorizadas { get; set; }
+        public string Observaciones { get; set; } = string.Empty;
+        public bool ActualizoFirma { get; set; }
         public string TipoFirma { get; set; } = "SUPERVISOR";
         public string NombreFirmante { get; set; } = string.Empty;
         public string CargoFirmante { get; set; } = string.Empty;
@@ -121,9 +183,15 @@
     [Parameter] public string TipoFirma { get; set; } = "SUPERVISOR";
     [Parameter] public string ResumenTarjeta { get; set; } = string.Empty;
     [Parameter] public string DetalleHorarioTarjeta { get; set; } = string.Empty;
+    [Parameter] public string ObservacionesIniciales { get; set; } = string.Empty;
     [Parameter] public int? TicketRedmineId { get; set; }
     [Parameter] public string? FirmaSupervisorPrevia { get; set; }
     [Parameter] public string? FirmaGerentePrevia { get; set; }
+
+    private string horaInicioEdit = "17:00";
+    private string horaFinEdit = "19:00";
+    private decimal horasExtrasEdit = 2.00m;
+    private string observacionesEdit = string.Empty;
 
     private string tipoSeleccionado = "SUPERVISOR";
     private string nombreFirmante = string.Empty;
@@ -148,10 +216,44 @@
 
     protected override void OnInitialized()
     {
+        horaInicioEdit = string.IsNullOrWhiteSpace(Autorizacion?.HoraInicioExtra) ? "17:00" : Autorizacion!.HoraInicioExtra;
+        horaFinEdit = string.IsNullOrWhiteSpace(Autorizacion?.HoraFinExtra) ? "19:00" : Autorizacion!.HoraFinExtra;
+        horasExtrasEdit = Autorizacion?.HorasExtrasAutorizadas > 0 ? Autorizacion.HorasExtrasAutorizadas : RecalcularHoras(horaInicioEdit, horaFinEdit);
+        observacionesEdit = !string.IsNullOrWhiteSpace(ObservacionesIniciales)
+            ? ObservacionesIniciales
+            : (Autorizacion?.Motivo ?? string.Empty);
+
         tipoSeleccionado = string.Equals(TipoFirma, "GERENTE", StringComparison.OrdinalIgnoreCase)
             ? "GERENTE"
             : "SUPERVISOR";
         CargarDatosRolSeleccionado();
+    }
+
+    private void OnHoraInicioChanged(string val)
+    {
+        horaInicioEdit = val?.Trim() ?? string.Empty;
+        decimal calc = RecalcularHoras(horaInicioEdit, horaFinEdit);
+        if (calc > 0) horasExtrasEdit = calc;
+    }
+
+    private void OnHoraFinChanged(string val)
+    {
+        horaFinEdit = val?.Trim() ?? string.Empty;
+        decimal calc = RecalcularHoras(horaInicioEdit, horaFinEdit);
+        if (calc > 0) horasExtrasEdit = calc;
+    }
+
+    private static decimal RecalcularHoras(string? ini, string? fin)
+    {
+        if (TimeSpan.TryParse(ini, out var t1) && TimeSpan.TryParse(fin, out var t2))
+        {
+            if (t1 == t2) return 0m;
+            double diff = (t2 - t1).TotalHours;
+            if (diff < 0) diff += 24.0;
+            if (diff > 0 && diff <= 16.0)
+                return Math.Round((decimal)diff, 2);
+        }
+        return 0m;
     }
 
     private void CargarDatosRolSeleccionado()
@@ -196,11 +298,19 @@
 
     private async Task Guardar()
     {
-        if (string.IsNullOrWhiteSpace(nombreFirmante))
+        if (!TimeSpan.TryParse(horaInicioEdit, out var tIni) || !TimeSpan.TryParse(horaFinEdit, out var tFin) || tIni == tFin)
         {
-            _snackbar.Add("Ingrese el nombre completo del autorizador del Cliente.", Severity.Warning);
+            _snackbar.Add("Verifique la Hora de Inicio y Hora de Fin Extra en formato HH:mm.", Severity.Warning);
             return;
         }
+        if (horasExtrasEdit <= 0m)
+        {
+            _snackbar.Add("La cantidad de Horas Extras debe ser mayor a 0.", Severity.Warning);
+            return;
+        }
+
+        string hIniNorm = $"{tIni.Hours:D2}:{tIni.Minutes:D2}";
+        string hFinNorm = $"{tFin.Hours:D2}:{tFin.Minutes:D2}";
 
         bool hayTrazoNuevo = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_firma_adicional");
         string? pngFinal = null;
@@ -214,15 +324,30 @@
             pngFinal = FirmaPreviaActivaBase64;
         }
 
-        if (string.IsNullOrWhiteSpace(pngFinal))
+        bool deseaGuardarFirma = !string.IsNullOrWhiteSpace(pngFinal) || !string.IsNullOrWhiteSpace(nombreFirmante);
+        if (deseaGuardarFirma)
         {
-            _snackbar.Add("Dibuje la firma del autorizador del Cliente en el recuadro antes de guardar.", Severity.Warning);
-            return;
+            if (string.IsNullOrWhiteSpace(nombreFirmante))
+            {
+                _snackbar.Add("Ingrese el nombre completo del autorizador del Cliente para registrar la firma.", Severity.Warning);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(pngFinal))
+            {
+                _snackbar.Add("Dibuje la firma del autorizador del Cliente en el recuadro (o deje el nombre vacío si solo desea ajustar el horario).", Severity.Warning);
+                return;
+            }
         }
 
-        // Caso 1: La tarjeta ya tiene respaldo en BD / Ticket en Helpdesk -> guardar en BD y adjuntar en Redmine
+        // Caso 1: La tarjeta ya tiene Ticket en Helpdesk / BD -> exigir y guardar la firma en BD + Helpdesk
         if (IdAutorizacionEfectivo > 0)
         {
+            if (!deseaGuardarFirma || string.IsNullOrWhiteSpace(pngFinal))
+            {
+                _snackbar.Add("Dibuje la firma e ingrese el nombre del autorizador del Cliente.", Severity.Warning);
+                return;
+            }
+
             guardando = true;
             try
             {
@@ -238,9 +363,14 @@
 
                 if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
                 {
-                    _snackbar.Add("Firma guardada en la tarjeta y actualizada en Helpdesk.", Severity.Success);
+                    _snackbar.Add("Firma guardada y adjuntada al ticket de Helpdesk.", Severity.Success);
                     MudDialog.Close(DialogResult.Ok(new ResultadoFirmaTarjetaHe
                     {
+                        HoraInicioExtra = hIniNorm,
+                        HoraFinExtra = hFinNorm,
+                        HorasExtrasAutorizadas = Math.Round(horasExtrasEdit, 2),
+                        Observaciones = observacionesEdit?.Trim() ?? string.Empty,
+                        ActualizoFirma = true,
                         TipoFirma = tipoSeleccionado,
                         NombreFirmante = nombreFirmante.Trim(),
                         CargoFirmante = cargoFirmante.Trim(),
@@ -264,14 +394,22 @@
             return;
         }
 
-        // Caso 2: La tarjeta está recién creada en pantalla (aún sin enviar a Helpdesk) -> guardar en la tarjeta
-        _snackbar.Add($"Firma de {nombreFirmante.Trim()} guardada en la tarjeta.", Severity.Success);
+        // Caso 2: Tarjeta aún sin enviar a Helpdesk -> guardar horario editado, observaciones y/o firma en la tarjeta
+        _snackbar.Add(deseaGuardarFirma
+            ? $"Tarjeta actualizada y firmada por {nombreFirmante.Trim()}."
+            : "Horario y observaciones de la tarjeta actualizados.", Severity.Success);
+
         MudDialog.Close(DialogResult.Ok(new ResultadoFirmaTarjetaHe
         {
+            HoraInicioExtra = hIniNorm,
+            HoraFinExtra = hFinNorm,
+            HorasExtrasAutorizadas = Math.Round(horasExtrasEdit, 2),
+            Observaciones = observacionesEdit?.Trim() ?? string.Empty,
+            ActualizoFirma = deseaGuardarFirma && !string.IsNullOrWhiteSpace(pngFinal),
             TipoFirma = tipoSeleccionado,
-            NombreFirmante = nombreFirmante.Trim(),
-            CargoFirmante = cargoFirmante.Trim(),
-            FirmaBase64 = pngFinal
+            NombreFirmante = nombreFirmante?.Trim() ?? string.Empty,
+            CargoFirmante = cargoFirmante?.Trim() ?? string.Empty,
+            FirmaBase64 = pngFinal ?? string.Empty
         }));
     }
 }

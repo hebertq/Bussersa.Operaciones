@@ -70,14 +70,18 @@
     <!-- Registro de Service Worker PWA y Manejo Global de Instalación -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js').then(reg => {
+            const hadController = !!navigator.serviceWorker.controller;
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
                 console.log('Service Worker Busser Tablet registrado con éxito:', reg.scope);
                 reg.update();
             }).catch(err => console.warn('Error al registrar Service Worker:', err));
 
-            // Notificar actualización sin recargar forzosamente la página (para no perder datos de formularios no guardados)
+            // Aplicar automáticamente la nueva versión desplegada cuando el Service Worker cambia
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.info('Service Worker Busser Tablet actualizado en segundo plano. La nueva versión se aplicará en la próxima navegación o recarga manual.');
+                if (hadController && !window._swReloading) {
+                    window._swReloading = true;
+                    window.location.reload();
+                }
             });
         }
 

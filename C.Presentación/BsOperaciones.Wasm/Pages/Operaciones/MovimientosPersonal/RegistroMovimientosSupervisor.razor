@@ -4570,23 +4570,37 @@
                                                 </MudText>
                                             </CardHeaderContent>
                                             <CardHeaderActions>
-                                                @if (grp.Sincronizado)
-                                                {
-                                                    <MudChip T="string" Color="@(grp.EstadoTicket == "EN ODOO" ? Color.Success : Color.Info)" Size="Size.Small" Variant="Variant.Filled">
-                                                        @(grp.EstadoTicket == "EN ODOO" ? "EN ODOO" : "Sincronizado")
-                                                    </MudChip>
-                                                }
-                                                else
-                                                {
-                                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
-                                                        Pendiente
-                                                    </MudChip>
-                                                }
+                                                <div class="d-flex align-center gap-1">
+                                                    <MudTooltip Text="Editar horario extra y agregar/editar firma del cliente">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.EditNote"
+                                                                       Color="Color.Primary"
+                                                                       Size="Size.Small"
+                                                                       OnClick="@(() => AbrirDialogoEditarFirmaTarjeta(grp))" />
+                                                    </MudTooltip>
+                                                    @if (grp.Sincronizado)
+                                                    {
+                                                        <MudChip T="string" Color="@(grp.EstadoTicket == "EN ODOO" ? Color.Success : Color.Info)" Size="Size.Small" Variant="Variant.Filled">
+                                                            @(grp.EstadoTicket == "EN ODOO" ? "EN ODOO" : "Sincronizado")
+                                                        </MudChip>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">
+                                                            Pendiente
+                                                        </MudChip>
+                                                    }
+                                                </div>
                                             </CardHeaderActions>
                                         </MudCardHeader>
 
                                         <MudCardContent Class="pt-1 pb-2">
                                             @* Bloque destacado de Horario Inicio - Fin y Cantidad de Horas Extras *@
+                                            @{
+                                                var marcacionRef = grp.Colaboradores.FirstOrDefault();
+                                                string textoMarcacion = marcacionRef != null && !string.IsNullOrWhiteSpace(marcacionRef.HoraEntradaJornada)
+                                                    ? $"{marcacionRef.HoraEntradaJornada} - {marcacionRef.HoraSalidaJornada}"
+                                                    : string.Empty;
+                                            }
                                             <div class="pa-2 mb-2 rounded d-flex align-center justify-space-between flex-wrap gap-2"
                                                  style="background: #fffbeb; border: 1px solid #fde68a;">
                                                 <div>
@@ -4594,6 +4608,12 @@
                                                     <span class="font-monospace fw-bold" style="font-size: 0.92rem; color: #92400e;">
                                                         @grp.HoraInicioMin - @grp.HoraFinMax
                                                     </span>
+                                                    @if (!string.IsNullOrWhiteSpace(textoMarcacion))
+                                                    {
+                                                        <span class="text-muted d-block font-monospace" style="font-size: 0.68rem;">
+                                                            Jornada: @textoMarcacion
+                                                        </span>
+                                                    }
                                                 </div>
                                                 <div class="text-right">
                                                     <span class="text-uppercase text-muted d-block" style="font-size: 0.65rem; font-weight: 700;">Cantidad H.E.</span>
