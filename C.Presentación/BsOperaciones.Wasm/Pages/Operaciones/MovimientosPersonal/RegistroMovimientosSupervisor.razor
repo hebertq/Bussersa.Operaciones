@@ -4645,8 +4645,45 @@
                                                               Style="font-size: 0.78rem;" />
                                             </div>
 
+                                            @* Bloque de Firma del Autorizador del Cliente directamente en la tarjeta *@
+                                            <div class="pa-2 mt-2 rounded d-flex align-center justify-space-between flex-wrap gap-2"
+                                                 style="@(grp.TieneFirmaCliente ? "background: #f0fdf4; border: 1px solid #86efac;" : "background: #f8fafc; border: 1px dashed #cbd5e1;")">
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudIcon Icon="@(grp.TieneFirmaCliente ? Icons.Material.Filled.Verified : Icons.Material.Filled.Draw)"
+                                                             Size="Size.Small"
+                                                             Color="@(grp.TieneFirmaCliente ? Color.Success : Color.Secondary)" />
+                                                    <div>
+                                                        @if (grp.TieneFirmaCliente)
+                                                        {
+                                                            <span class="fw-bold d-block" style="font-size: 0.74rem; color: #166534;">
+                                                                Firmado: @grp.ResumenFirmanteCliente
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted d-block" style="font-size: 0.74rem;">
+                                                                Firma del Cliente pendiente
+                                                            </span>
+                                                        }
+                                                    </div>
+                                                    @if (!string.IsNullOrWhiteSpace(grp.FirmaSupervisorBase64) && grp.FirmaSupervisorBase64.StartsWith("data:image"))
+                                                    {
+                                                        <img src="@grp.FirmaSupervisorBase64" alt="Firma" style="max-height: 28px; max-width: 75px; object-fit: contain; background: white; border-radius: 4px; padding: 1px; border: 1px solid #dcfce7;" />
+                                                    }
+                                                </div>
+                                                <MudButton Variant="Variant.Outlined"
+                                                           Color="@(grp.TieneFirmaCliente ? Color.Success : Color.Primary)"
+                                                           Size="Size.Small"
+                                                           StartIcon="@Icons.Material.Filled.Draw"
+                                                           OnClick="@(() => AbrirDialogoEditarFirmaTarjeta(grp))"
+                                                           Class="fw-bold"
+                                                           Style="height: 28px; font-size: 0.73rem;">
+                                                    @(grp.TieneFirmaCliente ? "Editar Firma" : "Firmar")
+                                                </MudButton>
+                                            </div>
+
                                             <MudDivider Class="my-2" />
-                                            <div class="d-flex align-center justify-space-between">
+                                            <div class="d-flex align-center justify-space-between flex-wrap gap-1">
                                                 @if (grp.Sincronizado)
                                                 {
                                                     <MudButton Variant="Variant.Text"
@@ -4656,8 +4693,19 @@
                                                                Target="_blank"
                                                                StartIcon="@Icons.Material.Filled.ConfirmationNumber"
                                                                Class="fw-bold">
-                                                        Ticket Redmine: #@grp.TicketRedmineId (@grp.EstadoTicket)
+                                                        Ticket #@grp.TicketRedmineId (@grp.EstadoTicket)
                                                     </MudButton>
+                                                    @if (!string.IsNullOrWhiteSpace(grp.TokenRecibo))
+                                                    {
+                                                        <MudButton Variant="Variant.Text"
+                                                                   Size="Size.Small"
+                                                                   Color="Color.Info"
+                                                                   Href="@($"/recibo-horas-extras/{grp.TokenRecibo}")"
+                                                                   Target="_blank"
+                                                                   StartIcon="@Icons.Material.Filled.ReceiptLong">
+                                                            Recibo
+                                                        </MudButton>
+                                                    }
                                                 }
                                                 else
                                                 {
@@ -4683,16 +4731,17 @@
                     {
                         @* 2. VISTA MODO TABLA *@
                         <div class="table-responsive-wrapper">
-                            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="min-width: 880px;">
+                            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="min-width: 960px;">
                                 <thead>
                                     <tr style="background: #f8fafc;">
                                         <th style="width: 50px;">#</th>
                                         <th style="min-width: 190px;">Área &amp; Puesto</th>
                                         <th style="min-width: 135px;">Inicio - Fin Extra</th>
                                         <th style="min-width: 120px;">Cantidad H.E.</th>
-                                        <th style="min-width: 220px;">Colaboradores</th>
-                                        <th style="min-width: 220px;">Observaciones (Helpdesk)</th>
-                                        <th style="width: 150px; text-align: center;">Estado / Acción</th>
+                                        <th style="min-width: 200px;">Colaboradores</th>
+                                        <th style="min-width: 150px;">Firma Cliente</th>
+                                        <th style="min-width: 190px;">Observaciones</th>
+                                        <th style="width: 145px; text-align: center;">Estado / Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4729,6 +4778,18 @@
                                                             #@col.CodigoEmpleado
                                                         </MudChip>
                                                     }
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-center justify-space-between gap-1">
+                                                    <span class="@(grp.TieneFirmaCliente ? "text-success fw-bold" : "text-muted")" style="font-size: 0.73rem;">
+                                                        @(grp.TieneFirmaCliente ? grp.ResumenFirmanteCliente : "Pendiente")
+                                                    </span>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Draw"
+                                                                   Size="Size.Small"
+                                                                   Color="@(grp.TieneFirmaCliente ? Color.Success : Color.Primary)"
+                                                                   OnClick="@(() => AbrirDialogoEditarFirmaTarjeta(grp))"
+                                                                   Title="@(grp.TieneFirmaCliente ? "Editar Firma" : "Firmar Tarjeta")" />
                                                 </div>
                                             </td>
                                             <td>

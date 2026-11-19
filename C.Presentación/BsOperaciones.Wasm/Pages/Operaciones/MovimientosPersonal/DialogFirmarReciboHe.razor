@@ -8,63 +8,179 @@
 <MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
     <TitleContent>
         <div class="d-flex align-center gap-2">
-            <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
+            <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
                 <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" />
             </MudAvatar>
             <div>
                 <MudText Typo="Typo.subtitle1" Class="fw-bold">
-                    Agregar Firma de @(TipoFirma == "SUPERVISOR" ? "Supervisor del Cliente" : "Gerente del Cliente")
+                    Firma del Autorizador del Cliente
                 </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    #@Autorizacion.CodigoEmpleado @Autorizacion.NombreEmpleado &bull; @Autorizacion.HorasExtrasAutorizadas.ToString("N2")h (@Autorizacion.Fecha.ToString("dd/MM/yyyy"))
+                    @TextoEncabezadoTarjeta
                 </MudText>
             </div>
         </div>
     </TitleContent>
     <DialogContent>
-        <MudTextField @bind-Value="nombreFirmante" Label="Nombre completo de quien firma" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
-        <MudTextField @bind-Value="cargoFirmante" Label="Cargo" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+        @if (!string.IsNullOrWhiteSpace(DetalleHorarioTarjeta))
+        {
+            <div class="pa-2 mb-3 rounded d-flex align-center justify-space-between flex-wrap gap-2"
+                 style="background: #fffbeb; border: 1px solid #fde68a; font-size: 0.8rem;">
+                <span class="fw-bold" style="color: #92400e;">@DetalleHorarioTarjeta</span>
+                @if (TicketRedmineId.HasValue && TicketRedmineId.Value > 0)
+                {
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled" Class="my-0 fw-bold">
+                        Ticket #@TicketRedmineId.Value
+                    </MudChip>
+                }
+            </div>
+        }
+
+        <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3" Style="font-size: 0.76rem;">
+            Autoriza únicamente personal del <b>Cliente</b> (Supervisor o Gerente del Cliente).
+        </MudAlert>
+
+        @* Selector de rol del cliente que firma *@
+        <div class="d-flex gap-2 mb-3">
+            <MudButton Variant="@(tipoSeleccionado == "SUPERVISOR" ? Variant.Filled : Variant.Outlined)"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                       OnClick="@(() => CambiarTipoFirma("SUPERVISOR"))"
+                       Class="fw-bold">
+                Supervisor del Cliente @(TieneFirmaSupActual ? "✓" : "")
+            </MudButton>
+            <MudButton Variant="@(tipoSeleccionado == "GERENTE" ? Variant.Filled : Variant.Outlined)"
+                       Color="Color.Secondary"
+                       Size="Size.Small"
+                       FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.VerifiedUser"
+                       OnClick="@(() => CambiarTipoFirma("GERENTE"))"
+                       Class="fw-bold">
+                Gerente del Cliente @(TieneFirmaGerActual ? "✓" : "")
+            </MudButton>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(FirmaPreviaActivaBase64) && FirmaPreviaActivaBase64.StartsWith("data:image"))
+        {
+            <div class="pa-2 mb-2 rounded d-flex align-center justify-space-between gap-2"
+                 style="background: #f0fdf4; border: 1px solid #bbf7d0; font-size: 0.75rem;">
+                <span class="text-success fw-bold">Firma actual registrada. Dibuje abajo si desea reemplazarla:</span>
+                <img src="@FirmaPreviaActivaBase64" alt="Firma actual" style="max-height: 36px; max-width: 110px; object-fit: contain; background: white; border-radius: 4px; padding: 2px;" />
+            </div>
+        }
+
+        <div class="mb-2">
+            <div class="text-caption fw-bold text-secondary mb-1">Nombre completo de quien autoriza (Cliente)</div>
+            <MudTextField @bind-Value="nombreFirmante"
+                          Placeholder="Ej: Ing. Carlos Pérez"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+        </div>
+
+        <div class="mb-3">
+            <div class="text-caption fw-bold text-secondary mb-1">Cargo en el Cliente</div>
+            <MudTextField @bind-Value="cargoFirmante"
+                          Placeholder="Supervisor del Cliente"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+        </div>
 
         <div class="d-flex justify-space-between align-center mb-1">
-            <MudText Typo="Typo.caption" Class="fw-bold">Dibuje la firma aquí:</MudText>
-            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CleaningServices" OnClick="@Limpiar">
-                Limpiar
+            <MudText Typo="Typo.caption" Class="fw-bold">Firme con el dedo, lápiz óptico o mouse:</MudText>
+            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Warning" StartIcon="@Icons.Material.Filled.CleaningServices" OnClick="@Limpiar">
+                Limpiar Firma
             </MudButton>
         </div>
         <div style="border: 2px dashed #475569; border-radius: 8px; background: #ffffff; overflow: hidden;">
-            <canvas id="canvas_firma_adicional" style="width: 100%; height: 155px; display: block; touch-action: none; cursor: crosshair;"></canvas>
+            <canvas id="canvas_firma_adicional" style="width: 100%; height: 165px; display: block; touch-action: none; cursor: crosshair;"></canvas>
         </div>
     </DialogContent>
     <DialogActions>
         <MudButton Variant="Variant.Outlined" OnClick="@(() => MudDialog.Cancel())" Disabled="@guardando">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="@Guardar" Disabled="@guardando">
-            @(guardando ? "Guardando en Helpdesk..." : "Guardar Firma")
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save" OnClick="@Guardar" Disabled="@guardando" Class="fw-bold">
+            @(guardando ? "Guardando Firma..." : "Guardar Firma en Tarjeta")
         </MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
+    public class ResultadoFirmaTarjetaHe
+    {
+        public string TipoFirma { get; set; } = "SUPERVISOR";
+        public string NombreFirmante { get; set; } = string.Empty;
+        public string CargoFirmante { get; set; } = string.Empty;
+        public string FirmaBase64 { get; set; } = string.Empty;
+        public AutorizacionHorasExtrasDto? AutorizacionActualizada { get; set; }
+    }
+
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Parameter] public AutorizacionHorasExtrasDto Autorizacion { get; set; } = new();
-    [Parameter] public string TipoFirma { get; set; } = "GERENTE";
+    [Parameter] public string TipoFirma { get; set; } = "SUPERVISOR";
+    [Parameter] public string ResumenTarjeta { get; set; } = string.Empty;
+    [Parameter] public string DetalleHorarioTarjeta { get; set; } = string.Empty;
+    [Parameter] public int? TicketRedmineId { get; set; }
+    [Parameter] public string? FirmaSupervisorPrevia { get; set; }
+    [Parameter] public string? FirmaGerentePrevia { get; set; }
 
+    private string tipoSeleccionado = "SUPERVISOR";
     private string nombreFirmante = string.Empty;
-    private string cargoFirmante = "Gerente del Cliente";
+    private string cargoFirmante = "Supervisor del Cliente";
     private bool guardando = false;
+
+    private int IdAutorizacionEfectivo => Autorizacion?.Id ?? 0;
+
+    private bool TieneFirmaSupActual =>
+        !string.IsNullOrWhiteSpace(FirmaSupervisorPrevia) || (Autorizacion?.TieneFirmaSupervisor == true);
+
+    private bool TieneFirmaGerActual =>
+        !string.IsNullOrWhiteSpace(FirmaGerentePrevia) || (Autorizacion?.TieneFirmaGerente == true);
+
+    private string? FirmaPreviaActivaBase64 =>
+        tipoSeleccionado == "SUPERVISOR" ? FirmaSupervisorPrevia : FirmaGerentePrevia;
+
+    private string TextoEncabezadoTarjeta =>
+        !string.IsNullOrWhiteSpace(ResumenTarjeta)
+            ? ResumenTarjeta
+            : $"{Autorizacion.ClienteNombre} • {Autorizacion.Area} ({Autorizacion.Fecha:dd/MM/yyyy})";
 
     protected override void OnInitialized()
     {
-        if (TipoFirma == "SUPERVISOR")
+        tipoSeleccionado = string.Equals(TipoFirma, "GERENTE", StringComparison.OrdinalIgnoreCase)
+            ? "GERENTE"
+            : "SUPERVISOR";
+        CargarDatosRolSeleccionado();
+    }
+
+    private void CargarDatosRolSeleccionado()
+    {
+        if (tipoSeleccionado == "SUPERVISOR")
         {
-            nombreFirmante = Autorizacion.SupervisorNombre ?? string.Empty;
-            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.SupervisorCargo) ? "Supervisor del Cliente" : Autorizacion.SupervisorCargo;
+            nombreFirmante = Autorizacion?.SupervisorNombre ?? string.Empty;
+            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion?.SupervisorCargo)
+                ? "Supervisor del Cliente"
+                : Autorizacion!.SupervisorCargo;
         }
         else
         {
-            nombreFirmante = Autorizacion.GerenteNombre ?? string.Empty;
-            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion.GerenteCargo) ? "Gerente del Cliente" : Autorizacion.GerenteCargo;
+            nombreFirmante = Autorizacion?.GerenteNombre ?? string.Empty;
+            cargoFirmante = string.IsNullOrWhiteSpace(Autorizacion?.GerenteCargo)
+                ? "Gerente del Cliente"
+                : Autorizacion!.GerenteCargo;
         }
+    }
+
+    private async Task CambiarTipoFirma(string nuevoTipo)
+    {
+        tipoSeleccionado = nuevoTipo;
+        CargarDatosRolSeleccionado();
+        try
+        {
+            await _js.InvokeVoidAsync("signaturePadInterop.clear", "canvas_firma_adicional");
+        }
+        catch { }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -82,47 +198,80 @@
     {
         if (string.IsNullOrWhiteSpace(nombreFirmante))
         {
-            _snackbar.Add("Ingrese el nombre de quien firma.", Severity.Warning);
-            return;
-        }
-        bool ok = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_firma_adicional");
-        if (!ok)
-        {
-            _snackbar.Add("Dibuje la firma en el recuadro antes de guardar.", Severity.Warning);
+            _snackbar.Add("Ingrese el nombre completo del autorizador del Cliente.", Severity.Warning);
             return;
         }
 
-        string png = await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_firma_adicional");
-        guardando = true;
-        try
-        {
-            var resp = await _odooService.AgregarFirmaAutorizacionHorasExtras(new AgregarFirmaAutorizacionRequestDto
-            {
-                AutorizacionId = Autorizacion.Id,
-                TipoFirma = TipoFirma,
-                NombreFirmante = nombreFirmante.Trim(),
-                CargoFirmante = cargoFirmante.Trim(),
-                FirmaBase64 = png,
-                UsuarioActualizacion = nombreFirmante.Trim()
-            });
+        bool hayTrazoNuevo = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_firma_adicional");
+        string? pngFinal = null;
 
-            if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
-            {
-                _snackbar.Add("Firma guardada y adjuntada a la tarea de Helpdesk.", Severity.Success);
-                MudDialog.Close(DialogResult.Ok(resp.Model));
-            }
-            else
-            {
-                _snackbar.Add(resp?.Respuesta?.MensajeError ?? "No se pudo guardar la firma.", Severity.Error);
-            }
-        }
-        catch (Exception ex)
+        if (hayTrazoNuevo)
         {
-            _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            pngFinal = await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_firma_adicional");
         }
-        finally
+        else if (!string.IsNullOrWhiteSpace(FirmaPreviaActivaBase64) && FirmaPreviaActivaBase64.StartsWith("data:image"))
         {
-            guardando = false;
+            pngFinal = FirmaPreviaActivaBase64;
         }
+
+        if (string.IsNullOrWhiteSpace(pngFinal))
+        {
+            _snackbar.Add("Dibuje la firma del autorizador del Cliente en el recuadro antes de guardar.", Severity.Warning);
+            return;
+        }
+
+        // Caso 1: La tarjeta ya tiene respaldo en BD / Ticket en Helpdesk -> guardar en BD y adjuntar en Redmine
+        if (IdAutorizacionEfectivo > 0)
+        {
+            guardando = true;
+            try
+            {
+                var resp = await _odooService.AgregarFirmaAutorizacionHorasExtras(new AgregarFirmaAutorizacionRequestDto
+                {
+                    AutorizacionId = IdAutorizacionEfectivo,
+                    TipoFirma = tipoSeleccionado,
+                    NombreFirmante = nombreFirmante.Trim(),
+                    CargoFirmante = cargoFirmante.Trim(),
+                    FirmaBase64 = pngFinal,
+                    UsuarioActualizacion = nombreFirmante.Trim()
+                });
+
+                if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null)
+                {
+                    _snackbar.Add("Firma guardada en la tarjeta y actualizada en Helpdesk.", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(new ResultadoFirmaTarjetaHe
+                    {
+                        TipoFirma = tipoSeleccionado,
+                        NombreFirmante = nombreFirmante.Trim(),
+                        CargoFirmante = cargoFirmante.Trim(),
+                        FirmaBase64 = pngFinal,
+                        AutorizacionActualizada = resp.Model
+                    }));
+                }
+                else
+                {
+                    _snackbar.Add(resp?.Respuesta?.MensajeError ?? "No se pudo guardar la firma.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                guardando = false;
+            }
+            return;
+        }
+
+        // Caso 2: La tarjeta está recién creada en pantalla (aún sin enviar a Helpdesk) -> guardar en la tarjeta
+        _snackbar.Add($"Firma de {nombreFirmante.Trim()} guardada en la tarjeta.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(new ResultadoFirmaTarjetaHe
+        {
+            TipoFirma = tipoSeleccionado,
+            NombreFirmante = nombreFirmante.Trim(),
+            CargoFirmante = cargoFirmante.Trim(),
+            FirmaBase64 = pngFinal
+        }));
     }
 }

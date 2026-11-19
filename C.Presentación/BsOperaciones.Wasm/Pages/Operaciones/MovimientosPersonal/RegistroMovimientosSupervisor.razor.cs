@@ -5184,6 +5184,16 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         // =========================================================================
         // TARJETAS DE HORAS EXTRAS POR ÁREA, PUESTO Y HORARIO EXTRA -> HELPDESK
         // =========================================================================
+        public class FirmaLocalTarjetaHe
+        {
+            public string SupervisorNombre { get; set; } = string.Empty;
+            public string SupervisorCargo { get; set; } = "Supervisor del Cliente";
+            public string? FirmaSupervisorBase64 { get; set; }
+            public string GerenteNombre { get; set; } = string.Empty;
+            public string GerenteCargo { get; set; } = "Gerente del Cliente";
+            public string? FirmaGerenteBase64 { get; set; }
+        }
+
         public class GrupoHorasExtrasAreaItem
         {
             public int Index { get; set; }
@@ -5206,9 +5216,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             public string KeyTarjeta => $"{Cliente}|{Area}|{Puesto}|{HoraInicioExtra}|{HoraFinExtra}|{HorasExtrasPorPersona.ToString("F2", CultureInfo.InvariantCulture)}";
             public string Observaciones { get; set; } = string.Empty;
             public int? AutorizacionId { get; set; }
+            public string TokenRecibo { get; set; } = string.Empty;
             public int? TicketRedmineId { get; set; }
             public string EstadoTicket { get; set; } = string.Empty;
             public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
+            public string SupervisorNombre { get; set; } = string.Empty;
+            public string SupervisorCargo { get; set; } = "Supervisor del Cliente";
+            public string? FirmaSupervisorBase64 { get; set; }
+            public bool TieneFirmaSupervisorBd { get; set; }
+            public string GerenteNombre { get; set; } = string.Empty;
+            public string GerenteCargo { get; set; } = "Gerente del Cliente";
+            public string? FirmaGerenteBase64 { get; set; }
+            public bool TieneFirmaGerenteBd { get; set; }
+            public bool TieneFirmaSupervisor => !string.IsNullOrWhiteSpace(FirmaSupervisorBase64) || TieneFirmaSupervisorBd;
+            public bool TieneFirmaGerente => !string.IsNullOrWhiteSpace(FirmaGerenteBase64) || TieneFirmaGerenteBd;
+            public bool TieneFirmaCliente => TieneFirmaSupervisor || TieneFirmaGerente;
+            public string ResumenFirmanteCliente
+            {
+                get
+                {
+                    var p = new List<string>();
+                    if (TieneFirmaSupervisor)
+                        p.Add(!string.IsNullOrWhiteSpace(SupervisorNombre) ? SupervisorNombre : "Supervisor Cliente");
+                    if (TieneFirmaGerente)
+                        p.Add(!string.IsNullOrWhiteSpace(GerenteNombre) ? GerenteNombre : "Gerente Cliente");
+                    return p.Any() ? string.Join(" / ", p) : string.Empty;
+                }
+            }
         }
 
         protected List<GrupoHorasExtrasAreaItem> gruposHorasExtras = new();
@@ -5217,6 +5251,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected List<Modelo.Entidades.Nomina.AsignacionJornadaCliente> asignacionesJornadasCliente = new();
         protected List<AutorizacionHorasExtrasDto> autorizacionesHeLista = new();
         protected Dictionary<string, string> observacionesPorAreaHe = new(StringComparer.OrdinalIgnoreCase);
+        protected Dictionary<string, FirmaLocalTarjetaHe> firmasPorTarjetaHe = new(StringComparer.OrdinalIgnoreCase);
         protected bool cargandoAutorizacionesHe = false;
         protected bool enviandoTicketsHe = false;
         protected DateTime? fechaDesdeFiltroHe = DateTime.Today;
@@ -5468,11 +5503,34 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     ReglaResumen = string.Join(" / ", g.Select(x => x.ReglaTxt).Distinct()),
                     Colaboradores = g.Select(x => x.Dto).OrderBy(c => c.CodigoEmpleado).ToList(),
                     AutorizacionId = autExistente?.Id,
+                    TokenRecibo = autExistente?.TokenRecibo ?? string.Empty,
                     TicketRedmineId = autExistente?.TicketRedmineId,
                     EstadoTicket = autExistente != null
                         ? (autExistente.Estado == "RESUELTA" || autExistente.SincronizadoOdoo ? "EN ODOO" : autExistente.Estado)
-                        : string.Empty
+                        : string.Empty,
+                    SupervisorNombre = autExistente?.SupervisorNombre ?? string.Empty,
+                    SupervisorCargo = string.IsNullOrWhiteSpace(autExistente?.SupervisorCargo) ? "Supervisor del Cliente" : autExistente!.SupervisorCargo,
+                    TieneFirmaSupervisorBd = autExistente?.TieneFirmaSupervisor == true,
+                    GerenteNombre = autExistente?.GerenteNombre ?? string.Empty,
+                    GerenteCargo = string.IsNullOrWhiteSpace(autExistente?.GerenteCargo) ? "Gerente del Cliente" : autExistente!.GerenteCargo,
+                    TieneFirmaGerenteBd = autExistente?.TieneFirmaGerente == true
                 };
+
+                if (firmasPorTarjetaHe.TryGetValue(itemTarjeta.KeyTarjeta, out var firmaLocal))
+                {
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.SupervisorNombre))
+                        itemTarjeta.SupervisorNombre = firmaLocal.SupervisorNombre;
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.SupervisorCargo))
+                        itemTarjeta.SupervisorCargo = firmaLocal.SupervisorCargo;
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.FirmaSupervisorBase64))
+                        itemTarjeta.FirmaSupervisorBase64 = firmaLocal.FirmaSupervisorBase64;
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.GerenteNombre))
+                        itemTarjeta.GerenteNombre = firmaLocal.GerenteNombre;
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.GerenteCargo))
+                        itemTarjeta.GerenteCargo = firmaLocal.GerenteCargo;
+                    if (!string.IsNullOrWhiteSpace(firmaLocal.FirmaGerenteBase64))
+                        itemTarjeta.FirmaGerenteBase64 = firmaLocal.FirmaGerenteBase64;
+                }
 
                 if (observacionesPorAreaHe.TryGetValue(itemTarjeta.KeyTarjeta, out var obsGuardada) && !string.IsNullOrWhiteSpace(obsGuardada))
                 {
@@ -5514,6 +5572,113 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected int TotalBoletasHeCliente => gruposHorasExtras.Count > 0 ? gruposHorasExtras.Count : BoletasHorasExtrasAgrupadas.Count;
 
+        protected async Task AbrirDialogoEditarFirmaTarjeta(GrupoHorasExtrasAreaItem grp, string tipoInicial = "SUPERVISOR")
+        {
+            if (grp == null) return;
+
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            var autDto = new AutorizacionHorasExtrasDto
+            {
+                Id = grp.AutorizacionId ?? 0,
+                ClienteNombre = grp.Cliente,
+                Area = grp.Area,
+                Cargo = grp.Puesto,
+                Fecha = fRef,
+                HoraInicioExtra = grp.HoraInicioMin,
+                HoraFinExtra = grp.HoraFinMax,
+                HorasExtrasAutorizadas = grp.HorasExtrasPorPersona,
+                SupervisorNombre = grp.SupervisorNombre,
+                SupervisorCargo = grp.SupervisorCargo,
+                FirmaSupervisorBase64 = grp.TieneFirmaSupervisor ? (grp.FirmaSupervisorBase64 ?? "HAS_SIG") : null,
+                GerenteNombre = grp.GerenteNombre,
+                GerenteCargo = grp.GerenteCargo,
+                FirmaGerenteBase64 = grp.TieneFirmaGerente ? (grp.FirmaGerenteBase64 ?? "HAS_SIG") : null,
+                TicketRedmineId = grp.TicketRedmineId
+            };
+
+            // Si ya existe en BD pero aún no tenemos el PNG en memoria para previsualización, cargarlo opcionalmente
+            string? prevSup = grp.FirmaSupervisorBase64;
+            string? prevGer = grp.FirmaGerenteBase64;
+            if ((grp.TieneFirmaSupervisorBd || grp.TieneFirmaGerenteBd) && !string.IsNullOrWhiteSpace(grp.TokenRecibo)
+                && (string.IsNullOrWhiteSpace(prevSup) || string.IsNullOrWhiteSpace(prevGer)))
+            {
+                try
+                {
+                    var recResp = await _odooService.GetReciboAutorizacionPorToken(grp.TokenRecibo);
+                    if (recResp?.Model != null)
+                    {
+                        if (string.IsNullOrWhiteSpace(prevSup) && !string.IsNullOrWhiteSpace(recResp.Model.FirmaSupervisorBase64))
+                            prevSup = recResp.Model.FirmaSupervisorBase64;
+                        if (string.IsNullOrWhiteSpace(prevGer) && !string.IsNullOrWhiteSpace(recResp.Model.FirmaGerenteBase64))
+                            prevGer = recResp.Model.FirmaGerenteBase64;
+                    }
+                }
+                catch { }
+            }
+
+            var parameters = new DialogParameters
+            {
+                ["Autorizacion"] = autDto,
+                ["TipoFirma"] = tipoInicial,
+                ["ResumenTarjeta"] = $"{grp.Cliente} • {grp.Area} • {grp.Puesto}",
+                ["DetalleHorarioTarjeta"] = $"{grp.HoraInicioMin} - {grp.HoraFinMax} • {grp.HorasExtrasPorPersona:N2} hrs c/u ({grp.Colaboradores.Count} pers.)",
+                ["TicketRedmineId"] = grp.TicketRedmineId,
+                ["FirmaSupervisorPrevia"] = prevSup,
+                ["FirmaGerentePrevia"] = prevGer
+            };
+
+            var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+            var dialog = await _dialogService.ShowAsync<DialogFirmarReciboHe>("Editar Firma de la Tarjeta", parameters, options);
+            var result = await dialog.Result;
+
+            if (result != null && !result.Canceled && result.Data is DialogFirmarReciboHe.ResultadoFirmaTarjetaHe resFirma)
+            {
+                if (!firmasPorTarjetaHe.TryGetValue(grp.KeyTarjeta, out var slot))
+                {
+                    slot = new FirmaLocalTarjetaHe
+                    {
+                        SupervisorNombre = grp.SupervisorNombre,
+                        SupervisorCargo = grp.SupervisorCargo,
+                        FirmaSupervisorBase64 = grp.FirmaSupervisorBase64,
+                        GerenteNombre = grp.GerenteNombre,
+                        GerenteCargo = grp.GerenteCargo,
+                        FirmaGerenteBase64 = grp.FirmaGerenteBase64
+                    };
+                    firmasPorTarjetaHe[grp.KeyTarjeta] = slot;
+                }
+
+                if (string.Equals(resFirma.TipoFirma, "GERENTE", StringComparison.OrdinalIgnoreCase))
+                {
+                    slot.GerenteNombre = resFirma.NombreFirmante;
+                    slot.GerenteCargo = resFirma.CargoFirmante;
+                    slot.FirmaGerenteBase64 = resFirma.FirmaBase64;
+                    grp.GerenteNombre = resFirma.NombreFirmante;
+                    grp.GerenteCargo = resFirma.CargoFirmante;
+                    grp.FirmaGerenteBase64 = resFirma.FirmaBase64;
+                }
+                else
+                {
+                    slot.SupervisorNombre = resFirma.NombreFirmante;
+                    slot.SupervisorCargo = resFirma.CargoFirmante;
+                    slot.FirmaSupervisorBase64 = resFirma.FirmaBase64;
+                    grp.SupervisorNombre = resFirma.NombreFirmante;
+                    grp.SupervisorCargo = resFirma.CargoFirmante;
+                    grp.FirmaSupervisorBase64 = resFirma.FirmaBase64;
+                }
+
+                if (grp.AutorizacionId.HasValue && grp.AutorizacionId.Value > 0)
+                {
+                    await CargarAutorizacionesHorasExtras();
+                }
+                else
+                {
+                    ActualizarGruposHorasExtrasInterno();
+                }
+
+                StateHasChanged();
+            }
+        }
+
         protected async Task EnviarGrupoAreaHorasExtras(GrupoHorasExtrasAreaItem grupo)
         {
             if (grupo == null || !grupo.Colaboradores.Any()) return;
@@ -5543,6 +5708,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 HoraFinExtra = grupo.HoraFinMax,
                 HorasExtrasAutorizadas = grupo.HorasExtrasPorPersona > 0 ? grupo.HorasExtrasPorPersona : Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
                 Motivo = obs.Trim(),
+                SupervisorNombre = grupo.SupervisorNombre,
+                SupervisorCargo = grupo.SupervisorCargo,
+                FirmaSupervisorBase64 = grupo.FirmaSupervisorBase64,
+                GerenteNombre = grupo.GerenteNombre,
+                GerenteCargo = grupo.GerenteCargo,
+                FirmaGerenteBase64 = grupo.FirmaGerenteBase64,
                 UsuarioRegistro = UsuarioRedmineEfectivo,
                 BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
                 Colaboradores = grupo.Colaboradores
@@ -5629,6 +5800,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraFinExtra = grupo.HoraFinMax,
                         HorasExtrasAutorizadas = grupo.HorasExtrasPorPersona > 0 ? grupo.HorasExtrasPorPersona : Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
                         Motivo = obs.Trim(),
+                        SupervisorNombre = grupo.SupervisorNombre,
+                        SupervisorCargo = grupo.SupervisorCargo,
+                        FirmaSupervisorBase64 = grupo.FirmaSupervisorBase64,
+                        GerenteNombre = grupo.GerenteNombre,
+                        GerenteCargo = grupo.GerenteCargo,
+                        FirmaGerenteBase64 = grupo.FirmaGerenteBase64,
                         UsuarioRegistro = UsuarioRedmineEfectivo,
                         BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
                         Colaboradores = grupo.Colaboradores
