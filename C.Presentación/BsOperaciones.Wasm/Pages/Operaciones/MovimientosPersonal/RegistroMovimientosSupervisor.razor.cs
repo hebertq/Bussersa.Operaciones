@@ -3861,6 +3861,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 .ToList();
 
             gruposConsolidados = grupos;
+            ActualizarGruposHorasExtrasInterno();
             if (autoGuardar)
             {
                 _ = AutoGuardarBorradorLocal();
@@ -5181,7 +5182,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // =========================================================================
-        // HORAS EXTRAS POR ÁREA SEGÚN REGLA (SIN FIRMA DIGITAL) -> HELPDESK -> ODOO
+        // TARJETAS DE HORAS EXTRAS POR ÁREA, PUESTO Y HORARIO EXTRA -> HELPDESK
         // =========================================================================
         public class GrupoHorasExtrasAreaItem
         {
@@ -5189,16 +5190,29 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             public int OperacionId { get; set; }
             public string Cliente { get; set; } = string.Empty;
             public string Area { get; set; } = string.Empty;
+            public string Puesto { get; set; } = string.Empty;
+            public string HoraInicioExtra { get; set; } = string.Empty;
+            public string HoraFinExtra { get; set; } = string.Empty;
+            public decimal HorasExtrasPorPersona { get; set; }
             public string ReglaResumen { get; set; } = string.Empty;
             public List<ColaboradorAutorizacionItemDto> Colaboradores { get; set; } = new();
             public decimal TotalHorasExtras => Math.Round(Colaboradores.Sum(c => c.HorasExtrasAutorizadas), 2);
-            public string HoraInicioMin => Colaboradores.Select(c => c.HoraInicioExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderBy(h => h).FirstOrDefault() ?? "17:00";
-            public string HoraFinMax => Colaboradores.Select(c => c.HoraFinExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderByDescending(h => h).FirstOrDefault() ?? "20:00";
+            public string HoraInicioMin => !string.IsNullOrWhiteSpace(HoraInicioExtra)
+                ? HoraInicioExtra
+                : (Colaboradores.Select(c => c.HoraInicioExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderBy(h => h).FirstOrDefault() ?? "17:00");
+            public string HoraFinMax => !string.IsNullOrWhiteSpace(HoraFinExtra)
+                ? HoraFinExtra
+                : (Colaboradores.Select(c => c.HoraFinExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderByDescending(h => h).FirstOrDefault() ?? "20:00");
+            public string KeyTarjeta => $"{Cliente}|{Area}|{Puesto}|{HoraInicioExtra}|{HoraFinExtra}|{HorasExtrasPorPersona.ToString("F2", CultureInfo.InvariantCulture)}";
+            public string Observaciones { get; set; } = string.Empty;
+            public int? AutorizacionId { get; set; }
             public int? TicketRedmineId { get; set; }
             public string EstadoTicket { get; set; } = string.Empty;
             public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
         }
 
+        protected List<GrupoHorasExtrasAreaItem> gruposHorasExtras = new();
+        protected ModoVistaGrilla modoVistaHorasExtras = ModoVistaGrilla.Tarjetas;
         protected List<ClienteConfigHorasExtrasDto> configClientesHe = new();
         protected List<Modelo.Entidades.Nomina.AsignacionJornadaCliente> asignacionesJornadasCliente = new();
         protected List<AutorizacionHorasExtrasDto> autorizacionesHeLista = new();
@@ -5217,6 +5231,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (resp?.Model != null)
                 {
                     asignacionesJornadasCliente = resp.Model.Where(a => a.Activo).ToList();
+                    ActualizarGruposHorasExtrasInterno();
                 }
             }
             catch { }
@@ -5343,103 +5358,179 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             return CalcularHorasExtrasSegunRegla(emp, (fechaSeleccionada ?? DateTime.Today).Date).HorasExtras > 0m;
         }
 
-        protected string ObtenerObservacionAreaHe(string area)
+        protected string ObtenerObservacionAreaHe(string keyTarjeta)
         {
-            string key = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
+            string key = string.IsNullOrWhiteSpace(keyTarjeta) ? "Operaciones" : keyTarjeta.Trim();
             return observacionesPorAreaHe.TryGetValue(key, out var val) ? val : string.Empty;
         }
 
-        protected void SetObservacionAreaHe(string area, string? valor)
+        protected void SetObservacionAreaHe(string keyTarjeta, string? valor)
         {
-            string key = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
+            string key = string.IsNullOrWhiteSpace(keyTarjeta) ? "Operaciones" : keyTarjeta.Trim();
             observacionesPorAreaHe[key] = valor ?? string.Empty;
+            var grp = gruposHorasExtras.FirstOrDefault(g => string.Equals(g.KeyTarjeta, key, StringComparison.OrdinalIgnoreCase));
+            if (grp != null)
+            {
+                grp.Observaciones = valor ?? string.Empty;
+            }
         }
 
-        protected List<GrupoHorasExtrasAreaItem> GruposHorasExtrasJornadaPorArea
+        private void ActualizarGruposHorasExtrasInterno()
         {
-            get
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+
+            foreach (var prev in gruposHorasExtras)
             {
-                DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
-                string cli = ClienteActivoAsistenciasSeguro;
-
-                var presentesCliente = empleadosJornada
-                    .Where(e => e.Asistio
-                        && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
-                        && (string.IsNullOrWhiteSpace(cli) || string.Equals(e.Cliente?.Trim(), cli.Trim(), StringComparison.OrdinalIgnoreCase)))
-                    .ToList();
-
-                var itemsConExtras = new List<(EmpleadoJornadaItem Emp, ColaboradorAutorizacionItemDto Dto, string ReglaTxt)>();
-                foreach (var e in presentesCliente)
+                if (!string.IsNullOrWhiteSpace(prev.Observaciones))
                 {
-                    var calc = CalcularHorasExtrasSegunRegla(e, fRef);
-                    if (calc.HorasExtras > 0m)
-                    {
-                        itemsConExtras.Add((e, new ColaboradorAutorizacionItemDto
-                        {
-                            MovimientoDiarioId = e.Id > 0 ? e.Id : null,
-                            EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
-                            CodigoEmpleado = e.CodigoEmpleado,
-                            NombreEmpleado = e.NombreEmpleado,
-                            Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area.Trim(),
-                            Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto.Trim(),
-                            HoraEntradaJornada = NormalizarFormatoHora(e.HoraEntrada),
-                            HoraSalidaJornada = NormalizarFormatoHora(e.HoraSalida),
-                            HoraInicioExtra = calc.HoraInicioExtra,
-                            HoraFinExtra = calc.HoraFinExtra,
-                            HorasExtrasAutorizadas = calc.HorasExtras
-                        }, calc.ReglaResumen));
-                    }
+                    observacionesPorAreaHe[prev.KeyTarjeta] = prev.Observaciones;
                 }
+            }
 
-                int idx = 1;
-                var grupos = new List<GrupoHorasExtrasAreaItem>();
-                foreach (var g in itemsConExtras
-                    .GroupBy(x => x.Dto.Area, StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(g => g.Key))
+            var presentesConHe = empleadosJornada
+                .Where(e => e.Asistio
+                    && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
+                    && e.HoraEntrada != "--:--"
+                    && e.HoraSalida != "--:--"
+                    && ClientePermiteHorasExtras(e.Cliente))
+                .ToList();
+
+            var itemsConExtras = new List<(EmpleadoJornadaItem Emp, ColaboradorAutorizacionItemDto Dto, string ReglaTxt)>();
+            foreach (var e in presentesConHe)
+            {
+                var calc = CalcularHorasExtrasSegunRegla(e, fRef);
+                if (calc.HorasExtras > 0m)
                 {
-                    string cliGrupo = g.First().Emp.Cliente ?? cli ?? "SINSA";
-                    int opId = ResolverOperacionIdCliente(cliGrupo);
-                    var codsArea = g.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
+                    itemsConExtras.Add((e, new ColaboradorAutorizacionItemDto
+                    {
+                        MovimientoDiarioId = e.Id > 0 ? e.Id : null,
+                        EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
+                        CodigoEmpleado = e.CodigoEmpleado,
+                        NombreEmpleado = e.NombreEmpleado,
+                        Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area.Trim(),
+                        Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto.Trim(),
+                        HoraEntradaJornada = NormalizarFormatoHora(e.HoraEntrada),
+                        HoraSalidaJornada = NormalizarFormatoHora(e.HoraSalida),
+                        HoraInicioExtra = calc.HoraInicioExtra,
+                        HoraFinExtra = calc.HoraFinExtra,
+                        HorasExtrasAutorizadas = Math.Round(calc.HorasExtras, 2)
+                    }, calc.ReglaResumen));
+                }
+            }
 
-                    var autExistente = autorizacionesHeLista.FirstOrDefault(a =>
+            int idx = 1;
+            var nuevasTarjetas = new List<GrupoHorasExtrasAreaItem>();
+            foreach (var g in itemsConExtras
+                .GroupBy(x => new
+                {
+                    Cliente = (string.IsNullOrWhiteSpace(x.Emp.Cliente) ? "SINSA" : x.Emp.Cliente.Trim()).ToUpperInvariant(),
+                    Area = x.Dto.Area.ToUpperInvariant(),
+                    Puesto = x.Dto.Cargo.ToUpperInvariant(),
+                    HoraIni = x.Dto.HoraInicioExtra,
+                    HoraFin = x.Dto.HoraFinExtra,
+                    Horas = x.Dto.HorasExtrasAutorizadas
+                })
+                .OrderBy(g => g.Key.Cliente)
+                .ThenBy(g => g.Key.Area)
+                .ThenBy(g => g.Key.Puesto)
+                .ThenBy(g => g.Key.HoraIni)
+                .ThenBy(g => g.Key.HoraFin))
+            {
+                var first = g.First();
+                string cliNombre = string.IsNullOrWhiteSpace(first.Emp.Cliente) ? "SINSA" : first.Emp.Cliente.Trim();
+                int opId = ResolverOperacionIdCliente(cliNombre);
+                var codsTarjeta = g.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
+
+                var autExistente = autorizacionesHeLista.FirstOrDefault(a =>
+                    a.Fecha.Date == fRef
+                    && a.Estado != "ANULADA"
+                    && codsTarjeta.Contains(a.CodigoEmpleado)
+                    && (string.IsNullOrWhiteSpace(a.HoraInicioExtra) || string.Equals(a.HoraInicioExtra.Trim(), g.Key.HoraIni, StringComparison.OrdinalIgnoreCase)));
+
+                if (autExistente == null)
+                {
+                    autExistente = autorizacionesHeLista.FirstOrDefault(a =>
                         a.Fecha.Date == fRef
                         && a.Estado != "ANULADA"
-                        && (string.Equals(a.Area?.Trim(), g.Key, StringComparison.OrdinalIgnoreCase) || codsArea.Contains(a.CodigoEmpleado)));
-
-                    grupos.Add(new GrupoHorasExtrasAreaItem
-                    {
-                        Index = idx++,
-                        OperacionId = opId,
-                        Cliente = cliGrupo,
-                        Area = g.Key,
-                        ReglaResumen = string.Join(" / ", g.Select(x => x.ReglaTxt).Distinct()),
-                        Colaboradores = g.Select(x => x.Dto).OrderBy(c => c.CodigoEmpleado).ToList(),
-                        TicketRedmineId = autExistente?.TicketRedmineId,
-                        EstadoTicket = autExistente != null
-                            ? (autExistente.Estado == "RESUELTA" || autExistente.SincronizadoOdoo ? "EN ODOO" : autExistente.Estado)
-                            : string.Empty
-                    });
+                        && codsTarjeta.Contains(a.CodigoEmpleado));
                 }
 
-                return grupos;
+                var itemTarjeta = new GrupoHorasExtrasAreaItem
+                {
+                    Index = idx++,
+                    OperacionId = opId,
+                    Cliente = cliNombre,
+                    Area = first.Dto.Area,
+                    Puesto = first.Dto.Cargo,
+                    HoraInicioExtra = g.Key.HoraIni,
+                    HoraFinExtra = g.Key.HoraFin,
+                    HorasExtrasPorPersona = g.Key.Horas,
+                    ReglaResumen = string.Join(" / ", g.Select(x => x.ReglaTxt).Distinct()),
+                    Colaboradores = g.Select(x => x.Dto).OrderBy(c => c.CodigoEmpleado).ToList(),
+                    AutorizacionId = autExistente?.Id,
+                    TicketRedmineId = autExistente?.TicketRedmineId,
+                    EstadoTicket = autExistente != null
+                        ? (autExistente.Estado == "RESUELTA" || autExistente.SincronizadoOdoo ? "EN ODOO" : autExistente.Estado)
+                        : string.Empty
+                };
+
+                if (observacionesPorAreaHe.TryGetValue(itemTarjeta.KeyTarjeta, out var obsGuardada) && !string.IsNullOrWhiteSpace(obsGuardada))
+                {
+                    itemTarjeta.Observaciones = obsGuardada;
+                }
+                else if (!string.IsNullOrWhiteSpace(autExistente?.Motivo))
+                {
+                    itemTarjeta.Observaciones = autExistente.Motivo;
+                }
+
+                nuevasTarjetas.Add(itemTarjeta);
             }
+
+            gruposHorasExtras = nuevasTarjetas;
         }
 
-        protected int TotalBoletasHeCliente
+        protected List<GrupoHorasExtrasAreaItem> GruposHorasExtrasFiltrados
         {
             get
             {
-                int pendientesHoy = GruposHorasExtrasJornadaPorArea.Count(g => !g.Sincronizado);
-                return pendientesHoy > 0 ? pendientesHoy : BoletasHorasExtrasAgrupadas.Count;
+                if (mostrarTodosClientesHelpdesk)
+                    return gruposHorasExtras;
+
+                string cli = ClienteActivoAsistenciasSeguro;
+                if (string.IsNullOrWhiteSpace(cli))
+                    return gruposHorasExtras;
+
+                return gruposHorasExtras
+                    .Where(g => string.Equals(g.Cliente?.Trim(), cli.Trim(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
             }
         }
+
+        protected List<GrupoHorasExtrasAreaItem> GruposHorasExtrasJornadaPorArea => GruposHorasExtrasFiltrados;
+
+        protected int TotalGruposHePendientes => GruposHorasExtrasFiltrados.Count(g => !g.Sincronizado && g.Colaboradores.Count > 0);
+
+        protected int TotalColaboradoresConHeCliente => GruposHorasExtrasFiltrados.Sum(g => g.Colaboradores.Count);
+
+        protected int TotalBoletasHeCliente => gruposHorasExtras.Count > 0 ? gruposHorasExtras.Count : BoletasHorasExtrasAgrupadas.Count;
 
         protected async Task EnviarGrupoAreaHorasExtras(GrupoHorasExtrasAreaItem grupo)
         {
             if (grupo == null || !grupo.Colaboradores.Any()) return;
 
+            if (HayCambiosSinGuardar)
+            {
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay asistencias pendientes de guardar en Base de Datos.\n\nPor favor, haz clic en 'GUARDAR EN BD' antes de enviar las tarjetas de Horas Extras.",
+                    yesText: "Entendido");
+                return;
+            }
+
             DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
-            string obs = ObtenerObservacionAreaHe(grupo.Area);
+            string obs = !string.IsNullOrWhiteSpace(grupo.Observaciones)
+                ? grupo.Observaciones.Trim()
+                : ObtenerObservacionAreaHe(grupo.KeyTarjeta);
             if (string.IsNullOrWhiteSpace(obs))
                 obs = $"Horas extras según regla ({grupo.ReglaResumen})";
 
@@ -5450,7 +5541,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 Fecha = fRef.ToString("yyyy-MM-dd"),
                 HoraInicioExtra = grupo.HoraInicioMin,
                 HoraFinExtra = grupo.HoraFinMax,
-                HorasExtrasAutorizadas = Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
+                HorasExtrasAutorizadas = grupo.HorasExtrasPorPersona > 0 ? grupo.HorasExtrasPorPersona : Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
                 Motivo = obs.Trim(),
                 UsuarioRegistro = UsuarioRedmineEfectivo,
                 BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
@@ -5465,7 +5556,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null && resp.Model.Exitosos > 0)
                 {
                     int? tck = resp.Model.Detalles.FirstOrDefault()?.TicketRedmineId;
-                    _snackbar.Add($"Ticket #{tck} generado en Helpdesk para el área '{grupo.Area}' ({grupo.Colaboradores.Count} colaborador(es), {grupo.TotalHorasExtras:N2} hrs extra).", Severity.Success);
+                    _snackbar.Add($"Ticket #{tck} generado en Helpdesk: {grupo.Area} • {grupo.Puesto} ({grupo.HoraInicioMin}-{grupo.HoraFinMax} | {grupo.HorasExtrasPorPersona:N2}h c/u).", Severity.Success);
                     await CargarAutorizacionesHorasExtras();
                 }
                 else
@@ -5487,12 +5578,33 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
         protected async Task EnviarTodosGruposHorasExtras()
         {
-            var pendientes = GruposHorasExtrasJornadaPorArea.Where(g => !g.Sincronizado).ToList();
+            ActualizarGruposHorasExtrasInterno();
+            var pendientes = GruposHorasExtrasFiltrados.Where(g => !g.Sincronizado && g.Colaboradores.Count > 0).ToList();
             if (!pendientes.Any())
             {
-                _snackbar.Add("Todas las áreas con horas extras ya tienen su ticket generado en Helpdesk.", Severity.Info);
+                _snackbar.Add("Todas las tarjetas de Horas Extras del cliente seleccionado ya tienen ticket en Helpdesk.", Severity.Info);
                 return;
             }
+
+            if (HayCambiosSinGuardar)
+            {
+                await _dialogService.ShowMessageBox(
+                    "Guardar en Base de Datos Requerido",
+                    "No se puede enviar a Helpdesk porque hay asistencias pendientes de guardar en Base de Datos.\n\nPor favor, haz clic en 'GUARDAR EN BD' antes de enviar las tarjetas de Horas Extras.",
+                    yesText: "Entendido");
+                return;
+            }
+
+            int totalTarjetas = pendientes.Count;
+            int totalEmpleados = pendientes.Sum(g => g.Colaboradores.Count);
+            decimal totalHoras = Math.Round(pendientes.Sum(g => g.TotalHorasExtras), 2);
+            bool? confirm = await _dialogService.ShowMessageBox(
+                "Confirmar Envío de Horas Extras a Helpdesk",
+                $"¿Deseas enviar {totalTarjetas} tarjeta(s) pendiente(s) de Horas Extras ({totalEmpleados} colaborador(es), {totalHoras:N2} hrs extra totales) a Helpdesk?",
+                yesText: "Sí, Enviar a Helpdesk",
+                cancelText: "Cancelar");
+
+            if (confirm != true) return;
 
             enviandoTicketsHe = true;
             StateHasChanged();
@@ -5502,7 +5614,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
                 foreach (var grupo in pendientes)
                 {
-                    string obs = ObtenerObservacionAreaHe(grupo.Area);
+                    string obs = !string.IsNullOrWhiteSpace(grupo.Observaciones)
+                        ? grupo.Observaciones.Trim()
+                        : ObtenerObservacionAreaHe(grupo.KeyTarjeta);
                     if (string.IsNullOrWhiteSpace(obs))
                         obs = $"Horas extras según regla ({grupo.ReglaResumen})";
 
@@ -5513,7 +5627,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         Fecha = fRef.ToString("yyyy-MM-dd"),
                         HoraInicioExtra = grupo.HoraInicioMin,
                         HoraFinExtra = grupo.HoraFinMax,
-                        HorasExtrasAutorizadas = Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
+                        HorasExtrasAutorizadas = grupo.HorasExtrasPorPersona > 0 ? grupo.HorasExtrasPorPersona : Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
                         Motivo = obs.Trim(),
                         UsuarioRegistro = UsuarioRedmineEfectivo,
                         BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
@@ -5530,7 +5644,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 await CargarAutorizacionesHorasExtras();
                 if (creados > 0)
                 {
-                    _snackbar.Add($"Se generaron {creados} ticket(s) por Área en Helpdesk conforme a las reglas de Horas Extras.", Severity.Success);
+                    _snackbar.Add($"🚀 {creados} ticket(s) de Horas Extras creados con éxito en Helpdesk.", Severity.Success);
                 }
             }
             catch (Exception ex)
@@ -5609,6 +5723,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (resp?.Model != null)
                 {
                     configClientesHe = resp.Model.ToList();
+                    ActualizarGruposHorasExtrasInterno();
                 }
             }
             catch { }
@@ -5625,10 +5740,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                 var resp = await _odooService.GetAutorizacionesHorasExtras(ini, fin, incluirFirmas: false);
                 autorizacionesHeLista = resp?.Model?.ToList() ?? new List<AutorizacionHorasExtrasDto>();
+                ActualizarGruposHorasExtrasInterno();
             }
             catch
             {
                 autorizacionesHeLista = new List<AutorizacionHorasExtrasDto>();
+                ActualizarGruposHorasExtrasInterno();
             }
             finally
             {
