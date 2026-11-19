@@ -750,7 +750,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected DateTime? ultimaHoraGuardadoLocal { get; set; } = null;
         private DotNetObjectReference<RegistroMovimientosSupervisor>? dotNetHelper;
 
-        private string KeyBorradorJornada => $"supervisor_offline_jornada_{currentUserName}_{fechaSeleccionada:yyyyMMdd}";
+        private string KeyBorradorJornada => $"supervisor_offline_jornada_v2_{currentUserName}_{fechaSeleccionada:yyyyMMdd}";
         private string KeyCachePlantilla => $"supervisor_cache_plantilla_{currentUserName}";
         private string KeyCacheAreas => $"supervisor_cache_areas_{currentUserName}";
         private string KeyCacheMisClientes => $"supervisor_cache_mis_clientes_{currentUserName}";
@@ -1098,6 +1098,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             Modificado = false
                         };
                     }).ToList();
+
+                    edicionesHorarioHePorEmpleado.Clear();
+                    foreach (var mHe in resp.Model.Where(x => x.Asistio && x.CodigoEmpleado > 0 && x.HorasExtras > 0m && !string.IsNullOrWhiteSpace(x.HoraInicioExtra) && !string.IsNullOrWhiteSpace(x.HoraFinExtra)))
+                    {
+                        string claveBdHe = $"{NormalizarFormatoHora(mHe.HoraEntrada)}-{NormalizarFormatoHora(mHe.HoraSalida)}";
+                        edicionesHorarioHePorEmpleado[mHe.CodigoEmpleado] = (
+                            claveBdHe,
+                            NormalizarFormatoHora(mHe.HoraInicioExtra),
+                            NormalizarFormatoHora(mHe.HoraFinExtra),
+                            Math.Round(mHe.HorasExtras, 2));
+                    }
 
                     // Fusión inteligente: Si hay un borrador local que contiene registros modificados offline en bodega,
                     // preservar las ediciones locales para que el supervisor no pierda su recorrido
@@ -2336,6 +2347,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         ? e.FechaFinAusencia.Value
                         : fIni;
 
+                    var calcHeSave = (e.Asistio && ClientePermiteHorasExtras(e.Cliente))
+                        ? CalcularHorasExtrasSegunRegla(e, fRef)
+                        : default;
+                    decimal heGuardar = e.Asistio ? Math.Round(Math.Max(0m, calcHeSave.HorasExtras), 2) : 0m;
+
                     return new MovimientoPersonalDiarioDto
                     {
                         Id = e.Id,
@@ -2358,6 +2374,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         AlimAplicaNomina = e.Asistio && e.AlimAplicaNomina,
                         Observaciones = e.Observaciones,
                         Asistio = e.Asistio,
+                        HorasExtras = heGuardar,
+                        HoraInicioExtra = heGuardar > 0m ? calcHeSave.HoraInicioExtra : null,
+                        HoraFinExtra = heGuardar > 0m ? calcHeSave.HoraFinExtra : null,
                         Estado = e.Estado == "SINCRONIZADO" ? "MODIFICADO" : "GUARDADO",
                         TicketRedmineId = !e.Asistio ? null : e.TicketRedmineId,
                         TicketViaticoId = !e.Asistio ? null : e.TicketViaticoId,
@@ -5820,6 +5839,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected int TotalGruposHePendientes => GruposHorasExtrasFiltrados.Count(g => !g.Sincronizado && g.Colaboradores.Count > 0);
 
         protected int TotalColaboradoresConHeCliente => GruposHorasExtrasFiltrados.Sum(g => g.Colaboradores.Count);
+
+        protected decimal TotalHorasExtrasJornadaCliente => Math.Round(GruposHorasExtrasFiltrados.Sum(g => g.TotalHorasExtras), 2);
 
         protected int TotalBoletasHeCliente => gruposHorasExtras.Count > 0 ? gruposHorasExtras.Count : BoletasHorasExtrasAgrupadas.Count;
 

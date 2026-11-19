@@ -160,6 +160,12 @@
                 <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Payments" Title="Viáticos pagados en efectivo">
                     Efectivo: <b>C$ @TotalViaticosEfectivo.ToString("N0")</b>
                 </MudChip>
+                @if (TotalHorasExtrasJornadaCliente > 0m)
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.MoreTime" OnClick="@(() => SetActiveTab(6))" Style="font-weight: 700; cursor: pointer;" Title="Total Horas Extras calculadas en la jornada (clic para ir a Tarjetas H.E.)">
+                        H.E.: <b>@TotalHorasExtrasJornadaCliente.ToString("N2") hrs</b> (@TotalColaboradoresConHeCliente)
+                    </MudChip>
+                }
                 </MudStack>
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="flex-wrap user-status-stack">
                 @* Indicador de Conectividad en Tiempo Real *@
@@ -379,57 +385,44 @@
 
                 @* Barra de Filtros, Búsqueda y Modos de Vista Responsiva Estilo Odoo *@
                 <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-2">
-                    <div class="d-flex flex-wrap align-center gap-2" style="flex: 1 1 auto; max-width: 100%;">
-                    <div class="search-colab-toolbar">
-                        <MudTextField @bind-Value="textoBusqueda" 
-                                      Placeholder="Buscar por nombre o carnet..." 
-                                      Adornment="Adornment.Start" 
-                                      AdornmentIcon="@Icons.Material.Filled.Search" 
-                                      Variant="Variant.Outlined" 
-                                      Margin="Margin.Dense" 
-                                      Immediate="true" 
-                                      Clearable="true" 
-                                      Class="search-colab-input" />
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Primary" 
-                                   Size="Size.Small" 
-                                   StartIcon="@Icons.Material.Filled.PersonAdd"
-                                   OnClick="@(() => AbrirDialogoAgregarColaborador(textoBusqueda))"
-                                   Class="btn-colab-responsive"
-                                   Title="Agregar colaborador a la jornada">
-                            + Colaborador
-                        </MudButton>
-                        @if (MostrarBotonConciliarSinsa)
-                        {
-                            <MudFileUpload T="IBrowserFile"
-                                           Accept="@(EstrategiaConciliacionActiva?.ExtensionesAceptadas ?? ".xlsx,.csv")"
-                                           FilesChanged="OnArchivoSinsaBrowserFileSelected"
-                                           Class="ma-0 pa-0 d-inline-flex">
-                                <ActivatorContent>
-                                    <MudButton Variant="Variant.Filled"
-                                               Color="Color.Success"
+                    <div class="d-flex flex-wrap align-center gap-2" style="flex: 1 1 320px; max-width: 100%;">
+                        <div class="search-colab-toolbar">
+                            <MudTextField @bind-Value="textoBusqueda" 
+                                          Placeholder="Buscar por nombre o carnet..." 
+                                          Adornment="Adornment.Start" 
+                                          AdornmentIcon="@Icons.Material.Filled.Search" 
+                                          Variant="Variant.Outlined" 
+                                          Margin="Margin.Dense" 
+                                          Immediate="true" 
+                                          Clearable="true" 
+                                          Class="search-colab-input" />
+                            <MudTooltip Text="Agregar colaborador a la jornada" Arrow="true" Placement="Placement.Top">
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                               Variant="Variant.Filled"
+                                               Color="Color.Primary"
                                                Size="Size.Small"
-                                               StartIcon="@Icons.Material.Filled.FactCheck"
-                                               Class="btn-colab-responsive"
-                                               Style="background: #059669; color: white;">
-                                        Conciliar @NombreClienteConciliacionActiva
-                                    </MudButton>
-                                </ActivatorContent>
-                            </MudFileUpload>
-                        }
-                        @if (ClienteActualPermiteHorasExtras && GruposHorasExtrasFiltrados.Any())
-                        {
-                            <MudButton Variant="Variant.Filled"
-                                       Color="Color.Warning"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.MoreTime"
-                                       OnClick="@(() => SetActiveTab(6))"
-                                       Class="btn-colab-responsive"
-                                       Title="Ver tarjetas de Horas Extras generadas por Área, Puesto y Horario Extra">
-                                Tarjetas H.E. (@GruposHorasExtrasFiltrados.Count)
-                            </MudButton>
-                        }
-                    </div>
+                                               OnClick="@(() => AbrirDialogoAgregarColaborador(textoBusqueda))"
+                                               Class="btn-icon-toolbar" />
+                            </MudTooltip>
+                            @if (MostrarBotonConciliarSinsa)
+                            {
+                                <MudFileUpload T="IBrowserFile"
+                                               Accept="@(EstrategiaConciliacionActiva?.ExtensionesAceptadas ?? ".xlsx,.csv")"
+                                               FilesChanged="OnArchivoSinsaBrowserFileSelected"
+                                               Class="ma-0 pa-0 d-inline-flex">
+                                    <ActivatorContent>
+                                        <MudTooltip Text="@($"Conciliar asistencia con archivo {NombreClienteConciliacionActiva} (.xlsx / .csv)")" Arrow="true" Placement="Placement.Top">
+                                            <MudIconButton Icon="@Icons.Material.Filled.FactCheck"
+                                                           Variant="Variant.Filled"
+                                                           Color="Color.Success"
+                                                           Size="Size.Small"
+                                                           Class="btn-icon-toolbar"
+                                                           Style="background: #059669; color: white;" />
+                                        </MudTooltip>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+                            }
+                        </div>
                         @if (!string.IsNullOrWhiteSpace(filtroClienteGrilla) || !string.IsNullOrWhiteSpace(filtroAreaGrilla))
                         {
                             <MudChip T="string" 
@@ -780,14 +773,6 @@
                                             </div>
                                         </CardHeaderContent>
                                         <CardHeaderActions>
-                                            @if (TieneHorasExtrasSegunRegla(emp) && ClientePermiteHorasExtras(emp.Cliente))
-                                            {
-                                                <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
-                                                               Color="Color.Warning"
-                                                               Size="Size.Small"
-                                                               OnClick="@(() => AbrirDialogoAutorizarHorasExtras(emp))"
-                                                               Title="Horas Extras por Área según regla (Helpdesk)" />
-                                            }
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                            Color="Color.Primary" 
                                                            Size="Size.Small" 
@@ -1061,6 +1046,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -1117,6 +1103,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 190px;">Cargo / Puesto</MudTh>
+                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else
@@ -1188,6 +1175,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
+                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -1324,6 +1312,36 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
+                                        var calcOpHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
+                                            : default;
+                                    }
+                                    @if (calcOpHe.HorasExtras > 0m)
+                                    {
+                                        <div class="d-flex flex-column align-start">
+                                            <MudChip T="string"
+                                                     Color="Color.Warning"
+                                                     Variant="Variant.Filled"
+                                                     Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.MoreTime"
+                                                     OnClick="@(() => SetActiveTab(6))"
+                                                     Class="my-0 font-monospace fw-bold cursor-pointer"
+                                                     Style="height: 22px; font-size: 0.72rem;"
+                                                     Title="@($"{calcOpHe.ReglaResumen} | Extra: {calcOpHe.HoraInicioExtra}-{calcOpHe.HoraFinExtra} (clic para ver Tarjeta H.E.)")">
+                                                +@calcOpHe.HorasExtras.ToString("N2")h
+                                            </MudChip>
+                                            <span class="font-monospace text-muted" style="font-size: 0.64rem; padding-left: 2px;">
+                                                @calcOpHe.HoraInicioExtra-@calcOpHe.HoraFinExtra
+                                            </span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-monospace text-muted" style="font-size: 0.75rem;">0.00</span>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @{
                                         var totalVOp = context.TotalBeneficios;
                                     }
                                     @if (totalVOp > 0)
@@ -1353,15 +1371,6 @@
                                 </MudTd>
                                 <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
-                                        @if (TieneHorasExtrasSegunRegla(context) && ClientePermiteHorasExtras(context.Cliente))
-                                        {
-                                            var calcRowHe = CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date);
-                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
-                                                           Color="Color.Warning"
-                                                           Size="Size.Small"
-                                                           OnClick="@(() => SetActiveTab(6))"
-                                                           Title="@($"H.E. +{calcRowHe.HorasExtras:N2}h ({calcRowHe.HoraInicioExtra}-{calcRowHe.HoraFinExtra}) - Ver tarjeta en Horas Extras")" />
-                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -1503,16 +1512,32 @@
                                     </MudSelect>
                                 </MudTd>
                                 <MudTd>
+                                    @{
+                                        var calcUbHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
+                                            : default;
+                                    }
+                                    @if (calcUbHe.HorasExtras > 0m)
+                                    {
+                                        <MudChip T="string"
+                                                 Color="Color.Warning"
+                                                 Variant="Variant.Filled"
+                                                 Size="Size.Small"
+                                                 Icon="@Icons.Material.Filled.MoreTime"
+                                                 OnClick="@(() => SetActiveTab(6))"
+                                                 Class="my-0 font-monospace fw-bold cursor-pointer"
+                                                 Style="height: 22px; font-size: 0.72rem;"
+                                                 Title="@($"Extra: {calcUbHe.HoraInicioExtra}-{calcUbHe.HoraFinExtra}")">
+                                            +@calcUbHe.HorasExtras.ToString("N2")h
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-monospace text-muted" style="font-size: 0.75rem;">0.00</span>
+                                    }
+                                </MudTd>
+                                <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
-                                        @if (TieneHorasExtrasSegunRegla(context) && ClientePermiteHorasExtras(context.Cliente))
-                                        {
-                                            var calcRowHe = CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date);
-                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
-                                                           Color="Color.Warning"
-                                                           Size="Size.Small"
-                                                           OnClick="@(() => SetActiveTab(6))"
-                                                           Title="@($"H.E. +{calcRowHe.HorasExtras:N2}h ({calcRowHe.HoraInicioExtra}-{calcRowHe.HoraFinExtra}) - Ver tarjeta en Horas Extras")" />
-                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -1700,6 +1725,36 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
+                                        var calcCompHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
+                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
+                                            : default;
+                                    }
+                                    @if (calcCompHe.HorasExtras > 0m)
+                                    {
+                                        <div class="d-flex flex-column align-start">
+                                            <MudChip T="string"
+                                                     Color="Color.Warning"
+                                                     Variant="Variant.Filled"
+                                                     Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.MoreTime"
+                                                     OnClick="@(() => SetActiveTab(6))"
+                                                     Class="my-0 font-monospace fw-bold cursor-pointer"
+                                                     Style="height: 22px; font-size: 0.72rem;"
+                                                     Title="@($"{calcCompHe.ReglaResumen} | Extra: {calcCompHe.HoraInicioExtra}-{calcCompHe.HoraFinExtra}")">
+                                                +@calcCompHe.HorasExtras.ToString("N2")h
+                                            </MudChip>
+                                            <span class="font-monospace text-muted" style="font-size: 0.64rem; padding-left: 2px;">
+                                                @calcCompHe.HoraInicioExtra-@calcCompHe.HoraFinExtra
+                                            </span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="font-monospace text-muted" style="font-size: 0.75rem;">0.00</span>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    @{
                                         var totalV = context.TotalBeneficios;
                                     }
                                     @if (totalV > 0)
@@ -1729,15 +1784,6 @@
                                 </MudTd>
                                 <MudTd>
                                     <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
-                                        @if (TieneHorasExtrasSegunRegla(context) && ClientePermiteHorasExtras(context.Cliente))
-                                        {
-                                            var calcRowHe = CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date);
-                                            <MudIconButton Icon="@Icons.Material.Filled.MoreTime"
-                                                           Color="Color.Warning"
-                                                           Size="Size.Small"
-                                                           OnClick="@(() => SetActiveTab(6))"
-                                                           Title="@($"H.E. +{calcRowHe.HorasExtras:N2}h ({calcRowHe.HoraInicioExtra}-{calcRowHe.HoraFinExtra}) - Ver tarjeta en Horas Extras")" />
-                                        }
                                         <MudIconButton Icon="@Icons.Material.Filled.Edit" 
                                                        Color="Color.Primary" 
                                                        Size="Size.Small" 
@@ -5372,30 +5418,37 @@
         border-radius: 12px;
     }
 
-    /* Buscador + Boton Agregar Colaborador Responsivo */
+    /* Buscador + Botones de Icono en Barra de Asistencias */
     .search-colab-toolbar {
         display: flex;
         align-items: center;
         gap: 6px;
-        flex: 1 1 260px;
-        max-width: 520px;
-        min-width: 0 !important;
+        flex: 1 1 300px;
+        max-width: 480px;
+        min-width: 240px;
         width: 100%;
     }
 
     .search-colab-toolbar .search-colab-input {
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
+        flex: 1 1 210px !important;
+        min-width: 185px !important;
     }
 
     .search-colab-toolbar .search-colab-input .mud-input-control {
-        min-width: 0 !important;
+        min-width: 185px !important;
         width: 100% !important;
     }
 
     .search-colab-toolbar .search-colab-input input {
-        min-width: 0 !important;
+        min-width: 140px !important;
         font-size: 0.85rem !important;
+    }
+
+    .btn-icon-toolbar {
+        flex-shrink: 0 !important;
+        width: 38px !important;
+        height: 36px !important;
+        border-radius: 8px !important;
     }
 
     .btn-colab-responsive {

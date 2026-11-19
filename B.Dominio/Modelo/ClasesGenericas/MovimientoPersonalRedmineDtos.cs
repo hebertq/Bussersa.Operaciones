@@ -83,6 +83,9 @@ namespace Modelo.ClasesGenericas
         public DateTime? FechaFinAusencia { get; set; }
         public decimal? DiasAusencia { get; set; } = 1.0m;
         public string? VacacionesTipo { get; set; } = "Descansadas";
+        public decimal HorasExtras { get; set; }
+        public string? HoraInicioExtra { get; set; }
+        public string? HoraFinExtra { get; set; }
         public string? UsuarioRegistro { get; set; }
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }
