@@ -3,23 +3,31 @@
 <AuthorizeView Policy="@Policies.IsMenu" Resource="15">
     <Authorized>
         <MudNavGroup Title="Operaciones" Icon="@Icons.Material.Filled.Wash" Expanded="true">
-            <MudNavGroup Title="Marcadas" Icon="@Icons.Material.Filled.Fingerprint" Expanded="false">
-                <MenuItem MenuId="16" Name="Cerrar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
-                <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
-            </MudNavGroup>
+            <AuthorizeView Policy="@Policies.IsMenu" Resource="68" Context="marcadasContext">
+                <Authorized>
+                    <MudNavGroup Title="Marcadas Operaciones" Icon="@Icons.Material.Filled.Fingerprint" Expanded="false">
+                        <MenuItem MenuId="16" Name="Cerrar marcadas" Url="/operaciones/marcadasxfacturar" IconName="@Icons.Material.Filled.CloseFullscreen" />
+                        <MenuItem MenuId="18" Name="Consultar marcadas" Url="/operaciones/consulta-cierres" IconName="@Icons.Material.Filled.ReportProblem" />
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
             <MenuItem MenuId="55" Name="Movimientos (Tablet)" Url="/operaciones/registro-movimientos-supervisor" IconName="@Icons.Material.Filled.TabletAndroid" />
             <MenuItem MenuId="67" Name="Actividades (Tablet)" Url="/operaciones/actividades-tablet" IconName="@Icons.Material.Filled.TouchApp" />
-            <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/operaciones/entrega-epp">Dotación EPP (Tablet)</MudNavLink>
+            <MenuItem MenuId="72" Name="Dotación EPP (Tablet)" Url="/operaciones/entrega-epp" IconName="@Icons.Material.Filled.Security" />
             <MenuItem MenuId="56" Name="Cargar Movimientos" Url="/operaciones/movimientos-personal-excel" IconName="@Icons.Material.Filled.PostAdd" />
             <MenuItem MenuId="64" Name="Consultar Asistencia" Url="/operaciones/consulta-asistencia" IconName="@Icons.Material.Filled.FactCheck" />
             <AuthorizeView Policy="@Policies.IsMenu" Resource="53" Context="produccionContext">
                 <Authorized>
                     <MudNavGroup Title="Producción" Icon="@Icons.Material.Filled.Inventory" Expanded="false">
                         <MenuItem MenuId="36" Name="Producción Diaria" Url="/operaciones/produccion-diaria" IconName="@Icons.Material.Filled.Assignment" />
-                        <MudNavGroup Title="Sellar Lote" Icon="@Icons.Material.Filled.FactCheck" Expanded="false">
-                            <MenuItem MenuId="57" Name="Asistencias" Url="/operaciones/asistencia-produccion" IconName="@Icons.Material.Filled.AssignmentTurnedIn" />
-                            <MenuItem MenuId="69" Name="Actividades" Url="/operaciones/sellar-actividades" IconName="@Icons.Material.Filled.FactCheck" />
-                        </MudNavGroup>
+                        <AuthorizeView Policy="@Policies.IsMenu" Resource="66" Context="sellarLoteContext">
+                            <Authorized>
+                                <MudNavGroup Title="Sellar Lote" Icon="@Icons.Material.Filled.FactCheck" Expanded="false">
+                                    <MenuItem MenuId="57" Name="Asistencias" Url="/operaciones/asistencia-produccion" IconName="@Icons.Material.Filled.AssignmentTurnedIn" />
+                                    <MenuItem MenuId="69" Name="Actividades" Url="/operaciones/sellar-actividades" IconName="@Icons.Material.Filled.FactCheck" />
+                                </MudNavGroup>
+                            </Authorized>
+                        </AuthorizeView>
                         <MenuItem MenuId="54" Name="Productos Adicionales" Url="/operaciones/productos-adicionales" IconName="@Icons.Material.Filled.FormatListBulleted" />
                         <MenuItem MenuId="58" Name="Asociar Clientes" Url="/operaciones/asociacion-clientes" IconName="@Icons.Material.Filled.MergeType" />
                     </MudNavGroup>

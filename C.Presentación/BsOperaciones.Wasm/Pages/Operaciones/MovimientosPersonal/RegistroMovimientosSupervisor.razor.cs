@@ -5199,6 +5199,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             public string HoraFinExtra { get; set; } = string.Empty;
             public decimal HorasExtrasPorPersona { get; set; }
             public string ReglaResumen { get; set; } = string.Empty;
+            public bool EsManual { get; set; }
             public List<ColaboradorAutorizacionItemDto> Colaboradores { get; set; } = new();
             public decimal TotalHorasExtras => Math.Round(Colaboradores.Sum(c => c.HorasExtrasAutorizadas), 2);
             public string HoraInicioMin => !string.IsNullOrWhiteSpace(HoraInicioExtra)
@@ -5231,9 +5232,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     var p = new List<string>();
                     if (TieneFirmaSupervisor)
-                        p.Add(!string.IsNullOrWhiteSpace(SupervisorNombre) ? SupervisorNombre : "Supervisor Cliente");
+                    {
+                        string nom = !string.IsNullOrWhiteSpace(SupervisorNombre) ? SupervisorNombre.Trim() : "Supervisor Cliente";
+                        string crg = !string.IsNullOrWhiteSpace(SupervisorCargo) ? SupervisorCargo.Trim() : "";
+                        p.Add(!string.IsNullOrWhiteSpace(crg) && !string.Equals(nom, crg, StringComparison.OrdinalIgnoreCase) ? $"{nom} ({crg})" : nom);
+                    }
                     if (TieneFirmaGerente)
-                        p.Add(!string.IsNullOrWhiteSpace(GerenteNombre) ? GerenteNombre : "Gerente Cliente");
+                    {
+                        string nom = !string.IsNullOrWhiteSpace(GerenteNombre) ? GerenteNombre.Trim() : "Gerente Cliente";
+                        string crg = !string.IsNullOrWhiteSpace(GerenteCargo) ? GerenteCargo.Trim() : "";
+                        p.Add(!string.IsNullOrWhiteSpace(crg) && !string.Equals(nom, crg, StringComparison.OrdinalIgnoreCase) ? $"{nom} ({crg})" : nom);
+                    }
                     return p.Any() ? string.Join(" / ", p) : string.Empty;
                 }
             }
@@ -5247,7 +5256,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         protected Dictionary<string, string> observacionesPorAreaHe = new(StringComparer.OrdinalIgnoreCase);
         protected Dictionary<string, FirmaLocalTarjetaHe> firmasPorTarjetaHe = new(StringComparer.OrdinalIgnoreCase);
         protected Dictionary<int, (string HoraBaseJornada, string HoraIni, string HoraFin, decimal Horas)> edicionesHorarioHePorEmpleado = new();
+        protected List<(string Cliente, DateTime Fecha, ColaboradorAutorizacionItemDto Dto)> itemsHorasExtrasManuales = new();
         protected bool cargandoAutorizacionesHe = false;
+
+        protected bool GrupoTieneAsistenciasSinGuardar(GrupoHorasExtrasAreaItem? grupo)
+        {
+            if (grupo == null || !grupo.Colaboradores.Any()) return false;
+            var cods = grupo.Colaboradores.Select(c => c.CodigoEmpleado).ToHashSet();
+            return empleadosJornada.Any(e => cods.Contains(e.CodigoEmpleado) && (e.Modificado || e.Id == 0));
+        }
+
+        protected bool PendientesHeTienenAsistenciasSinGuardar =>
+            GruposHorasExtrasFiltrados.Where(g => !g.Sincronizado && g.Colaboradores.Count > 0).Any(GrupoTieneAsistenciasSinGuardar);
         protected bool enviandoTicketsHe = false;
         protected DateTime? fechaDesdeFiltroHe = DateTime.Today;
         protected DateTime? fechaHastaFiltroHe = DateTime.Today;
@@ -5440,6 +5460,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
             }
 
+            var manualesHoy = itemsHorasExtrasManuales
+                .Where(m => m.Fecha.Date == fRef && m.Dto != null && m.Dto.CodigoEmpleado > 0)
+                .ToList();
+            var codsManualesHoy = manualesHoy.Select(m => m.Dto.CodigoEmpleado).ToHashSet();
+
             var presentesConHe = empleadosJornada
                 .Where(e => e.Asistio
                     && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
@@ -5448,13 +5473,17 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     && ClientePermiteHorasExtras(e.Cliente))
                 .ToList();
 
-            var itemsConExtras = new List<(EmpleadoJornadaItem Emp, ColaboradorAutorizacionItemDto Dto, string ReglaTxt)>();
+            var itemsConExtras = new List<(string Cliente, ColaboradorAutorizacionItemDto Dto, string ReglaTxt, bool EsManual)>();
             foreach (var e in presentesConHe)
             {
+                if (codsManualesHoy.Contains(e.CodigoEmpleado))
+                    continue;
+
                 var calc = CalcularHorasExtrasSegunRegla(e, fRef);
                 if (calc.HorasExtras > 0m)
                 {
-                    itemsConExtras.Add((e, new ColaboradorAutorizacionItemDto
+                    string cliEmp = string.IsNullOrWhiteSpace(e.Cliente) ? "SINSA" : e.Cliente.Trim();
+                    itemsConExtras.Add((cliEmp, new ColaboradorAutorizacionItemDto
                     {
                         MovimientoDiarioId = e.Id > 0 ? e.Id : null,
                         EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
@@ -5467,8 +5496,44 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         HoraInicioExtra = calc.HoraInicioExtra,
                         HoraFinExtra = calc.HoraFinExtra,
                         HorasExtrasAutorizadas = Math.Round(calc.HorasExtras, 2)
-                    }, calc.ReglaResumen));
+                    }, calc.ReglaResumen, false));
                 }
+            }
+
+            foreach (var m in manualesHoy)
+            {
+                var empEnJornada = empleadosJornada.FirstOrDefault(e => e.CodigoEmpleado == m.Dto.CodigoEmpleado);
+                if (empEnJornada != null && empEnJornada.Id > 0)
+                    m.Dto.MovimientoDiarioId = empEnJornada.Id;
+                if (empEnJornada != null && empEnJornada.IdEmpleado > 0 && !m.Dto.EmployeeId.HasValue)
+                    m.Dto.EmployeeId = empEnJornada.IdEmpleado;
+
+                string cliMan = string.IsNullOrWhiteSpace(m.Cliente) ? "SINSA" : m.Cliente.Trim();
+                itemsConExtras.Add((cliMan, m.Dto, "Manual", true));
+            }
+
+            var codsYaIncluidos = itemsConExtras.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
+            foreach (var autDb in autorizacionesHeLista.Where(a => a.Fecha.Date == fRef && a.Estado != "ANULADA" && a.CodigoEmpleado > 0))
+            {
+                if (codsYaIncluidos.Contains(autDb.CodigoEmpleado))
+                    continue;
+
+                codsYaIncluidos.Add(autDb.CodigoEmpleado);
+                string cliBd = string.IsNullOrWhiteSpace(autDb.ClienteNombre) ? "SINSA" : autDb.ClienteNombre.Trim();
+                itemsConExtras.Add((cliBd, new ColaboradorAutorizacionItemDto
+                {
+                    MovimientoDiarioId = autDb.MovimientoDiarioId,
+                    EmployeeId = autDb.EmployeeId,
+                    CodigoEmpleado = autDb.CodigoEmpleado,
+                    NombreEmpleado = autDb.NombreEmpleado,
+                    Area = string.IsNullOrWhiteSpace(autDb.Area) ? "Operaciones" : autDb.Area.Trim(),
+                    Cargo = string.IsNullOrWhiteSpace(autDb.Cargo) ? "6-Operador de almacen" : autDb.Cargo.Trim(),
+                    HoraEntradaJornada = autDb.HoraEntradaJornada ?? string.Empty,
+                    HoraSalidaJornada = autDb.HoraSalidaJornada ?? string.Empty,
+                    HoraInicioExtra = string.IsNullOrWhiteSpace(autDb.HoraInicioExtra) ? "17:00" : autDb.HoraInicioExtra.Trim(),
+                    HoraFinExtra = string.IsNullOrWhiteSpace(autDb.HoraFinExtra) ? "19:00" : autDb.HoraFinExtra.Trim(),
+                    HorasExtrasAutorizadas = Math.Round(autDb.HorasExtrasAutorizadas, 2)
+                }, "Manual", true));
             }
 
             int idx = 1;
@@ -5476,7 +5541,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             foreach (var g in itemsConExtras
                 .GroupBy(x => new
                 {
-                    Cliente = (string.IsNullOrWhiteSpace(x.Emp.Cliente) ? "SINSA" : x.Emp.Cliente.Trim()).ToUpperInvariant(),
+                    Cliente = (string.IsNullOrWhiteSpace(x.Cliente) ? "SINSA" : x.Cliente.Trim()).ToUpperInvariant(),
                     Area = x.Dto.Area.ToUpperInvariant(),
                     Puesto = x.Dto.Cargo.ToUpperInvariant(),
                     HoraIni = x.Dto.HoraInicioExtra,
@@ -5490,7 +5555,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 .ThenBy(g => g.Key.HoraFin))
             {
                 var first = g.First();
-                string cliNombre = string.IsNullOrWhiteSpace(first.Emp.Cliente) ? "SINSA" : first.Emp.Cliente.Trim();
+                string cliNombre = string.IsNullOrWhiteSpace(first.Cliente) ? "SINSA" : first.Cliente.Trim();
                 int opId = ResolverOperacionIdCliente(cliNombre);
                 var codsTarjeta = g.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
 
@@ -5519,6 +5584,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     HoraFinExtra = g.Key.HoraFin,
                     HorasExtrasPorPersona = g.Key.Horas,
                     ReglaResumen = string.Join(" / ", g.Select(x => x.ReglaTxt).Distinct()),
+                    EsManual = g.Any(x => x.EsManual),
                     Colaboradores = g.Select(x => x.Dto).OrderBy(c => c.CodigoEmpleado).ToList(),
                     AutorizacionId = autExistente?.Id,
                     TokenRecibo = autExistente?.TokenRecibo ?? string.Empty,
@@ -5661,6 +5727,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     {
                         string baseJ = $"{col.HoraEntradaJornada}-{col.HoraSalidaJornada}";
                         edicionesHorarioHePorEmpleado[col.CodigoEmpleado] = (baseJ, resFirma.HoraInicioExtra, resFirma.HoraFinExtra, resFirma.HorasExtrasAutorizadas);
+
+                        foreach (var itemMan in itemsHorasExtrasManuales.Where(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == col.CodigoEmpleado))
+                        {
+                            itemMan.Dto.HoraInicioExtra = resFirma.HoraInicioExtra;
+                            itemMan.Dto.HoraFinExtra = resFirma.HoraFinExtra;
+                            itemMan.Dto.HorasExtrasAutorizadas = resFirma.HorasExtrasAutorizadas;
+                        }
                     }
                     grp.HoraInicioExtra = resFirma.HoraInicioExtra;
                     grp.HoraFinExtra = resFirma.HoraFinExtra;
@@ -5729,11 +5802,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         {
             if (grupo == null || !grupo.Colaboradores.Any()) return;
 
-            if (HayCambiosSinGuardar)
+            if (GrupoTieneAsistenciasSinGuardar(grupo))
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
-                    "No se puede enviar a Helpdesk porque hay asistencias pendientes de guardar en Base de Datos.\n\nPor favor, haz clic en 'GUARDAR EN BD' antes de enviar las tarjetas de Horas Extras.",
+                    "No se puede enviar a Helpdesk porque los colaboradores de esta tarjeta tienen asistencias pendientes de guardar en Base de Datos.\n\nPor favor, haz clic en 'GUARDAR EN BD' antes de enviar la tarjeta.",
                     yesText: "Entendido");
                 return;
             }
@@ -5803,7 +5876,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return;
             }
 
-            if (HayCambiosSinGuardar)
+            if (pendientes.Any(GrupoTieneAsistenciasSinGuardar))
             {
                 await _dialogService.ShowMessageBox(
                     "Guardar en Base de Datos Requerido",
@@ -6008,6 +6081,25 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
+        protected void EliminarTarjetaManualHe(GrupoHorasExtrasAreaItem grp)
+        {
+            if (grp == null || grp.Sincronizado) return;
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            var cods = grp.Colaboradores.Select(c => c.CodigoEmpleado).ToHashSet();
+
+            itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && cods.Contains(m.Dto.CodigoEmpleado));
+            foreach (var cod in cods)
+            {
+                edicionesHorarioHePorEmpleado.Remove(cod);
+            }
+            firmasPorTarjetaHe.Remove(grp.KeyTarjeta);
+            observacionesPorAreaHe.Remove(grp.KeyTarjeta);
+
+            ActualizarGruposHorasExtrasInterno();
+            _snackbar.Add("Tarjeta manual de horas extras descartada.", Severity.Info);
+            StateHasChanged();
+        }
+
         protected async Task AbrirDialogoAutorizarHorasExtras(EmpleadoJornadaItem? empInicial = null)
         {
             string cliNombre = empInicial != null && !string.IsNullOrWhiteSpace(empInicial.Cliente)
@@ -6019,41 +6111,65 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             int opId = ResolverOperacionIdCliente(cliNombre);
             DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
 
-            // Solo incluir los colaboradores presentes que tengan Horas Extras > 0 según la regla de su Área/Turno
-            var candidatos = empleadosJornada
-                .Where(e => e.Asistio
-                    && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
-                .Select(e =>
+            // Incluir TODOS los colaboradores del cliente (tanto cargados en la jornada como en Mi Plantilla)
+            // para poder agregar Horas Extras de forma manual a cualquier colaborador
+            var mapaCandidatos = new Dictionary<int, ColaboradorAutorizacionItemDto>();
+
+            foreach (var e in empleadosJornada.Where(e =>
+                e.CodigoEmpleado > 0
+                && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                var calc = CalcularHorasExtrasSegunRegla(e, fRef);
+                mapaCandidatos[e.CodigoEmpleado] = new ColaboradorAutorizacionItemDto
                 {
-                    var calc = CalcularHorasExtrasSegunRegla(e, fRef);
-                    return (Emp: e, Calc: calc);
-                })
-                .Where(x => x.Calc.HorasExtras > 0m)
-                .OrderBy(x => x.Emp.Area)
-                .ThenBy(x => x.Emp.NombreEmpleado)
-                .Select(x => new ColaboradorAutorizacionItemDto
+                    MovimientoDiarioId = e.Id > 0 ? e.Id : null,
+                    EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
+                    CodigoEmpleado = e.CodigoEmpleado,
+                    NombreEmpleado = e.NombreEmpleado,
+                    Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area.Trim(),
+                    Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto.Trim(),
+                    HoraEntradaJornada = NormalizarFormatoHora(e.HoraEntrada),
+                    HoraSalidaJornada = NormalizarFormatoHora(e.HoraSalida),
+                    HoraInicioExtra = calc.HorasExtras > 0m ? calc.HoraInicioExtra : NormalizarFormatoHora(e.HoraSalida),
+                    HoraFinExtra = calc.HorasExtras > 0m ? calc.HoraFinExtra : "19:00",
+                    HorasExtrasAutorizadas = calc.HorasExtras > 0m ? calc.HorasExtras : 2.00m
+                };
+            }
+
+            foreach (var p in miPlantillaPersonal.Where(p =>
+                p.CodigoEmpleado > 0
+                && (string.IsNullOrWhiteSpace(p.ClienteDefault)
+                    || string.Equals(p.ClienteDefault.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))))
+            {
+                if (!mapaCandidatos.ContainsKey(p.CodigoEmpleado))
                 {
-                    MovimientoDiarioId = x.Emp.Id > 0 ? x.Emp.Id : null,
-                    EmployeeId = x.Emp.IdEmpleado > 0 ? x.Emp.IdEmpleado : null,
-                    CodigoEmpleado = x.Emp.CodigoEmpleado,
-                    NombreEmpleado = x.Emp.NombreEmpleado,
-                    Area = string.IsNullOrWhiteSpace(x.Emp.Area) ? "Operaciones" : x.Emp.Area.Trim(),
-                    Cargo = string.IsNullOrWhiteSpace(x.Emp.Puesto) ? "6-Operador de almacen" : x.Emp.Puesto.Trim(),
-                    HoraEntradaJornada = NormalizarFormatoHora(x.Emp.HoraEntrada),
-                    HoraSalidaJornada = NormalizarFormatoHora(x.Emp.HoraSalida),
-                    HoraInicioExtra = x.Calc.HoraInicioExtra,
-                    HoraFinExtra = x.Calc.HoraFinExtra,
-                    HorasExtrasAutorizadas = x.Calc.HorasExtras
-                })
+                    mapaCandidatos[p.CodigoEmpleado] = new ColaboradorAutorizacionItemDto
+                    {
+                        MovimientoDiarioId = null,
+                        EmployeeId = p.IdEmpleado > 0 ? p.IdEmpleado : null,
+                        CodigoEmpleado = p.CodigoEmpleado,
+                        NombreEmpleado = p.NombreEmpleado,
+                        Area = string.IsNullOrWhiteSpace(p.AreaDefault) ? "Operaciones" : p.AreaDefault.Trim(),
+                        Cargo = string.IsNullOrWhiteSpace(p.PuestoDefault) ? "6-Operador de almacen" : p.PuestoDefault.Trim(),
+                        HoraEntradaJornada = NormalizarFormatoHora(p.HoraEntradaDefault),
+                        HoraSalidaJornada = NormalizarFormatoHora(p.HoraSalidaDefault),
+                        HoraInicioExtra = !string.IsNullOrWhiteSpace(p.HoraSalidaDefault) ? NormalizarFormatoHora(p.HoraSalidaDefault) : "17:00",
+                        HoraFinExtra = "19:00",
+                        HorasExtrasAutorizadas = 2.00m
+                    };
+                }
+            }
+
+            var candidatos = mapaCandidatos.Values
+                .OrderBy(c => c.Area)
+                .ThenBy(c => c.NombreEmpleado)
                 .ToList();
 
             var iniciales = new List<ColaboradorAutorizacionItemDto>();
-            if (empInicial != null)
+            if (empInicial != null && mapaCandidatos.TryGetValue(empInicial.CodigoEmpleado, out var initCol))
             {
-                string areaTarget = string.IsNullOrWhiteSpace(empInicial.Area) ? "Operaciones" : empInicial.Area.Trim();
-                // Pre-seleccionar todos los colaboradores con extras de esa misma Área
-                iniciales.AddRange(candidatos.Where(c => string.Equals(c.Area, areaTarget, StringComparison.OrdinalIgnoreCase)));
+                iniciales.Add(initCol);
             }
 
             var parameters = new DialogParameters
@@ -6068,11 +6184,57 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-            var dialog = await _dialogService.ShowAsync<DialogAutorizarHorasExtras>("Horas Extras por Área según Regla", parameters, options);
+            var dialog = await _dialogService.ShowAsync<DialogAutorizarHorasExtras>("Agregar Horas Extras Manualmente", parameters, options);
             var result = await dialog.Result;
-            if (result != null && !result.Canceled)
+            if (result != null && !result.Canceled && result.Data is DialogAutorizarHorasExtras.ResultadoAgregarHorasExtrasManual manualRes)
             {
-                await CargarAutorizacionesHorasExtras();
+                var codigosAgregados = new HashSet<int>();
+                foreach (var col in manualRes.Colaboradores)
+                {
+                    codigosAgregados.Add(col.CodigoEmpleado);
+                    itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == col.CodigoEmpleado);
+                    itemsHorasExtrasManuales.Add((cliNombre, fRef, col));
+
+                    if (!string.IsNullOrWhiteSpace(col.HoraEntradaJornada) && !string.IsNullOrWhiteSpace(col.HoraSalidaJornada))
+                    {
+                        edicionesHorarioHePorEmpleado[col.CodigoEmpleado] = (
+                            $"{col.HoraEntradaJornada}-{col.HoraSalidaJornada}",
+                            manualRes.HoraInicioExtra,
+                            manualRes.HoraFinExtra,
+                            manualRes.HorasExtras);
+                    }
+                }
+
+                ActualizarGruposHorasExtrasInterno();
+
+                var tarjetasCreadas = gruposHorasExtras
+                    .Where(g => !g.Sincronizado
+                        && g.Colaboradores.Any(c => codigosAgregados.Contains(c.CodigoEmpleado))
+                        && string.Equals(g.HoraInicioExtra, manualRes.HoraInicioExtra, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(g.HoraFinExtra, manualRes.HoraFinExtra, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var card in tarjetasCreadas)
+                {
+                    if (!string.IsNullOrWhiteSpace(manualRes.Observaciones))
+                    {
+                        observacionesPorAreaHe[card.KeyTarjeta] = manualRes.Observaciones;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(manualRes.FirmaBase64) || !string.IsNullOrWhiteSpace(manualRes.NombreAutorizador))
+                    {
+                        firmasPorTarjetaHe[card.KeyTarjeta] = new FirmaLocalTarjetaHe
+                        {
+                            SupervisorNombre = manualRes.NombreAutorizador,
+                            SupervisorCargo = string.IsNullOrWhiteSpace(manualRes.CargoAutorizador) ? "Supervisor del Cliente" : manualRes.CargoAutorizador,
+                            FirmaSupervisorBase64 = manualRes.FirmaBase64
+                        };
+                    }
+                }
+
+                ActualizarGruposHorasExtrasInterno();
+                activeTabIndex = 6;
+                _snackbar.Add($"Se agregó {Math.Max(1, tarjetasCreadas.Count)} tarjeta(s) manual(es) de Horas Extras ({manualRes.Colaboradores.Count} pers.).", Severity.Success);
                 StateHasChanged();
             }
         }

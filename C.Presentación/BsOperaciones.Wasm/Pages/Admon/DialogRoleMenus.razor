@@ -97,6 +97,7 @@
             {
                 SelectedMenuIds = new HashSet<int>(roleMenusResult.Model.Select(m => m.id));
                 SelectedMenuIds.Add(1);
+                PruneOrphanMenus();
             }
         }
         catch (Exception ex)
@@ -172,6 +173,43 @@
         }
     }
 
+    private void PruneOrphanMenus()
+    {
+        if (!AllMenus.Any()) return;
+        var map = AllMenus.ToDictionary(m => m.id);
+        var valid = new HashSet<int>();
+
+        foreach (var id in SelectedMenuIds)
+        {
+            if (id == 1)
+            {
+                valid.Add(1);
+                continue;
+            }
+            if (!map.TryGetValue(id, out var current))
+                continue;
+
+            bool chainSelected = true;
+            var visited = new HashSet<int>();
+            while (current != null && current.parentid > 0 && current.parentid != current.id)
+            {
+                if (!visited.Add(current.id)) break;
+                if (!map.TryGetValue(current.parentid, out var parent)) break;
+                if (!SelectedMenuIds.Contains(parent.id))
+                {
+                    chainSelected = false;
+                    break;
+                }
+                current = parent;
+            }
+
+            if (chainSelected)
+                valid.Add(id);
+        }
+
+        SelectedMenuIds = valid;
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Save()
@@ -179,6 +217,7 @@
         try
         {
             isloading = true;
+            PruneOrphanMenus();
             var request = new RoleMenusRequest
             {
                 rolid = RoleId,

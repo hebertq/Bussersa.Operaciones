@@ -4420,13 +4420,13 @@
         {
             <MudTabPanel Text="Horas Extras" ToolTip="Tarjetas de Horas Extras" Icon="@Icons.Material.Filled.MoreTime" BadgeData="@gruposHorasExtras.Count" BadgeColor="Color.Warning">
                 <MudPaper Class="mobile-compact-paper mt-2" Elevation="0">
-                    @if (HayCambiosSinGuardar)
+                    @if (PendientesHeTienenAsistenciasSinGuardar)
                     {
                         <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Dense="true" Class="mb-3" Elevation="1">
                             <div class="d-flex align-center justify-space-between flex-wrap gap-2">
                                 <span>
                                     <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-1" />
-                                    <b>Cambios pendientes:</b> Hay información sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de enviar las tarjetas de Horas Extras a Helpdesk.
+                                    <b>Cambios pendientes:</b> Hay asistencias sin guardar en Base de Datos. Debes hacer clic en <b>GUARDAR EN BD</b> antes de enviar las tarjetas a Helpdesk.
                                 </span>
                                 <MudButton Variant="Variant.Filled" Color="Color.Dark" Size="Size.Small" StartIcon="@Icons.Material.Filled.Save" OnClick="@GuardarEnBaseDatos" Style="font-weight: 700;">
                                     Guardar en BD Ahora
@@ -4489,20 +4489,20 @@
                                     <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" />
                                 </button>
                             </div>
-                            <MudButton Variant="Variant.Outlined"
-                                       Color="Color.Info"
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
                                        Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Sync"
-                                       Disabled="@cargandoAutorizacionesHe"
-                                       OnClick="@SincronizarEstadosHeRedmine"
-                                       Title="Sincronizar tickets resueltos en Helpdesk hacia Odoo">
-                                Sincronizar Helpdesk
+                                       StartIcon="@Icons.Material.Filled.AddAlarm"
+                                       OnClick="@(() => AbrirDialogoAutorizarHorasExtras(null))"
+                                       Style="font-weight: 700; border-radius: 8px;"
+                                       Title="Agregar tarjeta de Horas Extras de forma manual seleccionando al personal">
+                                + Agregar H.E. Manual
                             </MudButton>
                             <MudButton Variant="Variant.Filled"
                                        Color="Color.Warning"
                                        Size="Size.Large"
                                        StartIcon="@(enviandoTicketsHe ? null : Icons.Material.Filled.RocketLaunch)"
-                                       Disabled="@(estaOperandoEnBd || enviandoTicketsHe || TotalGruposHePendientes == 0 || HayCambiosSinGuardar)"
+                                       Disabled="@(estaOperandoEnBd || enviandoTicketsHe || TotalGruposHePendientes == 0 || PendientesHeTienenAsistenciasSinGuardar)"
                                        OnClick="@EnviarTodosGruposHorasExtras"
                                        Style="font-weight: 800; letter-spacing: 0.5px; border-radius: 12px;">
                                 @if (enviandoTicketsHe)
@@ -4532,9 +4532,17 @@
                             <MudText Typo="Typo.body1" Class="fw-bold text-dark">
                                 No hay colaboradores con horas extras según la regla en la jornada del @((fechaSeleccionada ?? DateTime.Today).ToString("dd/MM/yyyy"))
                             </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                Al cargar o registrar colaboradores cuyo horario supere la jornada ordinaria de su Área y Turno, las tarjetas se crean automáticamente aquí.
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                                Al cargar o registrar colaboradores cuyo horario supere la jornada ordinaria de su Área y Turno, las tarjetas se crean automáticamente aquí, o puede agregarlas de forma manual.
                             </MudText>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.AddAlarm"
+                                       OnClick="@(() => AbrirDialogoAutorizarHorasExtras(null))"
+                                       Style="font-weight: 700; border-radius: 8px;">
+                                + Agregar Horas Extras Manual
+                            </MudButton>
                         </MudPaper>
                     }
                     else if (modoVistaHorasExtras == ModoVistaGrilla.Tarjetas)
@@ -4577,6 +4585,15 @@
                                                                        Size="Size.Small"
                                                                        OnClick="@(() => AbrirDialogoEditarFirmaTarjeta(grp))" />
                                                     </MudTooltip>
+                                                    @if (grp.EsManual && !grp.Sincronizado)
+                                                    {
+                                                        <MudTooltip Text="Descartar tarjeta manual">
+                                                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                                           Color="Color.Error"
+                                                                           Size="Size.Small"
+                                                                           OnClick="@(() => EliminarTarjetaManualHe(grp))" />
+                                                        </MudTooltip>
+                                                    }
                                                     @if (grp.Sincronizado)
                                                     {
                                                         <MudChip T="string" Color="@(grp.EstadoTicket == "EN ODOO" ? Color.Success : Color.Info)" Size="Size.Small" Variant="Variant.Filled">
@@ -4734,7 +4751,7 @@
                                                                Color="Color.Warning"
                                                                Size="Size.Small"
                                                                StartIcon="@Icons.Material.Filled.Send"
-                                                               Disabled="@(enviandoTicketsHe || HayCambiosSinGuardar)"
+                                                               Disabled="@(enviandoTicketsHe || GrupoTieneAsistenciasSinGuardar(grp))"
                                                                OnClick="@(() => EnviarGrupoAreaHorasExtras(grp))"
                                                                Class="fw-bold">
                                                         Enviar Tarjeta
@@ -4841,7 +4858,7 @@
                                                                Color="Color.Warning"
                                                                Size="Size.Small"
                                                                StartIcon="@Icons.Material.Filled.Send"
-                                                               Disabled="@(enviandoTicketsHe || HayCambiosSinGuardar)"
+                                                               Disabled="@(enviandoTicketsHe || GrupoTieneAsistenciasSinGuardar(grp))"
                                                                OnClick="@(() => EnviarGrupoAreaHorasExtras(grp))"
                                                                Class="fw-bold">
                                                         Enviar

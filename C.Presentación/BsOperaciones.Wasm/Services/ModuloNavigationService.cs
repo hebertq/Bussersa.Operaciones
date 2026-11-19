@@ -53,7 +53,7 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69, 72 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {
@@ -138,6 +138,16 @@ namespace BsOperaciones.Services
                         Ruta = "/operaciones/actividades-tablet",
                         MenuResourceId = 67,
                         Color = "#ea580c",
+                        Badge = "Tablet / Táctil"
+                    },
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Dotación EPP (Tablet)",
+                        Subtitulo = "Registro y entrega de equipos de protección personal en campo.",
+                        Icono = Icons.Material.Filled.Security,
+                        Ruta = "/operaciones/entrega-epp",
+                        MenuResourceId = 72,
+                        Color = "#0f766e",
                         Badge = "Tablet / Táctil"
                     },
                     new ModuloHerramientaItem
@@ -422,10 +432,14 @@ namespace BsOperaciones.Services
                     return menus.Any(m => m.id == 61 || m.id == 62 || m.id == 63 || m.id == 65 || m.id == 70);
                 }
 
-                // 2. Operaciones (15) o cualquiera de sus accesos
+                // 2. Operaciones (15) o cualquiera de sus accesos activos con su padre habilitado
                 if (modulo.Clave == "operaciones")
                 {
-                    return menus.Any(m => m.id == 15 || m.id == 55 || m.id == 64 || m.id == 16 || m.id == 18 || m.id == 56 || m.id == 36 || m.id == 37 || m.id == 57 || m.id == 67 || m.id == 69);
+                    var ids = menus.Select(m => m.id).ToHashSet();
+                    if (!ids.Contains(15)) return false;
+                    return ids.Contains(55) || ids.Contains(64) || ids.Contains(56) || ids.Contains(37) || ids.Contains(67) || ids.Contains(72)
+                        || (ids.Contains(68) && (ids.Contains(16) || ids.Contains(18)))
+                        || (ids.Contains(53) && (ids.Contains(36) || (ids.Contains(66) && (ids.Contains(57) || ids.Contains(69)))));
                 }
 
                 // 3. Asistencias (3)
@@ -483,7 +497,21 @@ namespace BsOperaciones.Services
                 var menus = JsonConvert.DeserializeObject<List<Menus>>(menuClaim);
                 if (menus == null || !menus.Any()) return false;
 
-                return menus.Any(m => m.id == herramienta.MenuResourceId);
+                var ids = menus.Select(m => m.id).ToHashSet();
+                int targetId = herramienta.MenuResourceId;
+                if (!ids.Contains(targetId)) return false;
+
+                // Validar que toda la cadena de padres del menú también esté habilitada para el rol
+                if (targetId == 16 || targetId == 18)
+                    return ids.Contains(15) && ids.Contains(68);
+                if (targetId == 36 || targetId == 54 || targetId == 58)
+                    return ids.Contains(15) && ids.Contains(53);
+                if (targetId == 57 || targetId == 69)
+                    return ids.Contains(15) && ids.Contains(53) && ids.Contains(66);
+                if (targetId == 55 || targetId == 56 || targetId == 64 || targetId == 67 || targetId == 37 || targetId == 72)
+                    return ids.Contains(15);
+
+                return true;
             }
             catch
             {
