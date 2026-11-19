@@ -12,16 +12,16 @@
                 </MudAvatar>
                 <div>
                     <MudText Typo="Typo.h6" Class="fw-bold" Style="line-height: 1.2;">
-                        Conciliación de Asistencia y Horas Extras — Archivo SINSA
+                        Conciliación de Asistencia y Horas Extras — Archivo @NombreClienteConciliacion
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Archivo: <b>@NombreArchivo</b> &bull; Fecha: <b>@FechaJornada.ToString("dd/MM/yyyy")</b>
+                        Cliente: <b>@NombreClienteConciliacion</b> &bull; Archivo: <b>@NombreArchivo</b> &bull; Fecha: <b>@FechaJornada.ToString("dd/MM/yyyy")</b>
                     </MudText>
                 </div>
             </div>
             <div class="d-flex align-center gap-1 flex-wrap">
                 <MudChip T="string" Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold">
-                    Archivo SINSA: @Filas.Count
+                    Archivo @NombreClienteConciliacion: @Filas.Count
                 </MudChip>
                 <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Class="fw-bold">
                     Ya Ingresados: @TotalYaIngresados
@@ -47,7 +47,7 @@
                 <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-3">
                     <div class="d-flex align-center justify-space-between flex-wrap gap-2">
                         <div>
-                            <b>Atención (@NoEnArchivoSinsa.Count en Asistencia no aparecen en el archivo SINSA):</b>
+                            <b>Atención (@NoEnArchivoSinsa.Count en Asistencia no aparecen en el archivo @NombreClienteConciliacion):</b>
                             <span style="font-size: 0.8rem;">
                                 @string.Join(", ", NoEnArchivoSinsa.Take(5).Select(e => $"#{e.CodigoEmpleado} {e.NombreEmpleado}"))@(NoEnArchivoSinsa.Count > 5 ? $" y {NoEnArchivoSinsa.Count - 5} más..." : "")
                             </span>
@@ -109,14 +109,12 @@
 
                         <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
                             <MudButton OnClick="@(() => AplicarModoHorarioMasivo("TURNO_CON_HE"))"
-                                       Variant="@(modoMasivoActivo == "TURNO_CON_HE" ? Variant.Filled : Variant.Outlined)"
-                                       Title="Usar el Turno programado en SINSA (+ Horas Extra del archivo) en todos">
-                                Turno SINSA
+                                       Variant="@(modoMasivoActivo == "TURNO_CON_HE" ? Variant.Filled : Variant.Outlined)">
+                                Turno @NombreClienteConciliacion
                             </MudButton>
                             <MudButton OnClick="@(() => AplicarModoHorarioMasivo("MARCACION_RELOJ"))"
-                                       Variant="@(modoMasivoActivo == "MARCACION_RELOJ" ? Variant.Filled : Variant.Outlined)"
-                                       Title="Usar la Hora Entrada y Hora Salida del reloj biométrico de SINSA en todos">
-                                Reloj SINSA
+                                       Variant="@(modoMasivoActivo == "MARCACION_RELOJ" ? Variant.Filled : Variant.Outlined)">
+                                Reloj @NombreClienteConciliacion
                             </MudButton>
                         </MudButtonGroup>
                     </div>
@@ -341,6 +339,7 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
+    [Parameter] public string NombreClienteConciliacion { get; set; } = "SINSA";
     [Parameter] public string NombreArchivo { get; set; } = string.Empty;
     [Parameter] public DateTime FechaJornada { get; set; } = DateTime.Today;
     [Parameter] public List<FilaConciliacionSinsaVm> Filas { get; set; } = new();

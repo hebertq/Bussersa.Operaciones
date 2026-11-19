@@ -26,7 +26,7 @@
                         <div class="d-flex align-center gap-1">
                             <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Success" Size="Size.Small" />
                             <MudText Typo="Typo.caption" Class="fw-bold text-uppercase" Style="color: #166534;">
-                                Datos del Archivo SINSA (@(RegistroSinsa.Fecha?.ToString("dd/MM/yyyy") ?? ""))
+                                Datos del Archivo @NombreClienteConciliacion (@(RegistroSinsa.Fecha?.ToString("dd/MM/yyyy") ?? ""))
                             </MudText>
                         </div>
                         <MudButton Variant="Variant.Filled"
@@ -35,7 +35,7 @@
                                    StartIcon="@Icons.Material.Filled.AutoFixHigh"
                                    OnClick="@AplicarTodoSegunSinsa"
                                    Style="height: 26px; font-size: 0.72rem; font-weight: 800;">
-                            Cuadrar Todo con SINSA
+                            Cuadrar Todo con @NombreClienteConciliacion
                         </MudButton>
                     </div>
 
@@ -382,6 +382,7 @@
     [Parameter] public Dictionary<string, List<string>> AreasPorCliente { get; set; } = new();
     [Parameter] public List<string> CargosDisponibles { get; set; } = new();
     [Parameter] public List<string> ClientesAsignadosSupervisor { get; set; } = new();
+    [Parameter] public string NombreClienteConciliacion { get; set; } = "SINSA";
     [Parameter] public RegistroArchivoSinsaItem? RegistroSinsa { get; set; }
     [Parameter] public decimal? HorasExtrasActuales { get; set; }
     [Parameter] public string? HoraInicioExtraActual { get; set; }

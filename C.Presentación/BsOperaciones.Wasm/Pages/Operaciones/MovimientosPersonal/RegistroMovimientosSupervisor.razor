@@ -402,7 +402,7 @@
                         @if (MostrarBotonConciliarSinsa)
                         {
                             <MudFileUpload T="IBrowserFile"
-                                           Accept=".xlsx,.csv"
+                                           Accept="@(EstrategiaConciliacionActiva?.ExtensionesAceptadas ?? ".xlsx,.csv")"
                                            FilesChanged="OnArchivoSinsaBrowserFileSelected"
                                            Class="ma-0 pa-0 d-inline-flex">
                                 <ActivatorContent>
@@ -412,7 +412,7 @@
                                                StartIcon="@Icons.Material.Filled.FactCheck"
                                                Class="btn-colab-responsive"
                                                Style="background: #059669; color: white;">
-                                        Conciliar SINSA
+                                        Conciliar @NombreClienteConciliacionActiva
                                     </MudButton>
                                 </ActivatorContent>
                             </MudFileUpload>
@@ -525,7 +525,7 @@
                         <div class="d-flex align-center gap-2 flex-wrap">
                             <MudIcon Icon="@Icons.Material.Filled.FactCheck" Color="Color.Success" Size="Size.Small" />
                             <span class="fw-bold" style="font-size: 0.8rem; color: #14532d;">
-                                Conciliación SINSA: <span class="font-monospace">@nombreArchivoSinsaCargado</span>
+                                Conciliación @NombreClienteConciliacionActiva: <span class="font-monospace">@nombreArchivoSinsaCargado</span>
                             </span>
                             <MudChip T="string" Size="Size.Small"
                                      Color="@(filtroConciliacionSinsa == "TODOS" ? Color.Dark : Color.Default)"
@@ -566,7 +566,7 @@
                                        StartIcon="@Icons.Material.Filled.TableView"
                                        OnClick="@AbrirModalConciliacionSinsa"
                                        Style="font-weight: 700;">
-                                Revisar Conciliación (@registrosArchivoSinsaActual.Count)
+                                Revisar Conciliación (@TotalRegistrosArchivoConciliacionActivo)
                             </MudButton>
                             <MudIconButton Icon="@Icons.Material.Filled.Close"
                                            Size="Size.Small"
@@ -672,7 +672,7 @@
                             @if (MostrarBotonConciliarSinsa)
                             {
                                 <MudFileUpload T="IBrowserFile"
-                                               Accept=".xlsx,.csv"
+                                               Accept="@(EstrategiaConciliacionActiva?.ExtensionesAceptadas ?? ".xlsx,.csv")"
                                                FilesChanged="OnArchivoSinsaBrowserFileSelected"
                                                Class="ma-0 pa-0 d-inline-flex">
                                     <ActivatorContent>
@@ -681,7 +681,7 @@
                                                    StartIcon="@Icons.Material.Filled.FactCheck"
                                                    Disabled="@estaOperandoEnBd"
                                                    Style="text-transform: none; font-weight: 700; background: #059669; color: white;">
-                                            CONCILIAR ARCHIVO SINSA (.XLSX)
+                                            CONCILIAR ARCHIVO @NombreClienteConciliacionActiva.ToUpperInvariant()
                                         </MudButton>
                                     </ActivatorContent>
                                 </MudFileUpload>

@@ -11,6 +11,74 @@ using Modelo.Entidades.Entradas.Odoo;
 
 namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 {
+    /// <summary>
+    /// Patrón Strategy por Cliente para conciliar archivos externos de asistencia/horas extras
+    /// del sistema propio de cada cliente (ej. SINSA gastos_terceros, y futuros clientes).
+    /// Para agregar un nuevo cliente en el futuro basta implementar IConciliacionClienteStrategy
+    /// y registrarlo en ConciliacionClienteFactory.Estrategias.
+    /// </summary>
+    public interface IConciliacionClienteStrategy
+    {
+        string CodigoEstrategia { get; }
+        string NombreClienteMostrar { get; }
+        string DescripcionFormato { get; }
+        string ExtensionesAceptadas { get; }
+        bool AplicaACliente(string? nombreCliente, int? operacionId = null);
+        List<RegistroArchivoSinsaItem> LeerArchivo(byte[] bytes, string fileName);
+        string SugerirPuestoBussersa(string? puestoEnArchivo);
+    }
+
+    public static class ConciliacionClienteFactory
+    {
+        private static readonly List<IConciliacionClienteStrategy> Estrategias = new()
+        {
+            new ConciliacionSinsaStrategy()
+            // Futuros clientes se registran aquí implementando IConciliacionClienteStrategy
+        };
+
+        public static IReadOnlyList<IConciliacionClienteStrategy> ObtenerTodas() => Estrategias;
+
+        public static IConciliacionClienteStrategy? ObtenerEstrategia(string? nombreCliente, int? operacionId = null)
+        {
+            return Estrategias.FirstOrDefault(e => e.AplicaACliente(nombreCliente, operacionId));
+        }
+
+        public static bool TieneConciliacionDisponible(string? nombreCliente, int? operacionId = null) =>
+            ObtenerEstrategia(nombreCliente, operacionId) != null;
+    }
+
+    public class EstadoConciliacionClienteJornada
+    {
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string CodigoEstrategia { get; set; } = string.Empty;
+        public string NombreClienteMostrar { get; set; } = string.Empty;
+        public string NombreArchivo { get; set; } = string.Empty;
+        public DateTime FechaJornada { get; set; }
+        public List<RegistroArchivoSinsaItem> Registros { get; set; } = new();
+        public Dictionary<int, RegistroArchivoSinsaItem> RegistrosPorCodigo { get; set; } = new();
+    }
+
+    public class ConciliacionSinsaStrategy : IConciliacionClienteStrategy
+    {
+        public string CodigoEstrategia => "SINSA";
+        public string NombreClienteMostrar => "SINSA";
+        public string DescripcionFormato => "Reporte gastos_terceros (.xlsx / .csv)";
+        public string ExtensionesAceptadas => ".xlsx,.csv";
+
+        public bool AplicaACliente(string? nombreCliente, int? operacionId = null)
+        {
+            if (operacionId == 23) return true;
+            return !string.IsNullOrWhiteSpace(nombreCliente)
+                && nombreCliente.Contains("sinsa", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public List<RegistroArchivoSinsaItem> LeerArchivo(byte[] bytes, string fileName) =>
+            ConciliacionSinsaHelper.LeerArchivoSinsa(bytes, fileName);
+
+        public string SugerirPuestoBussersa(string? puestoEnArchivo) =>
+            ConciliacionSinsaHelper.SugerirPuestoBussersa(puestoEnArchivo);
+    }
+
     public class RegistroArchivoSinsaItem
     {
         public int FilaExcel { get; set; }
@@ -37,10 +105,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 decimal span = DuracionBrutaTurnoHoras;
                 if (span <= 0m) return 1.00m;
 
-                // Redondear horas ordinarias a bloques limpios (ej. 7.98 -> 8.00, 8.42 -> 8.50, 8.35 -> 8.50, 7.38 -> 7.50 o 8.50)
                 decimal diff = span - HorasOrdinarias;
-                if (diff <= 0.25m) return 0.00m; // Ej: 09:00-17:00 (8h), 10:00-18:00 (8h), 14:00-21:30 (7.5h)
-                if (diff >= 0.75m && diff <= 1.35m) return 1.00m; // Ej: 08:00-17:00 (8h ord + 1h), 08:00-17:30 (8.5h ord + 1h), 07:30-17:00 (8.5h ord + 1h)
+                if (diff <= 0.25m) return 0.00m;
+                if (diff >= 0.75m && diff <= 1.35m) return 1.00m;
                 return Math.Round(Math.Max(0m, span - Math.Round(HorasOrdinarias * 2m, MidpointRounding.AwayFromZero) / 2m), 2);
             }
         }
@@ -60,7 +127,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 if (!TimeSpan.TryParse(TurnoFin, out var tFinTurno) || !TimeSpan.TryParse(HoraSalidaRelojHm, out var tSalReloj))
                     return 0m;
                 double diff = (tSalReloj - tFinTurno).TotalHours;
-                if (diff < -12.0) diff += 24.0; // Cruce de medianoche (ej. turno termina 21:00 y reloj sale 01:49)
+                if (diff < -12.0) diff += 24.0;
                 return diff >= 0.50 ? Math.Round((decimal)diff, 2) : 0m;
             }
         }
@@ -87,7 +154,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string NombreEmpleadoBussersa { get; set; } = string.Empty;
         public string PuestoBussersa { get; set; } = "6-Operador de almacen";
 
-        // Estado actual en la pestaña Asistencias
         public bool YaIngresadoEnAsistencia { get; set; }
         public bool AsistioActual { get; set; }
         public string AreaActualAsistencia { get; set; } = string.Empty;
@@ -95,10 +161,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraSalidaActual { get; set; } = string.Empty;
         public string TiempoComidaActual { get; set; } = "1.00";
 
-        // Elecciones del supervisor en la conciliación
         public bool SeleccionadoAplicar { get; set; } = true;
         public string AreaElegida { get; set; } = string.Empty;
-        public string ModoHorarioElegido { get; set; } = "TURNO_CON_HE"; // "TURNO_CON_HE", "MARCACION_RELOJ", "TURNO_PURO", "MANTENER_ACTUAL"
+        public string ModoHorarioElegido { get; set; } = "TURNO_CON_HE";
         public decimal HorasExtrasElegidas { get; set; }
         public string HoraInicioExtraElegida { get; set; } = "17:00";
         public string HoraFinExtraElegida { get; set; } = "18:00";
@@ -223,7 +288,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return new string(cellRef.TakeWhile(char.IsLetter).ToArray()).ToUpperInvariant();
             }
 
-            // Detectar fila de encabezados (usualmente fila 1)
             Dictionary<string, string> mapaColumnas = new(StringComparer.OrdinalIgnoreCase);
             int headerRowIdx = 0;
             for (int i = 0; i < Math.Min(5, rows.Count); i++)
@@ -351,20 +415,25 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         public static List<FilaConciliacionSinsaVm> ConstruirFilasConciliacion(
-            List<RegistroArchivoSinsaItem> registrosSinsa,
+            List<RegistroArchivoSinsaItem> registrosCliente,
             List<EmpleadoJornadaItem> empleadosJornadaCliente,
             List<SupervisorPlantillaItemDto> plantillaPersonal,
             List<OdooEmployeeDto> catalogoOdoo,
-            List<string> areasCatalogoCliente)
+            List<string> areasCatalogoCliente,
+            IConciliacionClienteStrategy? estrategia = null,
+            string? nombreCliente = null)
         {
             var resultado = new List<FilaConciliacionSinsaVm>();
             var usadosCodigo = new HashSet<int>();
+            string filtroCli = nombreCliente?.Trim() ?? "sinsa";
 
-            foreach (var reg in registrosSinsa)
+            foreach (var reg in registrosCliente)
             {
                 string zonaCanonica = ResolverAreaCanonica(reg.Zona, areasCatalogoCliente);
+                string puestoSug = estrategia != null
+                    ? estrategia.SugerirPuestoBussersa(reg.PuestoSinsa)
+                    : SugerirPuestoBussersa(reg.PuestoSinsa);
 
-                // 1. Buscar en empleados ya cargados en Asistencias
                 var matchJornada = empleadosJornadaCliente
                     .Where(e => e.CodigoEmpleado > 0 && !usadosCodigo.Contains(e.CodigoEmpleado))
                     .Select(e => (Emp: e, Score: CalcularPuntajeNombre(reg.NombreEmpleadoSinsa, e.NombreEmpleado)))
@@ -387,7 +456,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         CodigoEmpleado = emp.CodigoEmpleado,
                         IdEmpleado = emp.IdEmpleado > 0 ? emp.IdEmpleado : null,
                         NombreEmpleadoBussersa = emp.NombreEmpleado,
-                        PuestoBussersa = string.IsNullOrWhiteSpace(emp.Puesto) ? SugerirPuestoBussersa(reg.PuestoSinsa) : emp.Puesto,
+                        PuestoBussersa = string.IsNullOrWhiteSpace(emp.Puesto) ? puestoSug : emp.Puesto,
                         YaIngresadoEnAsistencia = true,
                         AsistioActual = emp.Asistio,
                         AreaActualAsistencia = emp.Area ?? string.Empty,
@@ -404,13 +473,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     continue;
                 }
 
-                // 2. Buscar en Mi Plantilla Personal (priorizando SINSA)
                 var matchPlantilla = plantillaPersonal
                     .Where(p => p.CodigoEmpleado > 0 && !usadosCodigo.Contains(p.CodigoEmpleado))
                     .Select(p =>
                     {
                         int sc = CalcularPuntajeNombre(reg.NombreEmpleadoSinsa, p.NombreEmpleado);
-                        if (sc > 0 && p.ClienteDefault?.Contains("sinsa", StringComparison.OrdinalIgnoreCase) == true)
+                        if (sc > 0 && !string.IsNullOrWhiteSpace(filtroCli) && p.ClienteDefault?.Contains(filtroCli, StringComparison.OrdinalIgnoreCase) == true)
                             sc += 25;
                         return (Pl: p, Score: sc);
                     })
@@ -432,7 +500,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         CodigoEmpleado = pl.CodigoEmpleado,
                         IdEmpleado = pl.IdEmpleado > 0 ? pl.IdEmpleado : null,
                         NombreEmpleadoBussersa = pl.NombreEmpleado,
-                        PuestoBussersa = string.IsNullOrWhiteSpace(pl.PuestoDefault) ? SugerirPuestoBussersa(reg.PuestoSinsa) : pl.PuestoDefault,
+                        PuestoBussersa = string.IsNullOrWhiteSpace(pl.PuestoDefault) ? puestoSug : pl.PuestoDefault,
                         YaIngresadoEnAsistencia = false,
                         AsistioActual = false,
                         SeleccionadoAplicar = true,
@@ -445,7 +513,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     continue;
                 }
 
-                // 3. Buscar en Catálogo General de Odoo
                 var matchOdoo = catalogoOdoo
                     .Where(o => o.CodigoEmpleado.HasValue && o.CodigoEmpleado.Value > 0 && !usadosCodigo.Contains(o.CodigoEmpleado.Value))
                     .Select(o => (Od: o, Score: CalcularPuntajeNombre(reg.NombreEmpleadoSinsa, o.Name)))
@@ -467,7 +534,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         CodigoEmpleado = od.CodigoEmpleado.Value,
                         IdEmpleado = od.Id > 0 ? od.Id : null,
                         NombreEmpleadoBussersa = od.Name,
-                        PuestoBussersa = SugerirPuestoBussersa(reg.PuestoSinsa),
+                        PuestoBussersa = puestoSug,
                         YaIngresadoEnAsistencia = false,
                         AsistioActual = false,
                         SeleccionadoAplicar = true,
@@ -480,13 +547,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     continue;
                 }
 
-                // 4. Sin coincidencia automática (el supervisor puede vincularlo manualmente en el diálogo)
                 resultado.Add(new FilaConciliacionSinsaVm
                 {
                     Sinsa = reg,
                     CodigoEmpleado = null,
                     NombreEmpleadoBussersa = string.Empty,
-                    PuestoBussersa = SugerirPuestoBussersa(reg.PuestoSinsa),
+                    PuestoBussersa = puestoSug,
                     YaIngresadoEnAsistencia = false,
                     SeleccionadoAplicar = false,
                     AreaElegida = zonaCanonica,
@@ -561,7 +627,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 return 500 + (matched * 50) - Math.Abs(tCand.Length - tSinsa.Length) * 5;
             }
 
-            // Si tiene 4 palabras en SINSA y coinciden 3 palabras exactas incluyendo primer nombre y primer apellido
             if (tSinsa.Length >= 4 && matched >= 3 && tCand[0] == tSinsa[0])
             {
                 return 350 + (matched * 30);
@@ -629,7 +694,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out var ts) && ts.TotalDays < 1.0 && ts.TotalHours >= 0)
             {
-                // Redondear al minuto más cercano si trae segundos >= 30 (ej. 17:59:52 -> 18:00)
                 int totalMinutes = (int)Math.Round(ts.TotalMinutes, MidpointRounding.AwayFromZero) % 1440;
                 return $"{totalMinutes / 60:D2}:{totalMinutes % 60:D2}";
             }
