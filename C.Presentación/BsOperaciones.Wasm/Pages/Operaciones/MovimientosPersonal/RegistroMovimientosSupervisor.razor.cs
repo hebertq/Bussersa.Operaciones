@@ -826,7 +826,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     CargarCacheReglasViaticos(),
                     CargarMiPlantilla(),
                     CargarTiposAusencias(),
-                    CargarConfigHorasExtrasClientes()
+                    CargarConfigHorasExtrasClientes(),
+                    CargarAsignacionesJornadasCliente()
                 );
                 await RecuperarOperacionPrevia();
                 await CargarJornadaActual();
@@ -5180,14 +5181,368 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         }
 
         // =========================================================================
-        // AUTORIZACIÓN DE HORAS EXTRAS POR ÁREA (FIRMA DIGITAL + HELPDESK + ODOO)
+        // HORAS EXTRAS POR ÁREA SEGÚN REGLA (SIN FIRMA DIGITAL) -> HELPDESK -> ODOO
         // =========================================================================
+        public class GrupoHorasExtrasAreaItem
+        {
+            public int Index { get; set; }
+            public int OperacionId { get; set; }
+            public string Cliente { get; set; } = string.Empty;
+            public string Area { get; set; } = string.Empty;
+            public string ReglaResumen { get; set; } = string.Empty;
+            public List<ColaboradorAutorizacionItemDto> Colaboradores { get; set; } = new();
+            public decimal TotalHorasExtras => Math.Round(Colaboradores.Sum(c => c.HorasExtrasAutorizadas), 2);
+            public string HoraInicioMin => Colaboradores.Select(c => c.HoraInicioExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderBy(h => h).FirstOrDefault() ?? "17:00";
+            public string HoraFinMax => Colaboradores.Select(c => c.HoraFinExtra).Where(h => !string.IsNullOrWhiteSpace(h)).OrderByDescending(h => h).FirstOrDefault() ?? "20:00";
+            public int? TicketRedmineId { get; set; }
+            public string EstadoTicket { get; set; } = string.Empty;
+            public bool Sincronizado => TicketRedmineId.HasValue && TicketRedmineId.Value > 0;
+        }
+
         protected List<ClienteConfigHorasExtrasDto> configClientesHe = new();
+        protected List<Modelo.Entidades.Nomina.AsignacionJornadaCliente> asignacionesJornadasCliente = new();
         protected List<AutorizacionHorasExtrasDto> autorizacionesHeLista = new();
+        protected Dictionary<string, string> observacionesPorAreaHe = new(StringComparer.OrdinalIgnoreCase);
         protected bool cargandoAutorizacionesHe = false;
+        protected bool enviandoTicketsHe = false;
         protected DateTime? fechaDesdeFiltroHe = DateTime.Today;
         protected DateTime? fechaHastaFiltroHe = DateTime.Today;
         protected string textoBusquedaHe = string.Empty;
+
+        protected async Task CargarAsignacionesJornadasCliente()
+        {
+            try
+            {
+                var resp = await _odooService.GetAllAsignacionesJornada();
+                if (resp?.Model != null)
+                {
+                    asignacionesJornadasCliente = resp.Model.Where(a => a.Activo).ToList();
+                }
+            }
+            catch { }
+        }
+
+        private static string QuitarAcentosTextoHe(string? s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+            var norm = s.Trim().Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder(norm.Length);
+            foreach (var ch in norm)
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                    sb.Append(ch);
+            }
+            return sb.ToString().Normalize(System.Text.NormalizationForm.FormC);
+        }
+
+        protected (decimal HorasExtras, decimal TopeOrdinario, decimal HorasNetas, string HoraInicioExtra, string HoraFinExtra, string ReglaResumen) CalcularHorasExtrasSegunRegla(EmpleadoJornadaItem? emp, DateTime fecha)
+        {
+            if (emp == null || !emp.Asistio || string.Equals(emp.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase))
+                return (0m, 8m, 0m, "17:00", "20:00", "");
+
+            string hEntStr = NormalizarFormatoHora(emp.HoraEntrada);
+            string hSalStr = NormalizarFormatoHora(emp.HoraSalida);
+            if (string.IsNullOrWhiteSpace(hEntStr) || string.IsNullOrWhiteSpace(hSalStr) || hEntStr == "--:--" || hSalStr == "--:--")
+                return (0m, 8m, 0m, "17:00", "20:00", "");
+
+            if (!TimeSpan.TryParse(hEntStr, out var tEnt) || !TimeSpan.TryParse(hSalStr, out var tSal))
+                return (0m, 8m, 0m, "17:00", "20:00", "");
+
+            double diffHrs = (tSal - tEnt).TotalHours;
+            if (diffHrs <= 0) diffHrs += 24.0;
+            decimal horasBrutas = (decimal)diffHrs;
+
+            decimal comida = decimal.TryParse(emp.TiempoComida?.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var tc)
+                ? Math.Max(0m, tc)
+                : 1.00m;
+            decimal comidaEfectiva = horasBrutas > comida ? comida : 0m;
+            decimal horasNetas = Math.Round(Math.Max(0m, horasBrutas - comidaEfectiva), 2);
+
+            int opId = ResolverOperacionIdCliente(emp.Cliente);
+            string areaClean = QuitarAcentosTextoHe(emp.Area).ToLowerInvariant();
+            string puestoClean = QuitarAcentosTextoHe(emp.Puesto).ToLowerInvariant();
+            string turnoClean = QuitarAcentosTextoHe(emp.TurnoNombre).ToLowerInvariant();
+
+            bool esNocturno = turnoClean.Contains("noct") || turnoClean.Contains("noche") || (tEnt.Hours >= 18 && tSal < tEnt);
+            bool esMixto = !esNocturno && (turnoClean.Contains("mixt") || (tEnt.Hours >= 13 && tEnt.Hours < 18 && horasBrutas <= 8.5m));
+
+            // Buscar regla activa en admon.tbl_bs_asignacion_jornadas_cliente (priorizando coincidencia de Área específica)
+            var reglaDb = asignacionesJornadasCliente
+                .Where(a => a.Activo && a.OperacionId == opId
+                    && (string.IsNullOrWhiteSpace(a.Area)
+                        || QuitarAcentosTextoHe(a.Area).Equals(areaClean, StringComparison.OrdinalIgnoreCase)
+                        || areaClean.Contains(QuitarAcentosTextoHe(a.Area), StringComparison.OrdinalIgnoreCase))
+                    && (string.IsNullOrWhiteSpace(a.Puesto)
+                        || QuitarAcentosTextoHe(a.Puesto).Equals(puestoClean, StringComparison.OrdinalIgnoreCase)
+                        || puestoClean.Contains(QuitarAcentosTextoHe(a.Puesto), StringComparison.OrdinalIgnoreCase)))
+                .OrderByDescending(a => (!string.IsNullOrWhiteSpace(a.Area) ? 4 : 0) + (!string.IsNullOrWhiteSpace(a.Puesto) ? 2 : 0))
+                .ThenByDescending(a => a.Id)
+                .FirstOrDefault();
+
+            bool domingo100 = reglaDb != null
+                ? ((reglaDb.ReglasActivas != null && reglaDb.ReglasActivas.Contains("DOMINGO_DESCANSO_RECARGO_100"))
+                   || (!string.IsNullOrWhiteSpace(reglaDb.ReglasActivasJson) && reglaDb.ReglasActivasJson.Contains("DOMINGO_DESCANSO_RECARGO_100", StringComparison.OrdinalIgnoreCase)))
+                : (opId == 23 || (emp.Cliente?.Contains("sinsa", StringComparison.OrdinalIgnoreCase) == true));
+
+            decimal topeOrdinario;
+            string reglaResumen;
+
+            if (fecha.DayOfWeek == DayOfWeek.Sunday && domingo100)
+            {
+                topeOrdinario = 0.00m;
+                reglaResumen = "Domingo (100% Extra)";
+            }
+            else if (esNocturno)
+            {
+                topeOrdinario = 7.00m;
+                reglaResumen = "Nocturno (7.00h)";
+            }
+            else if (esMixto)
+            {
+                topeOrdinario = 7.50m;
+                reglaResumen = "Mixto (7.50h)";
+            }
+            else if (reglaDb != null)
+            {
+                topeOrdinario = fecha.DayOfWeek == DayOfWeek.Saturday ? reglaDb.HorasSabado : reglaDb.HorasLunesViernes;
+                if (topeOrdinario <= 0m) topeOrdinario = 8.00m;
+                reglaResumen = fecha.DayOfWeek == DayOfWeek.Saturday
+                    ? $"Diurno Sáb ({topeOrdinario:0.##}h)"
+                    : $"Diurno L-V ({topeOrdinario:0.##}h)";
+            }
+            else
+            {
+                // Respaldo exacto SINSA por Área si no hay conexión
+                bool esArea85_55 = areaClean.Contains("calidad de datos") || areaClean.Contains("recepcion mercaderia");
+                if (esArea85_55)
+                {
+                    topeOrdinario = fecha.DayOfWeek == DayOfWeek.Saturday ? 5.50m : 8.50m;
+                    reglaResumen = fecha.DayOfWeek == DayOfWeek.Saturday ? "Diurno Sáb (5.50h)" : "Diurno L-V (8.50h)";
+                }
+                else
+                {
+                    topeOrdinario = 8.00m;
+                    reglaResumen = "Diurno (8.00h)";
+                }
+            }
+
+            decimal horasExtras = Math.Round(Math.Max(0m, horasNetas - topeOrdinario), 2);
+            if (horasExtras <= 0m)
+                return (0m, topeOrdinario, horasNetas, hSalStr, hSalStr, reglaResumen);
+
+            double inicioExtraMinutos = (tEnt.TotalHours + (double)(topeOrdinario + comidaEfectiva)) * 60.0;
+            int minsMod = ((int)Math.Round(inicioExtraMinutos) % 1440 + 1440) % 1440;
+            string hInicioExtra = $"{minsMod / 60:D2}:{minsMod % 60:D2}";
+
+            return (horasExtras, topeOrdinario, horasNetas, hInicioExtra, hSalStr, reglaResumen);
+        }
+
+        protected bool TieneHorasExtrasSegunRegla(EmpleadoJornadaItem? emp)
+        {
+            if (emp == null || !emp.Asistio) return false;
+            return CalcularHorasExtrasSegunRegla(emp, (fechaSeleccionada ?? DateTime.Today).Date).HorasExtras > 0m;
+        }
+
+        protected string ObtenerObservacionAreaHe(string area)
+        {
+            string key = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
+            return observacionesPorAreaHe.TryGetValue(key, out var val) ? val : string.Empty;
+        }
+
+        protected void SetObservacionAreaHe(string area, string? valor)
+        {
+            string key = string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
+            observacionesPorAreaHe[key] = valor ?? string.Empty;
+        }
+
+        protected List<GrupoHorasExtrasAreaItem> GruposHorasExtrasJornadaPorArea
+        {
+            get
+            {
+                DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+                string cli = ClienteActivoAsistenciasSeguro;
+
+                var presentesCliente = empleadosJornada
+                    .Where(e => e.Asistio
+                        && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
+                        && (string.IsNullOrWhiteSpace(cli) || string.Equals(e.Cliente?.Trim(), cli.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                var itemsConExtras = new List<(EmpleadoJornadaItem Emp, ColaboradorAutorizacionItemDto Dto, string ReglaTxt)>();
+                foreach (var e in presentesCliente)
+                {
+                    var calc = CalcularHorasExtrasSegunRegla(e, fRef);
+                    if (calc.HorasExtras > 0m)
+                    {
+                        itemsConExtras.Add((e, new ColaboradorAutorizacionItemDto
+                        {
+                            MovimientoDiarioId = e.Id > 0 ? e.Id : null,
+                            EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
+                            CodigoEmpleado = e.CodigoEmpleado,
+                            NombreEmpleado = e.NombreEmpleado,
+                            Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area.Trim(),
+                            Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto.Trim(),
+                            HoraEntradaJornada = NormalizarFormatoHora(e.HoraEntrada),
+                            HoraSalidaJornada = NormalizarFormatoHora(e.HoraSalida),
+                            HoraInicioExtra = calc.HoraInicioExtra,
+                            HoraFinExtra = calc.HoraFinExtra,
+                            HorasExtrasAutorizadas = calc.HorasExtras
+                        }, calc.ReglaResumen));
+                    }
+                }
+
+                int idx = 1;
+                var grupos = new List<GrupoHorasExtrasAreaItem>();
+                foreach (var g in itemsConExtras
+                    .GroupBy(x => x.Dto.Area, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.Key))
+                {
+                    string cliGrupo = g.First().Emp.Cliente ?? cli ?? "SINSA";
+                    int opId = ResolverOperacionIdCliente(cliGrupo);
+                    var codsArea = g.Select(x => x.Dto.CodigoEmpleado).ToHashSet();
+
+                    var autExistente = autorizacionesHeLista.FirstOrDefault(a =>
+                        a.Fecha.Date == fRef
+                        && a.Estado != "ANULADA"
+                        && (string.Equals(a.Area?.Trim(), g.Key, StringComparison.OrdinalIgnoreCase) || codsArea.Contains(a.CodigoEmpleado)));
+
+                    grupos.Add(new GrupoHorasExtrasAreaItem
+                    {
+                        Index = idx++,
+                        OperacionId = opId,
+                        Cliente = cliGrupo,
+                        Area = g.Key,
+                        ReglaResumen = string.Join(" / ", g.Select(x => x.ReglaTxt).Distinct()),
+                        Colaboradores = g.Select(x => x.Dto).OrderBy(c => c.CodigoEmpleado).ToList(),
+                        TicketRedmineId = autExistente?.TicketRedmineId,
+                        EstadoTicket = autExistente != null
+                            ? (autExistente.Estado == "RESUELTA" || autExistente.SincronizadoOdoo ? "EN ODOO" : autExistente.Estado)
+                            : string.Empty
+                    });
+                }
+
+                return grupos;
+            }
+        }
+
+        protected int TotalBoletasHeCliente
+        {
+            get
+            {
+                int pendientesHoy = GruposHorasExtrasJornadaPorArea.Count(g => !g.Sincronizado);
+                return pendientesHoy > 0 ? pendientesHoy : BoletasHorasExtrasAgrupadas.Count;
+            }
+        }
+
+        protected async Task EnviarGrupoAreaHorasExtras(GrupoHorasExtrasAreaItem grupo)
+        {
+            if (grupo == null || !grupo.Colaboradores.Any()) return;
+
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            string obs = ObtenerObservacionAreaHe(grupo.Area);
+            if (string.IsNullOrWhiteSpace(obs))
+                obs = $"Horas extras según regla ({grupo.ReglaResumen})";
+
+            var req = new CrearAutorizacionHorasExtrasRequestDto
+            {
+                OperacionId = grupo.OperacionId,
+                ClienteNombre = grupo.Cliente,
+                Fecha = fRef.ToString("yyyy-MM-dd"),
+                HoraInicioExtra = grupo.HoraInicioMin,
+                HoraFinExtra = grupo.HoraFinMax,
+                HorasExtrasAutorizadas = Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
+                Motivo = obs.Trim(),
+                UsuarioRegistro = UsuarioRedmineEfectivo,
+                BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
+                Colaboradores = grupo.Colaboradores
+            };
+
+            enviandoTicketsHe = true;
+            StateHasChanged();
+            try
+            {
+                var resp = await _odooService.CrearAutorizacionHorasExtras(req);
+                if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null && resp.Model.Exitosos > 0)
+                {
+                    int? tck = resp.Model.Detalles.FirstOrDefault()?.TicketRedmineId;
+                    _snackbar.Add($"Ticket #{tck} generado en Helpdesk para el área '{grupo.Area}' ({grupo.Colaboradores.Count} colaborador(es), {grupo.TotalHorasExtras:N2} hrs extra).", Severity.Success);
+                    await CargarAutorizacionesHorasExtras();
+                }
+                else
+                {
+                    string err = resp?.Model?.Detalles.FirstOrDefault()?.Mensaje ?? resp?.Respuesta?.MensajeError ?? "No se pudo crear el ticket.";
+                    _snackbar.Add(err, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                enviandoTicketsHe = false;
+                StateHasChanged();
+            }
+        }
+
+        protected async Task EnviarTodosGruposHorasExtras()
+        {
+            var pendientes = GruposHorasExtrasJornadaPorArea.Where(g => !g.Sincronizado).ToList();
+            if (!pendientes.Any())
+            {
+                _snackbar.Add("Todas las áreas con horas extras ya tienen su ticket generado en Helpdesk.", Severity.Info);
+                return;
+            }
+
+            enviandoTicketsHe = true;
+            StateHasChanged();
+            int creados = 0;
+            try
+            {
+                DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+                foreach (var grupo in pendientes)
+                {
+                    string obs = ObtenerObservacionAreaHe(grupo.Area);
+                    if (string.IsNullOrWhiteSpace(obs))
+                        obs = $"Horas extras según regla ({grupo.ReglaResumen})";
+
+                    var req = new CrearAutorizacionHorasExtrasRequestDto
+                    {
+                        OperacionId = grupo.OperacionId,
+                        ClienteNombre = grupo.Cliente,
+                        Fecha = fRef.ToString("yyyy-MM-dd"),
+                        HoraInicioExtra = grupo.HoraInicioMin,
+                        HoraFinExtra = grupo.HoraFinMax,
+                        HorasExtrasAutorizadas = Math.Round(grupo.Colaboradores.Average(c => c.HorasExtrasAutorizadas), 2),
+                        Motivo = obs.Trim(),
+                        UsuarioRegistro = UsuarioRedmineEfectivo,
+                        BaseUrlPortal = _navigationManager.BaseUri.TrimEnd('/'),
+                        Colaboradores = grupo.Colaboradores
+                    };
+
+                    var resp = await _odooService.CrearAutorizacionHorasExtras(req);
+                    if (resp != null && !resp.Respuesta.ExisteError && resp.Model != null && resp.Model.Exitosos > 0)
+                    {
+                        creados++;
+                    }
+                }
+
+                await CargarAutorizacionesHorasExtras();
+                if (creados > 0)
+                {
+                    _snackbar.Add($"Se generaron {creados} ticket(s) por Área en Helpdesk conforme a las reglas de Horas Extras.", Severity.Success);
+                }
+            }
+            catch (Exception ex)
+            {
+                _snackbar.Add($"Error al enviar tickets: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                enviandoTicketsHe = false;
+                StateHasChanged();
+            }
+        }
 
         protected bool ClientePermiteHorasExtras(string? clienteNombre)
         {
@@ -5313,8 +5668,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
         }
 
-        protected int TotalBoletasHeCliente => BoletasHorasExtrasAgrupadas.Count;
-
         protected async Task AbrirDialogoAutorizarHorasExtras(EmpleadoJornadaItem? empInicial = null)
         {
             string cliNombre = empInicial != null && !string.IsNullOrWhiteSpace(empInicial.Cliente)
@@ -5326,116 +5679,43 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             int opId = ResolverOperacionIdCliente(cliNombre);
             DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
 
+            // Solo incluir los colaboradores presentes que tengan Horas Extras > 0 según la regla de su Área/Turno
             var candidatos = empleadosJornada
-                .Where(e => e.Asistio && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
-                .OrderBy(e => e.Area)
-                .ThenBy(e => e.NombreEmpleado)
-                .Select(e => new ColaboradorAutorizacionItemDto
+                .Where(e => e.Asistio
+                    && !string.Equals(e.TurnoNombre, "Ausente", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(e =>
                 {
-                    MovimientoDiarioId = e.Id > 0 ? e.Id : null,
-                    EmployeeId = e.IdEmpleado > 0 ? e.IdEmpleado : null,
-                    CodigoEmpleado = e.CodigoEmpleado,
-                    NombreEmpleado = e.NombreEmpleado,
-                    Area = string.IsNullOrWhiteSpace(e.Area) ? "Operaciones" : e.Area,
-                    Cargo = string.IsNullOrWhiteSpace(e.Puesto) ? "6-Operador de almacen" : e.Puesto,
-                    HoraEntradaJornada = e.HoraEntrada,
-                    HoraSalidaJornada = e.HoraSalida,
-                    HoraInicioExtra = (!string.IsNullOrWhiteSpace(e.HoraSalida) && e.HoraSalida != "--:--") ? e.HoraSalida : "17:00",
-                    HoraFinExtra = "20:00"
+                    var calc = CalcularHorasExtrasSegunRegla(e, fRef);
+                    return (Emp: e, Calc: calc);
+                })
+                .Where(x => x.Calc.HorasExtras > 0m)
+                .OrderBy(x => x.Emp.Area)
+                .ThenBy(x => x.Emp.NombreEmpleado)
+                .Select(x => new ColaboradorAutorizacionItemDto
+                {
+                    MovimientoDiarioId = x.Emp.Id > 0 ? x.Emp.Id : null,
+                    EmployeeId = x.Emp.IdEmpleado > 0 ? x.Emp.IdEmpleado : null,
+                    CodigoEmpleado = x.Emp.CodigoEmpleado,
+                    NombreEmpleado = x.Emp.NombreEmpleado,
+                    Area = string.IsNullOrWhiteSpace(x.Emp.Area) ? "Operaciones" : x.Emp.Area.Trim(),
+                    Cargo = string.IsNullOrWhiteSpace(x.Emp.Puesto) ? "6-Operador de almacen" : x.Emp.Puesto.Trim(),
+                    HoraEntradaJornada = NormalizarFormatoHora(x.Emp.HoraEntrada),
+                    HoraSalidaJornada = NormalizarFormatoHora(x.Emp.HoraSalida),
+                    HoraInicioExtra = x.Calc.HoraInicioExtra,
+                    HoraFinExtra = x.Calc.HoraFinExtra,
+                    HorasExtrasAutorizadas = x.Calc.HorasExtras
                 })
                 .ToList();
-
-            // Si la jornada del día aún no tiene presentes cargados, respaldar con Mi Plantilla o Personal Maestro del Cliente
-            if (!candidatos.Any())
-            {
-                var dePlantilla = miPlantillaPersonal
-                    .Where(p => p.Activo && !string.IsNullOrWhiteSpace(p.ClienteDefault) &&
-                                string.Equals(p.ClienteDefault.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(p => p.AreaDefault)
-                    .ThenBy(p => p.NombreEmpleado)
-                    .Select(p => new ColaboradorAutorizacionItemDto
-                    {
-                        EmployeeId = p.IdEmpleado > 0 ? p.IdEmpleado : null,
-                        CodigoEmpleado = p.CodigoEmpleado,
-                        NombreEmpleado = p.NombreEmpleado,
-                        Area = string.IsNullOrWhiteSpace(p.AreaDefault) ? "Operaciones" : p.AreaDefault,
-                        Cargo = string.IsNullOrWhiteSpace(p.PuestoDefault) ? "6-Operador de almacen" : p.PuestoDefault,
-                        HoraEntradaJornada = p.HoraEntradaDefault,
-                        HoraSalidaJornada = p.HoraSalidaDefault,
-                        HoraInicioExtra = (!string.IsNullOrWhiteSpace(p.HoraSalidaDefault) && p.HoraSalidaDefault != "--:--") ? p.HoraSalidaDefault : "17:00",
-                        HoraFinExtra = "20:00"
-                    })
-                    .ToList();
-
-                if (dePlantilla.Any())
-                {
-                    candidatos = dePlantilla;
-                }
-                else
-                {
-                    try
-                    {
-                        var respPersonal = await _odooService.GetPersonalCliente(cliente: cliNombre);
-                        if (respPersonal?.Model != null && respPersonal.Model.Any())
-                        {
-                            candidatos = respPersonal.Model
-                                .Where(p => p.Activo && p.CodigoEmpleado > 0)
-                                .GroupBy(p => p.CodigoEmpleado)
-                                .Select(g => g.First())
-                                .OrderBy(p => p.AreaDefault)
-                                .ThenBy(p => p.NombreEmpleado)
-                                .Select(p => new ColaboradorAutorizacionItemDto
-                                {
-                                    EmployeeId = p.IdEmpleado > 0 ? p.IdEmpleado : null,
-                                    CodigoEmpleado = p.CodigoEmpleado,
-                                    NombreEmpleado = p.NombreEmpleado,
-                                    Area = string.IsNullOrWhiteSpace(p.AreaDefault) ? "Operaciones" : p.AreaDefault,
-                                    Cargo = string.IsNullOrWhiteSpace(p.PuestoDefault) ? "6-Operador de almacen" : p.PuestoDefault,
-                                    HoraEntradaJornada = p.HoraEntradaDefault,
-                                    HoraSalidaJornada = p.HoraSalidaDefault,
-                                    HoraInicioExtra = (!string.IsNullOrWhiteSpace(p.HoraSalidaDefault) && p.HoraSalidaDefault != "--:--") ? p.HoraSalidaDefault : "17:00",
-                                    HoraFinExtra = "20:00"
-                                })
-                                .ToList();
-                        }
-                    }
-                    catch { }
-                }
-            }
 
             var iniciales = new List<ColaboradorAutorizacionItemDto>();
             if (empInicial != null)
             {
-                var match = candidatos.FirstOrDefault(c => c.CodigoEmpleado == empInicial.CodigoEmpleado)
-                    ?? new ColaboradorAutorizacionItemDto
-                    {
-                        MovimientoDiarioId = empInicial.Id > 0 ? empInicial.Id : null,
-                        EmployeeId = empInicial.IdEmpleado > 0 ? empInicial.IdEmpleado : null,
-                        CodigoEmpleado = empInicial.CodigoEmpleado,
-                        NombreEmpleado = empInicial.NombreEmpleado,
-                        Area = string.IsNullOrWhiteSpace(empInicial.Area) ? "Operaciones" : empInicial.Area,
-                        Cargo = string.IsNullOrWhiteSpace(empInicial.Puesto) ? "6-Operador de almacen" : empInicial.Puesto,
-                        HoraEntradaJornada = empInicial.HoraEntrada,
-                        HoraSalidaJornada = empInicial.HoraSalida,
-                        HoraInicioExtra = (!string.IsNullOrWhiteSpace(empInicial.HoraSalida) && empInicial.HoraSalida != "--:--") ? empInicial.HoraSalida : "17:00",
-                        HoraFinExtra = "20:00"
-                    };
-                iniciales.Add(match);
-            }
-            else
-            {
-                var codsSeleccionados = empleadosJornada
-                    .Where(e => e.Seleccionado && e.Asistio && string.Equals(e.Cliente?.Trim(), cliNombre.Trim(), StringComparison.OrdinalIgnoreCase))
-                    .Select(e => e.CodigoEmpleado)
-                    .ToHashSet();
-
-                if (codsSeleccionados.Any())
-                {
-                    iniciales.AddRange(candidatos.Where(c => codsSeleccionados.Contains(c.CodigoEmpleado)));
-                }
+                string areaTarget = string.IsNullOrWhiteSpace(empInicial.Area) ? "Operaciones" : empInicial.Area.Trim();
+                // Pre-seleccionar todos los colaboradores con extras de esa misma Área
+                iniciales.AddRange(candidatos.Where(c => string.Equals(c.Area, areaTarget, StringComparison.OrdinalIgnoreCase)));
             }
 
-            // Nuestro supervisor de BUSSERSA NO autoriza ni firma; solo firma el Supervisor o Gerente del Cliente.
             var parameters = new DialogParameters
             {
                 ["OperacionId"] = opId,
@@ -5448,7 +5728,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             };
 
             var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-            var dialog = await _dialogService.ShowAsync<DialogAutorizarHorasExtras>("Autorización de Horas Extras por Área", parameters, options);
+            var dialog = await _dialogService.ShowAsync<DialogAutorizarHorasExtras>("Horas Extras por Área según Regla", parameters, options);
             var result = await dialog.Result;
             if (result != null && !result.Canceled)
             {

@@ -2,7 +2,6 @@
 @using Modelo.ClasesGenericas
 @using HostService.Interfaces
 @inject IOdooService _odooService
-@inject IJSRuntime _js
 @inject ISnackbar _snackbar
 @inject NavigationManager _nav
 
@@ -15,7 +14,7 @@
                 </MudAvatar>
                 <div>
                     <MudText Typo="Typo.h6" Class="fw-bold" Style="line-height: 1.2;">
-                        Autorización de Horas Extras (Helpdesk)
+                        Horas Extras por Área según Regla (Helpdesk)
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
                         Cliente: <b>@ClienteNombre</b> &bull; Fecha: <b>@Fecha.ToString("dd/MM/yyyy")</b>
@@ -28,226 +27,113 @@
     <DialogContent>
         <div style="max-height: 74vh; overflow-y: auto; padding-right: 4px;">
             <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined" Class="mb-3">
-                Se genera <b>1 ticket por Área</b> en Helpdesk con los carnets separados por coma en la descripción (igual que Movimientos) y firma digital adjunta. Al resolverse, las horas pasan a Odoo para <b>pagarse y cobrarse como extras aunque la semana no supere las 48h</b>.
+                Solo se muestran las <b>Áreas y colaboradores que superan su jornada ordinaria según la regla del Área/Turno</b>. Se genera <b>1 ticket por Área</b> en Helpdesk con los carnets separados por coma en la descripción (igual que Movimientos).
             </MudAlert>
 
-            @* 1. COLABORADORES A AUTORIZAR POR ÁREA *@
-            <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
-                <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-2">
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" />
-                        Colaborador(es) por Área que realizan Horas Extras (@ColaboradoresSeleccionados.Count)
-                    </MudText>
-                    @if (CandidatosDisponibles != null && CandidatosDisponibles.Any())
-                    {
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                   StartIcon="@(mostrarSelectorMultiple ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.GroupAdd)"
-                                   OnClick="@(() => mostrarSelectorMultiple = !mostrarSelectorMultiple)">
-                            @(mostrarSelectorMultiple ? "Ocultar lista" : $"Seleccionar por Área / Personal ({CandidatosDisponibles.Count})")
-                        </MudButton>
-                    }
-                </div>
-
-                @if (mostrarSelectorMultiple && CandidatosDisponibles != null && CandidatosDisponibles.Any())
-                {
-                    <MudGrid Spacing="2" Class="mb-2">
+            @if (CandidatosConExtras == null || !CandidatosConExtras.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="my-2">
+                    Ningún colaborador presente en la jornada del <b>@Fecha.ToString("dd/MM/yyyy")</b> supera las horas ordinarias de su Área y Turno según la regla configurada.
+                </MudAlert>
+            }
+            else
+            {
+                <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <MudGrid Spacing="2" Class="mb-3">
                         <MudItem xs="12" sm="5">
-                            <MudSelect T="string" Value="@areaFiltroSeleccionada" ValueChanged="@OnAreaFiltroChanged"
-                                       Label="Filtrar por Área del Cliente" Variant="Variant.Outlined" Margin="Margin.Dense" Dense="true"
+                            <div class="text-caption fw-bold text-secondary mb-1">Área del Cliente (solo con Horas Extras)</div>
+                            <MudSelect T="string"
+                                       Value="@areaFiltroSeleccionada"
+                                       ValueChanged="@OnAreaFiltroChanged"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
                                        Style="background: white;">
-                                <MudSelectItem T="string" Value="@string.Empty">-- Todas las Áreas (@CandidatosDisponibles.Count) --</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("TODAS")">Todas las Áreas con Extras (@AreasDisponibles.Count áreas • @CandidatosConExtras.Count pers.)</MudSelectItem>
                                 @foreach (var ar in AreasDisponibles)
                                 {
-                                    <MudSelectItem T="string" Value="@ar">@ar (@CandidatosDisponibles.Count(c => string.Equals(NormalizarArea(c.Area), ar, StringComparison.OrdinalIgnoreCase)))</MudSelectItem>
+                                    int cantArea = CandidatosConExtras.Count(c => string.Equals(NormalizarArea(c.Area), ar, StringComparison.OrdinalIgnoreCase));
+                                    decimal sumHeArea = CandidatosConExtras
+                                        .Where(c => string.Equals(NormalizarArea(c.Area), ar, StringComparison.OrdinalIgnoreCase))
+                                        .Sum(c => c.HorasExtrasAutorizadas);
+                                    <MudSelectItem T="string" Value="@ar">@ar (@cantArea pers. • @sumHeArea.ToString("N2") hrs)</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudItem>
                         <MudItem xs="12" sm="4">
-                            <MudTextField @bind-Value="busquedaCandidato" Placeholder="Buscar carnet o nombre..."
-                                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true"
-                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                            <div class="text-caption fw-bold text-secondary mb-1">Buscar colaborador</div>
+                            <MudTextField @bind-Value="busquedaCandidato"
+                                          Placeholder="Carnet o nombre..."
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
                                           Style="background: white;" />
                         </MudItem>
-                        <MudItem xs="12" sm="3" Class="d-flex align-center gap-1">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" FullWidth="true"
+                        <MudItem xs="12" sm="3" Class="d-flex align-end gap-1">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       FullWidth="true"
+                                       Style="height: 40px;"
                                        OnClick="@SeleccionarFiltrados">
-                                Marcar @(string.IsNullOrWhiteSpace(areaFiltroSeleccionada) ? "Visibles" : "Área")
+                                @(areaFiltroSeleccionada == "TODAS" ? "Marcar Todas" : "Marcar Área")
                             </MudButton>
                             @if (ColaboradoresSeleccionados.Any())
                             {
-                                <MudIconButton Icon="@Icons.Material.Filled.ClearAll" Color="Color.Error" Size="Size.Small"
-                                               Title="Quitar todos" OnClick="@LimpiarSeleccionColaboradores" />
+                                <MudIconButton Icon="@Icons.Material.Filled.ClearAll"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               Title="Desmarcar todos"
+                                               OnClick="@LimpiarSeleccionColaboradores" />
                             }
                         </MudItem>
                     </MudGrid>
 
-                    <div class="mb-2 pa-2 rounded" style="max-height: 165px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1;">
-                        @foreach (var cand in CandidatosFiltrados)
-                        {
-                            bool sel = CodigosSeleccionados.Contains(cand.CodigoEmpleado);
-                            <div class="d-flex align-center justify-space-between py-1 border-bottom" style="font-size: 0.8rem;">
-                                <MudCheckBox T="bool" Dense="true" Color="Color.Primary"
-                                             Value="@sel"
-                                             ValueChanged="@((bool val) => ToggleCandidato(cand, val))"
-                                             Label="@($"#{cand.CodigoEmpleado} - {cand.NombreEmpleado} ({NormalizarArea(cand.Area)})")" />
-                                <span class="font-monospace text-secondary">@cand.HoraEntradaJornada - @cand.HoraSalidaJornada</span>
+                    @foreach (var grupo in CandidatosFiltrados.GroupBy(c => NormalizarArea(c.Area), StringComparer.OrdinalIgnoreCase))
+                    {
+                        decimal sumaArea = grupo.Sum(x => x.HorasExtrasAutorizadas);
+                        <div class="mb-2 rounded overflow-hidden" style="background: #ffffff; border: 1px solid #cbd5e1;">
+                            <div class="px-3 py-1 d-flex align-center justify-space-between" style="background: #eff6ff; border-bottom: 1px solid #cbd5e1;">
+                                <span class="fw-bold" style="color: #013161; font-size: 0.84rem;">
+                                    Área: @grupo.Key (@grupo.Count() colaborador@(grupo.Count() == 1 ? "" : "es"))
+                                </span>
+                                <span class="badge bg-warning text-dark fw-bold" style="font-size: 0.76rem;">
+                                    Total Área: @sumaArea.ToString("N2") hrs extra
+                                </span>
                             </div>
-                        }
-                    </div>
-                }
-                else if (CandidatosDisponibles == null || !CandidatosDisponibles.Any())
-                {
-                    <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Text" Class="mb-1">
-                        No hay colaboradores cargados para @ClienteNombre. Verifique la plantilla del cliente en la pestaña Mi Personal.
-                    </MudAlert>
-                }
-
-                <div class="d-flex flex-wrap gap-1">
-                    @foreach (var c in ColaboradoresSeleccionados)
-                    {
-                        <MudChip T="string" Color="Color.Dark" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold"
-                                 OnClose="@(() => ToggleCandidato(c, false))">
-                            #@c.CodigoEmpleado - @c.NombreEmpleado (@NormalizarArea(c.Area))
-                        </MudChip>
-                    }
-                </div>
-            </MudPaper>
-
-            @* 2. HORARIO EXTRA Y MOTIVO *@
-            <MudGrid Spacing="2" Class="mb-3">
-                <MudItem xs="6" sm="4">
-                    <MudTextField Value="@HoraInicioExtra"
-                                  ValueChanged="@((string v) => OnHoraCambiada(v, HoraFinExtra))"
-                                  Label="Hora Entrada / Inicio Extra (HH:mm)"
-                                  Placeholder="17:00"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Login" />
-                </MudItem>
-                <MudItem xs="6" sm="4">
-                    <MudTextField Value="@HoraFinExtra"
-                                  ValueChanged="@((string v) => OnHoraCambiada(HoraInicioExtra, v))"
-                                  Label="Hora Salida Extra (HH:mm)"
-                                  Placeholder="20:00"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Logout" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudNumericField T="decimal"
-                                     @bind-Value="HorasExtrasAutorizadas"
-                                     Label="Total Horas Extras Autorizadas"
-                                     Format="N2"
-                                     Min="0.25m"
-                                     Max="24.00m"
-                                     Step="0.50m"
-                                     Variant="Variant.Outlined"
-                                     Margin="Margin.Dense"
-                                     Adornment="Adornment.End"
-                                     AdornmentText="hrs" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="Motivo"
-                                  Label="Observaciones (se envía al campo Observaciones en Helpdesk)"
-                                  Placeholder="Ej: Descarga de contenedor urgente / cierre de despacho autorizado en planta..."
-                                  Lines="2"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense" />
-                </MudItem>
-            </MudGrid>
-
-            @* 3. FIRMA DIGITAL DEL SUPERVISOR DEL CLIENTE (EL SUPERVISOR NUESTRO NO AUTORIZA) *@
-            <MudPaper Class="pa-3 mb-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #ffffff;">
-                <div class="d-flex align-center justify-space-between mb-1">
-                    <div>
-                        <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #013161;">
-                            <MudIcon Icon="@Icons.Material.Filled.Draw" Size="Size.Small" Class="mr-1" />
-                            1. Firma Digital del Supervisor del Cliente (Quien Autoriza)
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Autoriza únicamente el Supervisor / Encargado de <b>@ClienteNombre</b> (el supervisor de BUSSERSA no autoriza).
-                        </MudText>
-                    </div>
-                    <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.CleaningServices"
-                               OnClick="@(() => LimpiarCanvas("canvas_he_sup"))">
-                        Limpiar Firma
-                    </MudButton>
-                </div>
-                <MudGrid Spacing="2" Class="mb-2 mt-1">
-                    <MudItem xs="12" sm="7">
-                        <MudTextField @bind-Value="SupervisorNombre"
-                                      Label="Nombre del Supervisor del Cliente"
-                                      Placeholder="Ej: Ing. Carlos Pérez (Supervisor del Cliente)"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" sm="5">
-                        <MudTextField @bind-Value="SupervisorCargo"
-                                      Label="Cargo en el Cliente"
-                                      Placeholder="Supervisor del Cliente"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-                </MudGrid>
-                <div style="border: 2px dashed #64748b; border-radius: 8px; background: #ffffff; overflow: hidden;">
-                    <canvas id="canvas_he_sup" style="width: 100%; height: 145px; display: block; touch-action: none; cursor: crosshair;"></canvas>
-                </div>
-                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
-                    El Supervisor del Cliente debe firmar con el dedo, lápiz óptico o mouse dentro del recuadro.
-                </MudText>
-            </MudPaper>
-
-            @* 4. FIRMA DIGITAL DEL GERENTE DEL CLIENTE (EN SITIO O POSTERIOR) *@
-            <MudPaper Class="pa-3 rounded-lg" Elevation="0" Style="border: 1px solid #cbd5e1; background: #fffbeb;">
-                <div class="d-flex align-center justify-space-between">
-                    <div class="d-flex align-center gap-2">
-                        <MudSwitch T="bool" Value="@incluirFirmaGerenteAhora" ValueChanged="@OnToggleFirmaGerente" Color="Color.Warning" />
-                        <div>
-                            <MudText Typo="Typo.subtitle2" Class="fw-bold" Style="color: #92400e;">
-                                2. Firma Digital del Gerente del Cliente (Opcional ahora / posterior)
-                            </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                Puede firmar ahora mismo en la tablet o agregarse/imprimirse después en el recibo oficial.
-                            </MudText>
+                            <div class="px-3 py-1">
+                                @foreach (var cand in grupo)
+                                {
+                                    bool sel = CodigosSeleccionados.Contains(cand.CodigoEmpleado);
+                                    <div class="d-flex align-center justify-space-between py-1 border-bottom flex-wrap gap-1" style="font-size: 0.81rem;">
+                                        <MudCheckBox T="bool" Dense="true" Color="Color.Primary"
+                                                     Value="@sel"
+                                                     ValueChanged="@((bool val) => ToggleCandidato(cand, val))"
+                                                     Label="@($"#{cand.CodigoEmpleado} - {cand.NombreEmpleado}")" />
+                                        <div class="d-flex align-center gap-2 font-monospace">
+                                            <span class="text-secondary" style="font-size: 0.76rem;">
+                                                Jornada: @cand.HoraEntradaJornada - @cand.HoraSalidaJornada
+                                            </span>
+                                            <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Class="fw-bold my-0">
+                                                +@cand.HorasExtrasAutorizadas.ToString("N2") hrs (@cand.HoraInicioExtra - @cand.HoraFinExtra)
+                                            </MudChip>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
                         </div>
-                    </div>
-                    @if (incluirFirmaGerenteAhora)
-                    {
-                        <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.CleaningServices"
-                                   OnClick="@(() => LimpiarCanvas("canvas_he_ger"))">
-                            Limpiar Firma
-                        </MudButton>
                     }
-                </div>
+                </MudPaper>
 
-                @if (incluirFirmaGerenteAhora)
-                {
-                    <MudGrid Spacing="2" Class="mt-2 mb-2">
-                        <MudItem xs="12" sm="7">
-                            <MudTextField @bind-Value="GerenteNombre"
-                                          Label="Nombre del Gerente del Cliente"
-                                          Placeholder="Nombre completo del Gerente / Autorizador del Cliente"
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
-                                          Style="background: white;" />
-                        </MudItem>
-                        <MudItem xs="12" sm="5">
-                            <MudTextField @bind-Value="GerenteCargo"
-                                          Label="Cargo en el Cliente"
-                                          Variant="Variant.Outlined"
-                                          Margin="Margin.Dense"
-                                          Style="background: white;" />
-                        </MudItem>
-                    </MudGrid>
-                    <div style="border: 2px dashed #d97706; border-radius: 8px; background: #ffffff; overflow: hidden;">
-                        <canvas id="canvas_he_ger" style="width: 100%; height: 145px; display: block; touch-action: none; cursor: crosshair;"></canvas>
-                    </div>
-                }
-            </MudPaper>
+                <MudTextField @bind-Value="Motivo"
+                              Label="Observaciones (se envía al campo Observaciones en Helpdesk)"
+                              Placeholder="Ej: Descarga de contenedor / cierre de despacho autorizado por el cliente..."
+                              Lines="2"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            }
         </div>
     </DialogContent>
 
@@ -263,11 +149,11 @@
             @if (enviando)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Color="Color.Surface" />
-                <span>Generando Ticket(s) y Grabando Firma...</span>
+                <span>Generando Ticket(s) por Área...</span>
             }
             else
             {
-                <span>Generar Ticket Helpdesk (@ColaboradoresSeleccionados.Count)</span>
+                <span>Generar Ticket por Área (@AreasSeleccionadasCount área@(AreasSeleccionadasCount == 1 ? "" : "s") • @ColaboradoresSeleccionados.Count pers.)</span>
             }
         </MudButton>
     </DialogActions>
@@ -286,40 +172,40 @@
 
     private HashSet<int> CodigosSeleccionados = new();
     private List<ColaboradorAutorizacionItemDto> ColaboradoresSeleccionados = new();
-    private bool mostrarSelectorMultiple = false;
-    private string areaFiltroSeleccionada = string.Empty;
+    private string areaFiltroSeleccionada = "TODAS";
     private string busquedaCandidato = string.Empty;
-
-    private string HoraInicioExtra = "17:00";
-    private string HoraFinExtra = "20:00";
-    private decimal HorasExtrasAutorizadas = 3.00m;
     private string Motivo = string.Empty;
-
-    private string SupervisorNombre = string.Empty;
-    private string SupervisorCargo = "Supervisor del Cliente";
-
-    private bool incluirFirmaGerenteAhora = false;
-    private string GerenteNombre = string.Empty;
-    private string GerenteCargo = "Gerente del Cliente";
-
     private bool enviando = false;
 
     private static string NormalizarArea(string? area) =>
         string.IsNullOrWhiteSpace(area) ? "Operaciones" : area.Trim();
 
-    private List<string> AreasDisponibles =>
+    private List<ColaboradorAutorizacionItemDto> CandidatosConExtras =>
         (CandidatosDisponibles ?? new List<ColaboradorAutorizacionItemDto>())
+            .Where(c => c.HorasExtrasAutorizadas > 0m)
+            .OrderBy(c => NormalizarArea(c.Area))
+            .ThenBy(c => c.NombreEmpleado)
+            .ToList();
+
+    private List<string> AreasDisponibles =>
+        CandidatosConExtras
             .Select(c => NormalizarArea(c.Area))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(a => a)
             .ToList();
 
+    private int AreasSeleccionadasCount =>
+        ColaboradoresSeleccionados
+            .Select(c => NormalizarArea(c.Area))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
     private List<ColaboradorAutorizacionItemDto> CandidatosFiltrados
     {
         get
         {
-            IEnumerable<ColaboradorAutorizacionItemDto> q = CandidatosDisponibles ?? new List<ColaboradorAutorizacionItemDto>();
-            if (!string.IsNullOrWhiteSpace(areaFiltroSeleccionada))
+            IEnumerable<ColaboradorAutorizacionItemDto> q = CandidatosConExtras;
+            if (!string.IsNullOrWhiteSpace(areaFiltroSeleccionada) && areaFiltroSeleccionada != "TODAS")
             {
                 q = q.Where(c => string.Equals(NormalizarArea(c.Area), areaFiltroSeleccionada, StringComparison.OrdinalIgnoreCase));
             }
@@ -337,35 +223,49 @@
 
     protected override void OnInitialized()
     {
-        // Solo firma el Supervisor o Gerente del Cliente; nunca precargar un correo de @bussersa.com
-        if (!string.IsNullOrWhiteSpace(SupervisorInicial) && !SupervisorInicial.Contains("@bussersa", StringComparison.OrdinalIgnoreCase))
-        {
-            SupervisorNombre = SupervisorInicial.Trim();
-        }
-        if (ColaboradoresIniciales != null && ColaboradoresIniciales.Any())
-        {
-            foreach (var c in ColaboradoresIniciales)
-            {
-                CodigosSeleccionados.Add(c.CodigoEmpleado);
-                ColaboradoresSeleccionados.Add(c);
-            }
+        var inicialesValidos = (ColaboradoresIniciales ?? new List<ColaboradorAutorizacionItemDto>())
+            .Where(c => c.HorasExtrasAutorizadas > 0m)
+            .ToList();
 
-            var primero = ColaboradoresIniciales.First();
-            if (!string.IsNullOrWhiteSpace(primero.HoraInicioExtra))
-                HoraInicioExtra = primero.HoraInicioExtra;
-            if (!string.IsNullOrWhiteSpace(primero.HoraFinExtra))
-                HoraFinExtra = primero.HoraFinExtra;
-            RecalcularHoras();
-        }
-        else if (CandidatosDisponibles != null && CandidatosDisponibles.Any())
+        if (inicialesValidos.Any())
         {
-            mostrarSelectorMultiple = true;
+            foreach (var c in inicialesValidos)
+            {
+                if (CodigosSeleccionados.Add(c.CodigoEmpleado))
+                    ColaboradoresSeleccionados.Add(c);
+            }
+            var areasInit = inicialesValidos.Select(c => NormalizarArea(c.Area)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (areasInit.Count == 1)
+                areaFiltroSeleccionada = areasInit[0];
+        }
+        else if (CandidatosConExtras.Any())
+        {
+            // Por defecto pre-seleccionar todos los colaboradores que tienen extras según la regla
+            foreach (var c in CandidatosConExtras)
+            {
+                if (CodigosSeleccionados.Add(c.CodigoEmpleado))
+                    ColaboradoresSeleccionados.Add(c);
+            }
         }
     }
 
     private void OnAreaFiltroChanged(string nuevaArea)
     {
-        areaFiltroSeleccionada = nuevaArea ?? string.Empty;
+        areaFiltroSeleccionada = string.IsNullOrWhiteSpace(nuevaArea) ? "TODAS" : nuevaArea;
+    }
+
+    private void ToggleCandidato(ColaboradorAutorizacionItemDto cand, bool seleccionado)
+    {
+        if (seleccionado)
+        {
+            if (CodigosSeleccionados.Add(cand.CodigoEmpleado))
+                ColaboradoresSeleccionados.Add(cand);
+        }
+        else
+        {
+            CodigosSeleccionados.Remove(cand.CodigoEmpleado);
+            ColaboradoresSeleccionados.RemoveAll(x => x.CodigoEmpleado == cand.CodigoEmpleado);
+        }
     }
 
     private void SeleccionarFiltrados()
@@ -383,129 +283,30 @@
         ColaboradoresSeleccionados.Clear();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await Task.Delay(120);
-            await _js.InvokeVoidAsync("signaturePadInterop.init", "canvas_he_sup");
-        }
-    }
-
-    private void ToggleCandidato(ColaboradorAutorizacionItemDto cand, bool seleccionado)
-    {
-        if (seleccionado)
-        {
-            if (CodigosSeleccionados.Add(cand.CodigoEmpleado))
-                ColaboradoresSeleccionados.Add(cand);
-        }
-        else
-        {
-            CodigosSeleccionados.Remove(cand.CodigoEmpleado);
-            ColaboradoresSeleccionados.RemoveAll(x => x.CodigoEmpleado == cand.CodigoEmpleado);
-        }
-    }
-
-    private void OnHoraCambiada(string ini, string fin)
-    {
-        HoraInicioExtra = ini?.Trim() ?? string.Empty;
-        HoraFinExtra = fin?.Trim() ?? string.Empty;
-        RecalcularHoras();
-    }
-
-    private void RecalcularHoras()
-    {
-        if (TimeSpan.TryParse(HoraInicioExtra, out var tIni) && TimeSpan.TryParse(HoraFinExtra, out var tFin))
-        {
-            double diff = (tFin - tIni).TotalHours;
-            if (diff <= 0) diff += 24.0;
-            if (diff > 0 && diff <= 24)
-            {
-                HorasExtrasAutorizadas = Math.Round((decimal)diff, 2);
-            }
-        }
-    }
-
-    private async Task OnToggleFirmaGerente(bool val)
-    {
-        incluirFirmaGerenteAhora = val;
-        StateHasChanged();
-        if (val)
-        {
-            await Task.Delay(120);
-            await _js.InvokeVoidAsync("signaturePadInterop.init", "canvas_he_ger");
-        }
-    }
-
-    private async Task LimpiarCanvas(string id)
-    {
-        await _js.InvokeVoidAsync("signaturePadInterop.clear", id);
-    }
-
     private void Cancelar() => MudDialog.Cancel();
 
     private async Task EnviarAutorizacion()
     {
         if (!ColaboradoresSeleccionados.Any())
         {
-            _snackbar.Add("Seleccione al menos un colaborador.", Severity.Warning);
-            return;
-        }
-        if (HorasExtrasAutorizadas <= 0)
-        {
-            _snackbar.Add("Las horas extras autorizadas deben ser mayores a 0.", Severity.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(Motivo))
-        {
-            _snackbar.Add("Indique brevemente el motivo o actividad de las horas extras.", Severity.Warning);
+            _snackbar.Add("Seleccione al menos un colaborador con horas extras según la regla.", Severity.Warning);
             return;
         }
 
-        bool hayFirmaSup = await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_he_sup");
-        bool hayFirmaGer = incluirFirmaGerenteAhora && await _js.InvokeAsync<bool>("signaturePadInterop.hasSignature", "canvas_he_ger");
+        string obs = string.IsNullOrWhiteSpace(Motivo)
+            ? "Horas extras según regla del Área/Turno"
+            : Motivo.Trim();
 
-        if (!hayFirmaSup && !hayFirmaGer)
-        {
-            _snackbar.Add("Debe firmar en el recuadro del Supervisor (y/o del Gerente) antes de generar la tarea.", Severity.Warning);
-            return;
-        }
-        if (hayFirmaSup && string.IsNullOrWhiteSpace(SupervisorNombre))
-        {
-            _snackbar.Add("Ingrese el nombre del Supervisor que firma.", Severity.Warning);
-            return;
-        }
-        if (hayFirmaGer && string.IsNullOrWhiteSpace(GerenteNombre))
-        {
-            _snackbar.Add("Ingrese el nombre del Gerente que firma.", Severity.Warning);
-            return;
-        }
-
-        string? dataSup = hayFirmaSup ? await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_he_sup") : null;
-        string? dataGer = hayFirmaGer ? await _js.InvokeAsync<string>("signaturePadInterop.getDataUrl", "canvas_he_ger") : null;
-
-        foreach (var c in ColaboradoresSeleccionados)
-        {
-            c.HoraInicioExtra = HoraInicioExtra;
-            c.HoraFinExtra = HoraFinExtra;
-            c.HorasExtrasAutorizadas = HorasExtrasAutorizadas;
-        }
-
+        var primero = ColaboradoresSeleccionados.First();
         var req = new CrearAutorizacionHorasExtrasRequestDto
         {
             OperacionId = OperacionId,
             ClienteNombre = ClienteNombre,
             Fecha = Fecha.ToString("yyyy-MM-dd"),
-            HoraInicioExtra = HoraInicioExtra,
-            HoraFinExtra = HoraFinExtra,
-            HorasExtrasAutorizadas = HorasExtrasAutorizadas,
-            Motivo = Motivo.Trim(),
-            SupervisorNombre = SupervisorNombre.Trim(),
-            SupervisorCargo = SupervisorCargo.Trim(),
-            FirmaSupervisorBase64 = dataSup,
-            GerenteNombre = GerenteNombre.Trim(),
-            GerenteCargo = GerenteCargo.Trim(),
-            FirmaGerenteBase64 = dataGer,
+            HoraInicioExtra = string.IsNullOrWhiteSpace(primero.HoraInicioExtra) ? "17:00" : primero.HoraInicioExtra,
+            HoraFinExtra = string.IsNullOrWhiteSpace(primero.HoraFinExtra) ? "20:00" : primero.HoraFinExtra,
+            HorasExtrasAutorizadas = Math.Round(ColaboradoresSeleccionados.Average(x => x.HorasExtrasAutorizadas), 2),
+            Motivo = obs,
             UsuarioRegistro = UsuarioRegistro,
             BaseUrlPortal = _nav.BaseUri.TrimEnd('/'),
             Colaboradores = ColaboradoresSeleccionados
@@ -520,7 +321,8 @@
                 var res = resp.Model;
                 if (res.Exitosos > 0)
                 {
-                    _snackbar.Add($"Se generaron {res.Exitosos} ticket(s) de autorización de Horas Extras en Helpdesk con firma digital.", Severity.Success);
+                    int cantAreas = ColaboradoresSeleccionados.Select(x => NormalizarArea(x.Area)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                    _snackbar.Add($"Se generaron los tickets de Horas Extras para {cantAreas} área(s) ({res.Exitosos} colaborador(es)) en Helpdesk.", Severity.Success);
                     MudDialog.Close(DialogResult.Ok(res));
                 }
                 else
