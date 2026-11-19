@@ -93,7 +93,7 @@
                                  Color="@(filtroEstado == "CON_HE" ? Color.Secondary : Color.Default)"
                                  Variant="@(filtroEstado == "CON_HE" ? Variant.Filled : Variant.Outlined)"
                                  OnClick="@(() => filtroEstado = "CON_HE")">
-                            Con H.E. / Exceso Reloj (@Filas.Count(f => f.HorasExtrasElegidas > 0 || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m))
+                            Con H.E. Según Turno (@Filas.Count(f => f.HorasExtrasElegidas > 0m || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m))
                         </MudChip>
                     </div>
 
@@ -110,7 +110,11 @@
                         <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary">
                             <MudButton OnClick="@(() => AplicarModoHorarioMasivo("TURNO_CON_HE"))"
                                        Variant="@(modoMasivoActivo == "TURNO_CON_HE" ? Variant.Filled : Variant.Outlined)">
-                                Turno @NombreClienteConciliacion
+                                Turno + H.E.
+                            </MudButton>
+                            <MudButton OnClick="@(() => AplicarModoHorarioMasivo("TURNO_PURO"))"
+                                       Variant="@(modoMasivoActivo == "TURNO_PURO" ? Variant.Filled : Variant.Outlined)">
+                                Solo Turno
                             </MudButton>
                             <MudButton OnClick="@(() => AplicarModoHorarioMasivo("MARCACION_RELOJ"))"
                                        Variant="@(modoMasivoActivo == "MARCACION_RELOJ" ? Variant.Filled : Variant.Outlined)">
@@ -136,8 +140,8 @@
                             <th style="width: 135px;">Estado Asistencia</th>
                             <th style="min-width: 230px;">Colaborador (Bussersa / SINSA)</th>
                             <th style="min-width: 210px;">Área Operativa (Elegir)</th>
-                            <th style="min-width: 235px;">Horario a Registrar (Elegir)</th>
-                            <th style="width: 175px;">Horas Extras (Archivo)</th>
+                            <th style="min-width: 245px;">Horario a Registrar (Elegir)</th>
+                            <th style="width: 190px;">Horas Extras (Según Turno)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -239,23 +243,21 @@
                                 </td>
                                 <td>
                                     <MudSelect T="string"
-                                               @bind-Value="fila.ModoHorarioElegido"
+                                               Value="@fila.ModoHorarioElegido"
+                                               ValueChanged="@((string m) => OnModoHorarioFilaChanged(fila, m))"
                                                Variant="Variant.Outlined"
                                                Margin="Margin.Dense"
                                                Dense="true"
                                                Style="background: white; font-size: 0.76rem; font-family: monospace;">
                                         <MudSelectItem T="string" Value="@("TURNO_CON_HE")">
-                                            Turno SINSA: @fila.Sinsa.TurnoInicio - @(fila.HorasExtrasElegidas > 0m ? ConciliacionSinsaHelper.SumarHorasHm(fila.Sinsa.TurnoFin, fila.HorasExtrasElegidas) : fila.Sinsa.TurnoFin) (@fila.Sinsa.HorasOrdinarias.ToString("0.##")h ord)
+                                            Turno + H.E.: @fila.Sinsa.TurnoInicio - @fila.ObtenerHoraSalidaConExtrasElegidas() (@fila.Sinsa.HorasOrdinarias.ToString("0.##")h ord)
+                                        </MudSelectItem>
+                                        <MudSelectItem T="string" Value="@("TURNO_PURO")">
+                                            Solo Turno: @fila.Sinsa.TurnoInicio - @fila.Sinsa.TurnoFin
                                         </MudSelectItem>
                                         <MudSelectItem T="string" Value="@("MARCACION_RELOJ")">
                                             Reloj SINSA: @fila.Sinsa.HoraEntradaRelojHm - @fila.Sinsa.HoraSalidaRelojHm
                                         </MudSelectItem>
-                                        @if (fila.HorasExtrasElegidas > 0m)
-                                        {
-                                            <MudSelectItem T="string" Value="@("TURNO_PURO")">
-                                                Solo Turno: @fila.Sinsa.TurnoInicio - @fila.Sinsa.TurnoFin
-                                            </MudSelectItem>
-                                        }
                                         @if (fila.YaIngresadoEnAsistencia && !string.IsNullOrWhiteSpace(fila.HoraEntradaActual) && fila.HoraEntradaActual != "--:--")
                                         {
                                             <MudSelectItem T="string" Value="@("MANTENER_ACTUAL")">
@@ -264,7 +266,7 @@
                                         }
                                     </MudSelect>
                                     <div class="text-muted font-monospace mt-1" style="font-size: 0.68rem;">
-                                        Reloj: @fila.Sinsa.HoraEntradaRelojHm-@fila.Sinsa.HoraSalidaRelojHm
+                                        Turno: @fila.Sinsa.TurnoInicio-@fila.Sinsa.TurnoFin &bull; Reloj: @fila.Sinsa.HoraEntradaRelojHm-@fila.Sinsa.HoraSalidaRelojHm
                                         @if (fila.YaIngresadoEnAsistencia && fila.TieneDiferenciaHorario)
                                         {
                                             <span style="color: #b45309;"> &bull; En Asist.: @fila.HoraEntradaActual-@fila.HoraSalidaActual</span>
@@ -292,16 +294,22 @@
                                         <div class="font-monospace fw-bold mt-1" style="font-size: 0.68rem; color: #92400e;">
                                             Tarjeta: @fila.HoraInicioExtraElegida - @fila.HoraFinExtraElegida
                                         </div>
+                                        @if (!string.IsNullOrWhiteSpace(fila.OrigenHorasExtras))
+                                        {
+                                            <div class="text-muted" style="font-size: 0.65rem;">
+                                                @fila.OrigenHorasExtras
+                                            </div>
+                                        }
                                     }
-                                    else if (fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m)
+                                    else if (fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m)
                                     {
                                         <div class="d-flex align-center justify-space-between mt-1" style="font-size: 0.67rem;">
-                                            <span class="text-muted">Reloj +@fila.Sinsa.ExcesoRelojSobreTurnoHoras.ToString("0.##")h</span>
+                                            <span class="text-muted">Salida +@fila.Sinsa.ExcesoRelojSobreTurnoHoras.ToString("0.##")h</span>
                                             <a href="javascript:void(0)"
                                                @onclick="@(() => UsarExcesoRelojComoHe(fila))"
                                                style="color: #d97706; font-weight: 700; text-decoration: underline;"
-                                               title="Asignar la salida del reloj como Horas Extras">
-                                                Usar reloj
+                                               title="Asignar el exceso sobre el turno como Horas Extras">
+                                                Agregar H.E.
                                             </a>
                                         </div>
                                     }
@@ -375,7 +383,7 @@
                     q = q.Where(f => f.TieneDiferenciaArea || f.TieneDiferenciaHorario);
                     break;
                 case "CON_HE":
-                    q = q.Where(f => f.HorasExtrasElegidas > 0m || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.75m);
+                    q = q.Where(f => f.HorasExtrasElegidas > 0m || f.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m);
                     break;
             }
 
@@ -422,25 +430,53 @@
         modoMasivoActivo = modo;
         foreach (var f in Filas)
         {
-            f.ModoHorarioElegido = modo;
+            OnModoHorarioFilaChanged(f, modo);
+        }
+    }
+
+    private void OnModoHorarioFilaChanged(FilaConciliacionSinsaVm fila, string nuevoModo)
+    {
+        fila.ModoHorarioElegido = nuevoModo;
+        if (nuevoModo == "TURNO_PURO")
+        {
+            fila.HorasExtrasElegidas = 0m;
+            fila.HoraInicioExtraElegida = fila.Sinsa.TurnoFin;
+            fila.HoraFinExtraElegida = fila.Sinsa.TurnoFin;
+            fila.OrigenHorasExtras = "Solo turno ordinario";
+        }
+        else if (nuevoModo == "TURNO_CON_HE" || nuevoModo == "MARCACION_RELOJ")
+        {
+            var calc = fila.Sinsa.CalcularExtraSegunTurnoYDia(FechaJornada);
+            fila.HorasExtrasElegidas = calc.HorasExtras;
+            fila.HoraInicioExtraElegida = calc.HoraInicioExtra;
+            fila.HoraFinExtraElegida = calc.HoraFinExtra;
+            fila.OrigenHorasExtras = calc.OrigenTexto;
         }
     }
 
     private void OnHorasExtrasFilaChanged(FilaConciliacionSinsaVm fila, decimal nuevoValor)
     {
         fila.HorasExtrasElegidas = Math.Round(Math.Max(0m, nuevoValor), 2);
-        fila.HoraInicioExtraElegida = fila.Sinsa.TurnoFin;
+        string baseIni = FechaJornada.DayOfWeek == DayOfWeek.Sunday ? fila.Sinsa.TurnoInicio : fila.Sinsa.TurnoFin;
+        fila.HoraInicioExtraElegida = baseIni;
         fila.HoraFinExtraElegida = fila.HorasExtrasElegidas > 0m
-            ? ConciliacionSinsaHelper.SumarHorasHm(fila.Sinsa.TurnoFin, fila.HorasExtrasElegidas)
+            ? ConciliacionSinsaHelper.SumarHorasHm(baseIni, fila.HorasExtrasElegidas)
             : fila.Sinsa.TurnoFin;
+        fila.OrigenHorasExtras = fila.HorasExtrasElegidas > 0m ? "Ajuste manual supervisor" : "Sin horas extras";
+        if (fila.HorasExtrasElegidas > 0m && fila.ModoHorarioElegido == "TURNO_PURO")
+        {
+            fila.ModoHorarioElegido = "TURNO_CON_HE";
+        }
     }
 
     private void UsarExcesoRelojComoHe(FilaConciliacionSinsaVm fila)
     {
-        fila.ModoHorarioElegido = "MARCACION_RELOJ";
-        fila.HorasExtrasElegidas = fila.Sinsa.ExcesoRelojSobreTurnoHoras;
-        fila.HoraInicioExtraElegida = fila.Sinsa.TurnoFin;
+        var calc = fila.Sinsa.CalcularExtraSegunTurnoYDia(FechaJornada);
+        fila.ModoHorarioElegido = "TURNO_CON_HE";
+        fila.HorasExtrasElegidas = calc.HorasExtras > 0m ? calc.HorasExtras : fila.Sinsa.ExcesoRelojSobreTurnoHoras;
+        fila.HoraInicioExtraElegida = calc.HoraInicioExtra;
         fila.HoraFinExtraElegida = fila.Sinsa.HoraSalidaRelojHm;
+        fila.OrigenHorasExtras = calc.OrigenTexto;
     }
 
     private void VincularManual(FilaConciliacionSinsaVm fila, int? codigo)

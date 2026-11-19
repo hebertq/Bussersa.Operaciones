@@ -103,12 +103,9 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             get
             {
                 decimal span = DuracionBrutaTurnoHoras;
-                if (span <= 0m) return 1.00m;
-
-                decimal diff = span - HorasOrdinarias;
-                if (diff <= 0.25m) return 0.00m;
-                if (diff >= 0.75m && diff <= 1.35m) return 1.00m;
-                return Math.Round(Math.Max(0m, span - Math.Round(HorasOrdinarias * 2m, MidpointRounding.AwayFromZero) / 2m), 2);
+                if (span <= 8.00m) return 0.00m;
+                if (span >= 8.75m) return 1.00m;
+                return 0.50m;
             }
         }
 
@@ -120,16 +117,54 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public string HoraFinExtraSugerida =>
             HorasExtra > 0m ? ConciliacionSinsaHelper.SumarHorasHm(TurnoFin, HorasExtra) : HoraSalidaRelojHm;
 
-        public decimal ExcesoRelojSobreTurnoHoras
+        public decimal ExcesoRelojSobreTurnoHoras =>
+            ConciliacionSinsaHelper.CalcularExcesoSalidaSobreTurno(TurnoFin, HoraSalidaRelojHm);
+
+        /// <summary>
+        /// Calcula las Horas Extras directamente en base al Turno del día de la persona (TurnoInicio - TurnoFin)
+        /// y la fecha de la jornada:
+        /// - Si es Domingo (regla SINSA 100% extra): toda la jornada neta trabajada pasa a Horas Extras.
+        /// - De Lunes a Sábado: si la hora de salida del turno (TurnoFin) es menor a la hora de salida
+        ///   de la marcación (HoraSalidaRelojHm, con tolerancia >= 0.25h / 15 min de reloj), se asigna la
+        ///   extra directamente desde TurnoFin hasta HoraSalidaRelojHm (o el valor autorizado en archivo si fuese mayor).
+        /// </summary>
+        public (decimal HorasExtras, string HoraInicioExtra, string HoraFinExtra, string HoraSalidaJornada, string OrigenTexto) CalcularExtraSegunTurnoYDia(DateTime? fechaJornada = null)
         {
-            get
+            DateTime fEval = (fechaJornada ?? Fecha ?? DateTime.Today).Date;
+            decimal excesoReloj = ExcesoRelojSobreTurnoHoras;
+
+            if (fEval.DayOfWeek == DayOfWeek.Sunday)
             {
-                if (!TimeSpan.TryParse(TurnoFin, out var tFinTurno) || !TimeSpan.TryParse(HoraSalidaRelojHm, out var tSalReloj))
-                    return 0m;
-                double diff = (tSalReloj - tFinTurno).TotalHours;
-                if (diff < -12.0) diff += 24.0;
-                return diff >= 0.50 ? Math.Round((decimal)diff, 2) : 0m;
+                string salDom = excesoReloj >= 0.25m
+                    ? HoraSalidaRelojHm
+                    : (HorasExtra > 0m ? ConciliacionSinsaHelper.SumarHorasHm(TurnoFin, HorasExtra) : TurnoFin);
+                decimal brutasDom = ConciliacionSinsaHelper.CalcularDiferenciaHoras(TurnoInicio, salDom);
+                decimal comDom = brutasDom > TiempoComidaSugeridoTurno ? TiempoComidaSugeridoTurno : 0m;
+                decimal heDom = Math.Round(Math.Max(0m, brutasDom - comDom), 2);
+                if (HorasExtra > heDom)
+                {
+                    heDom = Math.Round(HorasExtra, 2);
+                }
+                return (heDom, TurnoInicio, salDom, salDom, "Domingo (100% Extra)");
             }
+
+            if (excesoReloj >= 0.25m)
+            {
+                if (HorasExtra > excesoReloj)
+                {
+                    string finAut = ConciliacionSinsaHelper.SumarHorasHm(TurnoFin, HorasExtra);
+                    return (Math.Round(HorasExtra, 2), TurnoFin, finAut, finAut, $"Archivo SINSA ({HorasExtra:0.##}h)");
+                }
+                return (excesoReloj, TurnoFin, HoraSalidaRelojHm, HoraSalidaRelojHm, $"Salida {HoraSalidaRelojHm} > Turno {TurnoFin}");
+            }
+
+            if (HorasExtra > 0m)
+            {
+                string finAut = ConciliacionSinsaHelper.SumarHorasHm(TurnoFin, HorasExtra);
+                return (Math.Round(HorasExtra, 2), TurnoFin, finAut, finAut, $"Archivo SINSA ({HorasExtra:0.##}h)");
+            }
+
+            return (0m, TurnoFin, TurnoFin, TurnoFin, "Dentro del turno");
         }
 
         public string TurnoNombreSugerido
@@ -167,12 +202,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public decimal HorasExtrasElegidas { get; set; }
         public string HoraInicioExtraElegida { get; set; } = "17:00";
         public string HoraFinExtraElegida { get; set; } = "18:00";
+        public string OrigenHorasExtras { get; set; } = string.Empty;
+        public DateTime FechaJornadaRef { get; set; } = DateTime.Today;
 
         public bool Vinculado => CodigoEmpleado.HasValue && CodigoEmpleado.Value > 0;
 
         public bool TieneDiferenciaArea =>
             YaIngresadoEnAsistencia &&
             !string.Equals((AreaActualAsistencia ?? "").Trim(), (Sinsa.Zona ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+        public string ObtenerHoraSalidaConExtrasElegidas()
+        {
+            if (HorasExtrasElegidas <= 0m)
+                return Sinsa.TurnoFin;
+            if (!string.IsNullOrWhiteSpace(HoraFinExtraElegida))
+                return HoraFinExtraElegida;
+            return ConciliacionSinsaHelper.SumarHorasHm(Sinsa.TurnoFin, HorasExtrasElegidas);
+        }
 
         public (string Entrada, string Salida, string Comida) ObtenerHorarioDestino()
         {
@@ -186,13 +232,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 case "MANTENER_ACTUAL":
                     if (YaIngresadoEnAsistencia && !string.IsNullOrWhiteSpace(HoraEntradaActual) && HoraEntradaActual != "--:--")
                         return (HoraEntradaActual, HoraSalidaActual, string.IsNullOrWhiteSpace(TiempoComidaActual) ? comidaSug : TiempoComidaActual);
-                    return (Sinsa.TurnoInicio, HorasExtrasElegidas > 0m ? ConciliacionSinsaHelper.SumarHorasHm(Sinsa.TurnoFin, HorasExtrasElegidas) : Sinsa.TurnoFin, comidaSug);
+                    return (Sinsa.TurnoInicio, ObtenerHoraSalidaConExtrasElegidas(), comidaSug);
                 case "TURNO_CON_HE":
                 default:
-                    string sal = HorasExtrasElegidas > 0m
-                        ? ConciliacionSinsaHelper.SumarHorasHm(Sinsa.TurnoFin, HorasExtrasElegidas)
-                        : Sinsa.TurnoFin;
-                    return (Sinsa.TurnoInicio, sal, comidaSug);
+                    return (Sinsa.TurnoInicio, ObtenerHoraSalidaConExtrasElegidas(), comidaSug);
             }
         }
 
@@ -201,10 +244,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             get
             {
                 if (!YaIngresadoEnAsistencia) return false;
-                string salEsperada = Sinsa.HorasExtra > 0m ? Sinsa.HoraSalidaTurnoConExtras : Sinsa.TurnoFin;
+                var calcTurno = Sinsa.CalcularExtraSegunTurnoYDia(FechaJornadaRef);
+                string salEsperada = calcTurno.HoraSalidaJornada;
                 bool coincideTurno = string.Equals(HoraEntradaActual, Sinsa.TurnoInicio, StringComparison.OrdinalIgnoreCase)
-                    && (string.Equals(HoraSalidaActual, salEsperada, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(HoraSalidaActual, Sinsa.TurnoFin, StringComparison.OrdinalIgnoreCase));
+                    && string.Equals(HoraSalidaActual, salEsperada, StringComparison.OrdinalIgnoreCase);
                 bool coincideReloj = string.Equals(HoraEntradaActual, Sinsa.HoraEntradaRelojHm, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(HoraSalidaActual, Sinsa.HoraSalidaRelojHm, StringComparison.OrdinalIgnoreCase);
                 return !coincideTurno && !coincideReloj;
@@ -421,7 +464,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             List<OdooEmployeeDto> catalogoOdoo,
             List<string> areasCatalogoCliente,
             IConciliacionClienteStrategy? estrategia = null,
-            string? nombreCliente = null)
+            string? nombreCliente = null,
+            DateTime? fechaJornada = null)
         {
             var resultado = new List<FilaConciliacionSinsaVm>();
             var usadosCodigo = new HashSet<int>();
@@ -429,6 +473,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             foreach (var reg in registrosCliente)
             {
+                DateTime fechaEval = (fechaJornada ?? reg.Fecha ?? DateTime.Today).Date;
+                var calcTurno = reg.CalcularExtraSegunTurnoYDia(fechaEval);
                 string zonaCanonica = ResolverAreaCanonica(reg.Zona, areasCatalogoCliente);
                 string puestoSug = estrategia != null
                     ? estrategia.SugerirPuestoBussersa(reg.PuestoSinsa)
@@ -446,13 +492,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     var emp = matchJornada.Emp;
                     usadosCodigo.Add(emp.CodigoEmpleado);
 
-                    decimal heDefault = Math.Round(reg.HorasExtra, 2);
-                    string iniExtra = reg.HoraInicioExtraSugerida;
-                    string finExtra = heDefault > 0m ? SumarHorasHm(iniExtra, heDefault) : reg.HoraSalidaRelojHm;
-
                     resultado.Add(new FilaConciliacionSinsaVm
                     {
                         Sinsa = reg,
+                        FechaJornadaRef = fechaEval,
                         CodigoEmpleado = emp.CodigoEmpleado,
                         IdEmpleado = emp.IdEmpleado > 0 ? emp.IdEmpleado : null,
                         NombreEmpleadoBussersa = emp.NombreEmpleado,
@@ -466,9 +509,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         SeleccionadoAplicar = true,
                         AreaElegida = zonaCanonica,
                         ModoHorarioElegido = "TURNO_CON_HE",
-                        HorasExtrasElegidas = heDefault,
-                        HoraInicioExtraElegida = iniExtra,
-                        HoraFinExtraElegida = finExtra
+                        HorasExtrasElegidas = calcTurno.HorasExtras,
+                        HoraInicioExtraElegida = calcTurno.HoraInicioExtra,
+                        HoraFinExtraElegida = calcTurno.HoraFinExtra,
+                        OrigenHorasExtras = calcTurno.OrigenTexto
                     });
                     continue;
                 }
@@ -490,13 +534,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     var pl = matchPlantilla.Pl;
                     usadosCodigo.Add(pl.CodigoEmpleado);
-                    decimal heDefault = Math.Round(reg.HorasExtra, 2);
-                    string iniExtra = reg.HoraInicioExtraSugerida;
-                    string finExtra = heDefault > 0m ? SumarHorasHm(iniExtra, heDefault) : reg.HoraSalidaRelojHm;
 
                     resultado.Add(new FilaConciliacionSinsaVm
                     {
                         Sinsa = reg,
+                        FechaJornadaRef = fechaEval,
                         CodigoEmpleado = pl.CodigoEmpleado,
                         IdEmpleado = pl.IdEmpleado > 0 ? pl.IdEmpleado : null,
                         NombreEmpleadoBussersa = pl.NombreEmpleado,
@@ -506,9 +548,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         SeleccionadoAplicar = true,
                         AreaElegida = zonaCanonica,
                         ModoHorarioElegido = "TURNO_CON_HE",
-                        HorasExtrasElegidas = heDefault,
-                        HoraInicioExtraElegida = iniExtra,
-                        HoraFinExtraElegida = finExtra
+                        HorasExtrasElegidas = calcTurno.HorasExtras,
+                        HoraInicioExtraElegida = calcTurno.HoraInicioExtra,
+                        HoraFinExtraElegida = calcTurno.HoraFinExtra,
+                        OrigenHorasExtras = calcTurno.OrigenTexto
                     });
                     continue;
                 }
@@ -524,13 +567,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     var od = matchOdoo.Od;
                     usadosCodigo.Add(od.CodigoEmpleado!.Value);
-                    decimal heDefault = Math.Round(reg.HorasExtra, 2);
-                    string iniExtra = reg.HoraInicioExtraSugerida;
-                    string finExtra = heDefault > 0m ? SumarHorasHm(iniExtra, heDefault) : reg.HoraSalidaRelojHm;
 
                     resultado.Add(new FilaConciliacionSinsaVm
                     {
                         Sinsa = reg,
+                        FechaJornadaRef = fechaEval,
                         CodigoEmpleado = od.CodigoEmpleado.Value,
                         IdEmpleado = od.Id > 0 ? od.Id : null,
                         NombreEmpleadoBussersa = od.Name,
@@ -540,9 +581,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         SeleccionadoAplicar = true,
                         AreaElegida = zonaCanonica,
                         ModoHorarioElegido = "TURNO_CON_HE",
-                        HorasExtrasElegidas = heDefault,
-                        HoraInicioExtraElegida = iniExtra,
-                        HoraFinExtraElegida = finExtra
+                        HorasExtrasElegidas = calcTurno.HorasExtras,
+                        HoraInicioExtraElegida = calcTurno.HoraInicioExtra,
+                        HoraFinExtraElegida = calcTurno.HoraFinExtra,
+                        OrigenHorasExtras = calcTurno.OrigenTexto
                     });
                     continue;
                 }
@@ -550,6 +592,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 resultado.Add(new FilaConciliacionSinsaVm
                 {
                     Sinsa = reg,
+                    FechaJornadaRef = fechaEval,
                     CodigoEmpleado = null,
                     NombreEmpleadoBussersa = string.Empty,
                     PuestoBussersa = puestoSug,
@@ -557,9 +600,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     SeleccionadoAplicar = false,
                     AreaElegida = zonaCanonica,
                     ModoHorarioElegido = "TURNO_CON_HE",
-                    HorasExtrasElegidas = Math.Round(reg.HorasExtra, 2),
-                    HoraInicioExtraElegida = reg.HoraInicioExtraSugerida,
-                    HoraFinExtraElegida = reg.HorasExtra > 0m ? SumarHorasHm(reg.HoraInicioExtraSugerida, reg.HorasExtra) : reg.HoraSalidaRelojHm
+                    HorasExtrasElegidas = calcTurno.HorasExtras,
+                    HoraInicioExtraElegida = calcTurno.HoraInicioExtra,
+                    HoraFinExtraElegida = calcTurno.HoraFinExtra,
+                    OrigenHorasExtras = calcTurno.OrigenTexto
                 });
             }
 
@@ -746,6 +790,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             if (t1 == t2) return 0m;
             double diff = (t2 - t1).TotalHours;
             if (diff < 0) diff += 24.0;
+            return Math.Round((decimal)diff, 2);
+        }
+
+        /// <summary>
+        /// Calcula el exceso real en horas cuando la hora de salida de la marcación supera la hora de fin del turno del día
+        /// (con tolerancia estándar de reloj biométrico >= 0.25h / 15 min), soportando salidas de madrugada post-turno.
+        /// </summary>
+        public static decimal CalcularExcesoSalidaSobreTurno(string? turnoFin, string? horaSalidaMarcacion)
+        {
+            if (!TimeSpan.TryParse(turnoFin, out var tFinTurno) || !TimeSpan.TryParse(horaSalidaMarcacion, out var tSalReloj))
+                return 0m;
+
+            double diff = (tSalReloj - tFinTurno).TotalHours;
+            if (diff < -12.0) diff += 24.0;
+            if (diff < 0.25 || diff > 14.0)
+                return 0m;
+
             return Math.Round((decimal)diff, 2);
         }
 

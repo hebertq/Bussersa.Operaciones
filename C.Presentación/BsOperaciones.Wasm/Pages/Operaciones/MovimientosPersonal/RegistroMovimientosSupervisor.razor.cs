@@ -2013,10 +2013,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 iniExtraActual = manItem.Dto.HoraInicioExtra;
                 finExtraActual = manItem.Dto.HoraFinExtra;
             }
-            else if (empleadosSinHorasExtrasConciliadosSinsa.ContainsKey(item.CodigoEmpleado))
-            {
-                heActual = 0m;
-            }
             else if (item.Asistio)
             {
                 var calcPrev = CalcularHorasExtrasSegunRegla(item, fRef);
@@ -2037,6 +2033,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 ["CargosDisponibles"] = cargosDisponibles,
                 ["ClientesAsignadosSupervisor"] = NombresMisClientes,
                 ["NombreClienteConciliacion"] = nombreCliConciliacion,
+                ["FechaJornada"] = fRef,
                 ["RegistroSinsa"] = regSinsa,
                 ["HorasExtrasActuales"] = heActual,
                 ["HoraInicioExtraActual"] = iniExtraActual,
@@ -5481,6 +5478,54 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
             decimal topeOrdinario;
             string reglaResumen;
+            string claveJornadaActual = $"{hEntStr}-{hSalStr}";
+
+            // Si existe el turno del día cargado desde el archivo del cliente (ej. SINSA), calcular en base al Turno del día de la persona
+            if (!string.IsNullOrWhiteSpace(emp.Cliente)
+                && emp.CodigoEmpleado > 0
+                && conciliacionesPorClienteFecha.TryGetValue(ClaveConciliacionClienteFecha(emp.Cliente, fecha.Date), out var estConcil)
+                && estConcil.RegistrosPorCodigo.TryGetValue(emp.CodigoEmpleado, out var regDia))
+            {
+                if (fecha.DayOfWeek == DayOfWeek.Sunday && domingo100)
+                {
+                    topeOrdinario = 0.00m;
+                    reglaResumen = "Domingo (100% Extra)";
+                    if (edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edDom)
+                        && string.Equals(edDom.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return (edDom.Horas, topeOrdinario, horasNetas, edDom.HoraIni, edDom.HoraFin, reglaResumen);
+                    }
+                    decimal heDom = horasNetas >= 0.25m ? horasNetas : 0m;
+                    return (heDom, topeOrdinario, horasNetas, hEntStr, hSalStr, reglaResumen);
+                }
+
+                decimal durBrutaTurno = ConciliacionSinsaHelper.CalcularDiferenciaHoras(regDia.TurnoInicio, regDia.TurnoFin);
+                decimal durNetaTurno = Math.Max(regDia.HorasOrdinarias, Math.Max(0m, durBrutaTurno - regDia.TiempoComidaSugeridoTurno));
+                topeOrdinario = durNetaTurno > 0m ? durNetaTurno : 8.00m;
+                reglaResumen = $"Turno {regDia.TurnoInicio}-{regDia.TurnoFin}";
+
+                if (edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edTurno)
+                    && string.Equals(edTurno.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (edTurno.Horas, topeOrdinario, horasNetas, edTurno.HoraIni, edTurno.HoraFin, reglaResumen);
+                }
+
+                decimal excesoSalidaSobreTurno = ConciliacionSinsaHelper.CalcularExcesoSalidaSobreTurno(regDia.TurnoFin, hSalStr);
+                if (excesoSalidaSobreTurno >= 0.25m)
+                {
+                    return (excesoSalidaSobreTurno, topeOrdinario, horasNetas, regDia.TurnoFin, hSalStr, reglaResumen);
+                }
+
+                return (0m, topeOrdinario, horasNetas, hSalStr, hSalStr, reglaResumen);
+            }
+
+            // Reconocer turnos ordinarios de 8.50h L-V / 5.50h Sáb en SINSA (Calidad de datos, Recepción mercadería, Proyectos 43/46/Especiales, Transporte 07:30-17:00)
+            bool esTurnoSinsa85Lv = opId == 23
+                && fecha.DayOfWeek != DayOfWeek.Sunday
+                && (areaClean.Contains("calidad de datos")
+                    || areaClean.Contains("recepcion mercaderia")
+                    || ((areaClean.Contains("proyectos 4") || areaClean.Contains("proyectos especiales")) && (hEntStr == "08:00" || hEntStr == "07:30"))
+                    || (areaClean.Contains("transporte") && hEntStr == "07:30" && fecha.DayOfWeek != DayOfWeek.Saturday));
 
             if (fecha.DayOfWeek == DayOfWeek.Sunday && domingo100)
             {
@@ -5497,6 +5542,13 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 topeOrdinario = 7.50m;
                 reglaResumen = "Mixto (7.50h)";
             }
+            else if (esTurnoSinsa85Lv)
+            {
+                topeOrdinario = fecha.DayOfWeek == DayOfWeek.Saturday ? 5.50m : 8.50m;
+                reglaResumen = fecha.DayOfWeek == DayOfWeek.Saturday
+                    ? $"Diurno Sáb ({topeOrdinario:0.##}h)"
+                    : $"Diurno L-V ({topeOrdinario:0.##}h)";
+            }
             else if (reglaDb != null)
             {
                 topeOrdinario = fecha.DayOfWeek == DayOfWeek.Saturday ? reglaDb.HorasSabado : reglaDb.HorasLunesViernes;
@@ -5507,18 +5559,14 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             }
             else
             {
-                // Respaldo exacto SINSA por Área si no hay conexión
-                bool esArea85_55 = areaClean.Contains("calidad de datos") || areaClean.Contains("recepcion mercaderia");
-                if (esArea85_55)
-                {
-                    topeOrdinario = fecha.DayOfWeek == DayOfWeek.Saturday ? 5.50m : 8.50m;
-                    reglaResumen = fecha.DayOfWeek == DayOfWeek.Saturday ? "Diurno Sáb (5.50h)" : "Diurno L-V (8.50h)";
-                }
-                else
-                {
-                    topeOrdinario = 8.00m;
-                    reglaResumen = "Diurno (8.00h)";
-                }
+                topeOrdinario = 8.00m;
+                reglaResumen = "Diurno (8.00h)";
+            }
+
+            if (emp.CodigoEmpleado > 0 && edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edManual)
+                && string.Equals(edManual.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
+            {
+                return (edManual.Horas, topeOrdinario, horasNetas, edManual.HoraIni, edManual.HoraFin, reglaResumen);
             }
 
             decimal horasExtras = Math.Round(Math.Max(0m, horasNetas - topeOrdinario), 2);
@@ -5529,20 +5577,6 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             double inicioExtraMinutos = (tEnt.TotalHours + (double)(topeOrdinario + comidaEfectiva)) * 60.0;
             int minsMod = ((int)Math.Round(inicioExtraMinutos) % 1440 + 1440) % 1440;
             string hInicioExtra = $"{minsMod / 60:D2}:{minsMod % 60:D2}";
-
-            string claveJornadaActual = $"{hEntStr}-{hSalStr}";
-            if (emp.CodigoEmpleado > 0
-                && empleadosSinHorasExtrasConciliadosSinsa.TryGetValue(emp.CodigoEmpleado, out var claveSinHeSinsa)
-                && string.Equals(claveSinHeSinsa, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
-            {
-                return (0m, topeOrdinario, horasNetas, hSalStr, hSalStr, "Conciliado SINSA (0 H.E.)");
-            }
-
-            if (emp.CodigoEmpleado > 0 && edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edManual)
-                && string.Equals(edManual.HoraBaseJornada, claveJornadaActual, StringComparison.OrdinalIgnoreCase))
-            {
-                return (edManual.Horas, topeOrdinario, horasNetas, edManual.HoraIni, edManual.HoraFin, reglaResumen);
-            }
 
             return (horasExtras, topeOrdinario, horasNetas, hInicioExtra, hSalStr, reglaResumen);
         }
@@ -6719,15 +6753,21 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 bool areaOk = ConciliacionSinsaHelper.NormalizarTextoBusqueda(emp.Area) == ConciliacionSinsaHelper.NormalizarTextoBusqueda(reg.Zona);
                 string hEnt = NormalizarFormatoHora(emp.HoraEntrada);
                 string hSal = NormalizarFormatoHora(emp.HoraSalida);
-                string salTurnoConHe = reg.HoraSalidaTurnoConExtras;
+                var calcTurno = reg.CalcularExtraSegunTurnoYDia(fRef);
+                string salEsperada = calcTurno.HoraSalidaJornada;
+                bool tieneOverrideCero = emp.CodigoEmpleado > 0
+                    && edicionesHorarioHePorEmpleado.TryGetValue(emp.CodigoEmpleado, out var edOv)
+                    && edOv.Horas <= 0m
+                    && string.Equals(edOv.HoraBaseJornada, $"{hEnt}-{hSal}", StringComparison.OrdinalIgnoreCase);
 
                 bool horarioOk = emp.Asistio && (
                     (string.Equals(hEnt, reg.TurnoInicio, StringComparison.OrdinalIgnoreCase)
-                        && (string.Equals(hSal, salTurnoConHe, StringComparison.OrdinalIgnoreCase) || string.Equals(hSal, reg.TurnoFin, StringComparison.OrdinalIgnoreCase)))
+                        && (string.Equals(hSal, salEsperada, StringComparison.OrdinalIgnoreCase)
+                            || (tieneOverrideCero && string.Equals(hSal, reg.TurnoFin, StringComparison.OrdinalIgnoreCase))))
                     || (string.Equals(hEnt, reg.HoraEntradaRelojHm, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(hSal, reg.HoraSalidaRelojHm, StringComparison.OrdinalIgnoreCase)));
 
-                string detalle = $"{estadoCli.NombreClienteMostrar}: Zona '{reg.Zona}' | Turno {reg.TurnoTexto} ({reg.HorasOrdinarias:0.##}h ord) | Reloj {reg.HoraEntradaRelojHm}-{reg.HoraSalidaRelojHm} | H.E.: {reg.HorasExtra:0.##}h";
+                string detalle = $"{estadoCli.NombreClienteMostrar}: Zona '{reg.Zona}' | Turno {reg.TurnoTexto} | Reloj {reg.HoraEntradaRelojHm}-{reg.HoraSalidaRelojHm} | H.E. según turno: {calcTurno.HorasExtras:0.##}h (Archivo: {reg.HorasExtra:0.##}h)";
                 return (emp.Asistio && areaOk && horarioOk) ? ("OK", detalle) : ("DIF", detalle);
             }
 
@@ -6761,43 +6801,26 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             string hEntNorm = NormalizarFormatoHora(emp.HoraEntrada);
             string hSalNorm = NormalizarFormatoHora(emp.HoraSalida);
             string claveBase = $"{hEntNorm}-{hSalNorm}";
-            string etiquetaEst = ConciliacionClienteFactory.ObtenerEstrategia(emp.Cliente, ResolverOperacionIdCliente(emp.Cliente))?.NombreClienteMostrar ?? emp.Cliente;
 
             itemsHorasExtrasManuales.RemoveAll(m => m.Fecha.Date == fRef && m.Dto.CodigoEmpleado == emp.CodigoEmpleado);
+            empleadosSinHorasExtrasConciliadosSinsa.Remove(emp.CodigoEmpleado);
 
             if (horasExtras > 0m && emp.Asistio)
             {
-                empleadosSinHorasExtrasConciliadosSinsa.Remove(emp.CodigoEmpleado);
                 string iniEx = string.IsNullOrWhiteSpace(horaInicioExtra) ? "17:00" : NormalizarFormatoHora(horaInicioExtra);
                 string finEx = string.IsNullOrWhiteSpace(horaFinExtra)
                     ? ConciliacionSinsaHelper.SumarHorasHm(iniEx, horasExtras)
                     : NormalizarFormatoHora(horaFinExtra);
 
                 edicionesHorarioHePorEmpleado[emp.CodigoEmpleado] = (claveBase, iniEx, finEx, Math.Round(horasExtras, 2));
-
-                itemsHorasExtrasManuales.Add((
-                    string.IsNullOrWhiteSpace(emp.Cliente) ? "Sinsa" : emp.Cliente.Trim(),
-                    fRef,
-                    new ColaboradorAutorizacionItemDto
-                    {
-                        MovimientoDiarioId = emp.Id > 0 ? emp.Id : null,
-                        EmployeeId = emp.IdEmpleado > 0 ? emp.IdEmpleado : null,
-                        CodigoEmpleado = emp.CodigoEmpleado,
-                        NombreEmpleado = emp.NombreEmpleado,
-                        Area = string.IsNullOrWhiteSpace(emp.Area) ? "Operaciones" : emp.Area.Trim(),
-                        Cargo = string.IsNullOrWhiteSpace(emp.Puesto) ? "6-Operador de almacen" : emp.Puesto.Trim(),
-                        HoraEntradaJornada = hEntNorm,
-                        HoraSalidaJornada = hSalNorm,
-                        HoraInicioExtra = iniEx,
-                        HoraFinExtra = finEx,
-                        HorasExtrasAutorizadas = Math.Round(horasExtras, 2),
-                        MotivoIndividual = $"Conciliación {etiquetaEst}"
-                    }));
+            }
+            else if (emp.Asistio)
+            {
+                edicionesHorarioHePorEmpleado[emp.CodigoEmpleado] = (claveBase, hSalNorm, hSalNorm, 0m);
             }
             else
             {
                 edicionesHorarioHePorEmpleado.Remove(emp.CodigoEmpleado);
-                empleadosSinHorasExtrasConciliadosSinsa[emp.CodigoEmpleado] = claveBase;
             }
         }
 
@@ -6919,7 +6942,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 catalogoEmpleadosOdoo,
                 areasCli,
                 estrategia,
-                cliNombre);
+                cliNombre,
+                estadoCli.FechaJornada);
 
             estadoCli.RegistrosPorCodigo.Clear();
             foreach (var f in filas.Where(x => x.Vinculado))
