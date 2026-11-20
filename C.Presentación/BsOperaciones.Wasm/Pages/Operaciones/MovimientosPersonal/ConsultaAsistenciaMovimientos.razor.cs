@@ -62,14 +62,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     query = query.Where(m => (m.TicketRedmineId.HasValue && m.TicketRedmineId > 0)
                                           || (m.TicketViaticoId.HasValue && m.TicketViaticoId > 0)
                                           || (m.TicketBonoId.HasValue && m.TicketBonoId > 0)
-                                          || (m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0));
+                                          || (m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0)
+                                          || (m.TicketHorasExtrasId.HasValue && m.TicketHorasExtrasId > 0));
                 }
                 else if (filtroAsistencia == "SIN_TICKETS")
                 {
                     query = query.Where(m => (!m.TicketRedmineId.HasValue || m.TicketRedmineId <= 0)
                                           && (!m.TicketViaticoId.HasValue || m.TicketViaticoId <= 0)
                                           && (!m.TicketBonoId.HasValue || m.TicketBonoId <= 0)
-                                          && (!m.TicketAusenciaId.HasValue || m.TicketAusenciaId <= 0));
+                                          && (!m.TicketAusenciaId.HasValue || m.TicketAusenciaId <= 0)
+                                          && (!m.TicketHorasExtrasId.HasValue || m.TicketHorasExtrasId <= 0));
+                }
+                else if (filtroAsistencia == "CON_HORAS_EXTRAS")
+                {
+                    query = query.Where(m => m.HorasExtras > 0 || (m.TicketHorasExtrasId.HasValue && m.TicketHorasExtrasId > 0));
                 }
 
                 // 2. Filtro de Texto Libre (Nombre, Código, Puesto, Observaciones o Tickets)
@@ -87,7 +93,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         (m.TicketRedmineId.HasValue && m.TicketRedmineId.Value.ToString().Contains(txt)) ||
                         (m.TicketViaticoId.HasValue && m.TicketViaticoId.Value.ToString().Contains(txt)) ||
                         (m.TicketBonoId.HasValue && m.TicketBonoId.Value.ToString().Contains(txt)) ||
-                        (m.TicketAusenciaId.HasValue && m.TicketAusenciaId.Value.ToString().Contains(txt))
+                        (m.TicketAusenciaId.HasValue && m.TicketAusenciaId.Value.ToString().Contains(txt)) ||
+                        (m.TicketHorasExtrasId.HasValue && m.TicketHorasExtrasId.Value.ToString().Contains(txt))
                     );
                 }
 
@@ -105,6 +112,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             .Where(m => m.Asistio)
             .Sum(m => CalcularHorasEfectivas(m.HoraEntrada, m.HoraSalida, m.TiempoComida));
 
+        protected decimal TotalHorasExtras => movimientosFiltrados
+            .Where(m => m.Asistio)
+            .Sum(m => m.HorasExtras);
+
+        protected int TotalRegistrosConHe => movimientosFiltrados.Count(m => m.Asistio && m.HorasExtras > 0);
+
         protected decimal TotalViaticosTrasp => movimientosFiltrados.Sum(m => m.VtcoTrasp);
         protected decimal TotalViaticosAlim => movimientosFiltrados.Sum(m => m.VtcoAlim);
         protected decimal TotalViaticosBnc => movimientosFiltrados.Sum(m => decimal.TryParse(m.Bnc, out var b) ? b : 0);
@@ -114,7 +127,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             (m.TicketRedmineId.HasValue && m.TicketRedmineId > 0) ||
             (m.TicketViaticoId.HasValue && m.TicketViaticoId > 0) ||
             (m.TicketBonoId.HasValue && m.TicketBonoId > 0) ||
-            (m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0)
+            (m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0) ||
+            (m.TicketHorasExtrasId.HasValue && m.TicketHorasExtrasId > 0)
         );
 
         // --- CICLO DE VIDA ---
@@ -378,10 +392,10 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 string[] headers = new[]
                 {
                     "#", "Fecha", "Cliente (Operación)", "Cliente Nómina (Préstamo)", "Área", "Carnet / Código", "Nombre del Colaborador",
-                    "Puesto", "Turno", "Asistió", "Entrada", "Salida", "Comida (hrs)", "Horas Efectivas",
+                    "Puesto", "Turno", "Asistió", "Entrada", "Salida", "Comida (hrs)", "Horas Efectivas", "Horas Extras (hrs)", "Rango H.E.",
                     "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono / Nómina (C$)", "Total Viáticos / Bonos (C$)",
                     "Tipo Ausencia", "Días Ausencia", "Ticket Movimiento", "Ticket Viático", "Ticket Bono",
-                    "Ticket Ausencia", "Estado", "Registrado Por (Supervisor)", "Fecha Creación", "Observaciones"
+                    "Ticket Ausencia", "Ticket Horas Extras", "Estado H.E.", "Estado", "Registrado Por (Supervisor)", "Fecha Creación", "Observaciones"
                 };
 
                 var headerRow = sheet.CreateRow(3);
@@ -418,33 +432,43 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     cHoras.SetCellValue(horas);
                     cHoras.CellStyle = numberStyle;
 
-                    var cTrasp = row.CreateCell(14);
+                    var cHe = row.CreateCell(14);
+                    cHe.SetCellValue(m.Asistio ? (double)m.HorasExtras : 0);
+                    cHe.CellStyle = numberStyle;
+
+                    row.CreateCell(15).SetCellValue(m.Asistio && m.HorasExtras > 0 && !string.IsNullOrWhiteSpace(m.HoraInicioExtra)
+                        ? $"{m.HoraInicioExtra}-{m.HoraFinExtra}"
+                        : "");
+
+                    var cTrasp = row.CreateCell(16);
                     cTrasp.SetCellValue((double)m.VtcoTrasp);
                     cTrasp.CellStyle = currencyStyle;
 
-                    var cAlim = row.CreateCell(15);
+                    var cAlim = row.CreateCell(17);
                     cAlim.SetCellValue((double)m.VtcoAlim);
                     cAlim.CellStyle = currencyStyle;
 
                     double bnc = double.TryParse(m.Bnc, out var bVal) ? bVal : 0;
-                    var cBnc = row.CreateCell(16);
+                    var cBnc = row.CreateCell(18);
                     cBnc.SetCellValue(bnc);
                     cBnc.CellStyle = currencyStyle;
 
-                    var cTotV = row.CreateCell(17);
+                    var cTotV = row.CreateCell(19);
                     cTotV.SetCellValue((double)m.VtcoTrasp + (double)m.VtcoAlim + bnc);
                     cTotV.CellStyle = currencyStyle;
 
-                    row.CreateCell(18).SetCellValue(!m.Asistio ? m.TipoAusencia : "");
-                    row.CreateCell(19).SetCellValue(!m.Asistio ? (double)(m.DiasAusencia ?? 1.0m) : 0);
-                    row.CreateCell(20).SetCellValue(m.TicketRedmineId.HasValue && m.TicketRedmineId > 0 ? m.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(21).SetCellValue(m.TicketViaticoId.HasValue && m.TicketViaticoId > 0 ? m.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(22).SetCellValue(m.TicketBonoId.HasValue && m.TicketBonoId > 0 ? m.TicketBonoId.Value.ToString() : "");
-                    row.CreateCell(23).SetCellValue(m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0 ? m.TicketAusenciaId.Value.ToString() : "");
-                    row.CreateCell(24).SetCellValue(m.Estado);
-                    row.CreateCell(25).SetCellValue(m.UsuarioRegistro ?? "");
-                    row.CreateCell(26).SetCellValue(m.FechaCreacion?.ToString("yyyy-MM-dd HH:mm") ?? "");
-                    row.CreateCell(27).SetCellValue(m.Observaciones ?? "");
+                    row.CreateCell(20).SetCellValue(!m.Asistio ? m.TipoAusencia : "");
+                    row.CreateCell(21).SetCellValue(!m.Asistio ? (double)(m.DiasAusencia ?? 1.0m) : 0);
+                    row.CreateCell(22).SetCellValue(m.TicketRedmineId.HasValue && m.TicketRedmineId > 0 ? m.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(23).SetCellValue(m.TicketViaticoId.HasValue && m.TicketViaticoId > 0 ? m.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(24).SetCellValue(m.TicketBonoId.HasValue && m.TicketBonoId > 0 ? m.TicketBonoId.Value.ToString() : "");
+                    row.CreateCell(25).SetCellValue(m.TicketAusenciaId.HasValue && m.TicketAusenciaId > 0 ? m.TicketAusenciaId.Value.ToString() : "");
+                    row.CreateCell(26).SetCellValue(m.TicketHorasExtrasId.HasValue && m.TicketHorasExtrasId > 0 ? m.TicketHorasExtrasId.Value.ToString() : "");
+                    row.CreateCell(27).SetCellValue(m.EstadoTicketHorasExtras ?? "");
+                    row.CreateCell(28).SetCellValue(m.Estado);
+                    row.CreateCell(29).SetCellValue(m.UsuarioRegistro ?? "");
+                    row.CreateCell(30).SetCellValue(m.FechaCreacion?.ToString("yyyy-MM-dd HH:mm") ?? "");
+                    row.CreateCell(31).SetCellValue(m.Observaciones ?? "");
 
                     rowIdx++;
                 }
@@ -459,19 +483,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 totalHorasCell.SetCellValue((double)TotalHorasEfectivas);
                 totalHorasCell.CellStyle = numberStyle;
 
-                var totalTraspCell = totalRow.CreateCell(14);
+                var totalHeCell = totalRow.CreateCell(14);
+                totalHeCell.SetCellValue((double)TotalHorasExtras);
+                totalHeCell.CellStyle = numberStyle;
+
+                var totalTraspCell = totalRow.CreateCell(16);
                 totalTraspCell.SetCellValue((double)TotalViaticosTrasp);
                 totalTraspCell.CellStyle = totalCurrencyStyle;
 
-                var totalAlimCell = totalRow.CreateCell(15);
+                var totalAlimCell = totalRow.CreateCell(17);
                 totalAlimCell.SetCellValue((double)TotalViaticosAlim);
                 totalAlimCell.CellStyle = totalCurrencyStyle;
 
-                var totalBncCell = totalRow.CreateCell(16);
+                var totalBncCell = totalRow.CreateCell(18);
                 totalBncCell.SetCellValue((double)TotalViaticosBnc);
                 totalBncCell.CellStyle = totalCurrencyStyle;
 
-                var totalGlobalCell = totalRow.CreateCell(17);
+                var totalGlobalCell = totalRow.CreateCell(19);
                 totalGlobalCell.SetCellValue((double)TotalViaticosGlobal);
                 totalGlobalCell.CellStyle = totalCurrencyStyle;
 
@@ -492,20 +520,24 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     10, // 11: Salida
                     12, // 12: Comida (hrs)
                     14, // 13: Horas Efectivas
-                    20, // 14: Viático Transporte (C$)
-                    20, // 15: Viático Alimentación (C$)
-                    16, // 16: Bono / Nómina (C$)
-                    20, // 17: Total Viáticos / Bonos (C$)
-                    22, // 18: Tipo Ausencia
-                    14, // 19: Días Ausencia
-                    18, // 20: Ticket Movimiento
-                    18, // 21: Ticket Viático
-                    18, // 22: Ticket Bono
-                    18, // 23: Ticket Ausencia
-                    14, // 24: Estado
-                    26, // 25: Registrado Por
-                    18, // 26: Fecha Creación
-                    30  // 27: Observaciones
+                    16, // 14: Horas Extras (hrs)
+                    14, // 15: Rango H.E.
+                    20, // 16: Viático Transporte (C$)
+                    20, // 17: Viático Alimentación (C$)
+                    16, // 18: Bono / Nómina (C$)
+                    20, // 19: Total Viáticos / Bonos (C$)
+                    22, // 20: Tipo Ausencia
+                    14, // 21: Días Ausencia
+                    18, // 22: Ticket Movimiento
+                    18, // 23: Ticket Viático
+                    18, // 24: Ticket Bono
+                    18, // 25: Ticket Ausencia
+                    18, // 26: Ticket Horas Extras
+                    16, // 27: Estado H.E.
+                    14, // 28: Estado
+                    26, // 29: Registrado Por
+                    18, // 30: Fecha Creación
+                    30  // 31: Observaciones
                 };
 
                 for (int i = 0; i < headers.Length; i++)

@@ -129,6 +129,7 @@
                     <MudSelectItem Value="@("AUSENCIAS")">Solo Ausencias (Faltas/Vac.)</MudSelectItem>
                     <MudSelectItem Value="@("CON_TICKETS")">Con Tickets Helpdesk</MudSelectItem>
                     <MudSelectItem Value="@("SIN_TICKETS")">Sin Tickets Helpdesk</MudSelectItem>
+                    <MudSelectItem Value="@("CON_HORAS_EXTRAS")">Con Horas Extras</MudSelectItem>
                 </MudSelect>
             </MudItem>
 
@@ -206,12 +207,14 @@
             </MudPaper>
         </MudItem>
 
-        @* KPI 4: Horas Efectivas *@
+        @* KPI 4: Horas Efectivas & Extras *@
         <MudItem xs="6" sm="4" md="2">
             <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #e0e7ff; border-radius: 12px; background: #eef2ff;">
                 <MudText Typo="Typo.caption" Style="color: #3730a3; font-weight: 700;">HORAS EFECTIVAS</MudText>
                 <MudText Typo="Typo.h5" Class="fw-bold" Style="color: #4338ca;">@(TotalHorasEfectivas.ToString("N1"))</MudText>
-                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #4338ca;">Descontando comida</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #b45309; font-weight: 700;">
+                    @(TotalHorasExtras > 0 ? $"⏱️ +{TotalHorasExtras:N2}h H.E. ({TotalRegistrosConHe})" : "Sin horas extras")
+                </MudText>
             </MudPaper>
         </MudItem>
 
@@ -229,7 +232,7 @@
             <MudPaper Elevation="0" Class="pa-3 text-center" Style="border: 1px solid #e2e8f0; border-radius: 12px; background: white;">
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">TICKETS HELPDESK</MudText>
                 <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Dark">@TotalTicketsCreados</MudText>
-                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #64748b;">Mov / Vtc / Aus / Bono</MudText>
+                <MudText Typo="Typo.caption" Style="font-size: 0.7rem; color: #64748b;">Mov / Vtc / Bono / Aus / H.E.</MudText>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -263,9 +266,10 @@
             <MudTh Style="min-width: 120px;">Área</MudTh>
             <MudTh Style="min-width: 220px;">Colaborador</MudTh>
             <MudTh Style="min-width: 140px;">Horario & Horas</MudTh>
+            <MudTh Style="min-width: 110px;">Horas Extras</MudTh>
             <MudTh Style="min-width: 100px;">Asistencia</MudTh>
             <MudTh Style="min-width: 110px;">Viáticos / Bonos</MudTh>
-            <MudTh Style="min-width: 160px;">Tickets Helpdesk</MudTh>
+            <MudTh Style="min-width: 185px;">Tickets Helpdesk</MudTh>
         </HeaderContent>
 
         <RowTemplate>
@@ -336,6 +340,33 @@
                 else
                 {
                     <span class="text-secondary" style="font-size: 0.75rem;">--:--</span>
+                }
+            </MudTd>
+
+            @* Horas Extras & Rango *@
+            <MudTd DataLabel="Horas Extras">
+                @if (context.Asistio && context.HorasExtras > 0)
+                {
+                    <div class="d-flex flex-column align-start">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="@(context.TicketHorasExtrasId.HasValue && context.TicketHorasExtrasId > 0 ? Color.Success : Color.Warning)"
+                                 Variant="Variant.Filled"
+                                 Style="height: 20px; font-size: 0.72rem; font-weight: 700;"
+                                 Title="@(!string.IsNullOrWhiteSpace(context.HoraInicioExtra) ? $"Rango extra: {context.HoraInicioExtra}-{context.HoraFinExtra}" : "Horas extras registradas")">
+                            ⏱️ +@context.HorasExtras.ToString("N2")h
+                        </MudChip>
+                        @if (!string.IsNullOrWhiteSpace(context.HoraInicioExtra) && !string.IsNullOrWhiteSpace(context.HoraFinExtra))
+                        {
+                            <span class="font-monospace text-muted" style="font-size: 0.65rem; padding-left: 2px;">
+                                @context.HoraInicioExtra-@context.HoraFinExtra
+                            </span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <span class="font-monospace text-secondary" style="font-size: 0.75rem;">0.00</span>
                 }
             </MudTd>
 
@@ -416,7 +447,23 @@
                             </MudChip>
                         </a>
                     }
-                    @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue)
+                    @if (context.TicketHorasExtrasId.HasValue && context.TicketHorasExtrasId > 0)
+                    {
+                        bool heAprobada = string.Equals(context.EstadoTicketHorasExtras, "EN ODOO", StringComparison.OrdinalIgnoreCase)
+                                       || string.Equals(context.EstadoTicketHorasExtras, "RESUELTA", StringComparison.OrdinalIgnoreCase);
+                        <a href="https://helpdesk.bussersa.com/issues/@context.TicketHorasExtrasId" target="_blank" style="text-decoration:none;" title="@($"Ticket Horas Extras ({(context.HorasExtras > 0 ? $"{context.HorasExtras:N2}h • " : "")}{context.EstadoTicketHorasExtras ?? "PENDIENTE"})")">
+                            <MudChip T="string" Size="Size.Small" Color="@(heAprobada ? Color.Success : Color.Warning)" Variant="Variant.Filled" Style="height: 19px; font-size: 0.68rem; font-weight: 700; padding: 0 5px;">
+                                ⏱️ H.E. #@context.TicketHorasExtrasId@(context.HorasExtras > 0 ? $" ({context.HorasExtras:N2}h)" : "")
+                            </MudChip>
+                        </a>
+                    }
+                    else if (context.Asistio && context.HorasExtras > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" Style="height: 19px; font-size: 0.66rem; padding: 0 5px;" Title="Horas extras calculadas pendientes de enviar ticket a Helpdesk">
+                            ⏱️ H.E. sin ticket (@context.HorasExtras.ToString("N2")h)
+                        </MudChip>
+                    }
+                    @if (!context.TicketRedmineId.HasValue && !context.TicketViaticoId.HasValue && !context.TicketBonoId.HasValue && !context.TicketAusenciaId.HasValue && !context.TicketHorasExtrasId.HasValue && context.HorasExtras <= 0)
                     {
                         <span class="text-secondary" style="font-size: 0.70rem;">Sin tickets</span>
                     }

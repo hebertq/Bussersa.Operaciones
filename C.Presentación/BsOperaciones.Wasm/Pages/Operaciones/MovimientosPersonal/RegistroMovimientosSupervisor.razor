@@ -896,7 +896,7 @@
                                         </div>
                                         @* Tickets de Helpdesk *@
                                         @{
-                                            var autHeCard = ObtenerAutorizacionHeEmpleado(emp.CodigoEmpleado);
+                                            var resHeCard = ObtenerResumenHeAsistencia(emp);
                                         }
                                         <div class="d-flex align-center gap-1 flex-wrap pt-1 border-top mt-1" style="font-size: 0.72rem;">
                                             <span class="text-muted fw-bold" style="font-size: 0.68rem;">Tickets:</span>
@@ -940,24 +940,27 @@
                                                     </MudLink>
                                                 </MudTooltip>
                                             }
-                                            @if (autHeCard != null)
+                                            @if (resHeCard.TicketId.HasValue && resHeCard.TicketId > 0)
                                             {
-                                                <MudTooltip Text="@($"H.E.: {autHeCard.HorasExtrasAutorizadas:N2}h ({autHeCard.HoraInicioExtra}-{autHeCard.HoraFinExtra})")" Arrow="true">
-                                                    <MudChip T="string" Color="@(autHeCard.Estado == "RESUELTA" ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;" OnClick="@(() => SetActiveTab(6))">
-                                                        H.E. @(autHeCard.TicketRedmineId.HasValue ? $"#{autHeCard.TicketRedmineId}" : $"{autHeCard.HorasExtrasAutorizadas:N1}h")
-                                                    </MudChip>
+                                                bool heOkCard = string.Equals(resHeCard.EstadoTicket, "RESUELTA", StringComparison.OrdinalIgnoreCase)
+                                                             || string.Equals(resHeCard.EstadoTicket, "EN ODOO", StringComparison.OrdinalIgnoreCase);
+                                                <MudTooltip Text="@($"Ver Ticket H.E. #{resHeCard.TicketId} en Helpdesk ({resHeCard.HorasExtras:N2}h • {resHeCard.EstadoTicket})")" Arrow="true">
+                                                    <MudLink Href="@($"https://helpdesk.bussersa.com/issues/{resHeCard.TicketId}")" Target="_blank" Underline="Underline.None">
+                                                        <MudChip T="string" Color="@(heOkCard ? Color.Success : Color.Warning)" Variant="Variant.Filled" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px;">
+                                                            H.E. #@resHeCard.TicketId (@resHeCard.HorasExtras.ToString("N2")h)
+                                                        </MudChip>
+                                                    </MudLink>
                                                 </MudTooltip>
                                             }
-                                            else if (TieneHorasExtrasSegunRegla(emp) && ClientePermiteHorasExtras(emp.Cliente))
+                                            else if (resHeCard.HorasExtras > 0m)
                                             {
-                                                var heCalcCard = CalcularHorasExtrasSegunRegla(emp, (fechaSeleccionada ?? DateTime.Today).Date);
-                                                <MudTooltip Text="@($"H.E. detectada: +{heCalcCard.HorasExtras:N2}h ({heCalcCard.HoraInicioExtra}-{heCalcCard.HoraFinExtra}) - Clic para ver tarjeta")" Arrow="true">
+                                                <MudTooltip Text="@($"H.E. detectada sin ticket aún: +{resHeCard.HorasExtras:N2}h ({resHeCard.HoraInicioExtra}-{resHeCard.HoraFinExtra}) - Clic para ver tarjeta")" Arrow="true">
                                                     <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Style="height: 18px; font-size: 0.65rem; font-weight: 700; padding: 0 4px; cursor: pointer;" OnClick="@(() => SetActiveTab(6))">
-                                                        +@heCalcCard.HorasExtras.ToString("N2")h H.E.
+                                                        +@resHeCard.HorasExtras.ToString("N2")h H.E. (Sin ticket)
                                                     </MudChip>
                                                 </MudTooltip>
                                             }
-                                            @if (!emp.TicketRedmineId.HasValue && !emp.TicketViaticoId.HasValue && !emp.TicketBonoId.HasValue && !emp.TicketAusenciaId.HasValue && autHeCard == null)
+                                            @if (!emp.TicketRedmineId.HasValue && !emp.TicketViaticoId.HasValue && !emp.TicketBonoId.HasValue && !emp.TicketAusenciaId.HasValue && !resHeCard.TicketId.HasValue && resHeCard.HorasExtras <= 0m)
                                             {
                                                 <span class="text-muted font-monospace" style="font-size: 0.68rem;">—</span>
                                             }
@@ -1046,7 +1049,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
-                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
+                                <MudTh Style="width: 125px; min-width: 118px;">H.E. & Ticket</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -1103,7 +1106,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 190px;">Cargo / Puesto</MudTh>
-                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
+                                <MudTh Style="width: 125px; min-width: 118px;">H.E. & Ticket</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
                             else
@@ -1175,7 +1178,7 @@
                                     </div>
                                 </MudTh>
                                 <MudTh Style="width: 75px; min-width: 75px;">Comida</MudTh>
-                                <MudTh Style="width: 105px; min-width: 98px;">H.E.</MudTh>
+                                <MudTh Style="width: 125px; min-width: 118px;">H.E. & Ticket</MudTh>
                                 <MudTh Style="width: 105px;">Viáticos</MudTh>
                                 <MudTh Style="width: 45px;"></MudTh>
                             }
@@ -1230,11 +1233,35 @@
                                                 }
                                             }
                                         </div>
-                                        <div class="d-flex align-center gap-1 mt-1 text-secondary" style="font-size: 0.72rem;">
+                                        <div class="d-flex align-center gap-1 mt-1 text-secondary flex-wrap" style="font-size: 0.72rem;">
                                             <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Style="font-size: 0.8rem;" Color="Color.Primary" />
                                             <b class="text-primary">@context.Area</b>
                                             <span>•</span>
                                             <span class="text-muted">@context.Puesto</span>
+                                            @if (context.TicketRedmineId.HasValue && context.TicketRedmineId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@context.TicketRedmineId" target="_blank" style="text-decoration:none; margin-left: 4px;" title="Ticket Movimiento en Helpdesk">
+                                                    <span class="font-monospace fw-bold" style="font-size: 0.65rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 4px;">📋 #@context.TicketRedmineId</span>
+                                                </a>
+                                            }
+                                            @if (context.TicketViaticoId.HasValue && context.TicketViaticoId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@context.TicketViaticoId" target="_blank" style="text-decoration:none;" title="Ticket Viático en Helpdesk">
+                                                    <span class="font-monospace fw-bold" style="font-size: 0.65rem; background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; border-radius: 4px; padding: 1px 4px;">💵 #@context.TicketViaticoId</span>
+                                                </a>
+                                            }
+                                            @if (context.TicketBonoId.HasValue && context.TicketBonoId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@context.TicketBonoId" target="_blank" style="text-decoration:none;" title="Ticket Bono en Helpdesk">
+                                                    <span class="font-monospace fw-bold" style="font-size: 0.65rem; background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; border-radius: 4px; padding: 1px 4px;">🎁 #@context.TicketBonoId</span>
+                                                </a>
+                                            }
+                                            @if (context.TicketAusenciaId.HasValue && context.TicketAusenciaId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@context.TicketAusenciaId" target="_blank" style="text-decoration:none;" title="Ticket Ausencia en Helpdesk">
+                                                    <span class="font-monospace fw-bold" style="font-size: 0.65rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 4px; padding: 1px 4px;">⚠️ #@context.TicketAusenciaId</span>
+                                                </a>
+                                            }
                                         </div>
                                     </div>
                                 </MudTd>
@@ -1312,13 +1339,13 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var calcOpHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
-                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
-                                            : default;
+                                        var resOpHe = ObtenerResumenHeAsistencia(context);
                                     }
-                                    @if (calcOpHe.HorasExtras > 0m)
+                                    @if (resOpHe.HorasExtras > 0m || (resOpHe.TicketId.HasValue && resOpHe.TicketId > 0))
                                     {
-                                        <div class="d-flex flex-column align-start">
+                                        bool heOkOp = string.Equals(resOpHe.EstadoTicket, "RESUELTA", StringComparison.OrdinalIgnoreCase)
+                                                   || string.Equals(resOpHe.EstadoTicket, "EN ODOO", StringComparison.OrdinalIgnoreCase);
+                                        <div class="d-flex flex-column align-start gap-0">
                                             <MudChip T="string"
                                                      Color="Color.Warning"
                                                      Variant="Variant.Filled"
@@ -1326,13 +1353,37 @@
                                                      Icon="@Icons.Material.Filled.MoreTime"
                                                      OnClick="@(() => SetActiveTab(6))"
                                                      Class="my-0 font-monospace fw-bold cursor-pointer"
-                                                     Style="height: 22px; font-size: 0.72rem;"
-                                                     Title="@($"{calcOpHe.ReglaResumen} | Extra: {calcOpHe.HoraInicioExtra}-{calcOpHe.HoraFinExtra} (clic para ver Tarjeta H.E.)")">
-                                                +@calcOpHe.HorasExtras.ToString("N2")h
+                                                     Style="height: 21px; font-size: 0.72rem;"
+                                                     Title="@($"{resOpHe.ReglaResumen} | Extra: {resOpHe.HoraInicioExtra}-{resOpHe.HoraFinExtra} (clic para ver Tarjeta H.E.)")">
+                                                +@resOpHe.HorasExtras.ToString("N2")h
                                             </MudChip>
-                                            <span class="font-monospace text-muted" style="font-size: 0.64rem; padding-left: 2px;">
-                                                @calcOpHe.HoraInicioExtra-@calcOpHe.HoraFinExtra
-                                            </span>
+                                            @if (!string.IsNullOrWhiteSpace(resOpHe.HoraInicioExtra) && !string.IsNullOrWhiteSpace(resOpHe.HoraFinExtra))
+                                            {
+                                                <span class="font-monospace text-muted" style="font-size: 0.63rem; padding-left: 2px; line-height: 1.15;">
+                                                    @resOpHe.HoraInicioExtra-@resOpHe.HoraFinExtra
+                                                </span>
+                                            }
+                                            @if (resOpHe.TicketId.HasValue && resOpHe.TicketId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@resOpHe.TicketId"
+                                                   target="_blank"
+                                                   style="text-decoration: none; margin-top: 2px;"
+                                                   title="@($"Abrir Ticket H.E. #{resOpHe.TicketId} en Helpdesk ({resOpHe.EstadoTicket})")">
+                                                    <span class="font-monospace fw-bold"
+                                                          style="@($"font-size: 0.64rem; border-radius: 4px; padding: 1px 5px; display: inline-block; {(heOkOp ? "background: #dcfce7; color: #166534; border: 1px solid #86efac;" : "background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;")}")">
+                                                        🎫 #@resOpHe.TicketId
+                                                    </span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="font-monospace"
+                                                      @onclick="@(() => SetActiveTab(6))"
+                                                      style="font-size: 0.62rem; color: #94a3b8; cursor: pointer; padding-left: 2px;"
+                                                      title="Aún sin ticket H.E. en Helpdesk — clic para ir a Horas Extras">
+                                                    Sin ticket
+                                                </span>
+                                            }
                                         </div>
                                     }
                                     else
@@ -1513,23 +1564,37 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var calcUbHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
-                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
-                                            : default;
+                                        var resUbHe = ObtenerResumenHeAsistencia(context);
                                     }
-                                    @if (calcUbHe.HorasExtras > 0m)
+                                    @if (resUbHe.HorasExtras > 0m || (resUbHe.TicketId.HasValue && resUbHe.TicketId > 0))
                                     {
-                                        <MudChip T="string"
-                                                 Color="Color.Warning"
-                                                 Variant="Variant.Filled"
-                                                 Size="Size.Small"
-                                                 Icon="@Icons.Material.Filled.MoreTime"
-                                                 OnClick="@(() => SetActiveTab(6))"
-                                                 Class="my-0 font-monospace fw-bold cursor-pointer"
-                                                 Style="height: 22px; font-size: 0.72rem;"
-                                                 Title="@($"Extra: {calcUbHe.HoraInicioExtra}-{calcUbHe.HoraFinExtra}")">
-                                            +@calcUbHe.HorasExtras.ToString("N2")h
-                                        </MudChip>
+                                        bool heOkUb = string.Equals(resUbHe.EstadoTicket, "RESUELTA", StringComparison.OrdinalIgnoreCase)
+                                                   || string.Equals(resUbHe.EstadoTicket, "EN ODOO", StringComparison.OrdinalIgnoreCase);
+                                        <div class="d-flex flex-column align-start">
+                                            <MudChip T="string"
+                                                     Color="Color.Warning"
+                                                     Variant="Variant.Filled"
+                                                     Size="Size.Small"
+                                                     Icon="@Icons.Material.Filled.MoreTime"
+                                                     OnClick="@(() => SetActiveTab(6))"
+                                                     Class="my-0 font-monospace fw-bold cursor-pointer"
+                                                     Style="height: 21px; font-size: 0.72rem;"
+                                                     Title="@($"Extra: {resUbHe.HoraInicioExtra}-{resUbHe.HoraFinExtra}")">
+                                                +@resUbHe.HorasExtras.ToString("N2")h
+                                            </MudChip>
+                                            @if (resUbHe.TicketId.HasValue && resUbHe.TicketId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@resUbHe.TicketId"
+                                                   target="_blank"
+                                                   style="text-decoration: none; margin-top: 2px;"
+                                                   title="@($"Abrir Ticket H.E. #{resUbHe.TicketId} en Helpdesk")">
+                                                    <span class="font-monospace fw-bold"
+                                                          style="@($"font-size: 0.64rem; border-radius: 4px; padding: 1px 5px; display: inline-block; {(heOkUb ? "background: #dcfce7; color: #166534; border: 1px solid #86efac;" : "background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;")}")">
+                                                        🎫 #@resUbHe.TicketId
+                                                    </span>
+                                                </a>
+                                            }
+                                        </div>
                                     }
                                     else
                                     {
@@ -1725,12 +1790,12 @@
                                 </MudTd>
                                 <MudTd>
                                     @{
-                                        var calcCompHe = (context.Asistio && ClientePermiteHorasExtras(context.Cliente))
-                                            ? CalcularHorasExtrasSegunRegla(context, (fechaSeleccionada ?? DateTime.Today).Date)
-                                            : default;
+                                        var resCompHe = ObtenerResumenHeAsistencia(context);
                                     }
-                                    @if (calcCompHe.HorasExtras > 0m)
+                                    @if (resCompHe.HorasExtras > 0m || (resCompHe.TicketId.HasValue && resCompHe.TicketId > 0))
                                     {
+                                        bool heOkComp = string.Equals(resCompHe.EstadoTicket, "RESUELTA", StringComparison.OrdinalIgnoreCase)
+                                                     || string.Equals(resCompHe.EstadoTicket, "EN ODOO", StringComparison.OrdinalIgnoreCase);
                                         <div class="d-flex flex-column align-start">
                                             <MudChip T="string"
                                                      Color="Color.Warning"
@@ -1739,13 +1804,37 @@
                                                      Icon="@Icons.Material.Filled.MoreTime"
                                                      OnClick="@(() => SetActiveTab(6))"
                                                      Class="my-0 font-monospace fw-bold cursor-pointer"
-                                                     Style="height: 22px; font-size: 0.72rem;"
-                                                     Title="@($"{calcCompHe.ReglaResumen} | Extra: {calcCompHe.HoraInicioExtra}-{calcCompHe.HoraFinExtra}")">
-                                                +@calcCompHe.HorasExtras.ToString("N2")h
+                                                     Style="height: 21px; font-size: 0.72rem;"
+                                                     Title="@($"{resCompHe.ReglaResumen} | Extra: {resCompHe.HoraInicioExtra}-{resCompHe.HoraFinExtra}")">
+                                                +@resCompHe.HorasExtras.ToString("N2")h
                                             </MudChip>
-                                            <span class="font-monospace text-muted" style="font-size: 0.64rem; padding-left: 2px;">
-                                                @calcCompHe.HoraInicioExtra-@calcCompHe.HoraFinExtra
-                                            </span>
+                                            @if (!string.IsNullOrWhiteSpace(resCompHe.HoraInicioExtra) && !string.IsNullOrWhiteSpace(resCompHe.HoraFinExtra))
+                                            {
+                                                <span class="font-monospace text-muted" style="font-size: 0.63rem; padding-left: 2px; line-height: 1.15;">
+                                                    @resCompHe.HoraInicioExtra-@resCompHe.HoraFinExtra
+                                                </span>
+                                            }
+                                            @if (resCompHe.TicketId.HasValue && resCompHe.TicketId > 0)
+                                            {
+                                                <a href="https://helpdesk.bussersa.com/issues/@resCompHe.TicketId"
+                                                   target="_blank"
+                                                   style="text-decoration: none; margin-top: 2px;"
+                                                   title="@($"Abrir Ticket H.E. #{resCompHe.TicketId} en Helpdesk ({resCompHe.EstadoTicket})")">
+                                                    <span class="font-monospace fw-bold"
+                                                          style="@($"font-size: 0.64rem; border-radius: 4px; padding: 1px 5px; display: inline-block; {(heOkComp ? "background: #dcfce7; color: #166534; border: 1px solid #86efac;" : "background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;")}")">
+                                                        🎫 #@resCompHe.TicketId
+                                                    </span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="font-monospace"
+                                                      @onclick="@(() => SetActiveTab(6))"
+                                                      style="font-size: 0.62rem; color: #94a3b8; cursor: pointer; padding-left: 2px;"
+                                                      title="Aún sin ticket H.E. en Helpdesk — clic para ir a Horas Extras">
+                                                    Sin ticket
+                                                </span>
+                                            }
                                         </div>
                                     }
                                     else

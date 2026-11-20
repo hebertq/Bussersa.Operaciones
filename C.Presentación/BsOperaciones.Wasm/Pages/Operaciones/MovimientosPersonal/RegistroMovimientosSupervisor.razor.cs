@@ -76,6 +76,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
         public int? TicketViaticoId { get; set; }
         public int? TicketBonoId { get; set; }
         public int? TicketAusenciaId { get; set; }
+        public int? TicketHorasExtrasId { get; set; }
+        public string? EstadoTicketHorasExtras { get; set; }
+        public decimal HorasExtrasBd { get; set; }
+        public string? HoraInicioExtraBd { get; set; }
+        public string? HoraFinExtraBd { get; set; }
         public bool SincronizadoBono => TicketBonoId.HasValue && TicketBonoId.Value > 0;
         public bool SincronizadoViatico => TicketViaticoId.HasValue && TicketViaticoId.Value > 0;
         public string TipoAusencia { get; set; } = "Ausencias justificadas";
@@ -1088,6 +1093,11 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                             TicketViaticoId = !m.Asistio ? null : m.TicketViaticoId,
                             TicketBonoId = !m.Asistio ? null : m.TicketBonoId,
                             TicketAusenciaId = m.TicketAusenciaId,
+                            TicketHorasExtrasId = !m.Asistio ? null : m.TicketHorasExtrasId,
+                            EstadoTicketHorasExtras = !m.Asistio ? null : m.EstadoTicketHorasExtras,
+                            HorasExtrasBd = !m.Asistio ? 0m : m.HorasExtras,
+                            HoraInicioExtraBd = !m.Asistio ? null : m.HoraInicioExtra,
+                            HoraFinExtraBd = !m.Asistio ? null : m.HoraFinExtra,
                             TipoAusencia = !string.IsNullOrWhiteSpace(m.TipoAusencia) ? m.TipoAusencia : "Ausencias justificadas",
                             FechaInicioAusencia = fIni,
                             FechaFinAusencia = fFin,
@@ -2382,6 +2392,8 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                         TicketViaticoId = !e.Asistio ? null : e.TicketViaticoId,
                         TicketBonoId = !e.Asistio ? null : e.TicketBonoId,
                         TicketAusenciaId = e.TicketAusenciaId,
+                        TicketHorasExtrasId = !e.Asistio ? null : e.TicketHorasExtrasId,
+                        EstadoTicketHorasExtras = !e.Asistio ? null : e.EstadoTicketHorasExtras,
                         TipoAusencia = !string.IsNullOrWhiteSpace(e.TipoAusencia) ? e.TipoAusencia : "Ausencias justificadas",
                         FechaInicioAusencia = fIni,
                         FechaFinAusencia = fFin,
@@ -2886,6 +2898,7 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 {
                     "#", "ID BD", "Fecha", "Carnet / Código", "Colaborador", "Cliente / Operación", "Asistencia",
                     "Área Operativa", "Cargo / Puesto", "Turno", "Hora Entrada", "Hora Salida", "Tiempo Comida (Hrs)",
+                    "Horas Extras (Hrs)", "Rango H.E.", "Ticket Horas Extras",
                     "Viático Transporte (C$)", "Viático Alimentación (C$)", "Bono BNC (C$)", "Total Viáticos (C$)",
                     "Tipo Ausencia", "Días Ausencia", "Observaciones", "Estado",
                     "Ticket Movimiento", "Ticket Viático", "Ticket Bono", "Ticket Ausencia", "Supervisor"
@@ -2900,8 +2913,12 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 }
 
                 int rowIdx = 1;
+                double sumaHorasExtras = 0;
                 foreach (var emp in empleadosJornada)
                 {
+                    var resumenHe = ObtenerResumenHeAsistencia(emp);
+                    sumaHorasExtras += (double)resumenHe.HorasExtras;
+
                     var row = sheet.CreateRow(rowIdx);
                     row.CreateCell(0).SetCellValue(rowIdx);
                     row.CreateCell(1).SetCellValue(emp.Id > 0 ? emp.Id.ToString() : "Sin Guardar");
@@ -2916,39 +2933,42 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                     row.CreateCell(10).SetCellValue(emp.HoraEntrada);
                     row.CreateCell(11).SetCellValue(emp.HoraSalida);
                     row.CreateCell(12).SetCellValue(emp.TiempoComida);
+                    row.CreateCell(13).SetCellValue((double)resumenHe.HorasExtras);
+                    row.CreateCell(14).SetCellValue(resumenHe.HorasExtras > 0 && !string.IsNullOrWhiteSpace(resumenHe.HoraInicioExtra) ? $"{resumenHe.HoraInicioExtra}-{resumenHe.HoraFinExtra}" : "");
+                    row.CreateCell(15).SetCellValue(resumenHe.TicketId.HasValue && resumenHe.TicketId > 0 ? resumenHe.TicketId.Value.ToString() : "");
 
-                    var cTrasp = row.CreateCell(13);
+                    var cTrasp = row.CreateCell(16);
                     cTrasp.SetCellValue((double)emp.VtcoTrasp);
                     cTrasp.CellStyle = currencyStyle;
 
-                    var cAlim = row.CreateCell(14);
+                    var cAlim = row.CreateCell(17);
                     cAlim.SetCellValue((double)emp.VtcoAlim);
                     cAlim.CellStyle = currencyStyle;
 
-                    var cBnc = row.CreateCell(15);
+                    var cBnc = row.CreateCell(18);
                     cBnc.SetCellValue((double)emp.BonoBnc);
                     cBnc.CellStyle = currencyStyle;
 
-                    var cTotal = row.CreateCell(16);
+                    var cTotal = row.CreateCell(19);
                     cTotal.SetCellValue((double)emp.TotalBeneficios);
                     cTotal.CellStyle = currencyStyle;
 
-                    row.CreateCell(17).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
-                    row.CreateCell(18).SetCellValue(!emp.Asistio ? (double)emp.DiasAusencia : 0);
-                    row.CreateCell(19).SetCellValue(emp.Observaciones);
-                    row.CreateCell(20).SetCellValue(emp.Estado);
-                    row.CreateCell(21).SetCellValue(emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0 ? emp.TicketRedmineId.Value.ToString() : "");
-                    row.CreateCell(22).SetCellValue(emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0 ? emp.TicketViaticoId.Value.ToString() : "");
-                    row.CreateCell(23).SetCellValue(emp.TicketBonoId.HasValue && emp.TicketBonoId > 0 ? emp.TicketBonoId.Value.ToString() : "");
-                    row.CreateCell(24).SetCellValue(emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0 ? emp.TicketAusenciaId.Value.ToString() : "");
-                    row.CreateCell(25).SetCellValue(currentUserName);
+                    row.CreateCell(20).SetCellValue(!emp.Asistio ? emp.TipoAusencia : "");
+                    row.CreateCell(21).SetCellValue(!emp.Asistio ? (double)emp.DiasAusencia : 0);
+                    row.CreateCell(22).SetCellValue(emp.Observaciones);
+                    row.CreateCell(23).SetCellValue(emp.Estado);
+                    row.CreateCell(24).SetCellValue(emp.TicketRedmineId.HasValue && emp.TicketRedmineId > 0 ? emp.TicketRedmineId.Value.ToString() : "");
+                    row.CreateCell(25).SetCellValue(emp.TicketViaticoId.HasValue && emp.TicketViaticoId > 0 ? emp.TicketViaticoId.Value.ToString() : "");
+                    row.CreateCell(26).SetCellValue(emp.TicketBonoId.HasValue && emp.TicketBonoId > 0 ? emp.TicketBonoId.Value.ToString() : "");
+                    row.CreateCell(27).SetCellValue(emp.TicketAusenciaId.HasValue && emp.TicketAusenciaId > 0 ? emp.TicketAusenciaId.Value.ToString() : "");
+                    row.CreateCell(28).SetCellValue(currentUserName);
 
                     rowIdx++;
                 }
 
                 // Fila de Totales
                 var totalRow = sheet.CreateRow(rowIdx);
-                var totalLabelCell = totalRow.CreateCell(3);
+                var totalLabelCell = totalRow.CreateCell(4);
                 totalLabelCell.SetCellValue("TOTALES:");
                 var boldFont = workbook.CreateFont();
                 boldFont.IsBold = true;
@@ -2956,19 +2976,23 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 totalStyle.SetFont(boldFont);
                 totalLabelCell.CellStyle = totalStyle;
 
-                var sumTrasp = totalRow.CreateCell(12);
+                var sumHe = totalRow.CreateCell(13);
+                sumHe.SetCellValue(Math.Round(sumaHorasExtras, 2));
+                sumHe.CellStyle = totalStyle;
+
+                var sumTrasp = totalRow.CreateCell(16);
                 sumTrasp.SetCellValue((double)TotalViaticosTrasp);
                 sumTrasp.CellStyle = currencyStyle;
 
-                var sumAlim = totalRow.CreateCell(13);
+                var sumAlim = totalRow.CreateCell(17);
                 sumAlim.SetCellValue((double)TotalViaticosAlim);
                 sumAlim.CellStyle = currencyStyle;
 
-                var sumBnc = totalRow.CreateCell(14);
+                var sumBnc = totalRow.CreateCell(18);
                 sumBnc.SetCellValue((double)TotalViaticosBnc);
                 sumBnc.CellStyle = currencyStyle;
 
-                var sumGlobal = totalRow.CreateCell(15);
+                var sumGlobal = totalRow.CreateCell(19);
                 sumGlobal.SetCellValue((double)TotalViaticosGlobal);
                 sumGlobal.CellStyle = currencyStyle;
 
@@ -2976,30 +3000,34 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 int[] colWidths = new[]
                 {
                     6,  // 0: #
-                    14, // 1: Fecha
-                    18, // 2: Carnet / Código
-                    34, // 3: Colaborador
-                    24, // 4: Cliente / Operación
-                    14, // 5: Asistencia
-                    26, // 6: Área Operativa
-                    28, // 7: Cargo / Puesto
-                    14, // 8: Turno
-                    14, // 9: Hora Entrada
-                    14, // 10: Hora Salida
-                    14, // 11: Tiempo Comida (Hrs)
-                    22, // 12: Viático Transporte (C$)
-                    22, // 13: Viático Alimentación (C$)
-                    18, // 14: Bono BNC (C$)
-                    20, // 15: Total Viáticos (C$)
-                    24, // 16: Tipo Ausencia
-                    14, // 17: Días Ausencia
-                    32, // 18: Observaciones
-                    14, // 19: Estado
-                    18, // 20: Ticket Movimiento
-                    18, // 21: Ticket Viático
-                    18, // 22: Ticket Bono
-                    18, // 23: Ticket Ausencia
-                    26  // 24: Supervisor
+                    12, // 1: ID BD
+                    14, // 2: Fecha
+                    18, // 3: Carnet / Código
+                    34, // 4: Colaborador
+                    24, // 5: Cliente / Operación
+                    14, // 6: Asistencia
+                    26, // 7: Área Operativa
+                    28, // 8: Cargo / Puesto
+                    14, // 9: Turno
+                    14, // 10: Hora Entrada
+                    14, // 11: Hora Salida
+                    14, // 12: Tiempo Comida (Hrs)
+                    16, // 13: Horas Extras (Hrs)
+                    14, // 14: Rango H.E.
+                    18, // 15: Ticket Horas Extras
+                    22, // 16: Viático Transporte (C$)
+                    22, // 17: Viático Alimentación (C$)
+                    18, // 18: Bono BNC (C$)
+                    20, // 19: Total Viáticos (C$)
+                    24, // 20: Tipo Ausencia
+                    14, // 21: Días Ausencia
+                    32, // 22: Observaciones
+                    14, // 23: Estado
+                    18, // 24: Ticket Movimiento
+                    18, // 25: Ticket Viático
+                    18, // 26: Ticket Bono
+                    18, // 27: Ticket Ausencia
+                    26  // 28: Supervisor
                 };
 
                 for (int i = 0; i < headers.Length; i++)
@@ -6243,6 +6271,46 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
             return autorizacionesHeLista.FirstOrDefault(a =>
                 a.CodigoEmpleado == codigoEmpleado &&
                 a.Fecha.Date == fRef);
+        }
+
+        protected (decimal HorasExtras, string HoraInicioExtra, string HoraFinExtra, int? TicketId, string EstadoTicket, string ReglaResumen) ObtenerResumenHeAsistencia(EmpleadoJornadaItem emp)
+        {
+            if (!emp.Asistio)
+                return (0m, string.Empty, string.Empty, null, string.Empty, string.Empty);
+
+            DateTime fRef = (fechaSeleccionada ?? DateTime.Today).Date;
+            var aut = ObtenerAutorizacionHeEmpleado(emp.CodigoEmpleado);
+            var calc = ClientePermiteHorasExtras(emp.Cliente)
+                ? CalcularHorasExtrasSegunRegla(emp, fRef)
+                : default;
+
+            int? ticketId = (aut?.TicketRedmineId.HasValue == true && aut.TicketRedmineId > 0)
+                ? aut.TicketRedmineId
+                : ((emp.TicketHorasExtrasId.HasValue && emp.TicketHorasExtrasId > 0) ? emp.TicketHorasExtrasId : null);
+
+            string estado = !string.IsNullOrWhiteSpace(aut?.Estado)
+                ? aut.Estado
+                : (emp.EstadoTicketHorasExtras ?? string.Empty);
+
+            decimal horas = calc.HorasExtras > 0m
+                ? calc.HorasExtras
+                : (aut != null && aut.HorasExtrasAutorizadas > 0m
+                    ? aut.HorasExtrasAutorizadas
+                    : emp.HorasExtrasBd);
+
+            string ini = !string.IsNullOrWhiteSpace(calc.HoraInicioExtra) && calc.HorasExtras > 0m
+                ? calc.HoraInicioExtra
+                : (!string.IsNullOrWhiteSpace(aut?.HoraInicioExtra) ? aut.HoraInicioExtra : (emp.HoraInicioExtraBd ?? string.Empty));
+
+            string fin = !string.IsNullOrWhiteSpace(calc.HoraFinExtra) && calc.HorasExtras > 0m
+                ? calc.HoraFinExtra
+                : (!string.IsNullOrWhiteSpace(aut?.HoraFinExtra) ? aut.HoraFinExtra : (emp.HoraFinExtraBd ?? string.Empty));
+
+            string regla = !string.IsNullOrWhiteSpace(calc.ReglaResumen)
+                ? calc.ReglaResumen
+                : (aut != null ? $"Boleta H.E. #{aut.Id}" : "Horas extras registradas");
+
+            return (Math.Round(Math.Max(0m, horas), 2), ini, fin, ticketId, estado, regla);
         }
 
         protected List<AutorizacionHorasExtrasDto> BoletasHorasExtrasAgrupadas

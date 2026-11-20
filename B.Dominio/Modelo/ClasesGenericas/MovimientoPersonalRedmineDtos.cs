@@ -86,6 +86,8 @@ namespace Modelo.ClasesGenericas
         public decimal HorasExtras { get; set; }
         public string? HoraInicioExtra { get; set; }
         public string? HoraFinExtra { get; set; }
+        public int? TicketHorasExtrasId { get; set; }
+        public string? EstadoTicketHorasExtras { get; set; }
         public string? UsuarioRegistro { get; set; }
         public DateTime? FechaCreacion { get; set; }
         public DateTime? FechaActualizacion { get; set; }
