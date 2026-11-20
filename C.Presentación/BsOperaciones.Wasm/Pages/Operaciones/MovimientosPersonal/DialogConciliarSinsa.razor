@@ -127,7 +127,7 @@
 
             @* TABLA INTERACTIVA DE CONCILIACIÓN *@
             <div style="overflow-x: auto;">
-                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="min-width: 1040px;">
+                <MudSimpleTable Dense="true" Hover="true" Bordered="true" Style="min-width: 1140px;">
                     <thead>
                         <tr style="background: #f1f5f9;">
                             <th style="width: 42px; text-align: center;">
@@ -137,17 +137,18 @@
                                              Value="@(FilasFiltradas.Any(f => f.Vinculado) && FilasFiltradas.Where(f => f.Vinculado).All(f => f.SeleccionadoAplicar))"
                                              ValueChanged="@MarcarVisibles" />
                             </th>
-                            <th style="width: 135px;">Estado Asistencia</th>
-                            <th style="min-width: 230px;">Colaborador (Bussersa / SINSA)</th>
-                            <th style="min-width: 210px;">Área Operativa (Elegir)</th>
-                            <th style="min-width: 245px;">Horario a Registrar (Elegir)</th>
-                            <th style="width: 190px;">Horas Extras (Según Turno)</th>
+                            <th style="width: 125px;">Estado</th>
+                            <th style="min-width: 215px;">Colaborador (Bussersa / SINSA)</th>
+                            <th style="min-width: 190px;">Área Operativa (Elegir)</th>
+                            <th style="min-width: 175px;">Turno Archivo vs Reloj</th>
+                            <th style="min-width: 235px;">Horario a Registrar (Elegir)</th>
+                            <th style="width: 185px;">Horas Extras (Turno vs Salida)</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var fila in FilasFiltradas)
                         {
-                            <tr style="@(fila.YaIngresadoEnAsistencia ? "background: #f0fdf433;" : "")">
+                            <tr @key="@($"fila_{fila.Sinsa.FilaExcel}_{fila.CodigoEmpleado}")" style="@(fila.YaIngresadoEnAsistencia ? "background: #f0fdf433;" : "")">
                                 <td style="text-align: center;">
                                     <MudCheckBox T="bool"
                                                  Dense="true"
@@ -216,6 +217,7 @@
                                 </td>
                                 <td>
                                     <MudSelect T="string"
+                                               @key="@($"area_sel_{fila.Sinsa.FilaExcel}_{fila.CodigoEmpleado}")"
                                                @bind-Value="fila.AreaElegida"
                                                Variant="Variant.Outlined"
                                                Margin="Margin.Dense"
@@ -242,36 +244,52 @@
                                     }
                                 </td>
                                 <td>
+                                    <div class="font-monospace fw-bold" style="font-size: 0.76rem; color: #0f172a;">
+                                        Turno: @fila.Sinsa.TurnoInicio - @fila.Sinsa.TurnoFin
+                                    </div>
+                                    <div class="font-monospace mt-1" style="font-size: 0.72rem; color: @(fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m ? "#b45309" : "#475569"); font-weight: @(fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m ? "700" : "400");">
+                                        Reloj: @fila.Sinsa.HoraEntradaRelojHm - @fila.Sinsa.HoraSalidaRelojHm
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.65rem;">
+                                        Ord. archivo: @fila.Sinsa.HorasOrdinarias.ToString("0.##")h
+                                        @if (fila.Sinsa.ExcesoRelojSobreTurnoHoras >= 0.25m)
+                                        {
+                                            <span style="color: #d97706; font-weight: 700;"> &bull; +@fila.Sinsa.ExcesoRelojSobreTurnoHoras.ToString("0.##")h vs turno</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
                                     <MudSelect T="string"
+                                               @key="@($"horario_sel_{fila.Sinsa.FilaExcel}_{fila.CodigoEmpleado}_{fila.HorasExtrasElegidas}_{fila.HoraFinExtraElegida}")"
                                                Value="@fila.ModoHorarioElegido"
                                                ValueChanged="@((string m) => OnModoHorarioFilaChanged(fila, m))"
+                                               ToStringFunc="@((string m) => FormatearOpcionHorarioFila(fila, m))"
                                                Variant="Variant.Outlined"
                                                Margin="Margin.Dense"
                                                Dense="true"
                                                Style="background: white; font-size: 0.76rem; font-family: monospace;">
                                         <MudSelectItem T="string" Value="@("TURNO_CON_HE")">
-                                            Turno + H.E.: @fila.Sinsa.TurnoInicio - @fila.ObtenerHoraSalidaConExtrasElegidas() (@fila.Sinsa.HorasOrdinarias.ToString("0.##")h ord)
+                                            @FormatearOpcionHorarioFila(fila, "TURNO_CON_HE")
                                         </MudSelectItem>
                                         <MudSelectItem T="string" Value="@("TURNO_PURO")">
-                                            Solo Turno: @fila.Sinsa.TurnoInicio - @fila.Sinsa.TurnoFin
+                                            @FormatearOpcionHorarioFila(fila, "TURNO_PURO")
                                         </MudSelectItem>
                                         <MudSelectItem T="string" Value="@("MARCACION_RELOJ")">
-                                            Reloj SINSA: @fila.Sinsa.HoraEntradaRelojHm - @fila.Sinsa.HoraSalidaRelojHm
+                                            @FormatearOpcionHorarioFila(fila, "MARCACION_RELOJ")
                                         </MudSelectItem>
                                         @if (fila.YaIngresadoEnAsistencia && !string.IsNullOrWhiteSpace(fila.HoraEntradaActual) && fila.HoraEntradaActual != "--:--")
                                         {
                                             <MudSelectItem T="string" Value="@("MANTENER_ACTUAL")">
-                                                Actual: @fila.HoraEntradaActual - @fila.HoraSalidaActual
+                                                @FormatearOpcionHorarioFila(fila, "MANTENER_ACTUAL")
                                             </MudSelectItem>
                                         }
                                     </MudSelect>
-                                    <div class="text-muted font-monospace mt-1" style="font-size: 0.68rem;">
-                                        Turno: @fila.Sinsa.TurnoInicio-@fila.Sinsa.TurnoFin &bull; Reloj: @fila.Sinsa.HoraEntradaRelojHm-@fila.Sinsa.HoraSalidaRelojHm
-                                        @if (fila.YaIngresadoEnAsistencia && fila.TieneDiferenciaHorario)
-                                        {
-                                            <span style="color: #b45309;"> &bull; En Asist.: @fila.HoraEntradaActual-@fila.HoraSalidaActual</span>
-                                        }
-                                    </div>
+                                    @if (fila.YaIngresadoEnAsistencia && fila.TieneDiferenciaHorario)
+                                    {
+                                        <div class="font-monospace mt-1" style="font-size: 0.67rem; color: #b45309;">
+                                            En Asist.: @fila.HoraEntradaActual - @fila.HoraSalidaActual
+                                        </div>
+                                    }
                                 </td>
                                 <td>
                                     <div class="d-flex align-center gap-1">
@@ -423,6 +441,19 @@
         {
             f.SeleccionadoAplicar = val;
         }
+    }
+
+    private string FormatearOpcionHorarioFila(FilaConciliacionSinsaVm fila, string? modo)
+    {
+        return modo switch
+        {
+            "TURNO_PURO" => $"Turno Archivo: {fila.Sinsa.TurnoInicio} - {fila.Sinsa.TurnoFin}",
+            "MARCACION_RELOJ" => $"Reloj SINSA: {fila.Sinsa.HoraEntradaRelojHm} - {fila.Sinsa.HoraSalidaRelojHm}",
+            "MANTENER_ACTUAL" => $"Actual: {fila.HoraEntradaActual} - {fila.HoraSalidaActual}",
+            _ => fila.HorasExtrasElegidas > 0m
+                ? $"Turno + H.E.: {fila.Sinsa.TurnoInicio} - {fila.ObtenerHoraSalidaConExtrasElegidas()}"
+                : $"Turno Archivo: {fila.Sinsa.TurnoInicio} - {fila.Sinsa.TurnoFin}"
+        };
     }
 
     private void AplicarModoHorarioMasivo(string modo)
