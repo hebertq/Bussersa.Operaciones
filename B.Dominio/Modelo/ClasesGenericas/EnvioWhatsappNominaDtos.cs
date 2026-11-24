@@ -172,6 +172,7 @@ namespace Modelo.ClasesGenericas
 
     public class ResultadoItemEnvioWhatsappDto
     {
+        public long EnvioId { get; set; }
         public int EmployeeId { get; set; }
         public int CodigoEmpleado { get; set; }
         public string NombreDestinatario { get; set; } = string.Empty;
@@ -186,6 +187,17 @@ namespace Modelo.ClasesGenericas
         public string? PdfBase64 { get; set; }
         public string NombreArchivoPdf { get; set; } = string.Empty;
         public string? WhatsappMessageId { get; set; }
+        public string DetalleRespuesta { get; set; } = string.Empty;
+    }
+
+    public class RegistrarResultadoRelayWhatsappDto
+    {
+        public long EnvioId { get; set; }
+        public bool Exito { get; set; }
+        public string CanalEnvio { get; set; } = "META_API";
+        public string EstadoEnvio { get; set; } = "ENVIADO_API";
+        public string? MediaId { get; set; }
+        public string? MessageId { get; set; }
         public string DetalleRespuesta { get; set; } = string.Empty;
     }
 
