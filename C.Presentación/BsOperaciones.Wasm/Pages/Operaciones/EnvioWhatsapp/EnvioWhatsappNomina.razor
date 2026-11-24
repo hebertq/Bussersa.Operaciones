@@ -1,0 +1,672 @@
+@page "/operaciones/envio-whatsapp-nomina"
+@page "/nomina/envio-whatsapp-nomina"
+@attribute [Authorize]
+@using Modelo.ClasesGenericas
+@using Modelo.Entidades.Entradas.Odoo
+
+<PageTitle>Envío por WhatsApp — Días Laborados y Colilla de Pago</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+
+    @* --- ENCABEZADO CORPORATIVO Y ACCIONES GLOBALES --- *@
+    <MudPaper Elevation="1" Class="pa-4 mb-4 rounded-lg" Style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: white;">
+        <div class="d-flex flex-wrap align-center justify-space-between gap-3">
+            <div>
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.SendToMobile" Style="color: #34d399; font-size: 1.9rem;" />
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: white;">
+                        Envío por WhatsApp — Días Laborados y Colilla de Pago
+                    </MudText>
+                </div>
+                <MudText Typo="Typo.body2" Style="color: #cbd5e1; margin-top: 2px;">
+                    Genera comprobantes PDF oficiales con consolidado, detalle día a día y colilla de pago para envío individual, masivo o grupal a Supervisión.
+                </MudText>
+            </div>
+
+            <div class="d-flex flex-wrap align-center gap-2">
+                @if (TieneApiConfigurada)
+                {
+                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                        API Meta Activa (@OrigenCredenciales)
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small" Icon="@Icons.Material.Filled.Bolt">
+                        Modo Enlace 1-Clic Activo
+                    </MudChip>
+                }
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                           Disabled="@(ColaboradoresFiltrados.Count == 0)"
+                           OnClick="AbrirModalSupervisor"
+                           Style="font-weight: 700; text-transform: none;">
+                    Consolidado a Supervisor
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Settings"
+                           OnClick="AbrirModalConfigAsync"
+                           Style="color: white; border-color: rgba(255,255,255,0.45); text-transform: none;">
+                    Canal WhatsApp
+                </MudButton>
+            </div>
+        </div>
+    </MudPaper>
+
+    @* --- PANEL DE FILTROS --- *@
+    <MudPaper Elevation="1" Class="pa-4 mb-4 rounded-lg">
+        <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+            <MudItem xs="12" md="3">
+                <MudSelect T="string"
+                           Label="Contenido del Comprobante"
+                           @bind-Value="ModoContenido"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true">
+                    <MudSelectItem T="string" Value="@("AMBOS")">Colilla de Pago + Días Laborados</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("SOLO_DIAS")">Solo Días Laborados (Consolidado + Detalle)</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("SOLO_COLILLA")">Solo Colilla de Pago Oficial</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudSelect T="int"
+                           Label="Lote de Nómina (Opcional)"
+                           Value="LoteSeleccionadoId"
+                           ValueChanged="OnLoteChanged"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true">
+                    <MudSelectItem T="int" Value="0">-- Sin Lote (Por Operación y Fechas) --</MudSelectItem>
+                    @foreach (var lote in LotesNomina)
+                    {
+                        <MudSelectItem T="int" Value="@lote.Id">
+                            @($"{lote.Nombre} ({lote.FechaInicio:dd/MM} - {lote.FechaFin:dd/MM/yy} · {lote.CantidadColillas})")
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="2">
+                <MudSelect T="int"
+                           Label="Operación / Cliente"
+                           @bind-Value="OperacionSeleccionadaId"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Dense="true">
+                    <MudSelectItem T="int" Value="0">-- Todas del Lote --</MudSelectItem>
+                    @foreach (var op in Operaciones)
+                    {
+                        <MudSelectItem T="int" Value="@op.id">@op.nombre</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <MudDatePicker Label="Fecha Desde"
+                               @bind-Date="FechaDesde"
+                               DateFormat="dd/MM/yyyy"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense" />
+            </MudItem>
+
+            <MudItem xs="6" md="2">
+                <div class="d-flex align-center gap-2">
+                    <MudDatePicker Label="Fecha Hasta"
+                                   @bind-Date="FechaHasta"
+                                   DateFormat="dd/MM/yyyy"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Search"
+                               Disabled="@Cargando"
+                               OnClick="ConsultarDatosAsync"
+                               Style="height: 40px; font-weight: 700; text-transform: none;">
+                        Consultar
+                    </MudButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (Cargando)
+    {
+        <MudPaper Elevation="0" Class="pa-8 d-flex flex-column align-center justify-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+            <MudText Typo="Typo.subtitle2" Class="mt-3" Color="Color.Secondary">
+                Consolidando colillas de pago, días laborados y marcaciones diarias...
+            </MudText>
+        </MudPaper>
+    }
+    else if (Colaboradores.Count > 0)
+    {
+        @* --- TARJETAS KPI --- *@
+        <MudGrid Spacing="2" Class="mb-3">
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 rounded-lg" Style="border-left: 4px solid #1e3a8a;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">COLABORADORES</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0f172a;">@ColaboradoresFiltrados.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Con teléfono: <b>@ColaboradoresFiltrados.Count(x => TieneTelefonoValido(x.TelefonoWhatsapp))</b> · Sin teléfono: <b>@ColaboradoresFiltrados.Count(x => !TieneTelefonoValido(x.TelefonoWhatsapp))</b>
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 rounded-lg" Style="border-left: 4px solid #059669;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">DÍAS A PAGAR Y H. EXTRAS</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #065f46;">
+                        @($"{ColaboradoresFiltrados.Sum(x => x.TotalDiasPagar):N2} días")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Horas Extras: <b>@($"{ColaboradoresFiltrados.Sum(x => x.HorasExtrasPeriodo):N2} hrs")</b>
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 rounded-lg" Style="border-left: 4px solid #0284c7;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">TOTAL NETO COLILLAS</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #0369a1;">
+                        @($"C$ {ColaboradoresFiltrados.Sum(x => x.NetoAPagar):N2}")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Con colilla en período: <b>@ColaboradoresFiltrados.Count(x => x.TieneColilla)</b>
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="1" Class="pa-3 rounded-lg" Style="border-left: 4px solid #f59e0b;">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">CONTROL DE ENVÍOS</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #b45309;">
+                        @($"{ColaboradoresFiltrados.Count(x => EsEnviado(x.UltimoEstadoEnvio))} / {ColaboradoresFiltrados.Count}")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Seleccionados para envío: <b>@SeleccionadosIds.Count</b>
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        @* --- BARRA DE BÚSQUEDA Y ENVÍO MASIVO --- *@
+        <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-lg">
+            <div class="d-flex flex-wrap align-center justify-space-between gap-2">
+                <div class="d-flex flex-wrap align-center gap-2" style="flex: 1; min-width: 280px;">
+                    <MudTextField T="string"
+                                  @bind-Value="TextoBusqueda"
+                                  Placeholder="Buscar por nombre, código, cédula, cargo o teléfono..."
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Style="max-width: 360px;" />
+
+                    <MudSelect T="string"
+                               @bind-Value="FiltroRapido"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Dense="true"
+                               Style="max-width: 210px;">
+                        <MudSelectItem T="string" Value="@("TODOS")">Todos (@Colaboradores.Count)</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("CON_TELEFONO")">Con Teléfono (@Colaboradores.Count(x => TieneTelefonoValido(x.TelefonoWhatsapp)))</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("SIN_TELEFONO")">Sin Teléfono (@Colaboradores.Count(x => !TieneTelefonoValido(x.TelefonoWhatsapp)))</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("PENDIENTES")">Pendientes (@Colaboradores.Count(x => !EsEnviado(x.UltimoEstadoEnvio)))</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("ENVIADOS")">Enviados (@Colaboradores.Count(x => EsEnviado(x.UltimoEstadoEnvio)))</MudSelectItem>
+                    </MudSelect>
+
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="SeleccionarVisiblesConTelefono" Style="text-transform: none;">
+                        Seleccionar con teléfono
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default" OnClick="LimpiarSeleccion" Style="text-transform: none;">
+                        Limpiar selección
+                    </MudButton>
+                </div>
+
+                <div class="d-flex align-center gap-2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.Send"
+                               Disabled="@(EnviandoMasivo || SeleccionadosIds.Count == 0)"
+                               OnClick="EnviarSeleccionadosMasivoApiAsync"
+                               Style="font-weight: 700; text-transform: none;">
+                        @if (EnviandoMasivo)
+                        {
+                            <span>@($"Enviando {ProgresoActual}/{ProgresoTotal}...")</span>
+                        }
+                        else
+                        {
+                            <span>@($"Enviar Seleccionados ({SeleccionadosIds.Count}) por API")</span>
+                        }
+                    </MudButton>
+                </div>
+            </div>
+
+            @if (EnviandoMasivo && ProgresoTotal > 0)
+            {
+                <MudProgressLinear Color="Color.Success" Value="@((double)ProgresoActual * 100.0 / ProgresoTotal)" Class="mt-2 rounded" />
+            }
+        </MudPaper>
+
+        @* --- TABLA PRINCIPAL DE COLABORADORES --- *@
+        <MudPaper Elevation="1" Class="rounded-lg overflow-hidden">
+            <MudSimpleTable Hover="true" Dense="true" Bordered="false" Style="overflow-x: auto;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="width: 38px;"></th>
+                        <th style="width: 38px;"></th>
+                        <th>Colaborador</th>
+                        <th>Operación / Cargo</th>
+                        <th style="min-width: 195px;">Teléfono WhatsApp</th>
+                        <th class="text-right">Consolidado Días</th>
+                        <th class="text-right">Colilla Neto</th>
+                        <th class="text-center">Estado Envío</th>
+                        <th class="text-center" style="min-width: 215px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in ColaboradoresFiltrados)
+                    {
+                        bool seleccionado = SeleccionadosIds.Contains(item.EmployeeId);
+                        bool expandido = FilasExpandidas.Contains(item.EmployeeId);
+                        bool procesandoFila = FilasProcesando.Contains(item.EmployeeId);
+
+                        <tr>
+                            <td>
+                                <MudCheckBox T="bool"
+                                             Value="@seleccionado"
+                                             ValueChanged="@(val => ToggleSeleccionFila(item.EmployeeId, val))"
+                                             Color="Color.Primary"
+                                             Dense="true" />
+                            </td>
+                            <td>
+                                <MudIconButton Icon="@(expandido ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                               Size="Size.Small"
+                                               Title="Ver detalle día a día y desglose de colilla"
+                                               OnClick="@(() => ToggleExpandirFila(item.EmployeeId))" />
+                            </td>
+                            <td>
+                                <div style="font-weight: 700; color: #0f172a;">
+                                    @if (item.CodigoEmpleado > 0)
+                                    {
+                                        <span style="color: #1e3a8a; margin-right: 4px;">#@item.CodigoEmpleado</span>
+                                    }
+                                    @item.NombreEmpleado
+                                </div>
+                                <div style="font-size: 0.74rem; color: #64748b;">
+                                    Cédula: @(string.IsNullOrWhiteSpace(item.Cedula) ? "N/D" : item.Cedula)
+                                </div>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; font-size: 0.8rem; color: #1e293b;">@item.OperacionNombre</div>
+                                <div style="font-size: 0.74rem; color: #64748b;">@item.Cargo</div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-center gap-1">
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.TelefonoWhatsapp"
+                                                  Placeholder="8888-8888"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Style="max-width: 145px;" />
+                                    <MudTooltip Text="Guardar teléfono en ficha de empleado Odoo">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Save"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       Disabled="@procesandoFila"
+                                                       OnClick="@(() => GuardarTelefonoFilaAsync(item))" />
+                                    </MudTooltip>
+                                </div>
+                            </td>
+                            <td class="text-right">
+                                @if (IncluirDiasLaborados)
+                                {
+                                    <div style="font-weight: 800; color: #065f46;">@($"{item.TotalDiasPagar:0.##} días")</div>
+                                    <div style="font-size: 0.72rem; color: #475569;">
+                                        Asist: @item.DiasAsistidosCalendario · H.E.: <b>@($"{item.HorasExtrasPeriodo:0.##}h")</b>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="color: #94a3b8;">Omitido</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                @if (item.TieneColilla && IncluirColilla)
+                                {
+                                    <div style="font-weight: 800; color: #1e3a8a;">@($"C$ {item.NetoAPagar:N2}")</div>
+                                    <div style="font-size: 0.72rem; color: #64748b;">
+                                        Ing: @($"{item.TotalIngresos:N2}") · Ded: @($"{item.TotalDeducciones:N2}")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span style="font-size: 0.75rem; color: #94a3b8;">@(IncluirColilla ? "Sin colilla" : "Omitida")</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if (string.Equals(item.UltimoEstadoEnvio, "ENVIADO_API", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudTooltip Text="@($"{item.DetalleUltimoEnvio} ({item.FechaUltimoEnvio:dd/MM HH:mm})")">
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Enviado API</MudChip>
+                                    </MudTooltip>
+                                }
+                                else if (string.Equals(item.UltimoEstadoEnvio, "ENLACE_WA", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudTooltip Text="@($"{item.DetalleUltimoEnvio} ({item.FechaUltimoEnvio:dd/MM HH:mm})")">
+                                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Filled">WhatsApp 1-Clic</MudChip>
+                                    </MudTooltip>
+                                }
+                                else if (string.Equals(item.UltimoEstadoEnvio, "ERROR", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <MudTooltip Text="@item.DetalleUltimoEnvio">
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Outlined">Con Observación</MudChip>
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Text">Pendiente</MudChip>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex align-center justify-center gap-1">
+                                    <MudTooltip Text="Descargar / Ver PDF Oficial">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                                       Color="Color.Error"
+                                                       Size="Size.Small"
+                                                       Disabled="@procesandoFila"
+                                                       OnClick="@(() => DescargarPdfIndividualAsync(item))" />
+                                    </MudTooltip>
+
+                                    <MudTooltip Text="Enviar directamente por WhatsApp Cloud API (adjunta PDF)">
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   Disabled="@(procesandoFila || !TieneTelefonoValido(item.TelefonoWhatsapp))"
+                                                   OnClick="@(() => EnviarApiIndividualFilaAsync(item))"
+                                                   Style="min-width: 62px; font-size: 0.72rem; text-transform: none; padding: 2px 8px;">
+                                            API
+                                        </MudButton>
+                                    </MudTooltip>
+
+                                    <MudTooltip Text="Abrir WhatsApp (1-Clic) con resumen y enlace público del PDF">
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   Disabled="@(procesandoFila || !TieneTelefonoValido(item.TelefonoWhatsapp))"
+                                                   OnClick="@(() => AbrirWhatsappDirectoFilaAsync(item))"
+                                                   Style="min-width: 74px; font-size: 0.72rem; text-transform: none; padding: 2px 8px;">
+                                            WhatsApp
+                                        </MudButton>
+                                    </MudTooltip>
+                                </div>
+                            </td>
+                        </tr>
+
+                        @* --- FILA EXPANDIBLE: DETALLE DÍA A DÍA Y COLILLA --- *@
+                        @if (expandido)
+                        {
+                            <tr style="background: #f8fafc;">
+                                <td colspan="9" class="pa-3">
+                                    <MudGrid Spacing="2">
+                                        @if (item.TieneColilla && IncluirColilla)
+                                        {
+                                            <MudItem xs="12" md="5">
+                                                <MudPaper Elevation="0" Class="pa-3 rounded border">
+                                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #1e3a8a;" Class="mb-2">
+                                                        Desglose de Colilla (@item.NumeroRecibo)
+                                                    </MudText>
+                                                    <div class="d-flex justify-space-between" style="font-size: 0.78rem; color: #475569;">
+                                                        <span>Salario Mensual Contrato:</span>
+                                                        <b>@($"C$ {item.SalarioMensualContrato:N2}")</b>
+                                                    </div>
+                                                    <MudDivider Class="my-2" />
+                                                    <div style="font-size: 0.76rem; font-weight: 700; color: #0f172a;">Ingresos:</div>
+                                                    @foreach (var ing in item.LineasIngresos)
+                                                    {
+                                                        <div class="d-flex justify-space-between" style="font-size: 0.76rem;">
+                                                            <span>@ing.Concepto @(ing.Cantidad > 0 ? $"({ing.Cantidad:0.##} {ing.Unidad})" : "")</span>
+                                                            <span>@($"C$ {ing.Monto:N2}")</span>
+                                                        </div>
+                                                    }
+                                                    <div class="d-flex justify-space-between mt-1" style="font-size: 0.78rem; font-weight: 700; color: #1e3a8a;">
+                                                        <span>Total Ingresos:</span>
+                                                        <span>@($"C$ {item.TotalIngresos:N2}")</span>
+                                                    </div>
+
+                                                    <MudDivider Class="my-2" />
+                                                    <div style="font-size: 0.76rem; font-weight: 700; color: #991b1b;">Deducciones:</div>
+                                                    @foreach (var ded in item.LineasDeducciones)
+                                                    {
+                                                        <div class="d-flex justify-space-between" style="font-size: 0.76rem; color: #991b1b;">
+                                                            <span>@ded.Concepto</span>
+                                                            <span>@($"- C$ {ded.Monto:N2}")</span>
+                                                        </div>
+                                                    }
+                                                    <div class="d-flex justify-space-between mt-2 pa-2 rounded" style="background: #ecfdf5; font-weight: 800; color: #065f46;">
+                                                        <span>NETO A RECIBIR:</span>
+                                                        <span>@($"C$ {item.NetoAPagar:N2}")</span>
+                                                    </div>
+                                                </MudPaper>
+                                            </MudItem>
+                                        }
+
+                                        <MudItem xs="12" md="@(item.TieneColilla && IncluirColilla ? 7 : 12)">
+                                            <MudPaper Elevation="0" Class="pa-3 rounded border">
+                                                <div class="d-flex flex-wrap justify-space-between align-center mb-2">
+                                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: #0f172a;">
+                                                        Detalle Día a Día (@item.DetalleDias.Count registros)
+                                                    </MudText>
+                                                    <div style="font-size: 0.76rem; color: #475569;">
+                                                        Ord: <b>@($"{item.DiasTrabajadosOrdinarios:0.##}")</b> ·
+                                                        7mo/Fer: <b>@($"{(item.SeptimoDia + item.DiasFeriados):0.##}")</b> ·
+                                                        Vac/Just: <b>@($"{(item.DiasVacacionesDescansadas + item.DiasSubsidio + item.DiasJustificados):0.##}")</b> ·
+                                                        Total Días: <b style="color:#065f46;">@($"{item.TotalDiasPagar:0.##}")</b>
+                                                    </div>
+                                                </div>
+
+                                                @if (item.DetalleDias.Count == 0)
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                        Sin marcaciones diarias detalladas en el rango seleccionado.
+                                                    </MudText>
+                                                }
+                                                else
+                                                {
+                                                    <div style="max-height: 250px; overflow-y: auto;">
+                                                        <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem;">
+                                                            <thead>
+                                                                <tr style="background: #e2e8f0; text-align: left;">
+                                                                    <th style="padding: 4px;">Fecha</th>
+                                                                    <th style="padding: 4px;">Área</th>
+                                                                    <th style="padding: 4px;">Entrada</th>
+                                                                    <th style="padding: 4px;">Salida</th>
+                                                                    <th style="padding: 4px; text-align: right;">Hrs</th>
+                                                                    <th style="padding: 4px; text-align: right;">Día Eq.</th>
+                                                                    <th style="padding: 4px; text-align: right;">H.E.</th>
+                                                                    <th style="padding: 4px;">Estado / Observación</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach (var d in item.DetalleDias)
+                                                                {
+                                                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                                        <td style="padding: 3px 4px;">@($"{d.Fecha:dd/MM/yyyy}")</td>
+                                                                        <td style="padding: 3px 4px;">@(string.IsNullOrWhiteSpace(d.Area) ? d.Cliente : d.Area)</td>
+                                                                        <td style="padding: 3px 4px;">@d.HoraEntrada</td>
+                                                                        <td style="padding: 3px 4px;">@d.HoraSalida</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@($"{d.HorasOrdinarias:0.##}")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@($"{d.DiasEquivalentes:0.##}")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right; font-weight: 700; color: #1e3a8a;">@(d.HorasExtras > 0 ? $"{d.HorasExtras:0.##}" : "-")</td>
+                                                                        <td style="padding: 3px 4px; color: @(d.Asistio ? "#334155" : "#dc2626");">
+                                                                            @d.EstadoTexto @(string.IsNullOrWhiteSpace(d.Observacion) ? "" : $"· {d.Observacion}")
+                                                                        </td>
+                                                                    </tr>
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                }
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center rounded-lg border">
+            <MudIcon Icon="@Icons.Material.Outlined.SendToMobile" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6" Class="mt-2">Seleccione un Lote de Nómina o una Operación y presione Consultar</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Podrá previsualizar el consolidado y detalle día a día de días laborados, la colilla de pago y enviarlos por WhatsApp a cada colaborador o al Supervisor.
+            </MudText>
+        </MudPaper>
+    }
+</MudContainer>
+
+@* --- MODAL: ENVÍO DE REPORTE CONSOLIDADO + DETALLE A SUPERVISOR --- *@
+@if (MostrarModalSupervisor)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+        <MudPaper Elevation="8" Class="pa-5 rounded-lg" Style="width: 95vw; max-width: 580px; max-height: 90vh; overflow-y: auto;">
+            <div class="d-flex align-center justify-space-between mb-3">
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Enviar Consolidado y Detalle a Supervisor</MudText>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => MostrarModalSupervisor = false)" />
+            </div>
+
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                Se incluirá el consolidado y el detalle día a día de <b>@ColaboradoresFiltrados.Count colaboradores</b> (@($"{FechaDesde:dd/MM/yyyy} al {FechaHasta:dd/MM/yyyy}")).
+            </MudAlert>
+
+            @if (SupervisoresSugeridos.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">Supervisores asignados a la operación (clic para autocompletar):</MudText>
+                <div class="d-flex flex-wrap gap-1 mb-3">
+                    @foreach (var sup in SupervisoresSugeridos)
+                    {
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined"
+                                 OnClick="@(() => SeleccionarSupervisorSugerido(sup))">
+                            @sup.Nombre @(string.IsNullOrWhiteSpace(sup.Telefono) ? "" : $"({sup.Telefono})")
+                        </MudChip>
+                    }
+                </div>
+            }
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Nombre del Supervisor / Coordinador" @bind-Value="SupervisorNombre" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" Label="Teléfono WhatsApp Destino" Placeholder="8888-8888" @bind-Value="SupervisorTelefono" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="SupervisorIncluirNeto" Color="Color.Primary" Label="Incluir columna de Salario Neto de Colilla en el consolidado" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Nota / Observación opcional en el mensaje" @bind-Value="SupervisorObservacion" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex flex-wrap justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                           Disabled="@ProcesandoSupervisor"
+                           OnClick="@(() => EjecutarAccionSupervisorAsync("SOLO_PDF"))"
+                           Style="text-transform: none;">
+                    Descargar PDF
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Chat"
+                           Disabled="@ProcesandoSupervisor"
+                           OnClick="@(() => EjecutarAccionSupervisorAsync("PREPARAR_WA_WEB"))"
+                           Style="text-transform: none; font-weight: 700;">
+                    Abrir WhatsApp (1-Clic)
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Send"
+                           Disabled="@ProcesandoSupervisor"
+                           OnClick="@(() => EjecutarAccionSupervisorAsync("META_API"))"
+                           Style="text-transform: none; font-weight: 700;">
+                    Enviar por API Meta
+                </MudButton>
+            </div>
+        </MudPaper>
+    </MudOverlay>
+}
+
+@* --- MODAL: CONFIGURACIÓN DEL CANAL WHATSAPP CLOUD API --- *@
+@if (MostrarModalConfig)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
+        <MudPaper Elevation="8" Class="pa-5 rounded-lg" Style="width: 95vw; max-width: 560px; max-height: 90vh; overflow-y: auto;">
+            <div class="d-flex align-center justify-space-between mb-3">
+                <div class="d-flex align-center gap-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Configuración Canal WhatsApp Cloud API</MudText>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => MostrarModalConfig = false)" />
+            </div>
+
+            <MudAlert Severity="@(ConfigActual.TieneCredencialesApi ? Severity.Success : Severity.Info)" Dense="true" Class="mb-3">
+                Estado actual: <b>@(ConfigActual.TieneCredencialesApi ? $"Conectado ({ConfigActual.OrigenCredenciales})" : "Usando respaldo WhatsApp 1-Clic (o configure credenciales Meta API abajo)")</b>.
+                El sistema lee automáticamente AWS SSM (<code>/bussersa/bot/whatsapp/*</code>) o las credenciales guardadas aquí.
+            </MudAlert>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="8">
+                    <MudTextField T="string" Label="Phone Number ID (Meta WhatsApp)" @bind-Value="ConfigActual.PhoneNumberId" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField T="string" Label="Versión Graph API" @bind-Value="ConfigActual.ApiVersion" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Access Token Permanente (dejar igual para conservar el actual)" @bind-Value="ConfigActual.AccessToken" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string" Label="Encabezado del Mensaje WhatsApp" @bind-Value="ConfigActual.MensajeEncabezado" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="ConfigActual.UsarPlantillaFallback" Color="Color.Primary" Label="Usar plantilla aprobada de Meta cuando no exista ventana activa de 24h" />
+                </MudItem>
+                @if (ConfigActual.UsarPlantillaFallback)
+                {
+                    <MudItem xs="12" sm="8">
+                        <MudTextField T="string" Label="Nombre de Plantilla Meta (con Header Document)" @bind-Value="ConfigActual.TemplateName" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" Label="Código Idioma" @bind-Value="ConfigActual.TemplateLang" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Text" OnClick="@(() => MostrarModalConfig = false)">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@GuardandoConfig" OnClick="GuardarConfigAsync" Style="font-weight: 700; text-transform: none;">
+                    Guardar Configuración
+                </MudButton>
+            </div>
+        </MudPaper>
+    </MudOverlay>
+}

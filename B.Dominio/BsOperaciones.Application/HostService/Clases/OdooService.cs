@@ -17,7 +17,7 @@ using Utilidades.Interfaces;
 
 namespace HostService.Clases
 {
-    public class OdooService : ServiceHost, IOdooService
+    public partial class OdooService : ServiceHost, IOdooService
     {
         public OdooService(IUtilidades _Util, ILocalStorageService ls) : base(_Util, ls) { }
 

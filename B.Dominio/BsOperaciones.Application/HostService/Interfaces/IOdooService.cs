@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace HostService.Interfaces
 {
-    public interface IOdooService
+    public partial interface IOdooService
     {
         Task<IListResponse<PayrollMonthRecord>> GetAllNominaMensualCierre(int AnioMes);
         Task<IListResponse<SettlementReportRecord>> GetReporteLiquidaciones(int anio, int mes, int clienteId);

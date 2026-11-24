@@ -53,10 +53,20 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69, 72 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69, 72, 73 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Envío WhatsApp (Días y Colillas)",
+                        Subtitulo = "Envío individual, masivo y a supervisores de días laborados (consolidado y detalle) y colilla de pago en PDF.",
+                        Icono = Icons.Material.Filled.SendToMobile,
+                        Ruta = "/operaciones/envio-whatsapp-nomina",
+                        MenuResourceId = 73,
+                        Color = "#059669",
+                        Badge = "WhatsApp PDF"
+                    },
                     new ModuloHerramientaItem
                     {
                         Titulo = "Movimientos (Tablet)",
@@ -213,10 +223,20 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(5, 150, 105, 0.25)",
                 RutaPrincipal = "/nomina",
                 MenuResourceId = 8,
-                ChildMenuIds = new[] { 8, 9, 21, 39, 51, 52, 60, 30, 31, 32 },
+                ChildMenuIds = new[] { 8, 9, 21, 39, 51, 52, 60, 30, 31, 32, 73 },
                 PrefijosRuta = new[] { "/nomina", "/rrhh" },
                 Herramientas = new()
                 {
+                    new ModuloHerramientaItem
+                    {
+                        Titulo = "Envío WhatsApp (Días y Colillas)",
+                        Subtitulo = "Envío por WhatsApp de colillas de pago y detalle día a día de días laborados en PDF oficial.",
+                        Icono = Icons.Material.Filled.SendToMobile,
+                        Ruta = "/nomina/envio-whatsapp-nomina",
+                        MenuResourceId = 73,
+                        Color = "#059669",
+                        Badge = "WhatsApp PDF"
+                    },
                     new ModuloHerramientaItem
                     {
                         Titulo = "Días por Pagar",
