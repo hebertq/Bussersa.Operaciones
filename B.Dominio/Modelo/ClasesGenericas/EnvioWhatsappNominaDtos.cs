@@ -188,6 +188,8 @@ namespace Modelo.ClasesGenericas
         public string NombreArchivoPdf { get; set; } = string.Empty;
         public string? WhatsappMessageId { get; set; }
         public string DetalleRespuesta { get; set; } = string.Empty;
+        public string? RelayPhoneNumberId { get; set; }
+        public string? RelayAccessToken { get; set; }
     }
 
     public class RegistrarResultadoRelayWhatsappDto

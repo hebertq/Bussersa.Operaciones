@@ -56,7 +56,9 @@ namespace HostService.Clases
             string caption,
             string recipientName,
             string periodLabel,
-            ConfigCanalWhatsappDto? cfg = null)
+            ConfigCanalWhatsappDto? cfg = null,
+            string? overridePhoneId = null,
+            string? overrideAccessToken = null)
         {
             try
             {
@@ -71,8 +73,8 @@ namespace HostService.Clases
                     usar_plantilla_fallback = cfg?.UsarPlantillaFallback ?? false,
                     template_name = cfg?.TemplateName ?? string.Empty,
                     template_lang = cfg?.TemplateLang ?? "es",
-                    custom_phone_number_id = cfg?.PhoneNumberId ?? string.Empty,
-                    custom_access_token = cfg?.AccessToken ?? string.Empty,
+                    custom_phone_number_id = !string.IsNullOrWhiteSpace(overridePhoneId) ? overridePhoneId : (cfg?.PhoneNumberId ?? string.Empty),
+                    custom_access_token = !string.IsNullOrWhiteSpace(overrideAccessToken) ? overrideAccessToken : (cfg?.AccessToken ?? string.Empty),
                     api_version = cfg?.ApiVersion ?? "v20.0"
                 };
 
@@ -352,7 +354,9 @@ namespace HostService.Clases
                                     item.MensajeResumen,
                                     item.NombreDestinatario,
                                     periodLbl,
-                                    cfg);
+                                    cfg,
+                                    item.RelayPhoneNumberId,
+                                    item.RelayAccessToken);
 
                                 item.Exito = botRes.success;
                                 item.CanalUsado = "META_API";
@@ -425,7 +429,9 @@ namespace HostService.Clases
                                 item.MensajeResumen,
                                 item.NombreDestinatario,
                                 $"{request.FechaDesde:dd/MM/yyyy} al {request.FechaHasta:dd/MM/yyyy}",
-                                cfgResp.Model);
+                                cfgResp.Model,
+                                item.RelayPhoneNumberId,
+                                item.RelayAccessToken);
 
                             item.Exito = botRes.success;
                             item.CanalUsado = "META_API";
