@@ -297,10 +297,6 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 {
                     await JS.InvokeVoidAsync("downloadFile", "application/pdf", r.PdfBase64, r.NombreArchivoPdf);
                 }
-                else if (!string.IsNullOrWhiteSpace(r.UrlPdfPublico))
-                {
-                    await JS.InvokeVoidAsync("open", r.UrlPdfPublico, "_blank");
-                }
             }
             finally
             {
@@ -334,10 +330,6 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 if (!string.IsNullOrWhiteSpace(r.ImagenPngBase64))
                 {
                     await JS.InvokeVoidAsync("downloadFile", "image/png", r.ImagenPngBase64, r.NombreArchivoImagen);
-                }
-                else if (!string.IsNullOrWhiteSpace(r.UrlVistaWeb))
-                {
-                    await JS.InvokeVoidAsync("open", r.UrlVistaWeb, "_blank");
                 }
             }
             finally
