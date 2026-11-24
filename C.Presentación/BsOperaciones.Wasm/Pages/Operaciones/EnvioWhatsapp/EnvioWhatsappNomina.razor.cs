@@ -97,7 +97,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                     LoteSeleccionadoId = primerLote.Id;
                     FechaDesde = primerLote.FechaInicio;
                     FechaHasta = primerLote.FechaFin;
-                    OperacionSeleccionadaId = primerLote.OperacionSugeridaId ?? 0;
+                    OperacionSeleccionadaId = 0; // Mostrar todos los colaboradores del lote sin recortar
                 }
             }
             catch (Exception ex)
@@ -107,6 +107,11 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             finally
             {
                 Cargando = false;
+            }
+
+            if (LoteSeleccionadoId > 0)
+            {
+                await ConsultarDatosAsync();
             }
         }
 
@@ -120,8 +125,31 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 {
                     FechaDesde = lote.FechaInicio;
                     FechaHasta = lote.FechaFin;
-                    if (lote.OperacionSugeridaId.HasValue && lote.OperacionSugeridaId.Value > 0)
-                        OperacionSeleccionadaId = lote.OperacionSugeridaId.Value;
+                    OperacionSeleccionadaId = 0;
+                }
+            }
+        }
+
+        protected void OnOperacionChanged(int nuevaOperacionId)
+        {
+            OperacionSeleccionadaId = nuevaOperacionId;
+            if (nuevaOperacionId > 0 && LoteSeleccionadoId > 0)
+            {
+                var loteActual = LotesNomina.FirstOrDefault(x => x.Id == LoteSeleccionadoId);
+                if (loteActual != null && loteActual.OperacionSugeridaId.HasValue && loteActual.OperacionSugeridaId.Value != nuevaOperacionId)
+                {
+                    // Buscar el lote más reciente de esa operación o pasar a consulta libre por operación
+                    var loteOp = LotesNomina.FirstOrDefault(x => x.OperacionSugeridaId == nuevaOperacionId);
+                    if (loteOp != null)
+                    {
+                        LoteSeleccionadoId = loteOp.Id;
+                        FechaDesde = loteOp.FechaInicio;
+                        FechaHasta = loteOp.FechaFin;
+                    }
+                    else
+                    {
+                        LoteSeleccionadoId = 0;
+                    }
                 }
             }
         }
