@@ -52,13 +52,12 @@ namespace HostService.Clases
         private static async Task<BotEnviarDocResp> EnviarDocumentoPorRelayBotAsync(
             string telefono,
             string fileName,
-            string pdfBase64,
+            string fileBase64,
+            string mediaType,
             string caption,
             string recipientName,
             string periodLabel,
-            ConfigCanalWhatsappDto? cfg = null,
-            string? overridePhoneId = null,
-            string? overrideAccessToken = null)
+            ConfigCanalWhatsappDto? cfg = null)
         {
             try
             {
@@ -66,15 +65,14 @@ namespace HostService.Clases
                 {
                     telefono,
                     filename = fileName,
-                    pdf_base64 = pdfBase64,
+                    pdf_base64 = fileBase64,
+                    media_type = mediaType,
                     caption,
                     recipient_name = recipientName,
                     period_label = periodLabel,
-                    usar_plantilla_fallback = cfg?.UsarPlantillaFallback ?? false,
+                    usar_plantilla_fallback = true,
                     template_name = cfg?.TemplateName ?? string.Empty,
                     template_lang = cfg?.TemplateLang ?? "es",
-                    custom_phone_number_id = !string.IsNullOrWhiteSpace(overridePhoneId) ? overridePhoneId : (cfg?.PhoneNumberId ?? string.Empty),
-                    custom_access_token = !string.IsNullOrWhiteSpace(overrideAccessToken) ? overrideAccessToken : (cfg?.AccessToken ?? string.Empty),
                     api_version = cfg?.ApiVersion ?? "v20.0"
                 };
 
@@ -339,24 +337,29 @@ namespace HostService.Clases
                                     continue;
                                 }
 
-                                if (string.IsNullOrWhiteSpace(item.PdfBase64))
+                                bool enviarImagen = string.Equals(request.FormatoAdjunto, "IMAGEN", StringComparison.OrdinalIgnoreCase)
+                                    && !string.IsNullOrWhiteSpace(item.ImagenPngBase64);
+                                string base64Payload = enviarImagen ? item.ImagenPngBase64! : (item.PdfBase64 ?? string.Empty);
+                                string fileNamePayload = enviarImagen ? item.NombreArchivoImagen : item.NombreArchivoPdf;
+                                string mimePayload = enviarImagen ? "image/png" : "application/pdf";
+
+                                if (string.IsNullOrWhiteSpace(base64Payload))
                                 {
                                     item.Exito = false;
                                     item.EstadoEnvio = "ERROR";
-                                    item.DetalleRespuesta = "No se obtuvo el archivo PDF para adjuntar.";
+                                    item.DetalleRespuesta = "No se obtuvo el archivo del comprobante para adjuntar.";
                                     continue;
                                 }
 
                                 var botRes = await EnviarDocumentoPorRelayBotAsync(
                                     item.TelefonoNormalizado,
-                                    item.NombreArchivoPdf,
-                                    item.PdfBase64,
+                                    fileNamePayload,
+                                    base64Payload,
+                                    mimePayload,
                                     item.MensajeResumen,
                                     item.NombreDestinatario,
                                     periodLbl,
-                                    cfg,
-                                    item.RelayPhoneNumberId,
-                                    item.RelayAccessToken);
+                                    cfg);
 
                                 item.Exito = botRes.success;
                                 item.CanalUsado = "META_API";
@@ -426,12 +429,11 @@ namespace HostService.Clases
                                 item.TelefonoNormalizado,
                                 item.NombreArchivoPdf,
                                 item.PdfBase64 ?? string.Empty,
+                                "application/pdf",
                                 item.MensajeResumen,
                                 item.NombreDestinatario,
                                 $"{request.FechaDesde:dd/MM/yyyy} al {request.FechaHasta:dd/MM/yyyy}",
-                                cfgResp.Model,
-                                item.RelayPhoneNumberId,
-                                item.RelayAccessToken);
+                                cfgResp.Model);
 
                             item.Exito = botRes.success;
                             item.CanalUsado = "META_API";

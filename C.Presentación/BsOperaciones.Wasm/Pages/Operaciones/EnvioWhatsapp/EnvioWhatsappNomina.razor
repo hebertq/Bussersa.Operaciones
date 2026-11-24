@@ -220,6 +220,17 @@
                         <MudSelectItem T="string" Value="@("ENVIADOS")">Enviados (@Colaboradores.Count(x => EsEnviado(x.UltimoEstadoEnvio)))</MudSelectItem>
                     </MudSelect>
 
+                    <MudSelect T="string"
+                               Label="Formato API"
+                               @bind-Value="FormatoAdjunto"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Dense="true"
+                               Style="max-width: 245px;">
+                        <MudSelectItem T="string" Value="@("IMAGEN")">Imagen Foto + Web (Sin lector PDF)</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("PDF")">Documento PDF + Vista Web</MudSelectItem>
+                    </MudSelect>
+
                     <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="SeleccionarVisiblesConTelefono" Style="text-transform: none;">
                         Seleccionar con teléfono
                     </MudButton>
@@ -375,6 +386,14 @@
                             </td>
                             <td class="text-center">
                                 <div class="d-flex align-center justify-center gap-1">
+                                    <MudTooltip Text="Descargar como Imagen PNG (ideal para celulares sin lector PDF)">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Image"
+                                                       Color="Color.Secondary"
+                                                       Size="Size.Small"
+                                                       Disabled="@procesandoFila"
+                                                       OnClick="@(() => DescargarImagenIndividualAsync(item))" />
+                                    </MudTooltip>
+
                                     <MudTooltip Text="Descargar / Ver PDF Oficial">
                                         <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
                                                        Color="Color.Error"
@@ -465,7 +484,8 @@
                                                     <div style="font-size: 0.76rem; color: #475569;">
                                                         Ord: <b>@($"{item.DiasTrabajadosOrdinarios:0.##}")</b> ·
                                                         7mo/Fer: <b>@($"{(item.SeptimoDia + item.DiasFeriados):0.##}")</b> ·
-                                                        Vac/Just: <b>@($"{(item.DiasVacacionesDescansadas + item.DiasSubsidio + item.DiasJustificados):0.##}")</b> ·
+                                                        Vacaciones: <b>@($"{item.DiasVacacionesDescansadas:0.##}")</b> ·
+                                                        Ausencias: <b style="color:#dc2626;">@($"{(item.DiasJustificados + item.DiasInjustificados + item.DiasSubsidio):0.##}")</b> ·
                                                         Total Días: <b style="color:#065f46;">@($"{item.TotalDiasPagar:0.##}")</b>
                                                     </div>
                                                 </div>
@@ -630,41 +650,28 @@
             </div>
 
             <MudAlert Severity="@(ConfigActual.TieneCredencialesApi ? Severity.Success : Severity.Info)" Dense="true" Class="mb-3">
-                Estado actual: <b>@(ConfigActual.TieneCredencialesApi ? $"Conectado ({ConfigActual.OrigenCredenciales})" : "Usando respaldo WhatsApp 1-Clic (o configure credenciales Meta API abajo)")</b>.
-                El sistema lee automáticamente AWS SSM (<code>/bussersa/bot/whatsapp/*</code>) o las credenciales guardadas aquí.
+                Estado actual: <b>@(ConfigActual.TieneCredencialesApi ? $"Conectado desde AWS Parameter Store (Phone ID: {ConfigActual.PhoneNumberId})" : "Pendiente en AWS Parameter Store (/bussersa/bot/whatsapp/*)")</b>.
+                Por seguridad corporativa, los tokens y el <code>Phone Number ID</code> se gestionan exclusivamente en <b>AWS Systems Manager Parameter Store (us-east-2)</b> y nunca se guardan en base de datos.
             </MudAlert>
 
+            <MudPaper Elevation="0" Class="pa-3 mb-3 rounded border" Style="background: #f8fafc; font-size: 0.78rem;">
+                <div><b>Rutas en AWS Parameter Store (us-east-2):</b></div>
+                <div>• <code>/bussersa/bot/whatsapp/nomina_phone_number_id</code> *(o <code>/bussersa/bot/whatsapp/phone_number_id</code>)*</div>
+                <div>• <code>/bussersa/bot/whatsapp/nomina_token</code> *(o <code>/bussersa/bot/whatsapp/token</code>)*</div>
+                <div>• <code>/bussersa/bot/whatsapp/nomina_template_name</code> *(PDF: <code>comprobante_nomina_bussersa</code>)*</div>
+                <div>• <code>/bussersa/bot/whatsapp/nomina_template_imagen</code> *(Imagen: <code>comprobante_imagen_bussersa</code>)*</div>
+            </MudPaper>
+
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="8">
-                    <MudTextField T="string" Label="Phone Number ID (Meta WhatsApp)" @bind-Value="ConfigActual.PhoneNumberId" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudTextField T="string" Label="Versión Graph API" @bind-Value="ConfigActual.ApiVersion" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField T="string" Label="Access Token Permanente (dejar igual para conservar el actual)" @bind-Value="ConfigActual.AccessToken" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
                 <MudItem xs="12">
                     <MudTextField T="string" Label="Encabezado del Mensaje WhatsApp" @bind-Value="ConfigActual.MensajeEncabezado" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
-                <MudItem xs="12">
-                    <MudSwitch T="bool" @bind-Value="ConfigActual.UsarPlantillaFallback" Color="Color.Primary" Label="Usar plantilla aprobada de Meta cuando no exista ventana activa de 24h" />
-                </MudItem>
-                @if (ConfigActual.UsarPlantillaFallback)
-                {
-                    <MudItem xs="12" sm="8">
-                        <MudTextField T="string" Label="Nombre de Plantilla Meta (con Header Document)" @bind-Value="ConfigActual.TemplateName" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudTextField T="string" Label="Código Idioma" @bind-Value="ConfigActual.TemplateLang" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    </MudItem>
-                }
             </MudGrid>
 
             <div class="d-flex justify-end gap-2 mt-4">
-                <MudButton Variant="Variant.Text" OnClick="@(() => MostrarModalConfig = false)">Cancelar</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="@(() => MostrarModalConfig = false)">Cerrar</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@GuardandoConfig" OnClick="GuardarConfigAsync" Style="font-weight: 700; text-transform: none;">
-                    Guardar Configuración
+                    Guardar Encabezado
                 </MudButton>
             </div>
         </MudPaper>

@@ -37,6 +37,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected DateTime? FechaDesde { get; set; } = DateTime.Today.AddDays(-15);
         protected DateTime? FechaHasta { get; set; } = DateTime.Today;
         protected string ModoContenido { get; set; } = "AMBOS"; // AMBOS | SOLO_DIAS | SOLO_COLILLA
+        protected string FormatoAdjunto { get; set; } = "IMAGEN"; // IMAGEN (sin lector PDF) | PDF
         protected string FiltroRapido { get; set; } = "TODOS"; // TODOS | CON_TELEFONO | SIN_TELEFONO | PENDIENTES | ENVIADOS
         protected string TextoBusqueda { get; set; } = string.Empty;
 
@@ -307,6 +308,44 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             }
         }
 
+        protected async Task DescargarImagenIndividualAsync(ColaboradorEnvioWhatsappDto item)
+        {
+            FilasProcesando.Add(item.EmployeeId);
+            try
+            {
+                var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
+                {
+                    ModoCanal = "SOLO_IMAGEN",
+                    FormatoAdjunto = "IMAGEN",
+                    IncluirColilla = IncluirColilla,
+                    IncluirDiasLaborados = IncluirDiasLaborados,
+                    UsuarioEnvio = ObtenerUsuarioActual(),
+                    Colaboradores = new List<ColaboradorEnvioWhatsappDto> { item }
+                });
+
+                if (resp.Respuesta.ExisteError || resp.Model == null || resp.Model.Count == 0)
+                {
+                    Snackbar.Add($"Error al generar imagen: {resp.Respuesta.MensajeError}", Severity.Error);
+                    return;
+                }
+
+                var r = resp.Model.First();
+                AplicarResultadoAColaborador(item, r);
+                if (!string.IsNullOrWhiteSpace(r.ImagenPngBase64))
+                {
+                    await JS.InvokeVoidAsync("downloadFile", "image/png", r.ImagenPngBase64, r.NombreArchivoImagen);
+                }
+                else if (!string.IsNullOrWhiteSpace(r.UrlVistaWeb))
+                {
+                    await JS.InvokeVoidAsync("open", r.UrlVistaWeb, "_blank");
+                }
+            }
+            finally
+            {
+                FilasProcesando.Remove(item.EmployeeId);
+            }
+        }
+
         protected async Task AbrirWhatsappDirectoFilaAsync(ColaboradorEnvioWhatsappDto item)
         {
             if (!TieneTelefonoValido(item.TelefonoWhatsapp))
@@ -361,6 +400,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
                 {
                     ModoCanal = "META_API",
+                    FormatoAdjunto = FormatoAdjunto,
                     IncluirColilla = IncluirColilla,
                     IncluirDiasLaborados = IncluirDiasLaborados,
                     UsuarioEnvio = ObtenerUsuarioActual(),
@@ -413,6 +453,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                     var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
                     {
                         ModoCanal = "META_API",
+                        FormatoAdjunto = FormatoAdjunto,
                         IncluirColilla = IncluirColilla,
                         IncluirDiasLaborados = IncluirDiasLaborados,
                         UsuarioEnvio = ObtenerUsuarioActual(),

@@ -162,7 +162,8 @@ namespace Modelo.ClasesGenericas
 
     public class EnviarWhatsappIndividualRequestDto
     {
-        public string ModoCanal { get; set; } = "META_API"; // META_API | PREPARAR_WA_WEB | SOLO_PDF
+        public string ModoCanal { get; set; } = "META_API"; // META_API | PREPARAR_WA_WEB | SOLO_PDF | SOLO_IMAGEN
+        public string FormatoAdjunto { get; set; } = "PDF"; // PDF | IMAGEN
         public bool IncluirColilla { get; set; } = true;
         public bool IncluirDiasLaborados { get; set; } = true;
         public string BaseUrlPublica { get; set; } = "https://api.bussersa.com/v1";
@@ -182,14 +183,16 @@ namespace Modelo.ClasesGenericas
         public string EstadoEnvio { get; set; } = string.Empty;
         public string TokenPublico { get; set; } = string.Empty;
         public string UrlPdfPublico { get; set; } = string.Empty;
+        public string UrlVistaWeb { get; set; } = string.Empty;
+        public string UrlImagenPublica { get; set; } = string.Empty;
         public string UrlWhatsappWeb { get; set; } = string.Empty;
         public string MensajeResumen { get; set; } = string.Empty;
         public string? PdfBase64 { get; set; }
         public string NombreArchivoPdf { get; set; } = string.Empty;
+        public string? ImagenPngBase64 { get; set; }
+        public string NombreArchivoImagen { get; set; } = string.Empty;
         public string? WhatsappMessageId { get; set; }
         public string DetalleRespuesta { get; set; } = string.Empty;
-        public string? RelayPhoneNumberId { get; set; }
-        public string? RelayAccessToken { get; set; }
     }
 
     public class RegistrarResultadoRelayWhatsappDto
