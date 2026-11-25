@@ -22,6 +22,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         [Inject] protected IJSRuntime JS { get; set; } = default!;
         [Inject] protected ISnackbar Snackbar { get; set; } = default!;
         [Inject] protected IUserInfo UserInfo { get; set; } = default!;
+        [Inject] protected NavigationManager Nav { get; set; } = default!;
 
         protected class FilaDetalleGrillaVm
         {
@@ -107,6 +108,12 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
 
         protected override async Task OnInitializedAsync()
         {
+            if (Nav.Uri.Contains("/operaciones/envio-whatsapp-nomina", StringComparison.OrdinalIgnoreCase))
+            {
+                Nav.NavigateTo("/nomina/envio-whatsapp-nomina", replace: true);
+                return;
+            }
+
             Cargando = true;
             try
             {
@@ -478,6 +485,10 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 {
                     await JS.InvokeVoidAsync("downloadFile", "image/png", r.ImagenPngBase64, r.NombreArchivoImagen);
                 }
+                else if (!string.IsNullOrWhiteSpace(r.DetalleRespuesta))
+                {
+                    Snackbar.Add(r.DetalleRespuesta, Severity.Warning);
+                }
             }
             finally
             {
@@ -582,6 +593,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             ProgresoTotal = cola.Count;
             int exitosos = 0;
             int fallidos = 0;
+            string ultimoMotivoFallo = string.Empty;
 
             try
             {
@@ -606,13 +618,23 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                             var target = bloque.FirstOrDefault(b => b.EmployeeId == r.EmployeeId);
                             if (target != null)
                                 AplicarResultadoAColaborador(target, r);
-                            if (r.Exito) exitosos++;
-                            else fallidos++;
+                            if (r.Exito)
+                            {
+                                exitosos++;
+                            }
+                            else
+                            {
+                                fallidos++;
+                                if (string.IsNullOrWhiteSpace(ultimoMotivoFallo) && !string.IsNullOrWhiteSpace(r.DetalleRespuesta))
+                                    ultimoMotivoFallo = r.DetalleRespuesta;
+                            }
                         }
                     }
                     else
                     {
                         fallidos += bloque.Count;
+                        if (string.IsNullOrWhiteSpace(ultimoMotivoFallo) && !string.IsNullOrWhiteSpace(resp.Respuesta.MensajeError))
+                            ultimoMotivoFallo = resp.Respuesta.MensajeError;
                     }
 
                     ProgresoActual = Math.Min(cola.Count, i + bloque.Count);
@@ -620,9 +642,14 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 }
 
                 if (exitosos > 0 && fallidos == 0)
+                {
                     Snackbar.Add($"Envío masivo completado: {exitosos} comprobantes enviados por WhatsApp API.", Severity.Success);
+                }
                 else
-                    Snackbar.Add($"Proceso finalizado: {exitosos} enviados por API, {fallidos} pendientes/con observación.", exitosos > 0 ? Severity.Info : Severity.Warning);
+                {
+                    string detTxt = string.IsNullOrWhiteSpace(ultimoMotivoFallo) ? "" : $" Motivo: {ultimoMotivoFallo}";
+                    Snackbar.Add($"Proceso finalizado: {exitosos} enviados por API, {fallidos} con observación.{detTxt}", exitosos > 0 ? Severity.Info : Severity.Warning);
+                }
             }
             finally
             {

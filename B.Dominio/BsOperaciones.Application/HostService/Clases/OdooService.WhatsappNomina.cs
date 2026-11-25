@@ -32,6 +32,35 @@ namespace HostService.Clases
             public string? detail { get; set; }
         }
 
+        private class BotPdfAImagenResp
+        {
+            public bool success { get; set; }
+            public string? png_base64 { get; set; }
+            public string? detail { get; set; }
+        }
+
+        private static async Task<BotPdfAImagenResp> ConvertirPdfAImagenPorBotAsync(string pdfBase64)
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Post, $"{BotWhatsappRelayBaseUrl}/whatsapp/pdf-a-imagen")
+                {
+                    Content = new StringContent(JsonConvert.SerializeObject(new { pdf_base64 = pdfBase64, dpi = 180 }), Encoding.UTF8, "application/json")
+                };
+                req.Headers.Add("x-api-key", BotOperationsApiKey);
+                using var resp = await _botRelayHttp.SendAsync(req);
+                var body = await resp.Content.ReadAsStringAsync();
+                if (!resp.IsSuccessStatusCode)
+                    return new BotPdfAImagenResp { success = false, detail = $"Error al renderizar imagen ({(int)resp.StatusCode})" };
+
+                return JsonConvert.DeserializeObject<BotPdfAImagenResp>(body) ?? new BotPdfAImagenResp { success = false, detail = "Respuesta vacía al convertir PDF a imagen." };
+            }
+            catch (Exception ex)
+            {
+                return new BotPdfAImagenResp { success = false, detail = ex.Message };
+            }
+        }
+
         private static async Task<BotEstadoCanalResp?> ConsultarEstadoCanalBotAsync()
         {
             try
@@ -309,7 +338,26 @@ namespace HostService.Clases
                     if (reg.sucess && reg.detail != null)
                     {
                         var items = JsonConvert.DeserializeObject<List<ResultadoItemEnvioWhatsappDto>>(reg.detail.ToString()!) ?? new();
-                        if (usarRelayBot && items.Count > 0)
+                        if (string.Equals(modoOriginal, "SOLO_IMAGEN", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var item in items)
+                            {
+                                if (string.IsNullOrWhiteSpace(item.ImagenPngBase64) && !string.IsNullOrWhiteSpace(item.PdfBase64))
+                                {
+                                    var conv = await ConvertirPdfAImagenPorBotAsync(item.PdfBase64!);
+                                    if (conv.success && !string.IsNullOrWhiteSpace(conv.png_base64))
+                                    {
+                                        item.ImagenPngBase64 = conv.png_base64;
+                                    }
+                                    else
+                                    {
+                                        item.Exito = false;
+                                        item.DetalleRespuesta = conv.detail ?? "No se pudo convertir el comprobante a imagen.";
+                                    }
+                                }
+                            }
+                        }
+                        else if (usarRelayBot && items.Count > 0)
                         {
                             var cfgResp = await GetConfigCanalWhatsapp();
                             var cfg = cfgResp.Model;
@@ -337,9 +385,11 @@ namespace HostService.Clases
                                     continue;
                                 }
 
-                                bool enviarImagen = string.Equals(request.FormatoAdjunto, "IMAGEN", StringComparison.OrdinalIgnoreCase)
-                                    && !string.IsNullOrWhiteSpace(item.ImagenPngBase64);
-                                string base64Payload = enviarImagen ? item.ImagenPngBase64! : (item.PdfBase64 ?? string.Empty);
+                                bool enviarImagen = string.Equals(request.FormatoAdjunto, "IMAGEN", StringComparison.OrdinalIgnoreCase);
+                                // Si se pide IMAGEN y Lambda entregó PdfBase64, bot.bussersa.com convierte automáticamente el PDF a PNG 180-DPI antes de subirlo a Meta
+                                string base64Payload = enviarImagen
+                                    ? (!string.IsNullOrWhiteSpace(item.ImagenPngBase64) ? item.ImagenPngBase64! : (item.PdfBase64 ?? string.Empty))
+                                    : (item.PdfBase64 ?? string.Empty);
                                 string fileNamePayload = enviarImagen ? item.NombreArchivoImagen : item.NombreArchivoPdf;
                                 string mimePayload = enviarImagen ? "image/png" : "application/pdf";
 

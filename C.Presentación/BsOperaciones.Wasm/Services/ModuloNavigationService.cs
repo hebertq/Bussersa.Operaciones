@@ -53,20 +53,10 @@ namespace BsOperaciones.Services
                 ColorSombra = "rgba(30, 58, 138, 0.25)",
                 RutaPrincipal = "/operaciones",
                 MenuResourceId = 15,
-                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69, 72, 73 },
+                ChildMenuIds = new[] { 15, 16, 18, 55, 56, 64, 36, 37, 57, 54, 58, 66, 67, 68, 69, 72 },
                 PrefijosRuta = new[] { "/operaciones" },
                 Herramientas = new()
                 {
-                    new ModuloHerramientaItem
-                    {
-                        Titulo = "Envío WhatsApp (Días y Colillas)",
-                        Subtitulo = "Envío individual, masivo y a supervisores de días laborados (consolidado y detalle) y colilla de pago en PDF.",
-                        Icono = Icons.Material.Filled.SendToMobile,
-                        Ruta = "/operaciones/envio-whatsapp-nomina",
-                        MenuResourceId = 73,
-                        Color = "#059669",
-                        Badge = "WhatsApp PDF"
-                    },
                     new ModuloHerramientaItem
                     {
                         Titulo = "Movimientos (Tablet)",
@@ -230,12 +220,12 @@ namespace BsOperaciones.Services
                     new ModuloHerramientaItem
                     {
                         Titulo = "Envío WhatsApp (Días y Colillas)",
-                        Subtitulo = "Envío por WhatsApp de colillas de pago y detalle día a día de días laborados en PDF oficial.",
+                        Subtitulo = "Envío individual y masivo por WhatsApp de colillas de pago y detalle día a día en Imagen directa o PDF.",
                         Icono = Icons.Material.Filled.SendToMobile,
                         Ruta = "/nomina/envio-whatsapp-nomina",
                         MenuResourceId = 73,
                         Color = "#059669",
-                        Badge = "WhatsApp PDF"
+                        Badge = "WhatsApp API"
                     },
                     new ModuloHerramientaItem
                     {
@@ -468,10 +458,10 @@ namespace BsOperaciones.Services
                     return menus.Any(m => m.id == 3 || m.id == 4 || m.id == 5);
                 }
 
-                // 4. Nómina (8 o 9 o 39 o 60 o 30 o 31 o 32)
+                // 4. Nómina (8 o 9 o 73 o 39 o 60 o 30 o 31 o 32)
                 if (modulo.Clave == "nomina")
                 {
-                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 39 || m.id == 60 || m.id == 30 || m.id == 31 || m.id == 32);
+                    return menus.Any(m => m.id == 8 || m.id == 9 || m.id == 73 || m.id == 39 || m.id == 60 || m.id == 30 || m.id == 31 || m.id == 32);
                 }
 
                 // 5. Comercial (26 o 27 o 28 o 29 o 33)
