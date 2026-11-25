@@ -1207,7 +1207,7 @@ namespace BsOperaciones.Pages.Operaciones.ProduccionDiaria
         {
             if (string.IsNullOrWhiteSpace(codigo)) return false;
             var c = codigo.Trim().ToUpperInvariant();
-            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.StartsWith("SVTC") || 
+            return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.StartsWith("HOR-") || 
                    c.Contains("-DIU-") || c.Contains("-EXT-") || c.Contains("-NOC-");
         }
     }

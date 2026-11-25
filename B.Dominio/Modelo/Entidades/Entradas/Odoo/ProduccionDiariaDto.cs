@@ -35,25 +35,49 @@ namespace Modelo.Entidades.Entradas.Odoo
         public int? template_id { get; set; }
         public string? template_nombre { get; set; }
 
-                public static bool EsCodigoHorasLaborales(string? codigo)
+        public static bool EsCodigoHorasLaborales(string? codigo)
         {
             if (string.IsNullOrWhiteSpace(codigo)) return false;
             var c = codigo.Trim().ToUpperInvariant();
             return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.EndsWith("-ADE") || 
                    c.EndsWith("-ADV") || c.EndsWith("-MTC") || c.EndsWith("-CHO") ||
-                   c.StartsWith("SVTC") || c.StartsWith("HOR-") ||
+                   c.StartsWith("HOR-") ||
                    c.Contains("-DIU-") || c.Contains("-EXT-") || c.Contains("-NOC-");
+        }
+
+        public static bool EsViatico(ProduccionDiariaDto? item)
+        {
+            if (item == null) return false;
+            if (item.template_id == 865) return true;
+            if (!string.IsNullOrWhiteSpace(item.servicio_codigo) &&
+                item.servicio_codigo.Trim().StartsWith("SVTC", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            if (!string.IsNullOrWhiteSpace(item.template_nombre) &&
+                (item.template_nombre.Contains("viatico", StringComparison.OrdinalIgnoreCase) ||
+                 item.template_nombre.Contains("viático", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+            if (!string.IsNullOrWhiteSpace(item.actividad) &&
+                (item.actividad.StartsWith("viatico", StringComparison.OrdinalIgnoreCase) ||
+                 item.actividad.StartsWith("viático", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+            return false;
         }
 
         public static bool EsActividadDeProduccion(ProduccionDiariaDto? item)
         {
             if (item == null) return false;
-            if (item.template_id == 9 || item.template_id == 865) return false;
+            if (item.template_id == 9) return false;
+            if (EsViatico(item)) return true;
             if (!string.IsNullOrWhiteSpace(item.template_nombre))
             {
                 var tn = item.template_nombre;
-                if (tn.Contains("horas", StringComparison.OrdinalIgnoreCase) ||
-                    tn.Contains("viatico", StringComparison.OrdinalIgnoreCase))
+                if (tn.Contains("horas", StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }
@@ -62,8 +86,7 @@ namespace Modelo.Entidades.Entradas.Odoo
             if (!string.IsNullOrWhiteSpace(item.actividad))
             {
                 var act = item.actividad;
-                if (act.Contains("horas laborales", StringComparison.OrdinalIgnoreCase) ||
-                    act.StartsWith("viatico", StringComparison.OrdinalIgnoreCase))
+                if (act.Contains("horas laborales", StringComparison.OrdinalIgnoreCase))
                 {
                     return false;
                 }

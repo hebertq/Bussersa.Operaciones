@@ -61,6 +61,9 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             public string? no_factura { get; set; }
             public DateTime fecha_registro { get; set; }
             public int? operacion_id { get; set; }
+            public int? template_id { get; set; }
+            public string? template_nombre { get; set; }
+            public bool EsViatico { get; set; }
             public bool IsSelected { get; set; }
             public bool EsMesAnterior { get; set; }
             public string PeriodoMes { get; set; } = string.Empty;
@@ -70,6 +73,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
         {
             public string PeriodoMes { get; set; } = string.Empty;
             public bool EsMesAnterior { get; set; }
+            public bool EsViatico { get; set; }
             public string Actividad { get; set; } = string.Empty;
             public string NombreProducto { get; set; } = string.Empty;
             public string ServicioCodigo { get; set; } = string.Empty;
@@ -93,6 +97,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
         protected int numeroSemana;
         protected bool soloPendientes = true;
         protected string filtroPeriodoCorte = "TODOS";
+        protected string filtroTipoRegistro = "TODOS";
         protected string filtroDetalle = string.Empty;
 
         // Datos de Producción
@@ -142,21 +147,28 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 
         // Totales Generales KPI
         protected int TotalRegistros => actividadesSeleccionables.Count;
+        protected int TotalActividadesOperativas => actividadesSeleccionables.Count(a => !a.EsViatico);
+        protected int TotalViaticos => actividadesSeleccionables.Count(a => a.EsViatico);
         protected decimal TotalCantidadProducida => actividadesSeleccionables.Sum(a => a.cantidad_producto);
         protected decimal TotalSubtotalFacturable => actividadesSeleccionables.Sum(a => a.cantidad_producto * a.costo_producto);
         protected int TotalPendientes => actividadesSeleccionables.Count(a => string.IsNullOrWhiteSpace(a.no_lote));
         protected int TotalSelladas => actividadesSeleccionables.Count(a => !string.IsNullOrWhiteSpace(a.no_lote));
 
-        // Filtrado por Corte y Búsqueda
+        // Filtrado por Corte, Tipo y Búsqueda
         protected IEnumerable<GrillaConsolidadaActividadesDto> GrillaFiltrada
         {
             get
             {
                 if (grillaConsolidada == null) return Enumerable.Empty<GrillaConsolidadaActividadesDto>();
-                if (!EsSemanaEncajonada || filtroPeriodoCorte == "TODOS") return grillaConsolidada;
-                if (filtroPeriodoCorte == "MES_ANTERIOR") return grillaConsolidada.Where(g => g.EsMesAnterior);
-                if (filtroPeriodoCorte == "MES_ACTUAL") return grillaConsolidada.Where(g => !g.EsMesAnterior);
-                return grillaConsolidada;
+                var query = grillaConsolidada.AsEnumerable();
+                if (EsSemanaEncajonada)
+                {
+                    if (filtroPeriodoCorte == "MES_ANTERIOR") query = query.Where(g => g.EsMesAnterior);
+                    else if (filtroPeriodoCorte == "MES_ACTUAL") query = query.Where(g => !g.EsMesAnterior);
+                }
+                if (filtroTipoRegistro == "ACTIVIDADES") query = query.Where(g => !g.EsViatico);
+                else if (filtroTipoRegistro == "VIATICOS") query = query.Where(g => g.EsViatico);
+                return query;
             }
         }
 
@@ -173,6 +185,11 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                     else if (filtroPeriodoCorte == "MES_ACTUAL")
                         query = query.Where(a => !a.EsMesAnterior);
                 }
+
+                if (filtroTipoRegistro == "ACTIVIDADES")
+                    query = query.Where(a => !a.EsViatico);
+                else if (filtroTipoRegistro == "VIATICOS")
+                    query = query.Where(a => a.EsViatico);
 
                 if (!string.IsNullOrWhiteSpace(filtroDetalle))
                 {
@@ -375,7 +392,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_sellar_operacion_id", operacionId.ToString());
 
-                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v3";
+                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v4";
                 List<ProduccionDiariaDto> raw = new();
 
                 if (esModoOnline)
@@ -433,8 +450,8 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                     }
                 }
 
-                // FILTRO ESTRICTO: En Sellar Actividades SOLO deben estar las actividades de producción,
-                // NUNCA las horas laborales (plantilla 9) ni viáticos (865).
+                // FILTRO ESTRICTO: En Sellar Actividades entran actividades operativas y viáticos (865),
+                // excluyendo únicamente horas laborales (plantilla 9, que se sella en Asistencias).
                 // REGLA: Nunca mostrar lo que ya está facturado o con proforma de presupuesto
                 var soloActividades = raw
                     .Where(a => ProduccionDiariaDto.EsActividadDeProduccion(a))
@@ -450,11 +467,12 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                     actividadesList = soloActividades;
                 }
 
-                    // Mapear a seleccionables con detección de mes
+                    // Mapear a seleccionables con detección de mes y viático
                     actividadesSeleccionables = actividadesList.Select(a =>
                     {
                         bool esAnt = EsSemanaEncajonada && (a.fecha_inicio ?? fchaInicioSemana).Month == fchaInicioSemana.Month;
                         string periodoMes = esAnt ? NombreMesAnterior : (EsSemanaEncajonada ? NombreMesActual : "Semana Normal");
+                        bool esViatico = ProduccionDiariaDto.EsViatico(a);
 
                         return new ActividadSeleccionableItem
                         {
@@ -482,11 +500,19 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                             no_factura = a.no_factura,
                             fecha_registro = a.fecha_registro,
                             operacion_id = a.operacion_id,
+                            template_id = a.template_id,
+                            template_nombre = a.template_nombre,
+                            EsViatico = esViatico,
                             IsSelected = string.IsNullOrWhiteSpace(a.no_lote),
                             EsMesAnterior = esAnt,
                             PeriodoMes = periodoMes
                         };
                     }).ToList();
+
+                    if (filtroTipoRegistro == "VIATICOS" && !actividadesSeleccionables.Any(a => a.EsViatico))
+                        filtroTipoRegistro = "TODOS";
+                    else if (filtroTipoRegistro == "ACTIVIDADES" && !actividadesSeleccionables.Any(a => !a.EsViatico))
+                        filtroTipoRegistro = "TODOS";
 
                     // Construir grilla consolidada agrupada
                     ConstruirGrillaConsolidada();
@@ -509,6 +535,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                 {
                     a.PeriodoMes,
                     a.EsMesAnterior,
+                    a.EsViatico,
                     Actividad = a.actividad ?? "Sin Actividad",
                     NombreProducto = a.nombre_producto ?? "",
                     ServicioCodigo = a.servicio_codigo ?? "",
@@ -519,6 +546,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                 {
                     PeriodoMes = g.Key.PeriodoMes,
                     EsMesAnterior = g.Key.EsMesAnterior,
+                    EsViatico = g.Key.EsViatico,
                     Actividad = g.Key.Actividad,
                     NombreProducto = g.Key.NombreProducto,
                     ServicioCodigo = g.Key.ServicioCodigo,
@@ -529,9 +557,31 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
                     CantidadRegistros = g.Count()
                 })
                 .OrderBy(g => g.EsMesAnterior ? 0 : 1)
+                .ThenBy(g => g.EsViatico ? 1 : 0)
                 .ThenBy(g => g.Actividad)
                 .ThenBy(g => g.ServicioCodigo)
                 .ToList();
+        }
+
+        protected void CambiarFiltroTipoRegistro(string nuevoTipo)
+        {
+            filtroTipoRegistro = nuevoTipo;
+            if (nuevoTipo != "TODOS")
+            {
+                bool soloViaticos = nuevoTipo == "VIATICOS";
+                foreach (var act in actividadesSeleccionables)
+                {
+                    act.IsSelected = string.IsNullOrWhiteSpace(act.no_lote) && (act.EsViatico == soloViaticos);
+                }
+            }
+            else
+            {
+                foreach (var act in actividadesSeleccionables)
+                {
+                    act.IsSelected = string.IsNullOrWhiteSpace(act.no_lote);
+                }
+            }
+            StateHasChanged();
         }
 
         #endregion
@@ -540,9 +590,14 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
 
         protected void SeleccionarTodasPendientes()
         {
+            var idsVisibles = DetalleFiltrado
+                .Where(a => string.IsNullOrWhiteSpace(a.no_lote))
+                .Select(a => a.id)
+                .ToHashSet();
+
             foreach (var act in actividadesSeleccionables.Where(a => string.IsNullOrWhiteSpace(a.no_lote)))
             {
-                act.IsSelected = true;
+                act.IsSelected = idsVisibles.Contains(act.id);
             }
             StateHasChanged();
         }

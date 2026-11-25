@@ -18,7 +18,7 @@
             SELLAR LOTE DE ACTIVIDADES DE PRODUCCIÓN
         </MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Revisión, auditoría y sellado semanal de actividades de producción operativa (bandeo, etiquetado, trasiego, movimientos, etc.) para su facturación comercial en Odoo.
+            Revisión, auditoría y sellado semanal de actividades de producción operativa y viáticos (bandeo, etiquetado, trasiego, movimientos, transporte, alimentación, etc.) para su facturación comercial en Odoo.
         </MudText>
     </div>
     <div class="d-flex align-center gap-2">
@@ -219,6 +219,27 @@
                     <MudChip T="string" Color="Color.Default" Size="Size.Small">@GrillaFiltrada.Count() líneas consolidadas</MudChip>
                 }
 
+                @if (actividadesSeleccionables != null && actividadesSeleccionables.Any())
+                {
+                    <div class="d-flex align-center gap-1 ml-1">
+                        <MudChip T="string" Color="@(filtroTipoRegistro == "TODOS" ? Color.Primary : Color.Default)"
+                                 Variant="@(filtroTipoRegistro == "TODOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => CambiarFiltroTipoRegistro("TODOS"))" Size="Size.Small">
+                            Todos (@TotalRegistros)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroTipoRegistro == "ACTIVIDADES" ? Color.Info : Color.Default)"
+                                 Variant="@(filtroTipoRegistro == "ACTIVIDADES" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => CambiarFiltroTipoRegistro("ACTIVIDADES"))" Size="Size.Small">
+                            Actividades (@TotalActividadesOperativas)
+                        </MudChip>
+                        <MudChip T="string" Color="@(filtroTipoRegistro == "VIATICOS" ? Color.Secondary : Color.Default)"
+                                 Variant="@(filtroTipoRegistro == "VIATICOS" ? Variant.Filled : Variant.Outlined)"
+                                 OnClick="@(() => CambiarFiltroTipoRegistro("VIATICOS"))" Size="Size.Small">
+                            Viáticos (@TotalViaticos)
+                        </MudChip>
+                    </div>
+                }
+
                 @if (EsSemanaEncajonada)
                 {
                     <div class="d-flex align-center gap-1 ml-2">
@@ -284,7 +305,13 @@
                     }
                 </MudTd>
                 <MudTd DataLabel="Actividad">
-                    <b>@context.Actividad</b>
+                    <div class="d-flex align-center gap-1 flex-wrap">
+                        <b>@context.Actividad</b>
+                        @if (context.EsViatico)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Style="font-size: 10px; height: 18px; font-weight: 700;">VIÁTICO</MudChip>
+                        }
+                    </div>
                     @if (!string.IsNullOrWhiteSpace(context.NombreProducto) && context.NombreProducto != context.Actividad)
                     {
                         <div style="font-size: 11px; color: #64748b;">@context.NombreProducto</div>
@@ -377,7 +404,15 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Fecha">@(context.fecha_inicio?.ToString("dd/MM/yyyy") ?? "-")</MudTd>
-                        <MudTd DataLabel="Actividad"><b>@context.actividad</b></MudTd>
+                        <MudTd DataLabel="Actividad">
+                            <div class="d-flex align-center gap-1 flex-wrap">
+                                <b>@context.actividad</b>
+                                @if (context.EsViatico)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined" Style="font-size: 10px; height: 18px; font-weight: 700;">VIÁTICO</MudChip>
+                                }
+                            </div>
+                        </MudTd>
                         <MudTd DataLabel="Variante" Style="font-size: 11px; max-width: 250px;">
                             @context.nombre_producto
                         </MudTd>
