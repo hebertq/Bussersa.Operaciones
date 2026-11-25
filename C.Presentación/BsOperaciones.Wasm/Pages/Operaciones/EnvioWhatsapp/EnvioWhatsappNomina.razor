@@ -206,7 +206,7 @@
         <MudGrid Spacing="3" AlignItems="AlignItems.Center">
             <MudItem xs="12" md="5">
                 <MudSelect T="int"
-                           Label="Lote de Nómina (Opcional)"
+                           Label="Lote de Nómina Abierta (Opcional)"
                            Value="LoteSeleccionadoId"
                            ValueChanged="OnLoteChanged"
                            Variant="Variant.Outlined"
@@ -500,9 +500,9 @@
                             <td class="text-right">
                                 @if (IncluirDiasLaborados)
                                 {
-                                    <div style="font-weight: 800; color: #065f46;">@($"{item.TotalDiasPagar:0.##} días")</div>
+                                    <div style="font-weight: 800; color: #065f46;">@($"{item.TotalDiasPagar:N2} días")</div>
                                     <div style="font-size: 0.72rem; color: #475569;">
-                                        Ord: @($"{item.DiasTrabajadosOrdinarios:0.##}") · 7mo: @($"{item.SeptimoDia:0.##}") · H.E.: <b>@($"{item.HorasExtrasPeriodo:0.##}h")</b>
+                                        Ord: @($"{item.DiasTrabajadosOrdinarios:N2}") · 7mo: @($"{item.SeptimoDia:N2}") · H.E.: <b>@($"{item.HorasExtrasPeriodo:N2}h")</b>
                                     </div>
                                 }
                                 else
@@ -625,7 +625,7 @@
                                                     @foreach (var ing in item.LineasIngresos)
                                                     {
                                                         <div class="d-flex justify-space-between" style="font-size: 0.76rem;">
-                                                            <span>@ing.Concepto @(ing.Cantidad > 0 ? $"({ing.Cantidad:0.##} {ing.Unidad})" : "")</span>
+                                                            <span>@ing.Concepto @(ing.Cantidad > 0 ? $"({ing.Cantidad:N2} {ing.Unidad})" : "")</span>
                                                             <span>@($"C$ {ing.Monto:N2}")</span>
                                                         </div>
                                                     }
@@ -658,13 +658,13 @@
                                                         Detalle Día a Día (@item.DetalleDias.Count registros)
                                                     </MudText>
                                                     <div style="font-size: 0.76rem; color: #475569;">
-                                                        Hábiles: <b>@($"{item.DiasHabilesPeriodo:0.##}")</b> ·
-                                                        Ord: <b>@($"{item.DiasTrabajadosOrdinarios:0.##}")</b> ·
-                                                        Séptimos: <b>@($"{item.SeptimoDia:0.##}")</b> ·
-                                                        Feriados: <b>@($"{item.DiasFeriados:0.##}")</b> ·
-                                                        Vacaciones: <b style="color:#1e3a8a;">@($"{item.DiasVacacionesDescansadas:0.##}")</b> ·
-                                                        Ausencias: <b style="color:#dc2626;">@($"{(item.DiasJustificados + item.DiasInjustificados + item.DiasSubsidio):0.##}")</b> ·
-                                                        Total Días: <b style="color:#065f46;">@($"{item.TotalDiasPagar:0.##}")</b>
+                                                        Hábiles: <b>@($"{item.DiasHabilesPeriodo:N2}")</b> ·
+                                                        Ord: <b>@($"{item.DiasTrabajadosOrdinarios:N2}")</b> ·
+                                                        Séptimos: <b>@($"{item.SeptimoDia:N2}")</b> ·
+                                                        Feriados: <b>@($"{item.DiasFeriados:N2}")</b> ·
+                                                        Vacaciones: <b style="color:#1e3a8a;">@($"{item.DiasVacacionesDescansadas:N2}")</b> ·
+                                                        Ausencias: <b style="color:#dc2626;">@($"{(item.DiasJustificados + item.DiasInjustificados + item.DiasSubsidio):N2}")</b> ·
+                                                        Total Días: <b style="color:#065f46;">@($"{item.TotalDiasPagar:N2}")</b>
                                                     </div>
                                                 </div>
 
@@ -702,9 +702,9 @@
                                                                         <td style="padding: 3px 4px;">@(string.IsNullOrWhiteSpace(d.Area) ? d.Cliente : d.Area)</td>
                                                                         <td style="padding: 3px 4px;">@d.HoraEntrada</td>
                                                                         <td style="padding: 3px 4px;">@d.HoraSalida</td>
-                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:0.##}" : "-")</td>
-                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:0.##}" : "-")</td>
-                                                                        <td style="padding: 3px 4px; text-align: right; font-weight: 700; color: #1e3a8a;">@(d.HorasExtras > 0 ? $"{d.HorasExtras:0.##}" : "-")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:N2}" : "-")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:N2}" : "-")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right; font-weight: 700; color: #1e3a8a;">@(d.HorasExtras > 0 ? $"{d.HorasExtras:N2}" : "-")</td>
                                                                         <td style="padding: 3px 4px; color: @colorEst;">
                                                                             @d.EstadoTexto @(string.IsNullOrWhiteSpace(d.Observacion) ? "" : $"· {d.Observacion}")
                                                                         </td>
@@ -886,22 +886,22 @@
                                                 <span> · @emp.Cargo</span>
                                             }
                                         </td>
-                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasHabilesPeriodo:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasHabilesPeriodo:N2}")</td>
                                         <td style="padding: 6px; text-align: right;">@emp.DiasAsistidosCalendario</td>
-                                        <td style="padding: 6px; text-align: right; font-weight: 600;">@($"{emp.DiasTrabajadosOrdinarios:0.##}")</td>
-                                        <td style="padding: 6px; text-align: right;">@($"{emp.SeptimoDia:0.##}")</td>
-                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasFeriados:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right; font-weight: 600;">@($"{emp.DiasTrabajadosOrdinarios:N2}")</td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.SeptimoDia:N2}")</td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasFeriados:N2}")</td>
                                         <td style="padding: 6px; text-align: right; font-weight: @(emp.DiasVacacionesDescansadas > 0 ? "700" : "400"); color: @(emp.DiasVacacionesDescansadas > 0 ? "#1e3a8a" : "#475569");">
-                                            @($"{emp.DiasVacacionesDescansadas:0.##}")
+                                            @($"{emp.DiasVacacionesDescansadas:N2}")
                                         </td>
                                         <td style="padding: 6px; text-align: right; font-weight: @(ausEmp > 0 ? "700" : "400"); color: @(ausEmp > 0 ? "#dc2626" : "#475569");">
-                                            @($"{ausEmp:0.##}")
+                                            @($"{ausEmp:N2}")
                                         </td>
                                         <td style="padding: 6px; text-align: right; font-weight: 800; color: #065f46; background: #ecfdf5;">
-                                            @($"{emp.TotalDiasPagar:0.##}")
+                                            @($"{emp.TotalDiasPagar:N2}")
                                         </td>
                                         <td style="padding: 6px; text-align: right; font-weight: 700; color: @(emp.HorasExtrasPeriodo > 0 ? "#1e3a8a" : "#64748b");">
-                                            @($"{emp.HorasExtrasPeriodo:0.##}")
+                                            @($"{emp.HorasExtrasPeriodo:N2}")
                                         </td>
                                         <td style="padding: 6px; text-align: right;">@($"{emp.ViaticosBonoPeriodo:N2}")</td>
                                         @if (IncluirColilla)
@@ -1041,10 +1041,10 @@
                                             <td style="padding: 5px 6px;">@(string.IsNullOrWhiteSpace(d.Area) ? d.Cliente : d.Area)</td>
                                             <td style="padding: 5px 6px; text-align: center;">@(string.IsNullOrWhiteSpace(d.HoraEntrada) ? "-" : d.HoraEntrada)</td>
                                             <td style="padding: 5px 6px; text-align: center;">@(string.IsNullOrWhiteSpace(d.HoraSalida) ? "-" : d.HoraSalida)</td>
-                                            <td style="padding: 5px 6px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:0.##}" : "-")</td>
-                                            <td style="padding: 5px 6px; text-align: right; font-weight: 600;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:0.##}" : "-")</td>
+                                            <td style="padding: 5px 6px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:N2}" : "-")</td>
+                                            <td style="padding: 5px 6px; text-align: right; font-weight: 600;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:N2}" : "-")</td>
                                             <td style="padding: 5px 6px; text-align: right; font-weight: 700; color: @(d.HorasExtras > 0 ? "#1e3a8a" : "#64748b");">
-                                                @(d.HorasExtras > 0 ? $"{d.HorasExtras:0.##}" : "-")
+                                                @(d.HorasExtras > 0 ? $"{d.HorasExtras:N2}" : "-")
                                             </td>
                                             <td style="padding: 5px 6px; text-align: right;">@(d.ViaticosBono > 0 ? $"{d.ViaticosBono:N2}" : "-")</td>
                                             <td style="padding: 5px 6px; color: @colObs;">

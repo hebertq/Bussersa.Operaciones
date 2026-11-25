@@ -127,7 +127,11 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 await Task.WhenAll(taskOps, taskLotes, taskCfg);
 
                 Operaciones = taskOps.Result?.Model ?? new List<Combos>();
-                LotesNomina = taskLotes.Result?.Model ?? new List<LoteNominaWhatsappItemDto>();
+                LotesNomina = (taskLotes.Result?.Model ?? new List<LoteNominaWhatsappItemDto>())
+                    .Where(x => !string.Equals(x.Estado, "done", StringComparison.OrdinalIgnoreCase)
+                             && !string.Equals(x.Estado, "close", StringComparison.OrdinalIgnoreCase)
+                             && !string.Equals(x.Estado, "cancel", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
                 if (taskCfg.Result?.Model != null)
                 {
