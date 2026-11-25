@@ -20,33 +20,20 @@
         border-radius: 14px;
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
-    .wa-btn-supervisor {
-        background: linear-gradient(135deg, #ea580c 0%, #f97316 100%) !important;
+    .wa-btn-resumen-grilla {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
         color: #ffffff !important;
         font-weight: 700 !important;
         border-radius: 10px !important;
-        padding: 8px 18px !important;
+        padding: 9px 20px !important;
         text-transform: none !important;
-        box-shadow: 0 2px 6px rgba(234, 88, 12, 0.28) !important;
+        box-shadow: 0 2px 8px rgba(30, 58, 138, 0.25) !important;
     }
-    .wa-btn-supervisor.mud-disabled {
+    .wa-btn-resumen-grilla.mud-disabled {
         background: #f1f5f9 !important;
         color: #94a3b8 !important;
         border: 1px solid #cbd5e1 !important;
         box-shadow: none !important;
-    }
-    .wa-btn-config {
-        background: #f8fafc !important;
-        color: #1e293b !important;
-        border: 1.5px solid #cbd5e1 !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        padding: 7px 16px !important;
-        text-transform: none !important;
-    }
-    .wa-btn-config:hover {
-        background: #f1f5f9 !important;
-        border-color: #94a3b8 !important;
     }
     .wa-btn-consultar {
         background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
@@ -142,6 +129,22 @@
         min-width: auto !important;
         text-transform: none !important;
     }
+    .wa-tab-btn-active {
+        background: #1e3a8a !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        text-transform: none !important;
+        padding: 6px 16px !important;
+    }
+    .wa-tab-btn-inactive {
+        background: #f1f5f9 !important;
+        color: #334155 !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
+        text-transform: none !important;
+        padding: 6px 16px !important;
+    }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
@@ -175,30 +178,25 @@
                         }
                     </div>
                     <MudText Typo="Typo.body2" Style="color: #475569; margin-top: 3px;">
-                        Envía comprobantes oficiales en <b>Imagen directa</b> (sin lector PDF) o <b>PDF</b> a cada colaborador y el reporte grupal al Supervisor.
+                        Envía comprobantes oficiales en <b>Imagen directa</b> (sin lector PDF) o <b>PDF</b> a cada colaborador y consulta el consolidado y detalle de la grilla.
                     </MudText>
                 </div>
             </div>
 
             <div class="d-flex flex-wrap align-center gap-2">
-                <MudTooltip Text="@(ColaboradoresFiltrados.Count == 0 ? "Presione Consultar primero para habilitar el envío al Supervisor" : "Enviar reporte consolidado y detalle día a día al Supervisor")">
+                <MudTooltip Text="@(ColaboradoresFiltrados.Count == 0 ? "Presione Consultar Colaboradores primero para habilitar el consolidado" : "Ver tabla consolidada y detalle día a día de los datos actuales de la grilla")">
                     <span>
                         <MudButton Variant="Variant.Filled"
-                                   StartIcon="@Icons.Material.Filled.SupervisorAccount"
+                                   StartIcon="@Icons.Material.Filled.TableChart"
                                    Disabled="@(ColaboradoresFiltrados.Count == 0)"
-                                   OnClick="AbrirModalSupervisor"
-                                   Class="wa-btn-supervisor">
-                            Consolidado a Supervisor
+                                   OnClick="AbrirModalResumenGrilla"
+                                   Class="wa-btn-resumen-grilla">
+                            @(ColaboradoresFiltrados.Count > 0
+                                ? $"Consolidado y Detalle de la Grilla ({ColaboradoresFiltrados.Count})"
+                                : "Consolidado y Detalle de la Grilla")
                         </MudButton>
                     </span>
                 </MudTooltip>
-
-                <MudButton Variant="Variant.Outlined"
-                           StartIcon="@Icons.Material.Filled.Settings"
-                           OnClick="AbrirModalConfigAsync"
-                           Class="wa-btn-config">
-                    Estado del Canal
-                </MudButton>
             </div>
         </div>
     </div>
@@ -206,7 +204,6 @@
     @* --- PANEL DE FILTROS EN 2 FILAS AMPLIAS Y LEGIBLES --- *@
     <div class="wa-filter-card pa-4 mb-4">
         <MudGrid Spacing="3" AlignItems="AlignItems.Center">
-            @* Fila 1: Selección principal amplia sin textos cortados *@
             <MudItem xs="12" md="5">
                 <MudSelect T="int"
                            Label="Lote de Nómina (Opcional)"
@@ -254,7 +251,6 @@
                 </MudSelect>
             </MudItem>
 
-            @* Fila 2: Fechas completas, Formato de Adjunto y Botón Consultar amplio *@
             <MudItem xs="12" sm="6" md="3">
                 <MudDatePicker Label="Fecha Desde"
                                @bind-Date="FechaDesde"
@@ -505,7 +501,7 @@
                                 {
                                     <div style="font-weight: 800; color: #065f46;">@($"{item.TotalDiasPagar:0.##} días")</div>
                                     <div style="font-size: 0.72rem; color: #475569;">
-                                        Asist: @item.DiasAsistidosCalendario · H.E.: <b>@($"{item.HorasExtrasPeriodo:0.##}h")</b>
+                                        Ord: @($"{item.DiasTrabajadosOrdinarios:0.##}") · 7mo: @($"{item.SeptimoDia:0.##}") · H.E.: <b>@($"{item.HorasExtrasPeriodo:0.##}h")</b>
                                     </div>
                                 }
                                 else
@@ -654,9 +650,11 @@
                                                         Detalle Día a Día (@item.DetalleDias.Count registros)
                                                     </MudText>
                                                     <div style="font-size: 0.76rem; color: #475569;">
+                                                        Hábiles: <b>@($"{item.DiasHabilesPeriodo:0.##}")</b> ·
                                                         Ord: <b>@($"{item.DiasTrabajadosOrdinarios:0.##}")</b> ·
-                                                        7mo/Fer: <b>@($"{(item.SeptimoDia + item.DiasFeriados):0.##}")</b> ·
-                                                        Vacaciones: <b>@($"{item.DiasVacacionesDescansadas:0.##}")</b> ·
+                                                        Séptimos: <b>@($"{item.SeptimoDia:0.##}")</b> ·
+                                                        Feriados: <b>@($"{item.DiasFeriados:0.##}")</b> ·
+                                                        Vacaciones: <b style="color:#1e3a8a;">@($"{item.DiasVacacionesDescansadas:0.##}")</b> ·
                                                         Ausencias: <b style="color:#dc2626;">@($"{(item.DiasJustificados + item.DiasInjustificados + item.DiasSubsidio):0.##}")</b> ·
                                                         Total Días: <b style="color:#065f46;">@($"{item.TotalDiasPagar:0.##}")</b>
                                                     </div>
@@ -670,11 +668,12 @@
                                                 }
                                                 else
                                                 {
-                                                    <div style="max-height: 250px; overflow-y: auto;">
+                                                    <div style="max-height: 260px; overflow-y: auto;">
                                                         <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem;">
                                                             <thead>
                                                                 <tr style="background: #e2e8f0; text-align: left;">
                                                                     <th style="padding: 4px;">Fecha</th>
+                                                                    <th style="padding: 4px;">Día</th>
                                                                     <th style="padding: 4px;">Área</th>
                                                                     <th style="padding: 4px;">Entrada</th>
                                                                     <th style="padding: 4px;">Salida</th>
@@ -687,15 +686,18 @@
                                                             <tbody>
                                                                 @foreach (var d in item.DetalleDias)
                                                                 {
-                                                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                                                    bool esVac = !d.Asistio && (d.EstadoTexto ?? string.Empty).Contains("Vacacion", StringComparison.OrdinalIgnoreCase);
+                                                                    string colorEst = !d.Asistio ? (esVac ? "#1e3a8a" : "#dc2626") : "#334155";
+                                                                    <tr style="border-bottom: 1px solid #f1f5f9; background: @(esVac ? "#eff6ff" : "transparent");">
                                                                         <td style="padding: 3px 4px;">@($"{d.Fecha:dd/MM/yyyy}")</td>
+                                                                        <td style="padding: 3px 4px; color: #475569;">@ObtenerDiaCorto(d.Fecha)</td>
                                                                         <td style="padding: 3px 4px;">@(string.IsNullOrWhiteSpace(d.Area) ? d.Cliente : d.Area)</td>
                                                                         <td style="padding: 3px 4px;">@d.HoraEntrada</td>
                                                                         <td style="padding: 3px 4px;">@d.HoraSalida</td>
-                                                                        <td style="padding: 3px 4px; text-align: right;">@($"{d.HorasOrdinarias:0.##}")</td>
-                                                                        <td style="padding: 3px 4px; text-align: right;">@($"{d.DiasEquivalentes:0.##}")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:0.##}" : "-")</td>
+                                                                        <td style="padding: 3px 4px; text-align: right;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:0.##}" : "-")</td>
                                                                         <td style="padding: 3px 4px; text-align: right; font-weight: 700; color: #1e3a8a;">@(d.HorasExtras > 0 ? $"{d.HorasExtras:0.##}" : "-")</td>
-                                                                        <td style="padding: 3px 4px; color: @(d.Asistio ? "#334155" : "#dc2626");">
+                                                                        <td style="padding: 3px 4px; color: @colorEst;">
                                                                             @d.EstadoTexto @(string.IsNullOrWhiteSpace(d.Observacion) ? "" : $"· {d.Observacion}")
                                                                         </td>
                                                                     </tr>
@@ -729,124 +731,337 @@
     }
 </MudContainer>
 
-@* --- MODAL: ENVÍO DE REPORTE CONSOLIDADO + DETALLE A SUPERVISOR --- *@
-@if (MostrarModalSupervisor)
+@* --- MODAL EJECUTIVO: CONSOLIDADO Y DETALLE DE DATOS DE LA GRILLA --- *@
+@if (MostrarModalResumenGrilla)
 {
     <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
-        <MudPaper Elevation="8" Class="pa-5 rounded-lg" Style="width: 95vw; max-width: 580px; max-height: 90vh; overflow-y: auto;">
-            <div class="d-flex align-center justify-space-between mb-3">
-                <div class="d-flex align-center gap-2">
-                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Color="Color.Primary" />
-                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Enviar Consolidado y Detalle a Supervisor</MudText>
+        <MudPaper Elevation="12"
+                  Class="rounded-xl overflow-hidden d-flex flex-column"
+                  Style="width: 96vw; max-width: 1260px; max-height: 92vh; background: #ffffff;">
+
+            @* Encabezado del Modal *@
+            <div class="pa-4 d-flex flex-wrap align-center justify-space-between gap-2"
+                 style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                <div class="d-flex align-center gap-3">
+                    <div class="d-flex align-center justify-center rounded-lg"
+                         style="width: 42px; height: 42px; background: #1e3a8a; color: #ffffff;">
+                        <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Medium" />
+                    </div>
+                    <div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 800; color: #0f172a; line-height: 1.2;">
+                            Consolidado y Detalle de Datos de la Grilla
+                        </MudText>
+                        <MudText Typo="Typo.caption" Style="color: #475569; font-weight: 600;">
+                            @($"Período: {FechaDesde:dd/MM/yyyy} al {FechaHasta:dd/MM/yyyy} · {ColaboradoresFiltrados.Count} colaboradores en vista")
+                        </MudText>
+                    </div>
                 </div>
-                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => MostrarModalSupervisor = false)" />
+
+                <div class="d-flex flex-wrap align-center gap-2">
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                               Disabled="@DescargandoPdfGrilla"
+                               OnClick="DescargarPdfConsolidadoGrillaAsync"
+                               Class="wa-row-btn-pdf"
+                               Style="padding: 6px 14px !important; font-size: 0.8rem !important;">
+                        @(DescargandoPdfGrilla ? "Generando PDF..." : "Descargar PDF (Consolidado y Detalle)")
+                    </MudButton>
+
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Color="Color.Default"
+                                   OnClick="@(() => MostrarModalResumenGrilla = false)" />
+                </div>
             </div>
 
-            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                Se incluirá el consolidado y el detalle día a día de <b>@ColaboradoresFiltrados.Count colaboradores</b> (@($"{FechaDesde:dd/MM/yyyy} al {FechaHasta:dd/MM/yyyy}")).
-            </MudAlert>
+            @* Franja KPI de Totales de la Grilla *@
+            <div class="px-4 py-3" style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+                <div class="d-flex flex-wrap align-center justify-space-between gap-3">
+                    <div class="d-flex flex-wrap gap-3" style="font-size: 0.8rem;">
+                        <div class="px-3 py-1 rounded border" style="background: #f8fafc;">
+                            <span style="color: #64748b;">Días Ord.:</span>
+                            <b style="color: #0f172a; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasTrabajadosOrdinarios):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #f8fafc;">
+                            <span style="color: #64748b;">Séptimos:</span>
+                            <b style="color: #0f172a; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.SeptimoDia):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #f8fafc;">
+                            <span style="color: #64748b;">Feriados:</span>
+                            <b style="color: #0f172a; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasFeriados):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #eff6ff; border-color: #bfdbfe !important;">
+                            <span style="color: #1e3a8a;">Vacaciones:</span>
+                            <b style="color: #1e3a8a; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasVacacionesDescansadas):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #fef2f2; border-color: #fecaca !important;">
+                            <span style="color: #b91c1c;">Ausencias:</span>
+                            <b style="color: #b91c1c; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasJustificados + x.DiasInjustificados + x.DiasSubsidio):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #ecfdf5; border-color: #6ee7b7 !important;">
+                            <span style="color: #065f46;">Total Días a Pagar:</span>
+                            <b style="color: #065f46; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.TotalDiasPagar):N2}")</b>
+                        </div>
+                        <div class="px-3 py-1 rounded border" style="background: #eff6ff; border-color: #bfdbfe !important;">
+                            <span style="color: #1e3a8a;">H. Extras:</span>
+                            <b style="color: #1e3a8a; margin-left: 4px;">@($"{ColaboradoresFiltrados.Sum(x => x.HorasExtrasPeriodo):N2} hrs")</b>
+                        </div>
+                        @if (IncluirColilla)
+                        {
+                            <div class="px-3 py-1 rounded border" style="background: #f0f9ff; border-color: #bae6fd !important;">
+                                <span style="color: #0369a1;">Neto Colillas:</span>
+                                <b style="color: #0369a1; margin-left: 4px;">@($"C$ {ColaboradoresFiltrados.Sum(x => x.NetoAPagar):N2}")</b>
+                            </div>
+                        }
+                    </div>
 
-            @if (SupervisoresSugeridos.Count > 0)
-            {
-                <MudText Typo="Typo.caption" Style="color: #475569;" Class="mb-1 d-block">Supervisores asignados a la operación (clic para autocompletar):</MudText>
-                <div class="d-flex flex-wrap gap-1 mb-3">
-                    @foreach (var sup in SupervisoresSugeridos)
-                    {
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Color="Color.Primary"
-                                 Variant="Variant.Outlined"
-                                 OnClick="@(() => SeleccionarSupervisorSugerido(sup))">
-                            @sup.Nombre @(string.IsNullOrWhiteSpace(sup.Telefono) ? "" : $"({sup.Telefono})")
-                        </MudChip>
-                    }
+                    @* Selector de Pestaña Consolidado vs Detalle Día a Día *@
+                    <div class="d-flex align-center gap-2">
+                        <MudButton Variant="Variant.Filled"
+                                   StartIcon="@Icons.Material.Filled.Summarize"
+                                   OnClick="@(() => { VistaResumenGrilla = "CONSOLIDADO"; EmpleadoFiltroDetalleId = 0; })"
+                                   Class="@(VistaResumenGrilla == "CONSOLIDADO" ? "wa-tab-btn-active" : "wa-tab-btn-inactive")">
+                            1. Consolidado General (@ColaboradoresFiltrados.Count)
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Filled"
+                                   StartIcon="@Icons.Material.Filled.CalendarMonth"
+                                   OnClick="@(() => VistaResumenGrilla = "DETALLE")"
+                                   Class="@(VistaResumenGrilla == "DETALLE" ? "wa-tab-btn-active" : "wa-tab-btn-inactive")">
+                            2. Detalle Día a Día (@ColaboradoresFiltrados.Sum(x => x.DetalleDias?.Count ?? 0))
+                        </MudButton>
+                    </div>
                 </div>
-            }
-
-            <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Nombre del Supervisor / Coordinador" @bind-Value="SupervisorNombre" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField T="string" Label="Teléfono WhatsApp Destino" Placeholder="8888-8888" @bind-Value="SupervisorTelefono" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudSwitch T="bool" @bind-Value="SupervisorIncluirNeto" Color="Color.Primary" Label="Incluir columna de Salario Neto de Colilla en el consolidado" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField T="string" Label="Nota / Observación opcional en el mensaje" @bind-Value="SupervisorObservacion" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-            </MudGrid>
-
-            <div class="d-flex flex-wrap justify-end gap-2 mt-4">
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Error"
-                           StartIcon="@Icons.Material.Filled.PictureAsPdf"
-                           Disabled="@ProcesandoSupervisor"
-                           OnClick="@(() => EjecutarAccionSupervisorAsync("SOLO_PDF"))"
-                           Style="text-transform: none; font-weight: 700;">
-                    Descargar PDF
-                </MudButton>
-
-                <MudButton Variant="Variant.Filled"
-                           StartIcon="@Icons.Material.Filled.Chat"
-                           Disabled="@ProcesandoSupervisor"
-                           OnClick="@(() => EjecutarAccionSupervisorAsync("PREPARAR_WA_WEB"))"
-                           Class="wa-row-btn-direct"
-                           Style="padding: 6px 14px !important;">
-                    Abrir WhatsApp
-                </MudButton>
-
-                <MudButton Variant="Variant.Filled"
-                           StartIcon="@Icons.Material.Filled.Send"
-                           Disabled="@ProcesandoSupervisor"
-                           OnClick="@(() => EjecutarAccionSupervisorAsync("META_API"))"
-                           Class="wa-row-btn-api"
-                           Style="padding: 6px 14px !important;">
-                    Enviar por API Meta
-                </MudButton>
-            </div>
-        </MudPaper>
-    </MudOverlay>
-}
-
-@* --- MODAL: ESTADO DEL CANAL WHATSAPP (AWS PARAMETER STORE) --- *@
-@if (MostrarModalConfig)
-{
-    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1300">
-        <MudPaper Elevation="8" Class="pa-5 rounded-lg" Style="width: 95vw; max-width: 560px; max-height: 90vh; overflow-y: auto;">
-            <div class="d-flex align-center justify-space-between mb-3">
-                <div class="d-flex align-center gap-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
-                    <MudText Typo="Typo.h6" Style="font-weight: 800;">Estado del Canal WhatsApp Cloud API</MudText>
-                </div>
-                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="@(() => MostrarModalConfig = false)" />
             </div>
 
-            <MudAlert Severity="@(ConfigActual.TieneCredencialesApi ? Severity.Success : Severity.Info)" Dense="true" Class="mb-3">
-                Estado actual: <b>@(ConfigActual.TieneCredencialesApi ? $"Conectado desde AWS Parameter Store (Phone ID: {ConfigActual.PhoneNumberId})" : "Pendiente en AWS Parameter Store (/bussersa/bot/whatsapp/*)")</b>.
-                Los tokens y el <code>Phone Number ID</code> se gestionan exclusivamente en <b>AWS Systems Manager Parameter Store (us-east-2)</b>.
-            </MudAlert>
+            @* Contenido desplazable del Modal *@
+            <div class="pa-4" style="overflow-y: auto; flex: 1;">
+                @if (VistaResumenGrilla == "CONSOLIDADO")
+                {
+                    <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.79rem;">
+                            <thead>
+                                <tr style="background: #1e3a8a; color: #ffffff;">
+                                    <th style="padding: 8px 6px; text-align: left;">Cód.</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Colaborador</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Operación / Cargo</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Hábiles</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Asist.</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Días Ord.</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Séptimos</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Feriados</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Vacaciones</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Ausencias</th>
+                                    <th style="padding: 8px 6px; text-align: right; background: #065f46;">Total Días</th>
+                                    <th style="padding: 8px 6px; text-align: right;">H. Extras</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Viáticos</th>
+                                    @if (IncluirColilla)
+                                    {
+                                        <th style="padding: 8px 6px; text-align: right;">Neto C$</th>
+                                    }
+                                    <th style="padding: 8px 6px; text-align: center;">Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ int rIdx = 0; }
+                                @foreach (var emp in ColaboradoresFiltrados.OrderBy(x => x.NombreEmpleado))
+                                {
+                                    decimal ausEmp = emp.DiasJustificados + emp.DiasInjustificados + emp.DiasSubsidio;
+                                    string bg = rIdx % 2 == 0 ? "#ffffff" : "#f8fafc";
+                                    rIdx++;
+                                    <tr style="background: @bg; border-bottom: 1px solid #e2e8f0;">
+                                        <td style="padding: 6px; font-weight: 700; color: #1e3a8a;">@(emp.CodigoEmpleado > 0 ? $"#{emp.CodigoEmpleado}" : "-")</td>
+                                        <td style="padding: 6px; font-weight: 700; color: #0f172a;">@emp.NombreEmpleado</td>
+                                        <td style="padding: 6px; color: #475569;">
+                                            <span style="font-weight: 600; color: #1e293b;">@emp.OperacionNombre</span>
+                                            @if (!string.IsNullOrWhiteSpace(emp.Cargo))
+                                            {
+                                                <span> · @emp.Cargo</span>
+                                            }
+                                        </td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasHabilesPeriodo:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right;">@emp.DiasAsistidosCalendario</td>
+                                        <td style="padding: 6px; text-align: right; font-weight: 600;">@($"{emp.DiasTrabajadosOrdinarios:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.SeptimoDia:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.DiasFeriados:0.##}")</td>
+                                        <td style="padding: 6px; text-align: right; font-weight: @(emp.DiasVacacionesDescansadas > 0 ? "700" : "400"); color: @(emp.DiasVacacionesDescansadas > 0 ? "#1e3a8a" : "#475569");">
+                                            @($"{emp.DiasVacacionesDescansadas:0.##}")
+                                        </td>
+                                        <td style="padding: 6px; text-align: right; font-weight: @(ausEmp > 0 ? "700" : "400"); color: @(ausEmp > 0 ? "#dc2626" : "#475569");">
+                                            @($"{ausEmp:0.##}")
+                                        </td>
+                                        <td style="padding: 6px; text-align: right; font-weight: 800; color: #065f46; background: #ecfdf5;">
+                                            @($"{emp.TotalDiasPagar:0.##}")
+                                        </td>
+                                        <td style="padding: 6px; text-align: right; font-weight: 700; color: @(emp.HorasExtrasPeriodo > 0 ? "#1e3a8a" : "#64748b");">
+                                            @($"{emp.HorasExtrasPeriodo:0.##}")
+                                        </td>
+                                        <td style="padding: 6px; text-align: right;">@($"{emp.ViaticosBonoPeriodo:N2}")</td>
+                                        @if (IncluirColilla)
+                                        {
+                                            <td style="padding: 6px; text-align: right; font-weight: 700; color: #0f172a;">
+                                                @(emp.TieneColilla ? $"{emp.NetoAPagar:N2}" : "-")
+                                            </td>
+                                        }
+                                        <td style="padding: 4px 6px; text-align: center;">
+                                            <MudButton Variant="Variant.Text"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       OnClick="@(() => VerDetalleColaboradorEnModal(emp.EmployeeId))"
+                                                       Style="text-transform: none; font-weight: 700; font-size: 0.74rem; min-width: auto;">
+                                                Ver días (@(emp.DetalleDias?.Count ?? 0))
+                                            </MudButton>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #eff6ff; border-top: 2px solid #93c5fd; font-weight: 800; color: #0f172a;">
+                                    <td colspan="4" style="padding: 8px 6px; text-align: right; color: #1e3a8a;">TOTALES CONSOLIDADOS DE LA GRILLA:</td>
+                                    <td style="padding: 8px 6px; text-align: right;">@ColaboradoresFiltrados.Sum(x => x.DiasAsistidosCalendario)</td>
+                                    <td style="padding: 8px 6px; text-align: right;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasTrabajadosOrdinarios):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right;">@($"{ColaboradoresFiltrados.Sum(x => x.SeptimoDia):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasFeriados):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right; color: #1e3a8a;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasVacacionesDescansadas):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right; color: #dc2626;">@($"{ColaboradoresFiltrados.Sum(x => x.DiasJustificados + x.DiasInjustificados + x.DiasSubsidio):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right; color: #065f46; background: #d1fae5;">@($"{ColaboradoresFiltrados.Sum(x => x.TotalDiasPagar):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right; color: #1e3a8a;">@($"{ColaboradoresFiltrados.Sum(x => x.HorasExtrasPeriodo):N2}")</td>
+                                    <td style="padding: 8px 6px; text-align: right;">@($"{ColaboradoresFiltrados.Sum(x => x.ViaticosBonoPeriodo):N2}")</td>
+                                    @if (IncluirColilla)
+                                    {
+                                        <td style="padding: 8px 6px; text-align: right; color: #065f46;">@($"C$ {ColaboradoresFiltrados.Sum(x => x.NetoAPagar):N2}")</td>
+                                    }
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    @* Barra de filtro dentro del Detalle Día a Día *@
+                    <div class="d-flex flex-wrap align-center justify-space-between gap-2 mb-3">
+                        <div class="d-flex flex-wrap align-center gap-2">
+                            <MudSelect T="int"
+                                       Label="Filtrar por Colaborador"
+                                       @bind-Value="EmpleadoFiltroDetalleId"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Dense="true"
+                                       Style="min-width: 310px; max-width: 420px;">
+                                <MudSelectItem T="int" Value="0">-- Todos los colaboradores de la grilla (@ColaboradoresFiltrados.Count) --</MudSelectItem>
+                                @foreach (var emp in ColaboradoresFiltrados.OrderBy(x => x.NombreEmpleado))
+                                {
+                                    <MudSelectItem T="int" Value="@emp.EmployeeId">
+                                        @($"{(emp.CodigoEmpleado > 0 ? $"#{emp.CodigoEmpleado} - " : "")}{emp.NombreEmpleado}")
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
 
-            <MudPaper Elevation="0" Class="pa-3 mb-3 rounded border" Style="background: #f8fafc; font-size: 0.78rem;">
-                <div><b>Parámetros activos en AWS Parameter Store (us-east-2):</b></div>
-                <div>• <code>/bussersa/bot/whatsapp/nomina_phone_number_id</code></div>
-                <div>• <code>/bussersa/bot/whatsapp/nomina_token</code></div>
-                <div>• <code>/bussersa/bot/whatsapp/nomina_template_imagen</code> (<code>comprobante_imagen_bussersa</code>)</div>
-                <div>• <code>/bussersa/bot/whatsapp/nomina_template_name</code> (<code>comprobante_nomina_bussersa</code>)</div>
-            </MudPaper>
+                            <MudTextField T="string"
+                                          @bind-Value="BusquedaDetalleModal"
+                                          Placeholder="Buscar colaborador o área..."
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Immediate="true"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Style="min-width: 240px;" />
 
-            <MudGrid Spacing="2">
-                <MudItem xs="12">
-                    <MudTextField T="string" Label="Encabezado del Mensaje WhatsApp" @bind-Value="ConfigActual.MensajeEncabezado" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-            </MudGrid>
+                            @if (EmpleadoFiltroDetalleId > 0 || !string.IsNullOrWhiteSpace(BusquedaDetalleModal))
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Size="Size.Small"
+                                           OnClick="@(() => { EmpleadoFiltroDetalleId = 0; BusquedaDetalleModal = string.Empty; })"
+                                           Style="text-transform: none; font-weight: 700;">
+                                    Mostrar todos
+                                </MudButton>
+                            }
+                        </div>
 
-            <div class="d-flex justify-end gap-2 mt-4">
-                <MudButton Variant="Variant.Text" OnClick="@(() => MostrarModalConfig = false)">Cerrar</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@GuardandoConfig" OnClick="GuardarConfigAsync" Style="font-weight: 700; text-transform: none;">
-                    Guardar Encabezado
-                </MudButton>
+                        <MudText Typo="Typo.caption" Style="color: #475569; font-weight: 700;">
+                            @($"Mostrando {FilasDetalleGrilla.Count} registros diarios")
+                        </MudText>
+                    </div>
+
+                    <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                            <thead>
+                                <tr style="background: #0f172a; color: #ffffff;">
+                                    <th style="padding: 8px 6px; text-align: left;">Fecha</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Día</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Cód.</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Colaborador</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Área / Cliente</th>
+                                    <th style="padding: 8px 6px; text-align: center;">Entrada</th>
+                                    <th style="padding: 8px 6px; text-align: center;">Salida</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Hrs</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Día Eq.</th>
+                                    <th style="padding: 8px 6px; text-align: right;">H. Extras</th>
+                                    <th style="padding: 8px 6px; text-align: right;">Viáticos</th>
+                                    <th style="padding: 8px 6px; text-align: left;">Estado / Observación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var filasDet = FilasDetalleGrilla;
+                                    int dIdx = 0;
+                                }
+                                @if (filasDet.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="12" style="padding: 18px; text-align: center; color: #64748b;">
+                                            No se encontraron marcaciones diarias para el filtro seleccionado.
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var row in filasDet)
+                                    {
+                                        var d = row.Dia;
+                                        bool esVac = !d.Asistio && (d.EstadoTexto ?? string.Empty).Contains("Vacacion", StringComparison.OrdinalIgnoreCase);
+                                        string bg = !d.Asistio
+                                            ? (esVac ? "#eff6ff" : "#fff1f2")
+                                            : (dIdx % 2 == 0 ? "#ffffff" : "#f8fafc");
+                                        string colObs = !d.Asistio ? (esVac ? "#1e3a8a" : "#dc2626") : "#334155";
+                                        dIdx++;
+                                        <tr style="background: @bg; border-bottom: 1px solid #e2e8f0;">
+                                            <td style="padding: 5px 6px; white-space: nowrap;">@($"{d.Fecha:dd/MM/yyyy}")</td>
+                                            <td style="padding: 5px 6px; color: #475569;">@ObtenerDiaCorto(d.Fecha)</td>
+                                            <td style="padding: 5px 6px; font-weight: 700; color: #1e3a8a;">@(row.CodigoEmpleado > 0 ? $"#{row.CodigoEmpleado}" : "-")</td>
+                                            <td style="padding: 5px 6px; font-weight: 600; color: #0f172a;">@row.NombreEmpleado</td>
+                                            <td style="padding: 5px 6px;">@(string.IsNullOrWhiteSpace(d.Area) ? d.Cliente : d.Area)</td>
+                                            <td style="padding: 5px 6px; text-align: center;">@(string.IsNullOrWhiteSpace(d.HoraEntrada) ? "-" : d.HoraEntrada)</td>
+                                            <td style="padding: 5px 6px; text-align: center;">@(string.IsNullOrWhiteSpace(d.HoraSalida) ? "-" : d.HoraSalida)</td>
+                                            <td style="padding: 5px 6px; text-align: right;">@(d.HorasOrdinarias > 0 ? $"{d.HorasOrdinarias:0.##}" : "-")</td>
+                                            <td style="padding: 5px 6px; text-align: right; font-weight: 600;">@(d.DiasEquivalentes > 0 ? $"{d.DiasEquivalentes:0.##}" : "-")</td>
+                                            <td style="padding: 5px 6px; text-align: right; font-weight: 700; color: @(d.HorasExtras > 0 ? "#1e3a8a" : "#64748b");">
+                                                @(d.HorasExtras > 0 ? $"{d.HorasExtras:0.##}" : "-")
+                                            </td>
+                                            <td style="padding: 5px 6px; text-align: right;">@(d.ViaticosBono > 0 ? $"{d.ViaticosBono:N2}" : "-")</td>
+                                            <td style="padding: 5px 6px; color: @colObs;">
+                                                @d.EstadoTexto @(string.IsNullOrWhiteSpace(d.Observacion) ? "" : $"· {d.Observacion}")
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                            @if (filasDet.Count > 0)
+                            {
+                                <tfoot>
+                                    <tr style="background: #f1f5f9; border-top: 2px solid #cbd5e1; font-weight: 800; color: #0f172a;">
+                                        <td colspan="7" style="padding: 8px 6px; text-align: right;">SUBTOTALES DE MARCACIONES MOSTRADAS:</td>
+                                        <td style="padding: 8px 6px; text-align: right;">@($"{filasDet.Sum(x => x.Dia.HorasOrdinarias):N2}")</td>
+                                        <td style="padding: 8px 6px; text-align: right;">@($"{filasDet.Sum(x => x.Dia.DiasEquivalentes):N2}")</td>
+                                        <td style="padding: 8px 6px; text-align: right; color: #1e3a8a;">@($"{filasDet.Sum(x => x.Dia.HorasExtras):N2}")</td>
+                                        <td style="padding: 8px 6px; text-align: right;">@($"{filasDet.Sum(x => x.Dia.ViaticosBono):N2}")</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            }
+                        </table>
+                    </div>
+                }
             </div>
         </MudPaper>
     </MudOverlay>

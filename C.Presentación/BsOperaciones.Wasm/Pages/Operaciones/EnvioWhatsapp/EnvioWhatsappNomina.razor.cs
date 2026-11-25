@@ -23,10 +23,18 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         [Inject] protected ISnackbar Snackbar { get; set; } = default!;
         [Inject] protected IUserInfo UserInfo { get; set; } = default!;
 
+        protected class FilaDetalleGrillaVm
+        {
+            public int EmployeeId { get; set; }
+            public int CodigoEmpleado { get; set; }
+            public string NombreEmpleado { get; set; } = string.Empty;
+            public string Cargo { get; set; } = string.Empty;
+            public DetalleDiaLaboradoWhatsappDto Dia { get; set; } = new();
+        }
+
         protected List<LoteNominaWhatsappItemDto> LotesNomina { get; set; } = new();
         protected List<Combos> Operaciones { get; set; } = new();
         protected List<ColaboradorEnvioWhatsappDto> Colaboradores { get; set; } = new();
-        protected List<SupervisorOperacionWhatsappDto> SupervisoresSugeridos { get; set; } = new();
 
         protected HashSet<int> SeleccionadosIds { get; set; } = new();
         protected HashSet<int> FilasExpandidas { get; set; } = new();
@@ -49,19 +57,12 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected bool TieneApiConfigurada { get; set; }
         protected string OrigenCredenciales { get; set; } = "SIN_CONFIGURAR";
 
-        // Modal Supervisor
-        protected bool MostrarModalSupervisor { get; set; }
-        protected bool ProcesandoSupervisor { get; set; }
-        protected string SupervisorNombre { get; set; } = string.Empty;
-        protected string SupervisorTelefono { get; set; } = string.Empty;
-        protected bool SupervisorIncluirNeto { get; set; } = false;
-        protected string SupervisorObservacion { get; set; } = string.Empty;
-        protected ResultadoItemEnvioWhatsappDto? UltimoResultadoSupervisor { get; set; }
-
-        // Modal Configuración Canal WhatsApp
-        protected bool MostrarModalConfig { get; set; }
-        protected bool GuardandoConfig { get; set; }
-        protected ConfigCanalWhatsappDto ConfigActual { get; set; } = new();
+        // Modal Consolidado y Detalle de la Grilla
+        protected bool MostrarModalResumenGrilla { get; set; }
+        protected string VistaResumenGrilla { get; set; } = "CONSOLIDADO"; // CONSOLIDADO | DETALLE
+        protected int EmpleadoFiltroDetalleId { get; set; } = 0;
+        protected string BusquedaDetalleModal { get; set; } = string.Empty;
+        protected bool DescargandoPdfGrilla { get; set; }
 
         protected bool IncluirColilla => ModoContenido == "AMBOS" || ModoContenido == "SOLO_COLILLA";
         protected bool IncluirDiasLaborados => ModoContenido == "AMBOS" || ModoContenido == "SOLO_DIAS";
@@ -69,6 +70,40 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected List<ColaboradorEnvioWhatsappDto> ColaboradoresFiltrados => Colaboradores
             .Where(CumpleFiltro)
             .ToList();
+
+        protected List<FilaDetalleGrillaVm> FilasDetalleGrilla
+        {
+            get
+            {
+                var query = ColaboradoresFiltrados.AsEnumerable();
+                if (EmpleadoFiltroDetalleId > 0)
+                    query = query.Where(c => c.EmployeeId == EmpleadoFiltroDetalleId);
+
+                if (!string.IsNullOrWhiteSpace(BusquedaDetalleModal))
+                {
+                    string q = BusquedaDetalleModal.Trim();
+                    query = query.Where(c =>
+                        c.NombreEmpleado.Contains(q, StringComparison.OrdinalIgnoreCase)
+                        || c.CodigoEmpleado.ToString().Contains(q, StringComparison.OrdinalIgnoreCase)
+                        || c.Cargo.Contains(q, StringComparison.OrdinalIgnoreCase)
+                        || c.OperacionNombre.Contains(q, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return query
+                    .SelectMany(c => (c.DetalleDias ?? new List<DetalleDiaLaboradoWhatsappDto>()).Select(d => new FilaDetalleGrillaVm
+                    {
+                        EmployeeId = c.EmployeeId,
+                        CodigoEmpleado = c.CodigoEmpleado,
+                        NombreEmpleado = c.NombreEmpleado,
+                        Cargo = c.Cargo,
+                        Dia = d
+                    }))
+                    .OrderBy(x => x.NombreEmpleado)
+                    .ThenBy(x => x.Dia.Fecha)
+                    .ThenBy(x => x.Dia.HoraEntrada)
+                    .ToList();
+            }
+        }
 
         protected override async Task OnInitializedAsync()
         {
@@ -86,9 +121,8 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
 
                 if (taskCfg.Result?.Model != null)
                 {
-                    ConfigActual = taskCfg.Result.Model;
-                    TieneApiConfigurada = ConfigActual.TieneCredencialesApi;
-                    OrigenCredenciales = ConfigActual.OrigenCredenciales;
+                    TieneApiConfigurada = taskCfg.Result.Model.TieneCredencialesApi;
+                    OrigenCredenciales = taskCfg.Result.Model.OrigenCredenciales;
                 }
 
                 if (LotesNomina.Count > 0)
@@ -97,7 +131,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                     LoteSeleccionadoId = primerLote.Id;
                     FechaDesde = primerLote.FechaInicio;
                     FechaHasta = primerLote.FechaFin;
-                    OperacionSeleccionadaId = 0; // Mostrar todos los colaboradores del lote sin recortar
+                    OperacionSeleccionadaId = 0;
                 }
             }
             catch (Exception ex)
@@ -138,7 +172,6 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 var loteActual = LotesNomina.FirstOrDefault(x => x.Id == LoteSeleccionadoId);
                 if (loteActual != null && loteActual.OperacionSugeridaId.HasValue && loteActual.OperacionSugeridaId.Value != nuevaOperacionId)
                 {
-                    // Buscar el lote más reciente de esa operación o pasar a consulta libre por operación
                     var loteOp = LotesNomina.FirstOrDefault(x => x.OperacionSugeridaId == nuevaOperacionId);
                     if (loteOp != null)
                     {
@@ -192,7 +225,6 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
 
                 var data = resp.Model ?? new ConsultaEnvioWhatsappResponseDto();
                 Colaboradores = data.Colaboradores ?? new List<ColaboradorEnvioWhatsappDto>();
-                SupervisoresSugeridos = data.SupervisoresSugeridos ?? new List<SupervisorOperacionWhatsappDto>();
                 TieneApiConfigurada = data.TieneApiConfigurada;
                 OrigenCredenciales = data.OrigenCredenciales;
 
@@ -249,6 +281,21 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             => string.Equals(estado, "ENVIADO_API", StringComparison.OrdinalIgnoreCase)
             || string.Equals(estado, "ENLACE_WA", StringComparison.OrdinalIgnoreCase);
 
+        protected static string ObtenerDiaCorto(DateTime fecha)
+        {
+            return fecha.DayOfWeek switch
+            {
+                DayOfWeek.Monday => "Lun",
+                DayOfWeek.Tuesday => "Mar",
+                DayOfWeek.Wednesday => "Mié",
+                DayOfWeek.Thursday => "Jue",
+                DayOfWeek.Friday => "Vie",
+                DayOfWeek.Saturday => "Sáb",
+                DayOfWeek.Sunday => "Dom",
+                _ => string.Empty
+            };
+        }
+
         protected void ToggleSeleccionFila(int empId, bool seleccionado)
         {
             if (seleccionado) SeleccionadosIds.Add(empId);
@@ -267,6 +314,78 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         {
             if (!FilasExpandidas.Add(empId))
                 FilasExpandidas.Remove(empId);
+        }
+
+        // --- Modal Consolidado y Detalle de Datos de la Grilla ---
+        protected void AbrirModalResumenGrilla()
+        {
+            if (ColaboradoresFiltrados.Count == 0)
+            {
+                Snackbar.Add("Primero consulte los colaboradores para visualizar el consolidado y detalle.", Severity.Warning);
+                return;
+            }
+
+            VistaResumenGrilla = "CONSOLIDADO";
+            EmpleadoFiltroDetalleId = 0;
+            BusquedaDetalleModal = string.Empty;
+            MostrarModalResumenGrilla = true;
+        }
+
+        protected void VerDetalleColaboradorEnModal(int empId)
+        {
+            EmpleadoFiltroDetalleId = empId;
+            VistaResumenGrilla = "DETALLE";
+        }
+
+        protected async Task DescargarPdfConsolidadoGrillaAsync()
+        {
+            if (ColaboradoresFiltrados.Count == 0)
+                return;
+
+            DescargandoPdfGrilla = true;
+            try
+            {
+                string opNom = OperacionSeleccionadaId > 0
+                    ? (Operaciones.FirstOrDefault(x => x.id == OperacionSeleccionadaId)?.nombre ?? string.Empty)
+                    : (ColaboradoresFiltrados.Select(x => x.OperacionNombre).Distinct().Count() == 1
+                        ? ColaboradoresFiltrados.First().OperacionNombre
+                        : "Operaciones Consolidado");
+
+                string loteNom = LoteSeleccionadoId > 0
+                    ? (LotesNomina.FirstOrDefault(x => x.Id == LoteSeleccionadoId)?.Nombre ?? string.Empty)
+                    : string.Empty;
+
+                var req = new EnviarConsolidadoSupervisorRequestDto
+                {
+                    ModoCanal = "SOLO_PDF",
+                    NombreSupervisor = string.Empty,
+                    TelefonoSupervisor = string.Empty,
+                    OperacionId = OperacionSeleccionadaId > 0 ? OperacionSeleccionadaId : null,
+                    OperacionNombre = opNom,
+                    PayslipRunId = LoteSeleccionadoId > 0 ? LoteSeleccionadoId : null,
+                    LoteNombre = loteNom,
+                    FechaDesde = FechaDesde ?? DateTime.Today,
+                    FechaHasta = FechaHasta ?? DateTime.Today,
+                    IncluirResumenColilla = IncluirColilla,
+                    ObservacionAdicional = string.Empty,
+                    UsuarioEnvio = ObtenerUsuarioActual(),
+                    Colaboradores = ColaboradoresFiltrados
+                };
+
+                var resp = await OdooService.EnviarWhatsappConsolidadoSupervisor(req);
+                if (resp.Respuesta.ExisteError || resp.Model == null || string.IsNullOrWhiteSpace(resp.Model.PdfBase64))
+                {
+                    Snackbar.Add($"Error al generar PDF consolidado: {resp.Respuesta.MensajeError}", Severity.Error);
+                    return;
+                }
+
+                await JS.InvokeVoidAsync("downloadFile", "application/pdf", resp.Model.PdfBase64, resp.Model.NombreArchivoPdf);
+                Snackbar.Add("PDF de Consolidado y Detalle de la grilla descargado.", Severity.Success);
+            }
+            finally
+            {
+                DescargandoPdfGrilla = false;
+            }
         }
 
         protected async Task GuardarTelefonoFilaAsync(ColaboradorEnvioWhatsappDto item)
@@ -397,7 +516,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 if (!string.IsNullOrWhiteSpace(r.UrlWhatsappWeb))
                 {
                     await JS.InvokeVoidAsync("open", r.UrlWhatsappWeb, "_blank");
-                    Snackbar.Add($"WhatsApp abierto para {item.NombreEmpleado} con enlace PDF oficial.", Severity.Success);
+                    Snackbar.Add($"WhatsApp abierto para {item.NombreEmpleado}.", Severity.Success);
                 }
             }
             finally
@@ -503,7 +622,7 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 if (exitosos > 0 && fallidos == 0)
                     Snackbar.Add($"Envío masivo completado: {exitosos} comprobantes enviados por WhatsApp API.", Severity.Success);
                 else
-                    Snackbar.Add($"Proceso finalizado: {exitosos} enviados por API, {fallidos} pendientes/con observación (enlaces 1-Clic listos).", exitosos > 0 ? Severity.Info : Severity.Warning);
+                    Snackbar.Add($"Proceso finalizado: {exitosos} enviados por API, {fallidos} pendientes/con observación.", exitosos > 0 ? Severity.Info : Severity.Warning);
             }
             finally
             {
@@ -520,139 +639,6 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             item.UltimoEstadoEnvio = r.EstadoEnvio;
             item.FechaUltimoEnvio = DateTime.Now;
             item.DetalleUltimoEnvio = r.DetalleRespuesta;
-        }
-
-        // --- Modal Consolidado a Supervisor ---
-        protected void AbrirModalSupervisor()
-        {
-            if (ColaboradoresFiltrados.Count == 0)
-            {
-                Snackbar.Add("Primero consulte los colaboradores del período.", Severity.Warning);
-                return;
-            }
-
-            UltimoResultadoSupervisor = null;
-            if (string.IsNullOrWhiteSpace(SupervisorNombre) && SupervisoresSugeridos.Count > 0)
-            {
-                var sup = SupervisoresSugeridos.First();
-                SupervisorNombre = sup.Nombre;
-                SupervisorTelefono = sup.Telefono;
-            }
-            MostrarModalSupervisor = true;
-        }
-
-        protected void SeleccionarSupervisorSugerido(SupervisorOperacionWhatsappDto sup)
-        {
-            SupervisorNombre = sup.Nombre;
-            if (!string.IsNullOrWhiteSpace(sup.Telefono))
-                SupervisorTelefono = sup.Telefono;
-        }
-
-        protected async Task EjecutarAccionSupervisorAsync(string modoCanal)
-        {
-            if (modoCanal != "SOLO_PDF" && !TieneTelefonoValido(SupervisorTelefono))
-            {
-                Snackbar.Add("Ingrese el número de WhatsApp del supervisor.", Severity.Warning);
-                return;
-            }
-
-            ProcesandoSupervisor = true;
-            try
-            {
-                string opNom = OperacionSeleccionadaId > 0
-                    ? (Operaciones.FirstOrDefault(x => x.id == OperacionSeleccionadaId)?.nombre ?? string.Empty)
-                    : (ColaboradoresFiltrados.Select(x => x.OperacionNombre).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "Operaciones");
-
-                string loteNom = LoteSeleccionadoId > 0
-                    ? (LotesNomina.FirstOrDefault(x => x.Id == LoteSeleccionadoId)?.Nombre ?? string.Empty)
-                    : string.Empty;
-
-                var req = new EnviarConsolidadoSupervisorRequestDto
-                {
-                    ModoCanal = modoCanal,
-                    NombreSupervisor = SupervisorNombre.Trim(),
-                    TelefonoSupervisor = SupervisorTelefono.Trim(),
-                    OperacionId = OperacionSeleccionadaId > 0 ? OperacionSeleccionadaId : null,
-                    OperacionNombre = opNom,
-                    PayslipRunId = LoteSeleccionadoId > 0 ? LoteSeleccionadoId : null,
-                    LoteNombre = loteNom,
-                    FechaDesde = FechaDesde ?? DateTime.Today,
-                    FechaHasta = FechaHasta ?? DateTime.Today,
-                    IncluirResumenColilla = SupervisorIncluirNeto,
-                    ObservacionAdicional = SupervisorObservacion,
-                    UsuarioEnvio = ObtenerUsuarioActual(),
-                    Colaboradores = ColaboradoresFiltrados
-                };
-
-                var resp = await OdooService.EnviarWhatsappConsolidadoSupervisor(req);
-                if (resp.Respuesta.ExisteError || resp.Model == null)
-                {
-                    Snackbar.Add($"Error al procesar consolidado: {resp.Respuesta.MensajeError}", Severity.Error);
-                    return;
-                }
-
-                UltimoResultadoSupervisor = resp.Model;
-                if (modoCanal == "SOLO_PDF" && !string.IsNullOrWhiteSpace(resp.Model.PdfBase64))
-                {
-                    await JS.InvokeVoidAsync("downloadFile", "application/pdf", resp.Model.PdfBase64, resp.Model.NombreArchivoPdf);
-                    Snackbar.Add("PDF consolidado descargado.", Severity.Success);
-                }
-                else if (modoCanal == "PREPARAR_WA_WEB" && !string.IsNullOrWhiteSpace(resp.Model.UrlWhatsappWeb))
-                {
-                    await JS.InvokeVoidAsync("open", resp.Model.UrlWhatsappWeb, "_blank");
-                    Snackbar.Add("WhatsApp abierto con el resumen y enlace del PDF consolidado.", Severity.Success);
-                }
-                else if (modoCanal == "META_API")
-                {
-                    if (resp.Model.Exito)
-                        Snackbar.Add("Reporte consolidado enviado al supervisor por WhatsApp API.", Severity.Success);
-                    else
-                        Snackbar.Add(resp.Model.DetalleRespuesta, Severity.Warning);
-                }
-            }
-            finally
-            {
-                ProcesandoSupervisor = false;
-            }
-        }
-
-        // --- Modal Configuración Canal WhatsApp ---
-        protected async Task AbrirModalConfigAsync()
-        {
-            var resp = await OdooService.GetConfigCanalWhatsapp();
-            if (!resp.Respuesta.ExisteError && resp.Model != null)
-                ConfigActual = resp.Model;
-            MostrarModalConfig = true;
-        }
-
-        protected async Task GuardarConfigAsync()
-        {
-            GuardandoConfig = true;
-            try
-            {
-                ConfigActual.UsuarioActualizacion = ObtenerUsuarioActual();
-                var resp = await OdooService.GuardarConfigCanalWhatsapp(ConfigActual);
-                if (resp.Respuesta.ExisteError)
-                {
-                    Snackbar.Add($"Error al guardar configuración: {resp.Respuesta.MensajeError}", Severity.Error);
-                    return;
-                }
-
-                var recarga = await OdooService.GetConfigCanalWhatsapp();
-                if (recarga.Model != null)
-                {
-                    ConfigActual = recarga.Model;
-                    TieneApiConfigurada = ConfigActual.TieneCredencialesApi;
-                    OrigenCredenciales = ConfigActual.OrigenCredenciales;
-                }
-
-                MostrarModalConfig = false;
-                Snackbar.Add("Configuración del canal WhatsApp actualizada.", Severity.Success);
-            }
-            finally
-            {
-                GuardandoConfig = false;
-            }
         }
 
         private string ObtenerUsuarioActual()
