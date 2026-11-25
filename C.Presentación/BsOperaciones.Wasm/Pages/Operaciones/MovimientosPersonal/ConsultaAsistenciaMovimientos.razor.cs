@@ -366,6 +366,20 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var currencyStyle = workbook.CreateCellStyle();
                 currencyStyle.DataFormat = currencyFormat;
 
+                // Verde claro (Aplica a Nómina, > 0) y Rojo claro (No Aplica a Nómina, > 0)
+                var lightGreenColor = new XSSFColor(new byte[] { 198, 239, 206 }); // #C6EFCE
+                var lightRedColor = new XSSFColor(new byte[] { 255, 199, 206 });   // #FFC7CE
+
+                var currencyGreenStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+                currencyGreenStyle.DataFormat = currencyFormat;
+                currencyGreenStyle.FillPattern = FillPattern.SolidForeground;
+                currencyGreenStyle.SetFillForegroundColor(lightGreenColor);
+
+                var currencyRedStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+                currencyRedStyle.DataFormat = currencyFormat;
+                currencyRedStyle.FillPattern = FillPattern.SolidForeground;
+                currencyRedStyle.SetFillForegroundColor(lightRedColor);
+
                 var numberFormat = workbook.CreateDataFormat().GetFormat("#,##0.00");
                 var numberStyle = workbook.CreateCellStyle();
                 numberStyle.DataFormat = numberFormat;
@@ -378,6 +392,18 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var totalCurrencyStyle = workbook.CreateCellStyle();
                 totalCurrencyStyle.SetFont(boldFont);
                 totalCurrencyStyle.DataFormat = currencyFormat;
+
+                var totalGreenCurrencyStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+                totalGreenCurrencyStyle.SetFont(boldFont);
+                totalGreenCurrencyStyle.DataFormat = currencyFormat;
+                totalGreenCurrencyStyle.FillPattern = FillPattern.SolidForeground;
+                totalGreenCurrencyStyle.SetFillForegroundColor(lightGreenColor);
+
+                var totalRedCurrencyStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+                totalRedCurrencyStyle.SetFont(boldFont);
+                totalRedCurrencyStyle.DataFormat = currencyFormat;
+                totalRedCurrencyStyle.FillPattern = FillPattern.SolidForeground;
+                totalRedCurrencyStyle.SetFillForegroundColor(lightRedColor);
 
                 // 2. Título y Metadatos de Auditoría
                 var rowTitle = sheet.CreateRow(0);
@@ -442,11 +468,15 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
 
                     var cTrasp = row.CreateCell(16);
                     cTrasp.SetCellValue((double)m.VtcoTrasp);
-                    cTrasp.CellStyle = currencyStyle;
+                    cTrasp.CellStyle = m.VtcoTrasp > 0
+                        ? (m.TraspAplicaNomina ? currencyGreenStyle : currencyRedStyle)
+                        : currencyStyle;
 
                     var cAlim = row.CreateCell(17);
                     cAlim.SetCellValue((double)m.VtcoAlim);
-                    cAlim.CellStyle = currencyStyle;
+                    cAlim.CellStyle = m.VtcoAlim > 0
+                        ? (m.AlimAplicaNomina ? currencyGreenStyle : currencyRedStyle)
+                        : currencyStyle;
 
                     double bnc = double.TryParse(m.Bnc, out var bVal) ? bVal : 0;
                     var cBnc = row.CreateCell(18);
@@ -502,6 +532,48 @@ namespace BsOperaciones.Pages.Operaciones.MovimientosPersonal
                 var totalGlobalCell = totalRow.CreateCell(19);
                 totalGlobalCell.SetCellValue((double)TotalViaticosGlobal);
                 totalGlobalCell.CellStyle = totalCurrencyStyle;
+
+                if (rowIdx > 4)
+                {
+                    sheet.SetAutoFilter(new NPOI.SS.Util.CellRangeAddress(3, rowIdx - 1, 0, headers.Length - 1));
+                }
+
+                // Subtotales estadísticos de Viáticos (Aplica vs No Aplica a Nómina)
+                decimal traspNomina = movimientosFiltrados.Where(m => m.VtcoTrasp > 0 && m.TraspAplicaNomina).Sum(m => m.VtcoTrasp);
+                decimal traspNoNomina = movimientosFiltrados.Where(m => m.VtcoTrasp > 0 && !m.TraspAplicaNomina).Sum(m => m.VtcoTrasp);
+                decimal alimNomina = movimientosFiltrados.Where(m => m.VtcoAlim > 0 && m.AlimAplicaNomina).Sum(m => m.VtcoAlim);
+                decimal alimNoNomina = movimientosFiltrados.Where(m => m.VtcoAlim > 0 && !m.AlimAplicaNomina).Sum(m => m.VtcoAlim);
+
+                int countTraspNomina = movimientosFiltrados.Count(m => m.VtcoTrasp > 0 && m.TraspAplicaNomina);
+                int countTraspNoNomina = movimientosFiltrados.Count(m => m.VtcoTrasp > 0 && !m.TraspAplicaNomina);
+                int countAlimNomina = movimientosFiltrados.Count(m => m.VtcoAlim > 0 && m.AlimAplicaNomina);
+                int countAlimNoNomina = movimientosFiltrados.Count(m => m.VtcoAlim > 0 && !m.AlimAplicaNomina);
+
+                var rowAplica = sheet.CreateRow(rowIdx + 1);
+                var lblAplica = rowAplica.CreateCell(6);
+                lblAplica.SetCellValue($"APLICA A NÓMINA — VERDE CLARO (Transp: {countTraspNomina} | Alim: {countAlimNomina}):");
+                lblAplica.CellStyle = totalStyle;
+
+                var cTraspNomina = rowAplica.CreateCell(16);
+                cTraspNomina.SetCellValue((double)traspNomina);
+                cTraspNomina.CellStyle = totalGreenCurrencyStyle;
+
+                var cAlimNomina = rowAplica.CreateCell(17);
+                cAlimNomina.SetCellValue((double)alimNomina);
+                cAlimNomina.CellStyle = totalGreenCurrencyStyle;
+
+                var rowNoAplica = sheet.CreateRow(rowIdx + 2);
+                var lblNoAplica = rowNoAplica.CreateCell(6);
+                lblNoAplica.SetCellValue($"NO APLICA A NÓMINA — ROJO CLARO (Transp: {countTraspNoNomina} | Alim: {countAlimNoNomina}):");
+                lblNoAplica.CellStyle = totalStyle;
+
+                var cTraspNoNomina = rowNoAplica.CreateCell(16);
+                cTraspNoNomina.SetCellValue((double)traspNoNomina);
+                cTraspNoNomina.CellStyle = totalRedCurrencyStyle;
+
+                var cAlimNoNomina = rowNoAplica.CreateCell(17);
+                cAlimNoNomina.SetCellValue((double)alimNoNomina);
+                cAlimNoNomina.CellStyle = totalRedCurrencyStyle;
 
                 // 6. Anchos Fijos de Columna Seguros para WebAssembly
                 int[] colWidths = new[]
