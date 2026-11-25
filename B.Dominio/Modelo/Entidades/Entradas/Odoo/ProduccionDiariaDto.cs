@@ -39,6 +39,13 @@ namespace Modelo.Entidades.Entradas.Odoo
         {
             if (string.IsNullOrWhiteSpace(codigo)) return false;
             var c = codigo.Trim().ToUpperInvariant();
+            if (c.StartsWith("SCD-") || c.StartsWith("SVTC") || c.StartsWith("SAR") ||
+                c.StartsWith("SBN") || c.StartsWith("SET") || c.StartsWith("SDP") ||
+                c.StartsWith("SRQ") || c.StartsWith("SPL") || c.StartsWith("SLM") ||
+                c.StartsWith("SDV") || c.StartsWith("SRV"))
+            {
+                return false;
+            }
             return c.EndsWith("-OPR") || c.EndsWith("-ADB") || c.EndsWith("-ADE") || 
                    c.EndsWith("-ADV") || c.EndsWith("-MTC") || c.EndsWith("-CHO") ||
                    c.StartsWith("HOR-") ||
@@ -72,7 +79,10 @@ namespace Modelo.Entidades.Entradas.Odoo
         public static bool EsActividadDeProduccion(ProduccionDiariaDto? item)
         {
             if (item == null) return false;
-            if (item.template_id == 9) return false;
+            if (item.template_id.HasValue && item.template_id.Value > 0)
+            {
+                return item.template_id.Value != 9;
+            }
             if (EsViatico(item)) return true;
             if (!string.IsNullOrWhiteSpace(item.template_nombre))
             {

@@ -392,7 +392,7 @@ namespace BsOperaciones.Pages.Operaciones.ActividadesProduccion
             {
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "actividades_sellar_operacion_id", operacionId.ToString());
 
-                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v4";
+                string cacheKey = $"actividades_cache_semana_{operacionId}_{fchaInicioSemana:yyyyMMdd}_v5";
                 List<ProduccionDiariaDto> raw = new();
 
                 if (esModoOnline)
