@@ -54,6 +54,9 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected bool EnviandoMasivo { get; set; }
         protected int ProgresoActual { get; set; }
         protected int ProgresoTotal { get; set; }
+        protected string TituloSpinnerProceso { get; set; } = string.Empty;
+        protected string DetalleSpinnerProceso { get; set; } = string.Empty;
+        protected bool MostrarSpinnerEspera => EnviandoMasivo || FilasProcesando.Count > 0;
 
         protected bool TieneApiConfigurada { get; set; }
         protected string OrigenCredenciales { get; set; } = "SIN_CONFIGURAR";
@@ -428,6 +431,10 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected async Task DescargarPdfIndividualAsync(ColaboradorEnvioWhatsappDto item)
         {
             FilasProcesando.Add(item.EmployeeId);
+            TituloSpinnerProceso = "Generando documento PDF oficial...";
+            DetalleSpinnerProceso = item.NombreEmpleado;
+            StateHasChanged();
+            await Task.Yield();
             try
             {
                 var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
@@ -461,6 +468,10 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
         protected async Task DescargarImagenIndividualAsync(ColaboradorEnvioWhatsappDto item)
         {
             FilasProcesando.Add(item.EmployeeId);
+            TituloSpinnerProceso = "Generando imagen PNG del comprobante...";
+            DetalleSpinnerProceso = item.NombreEmpleado;
+            StateHasChanged();
+            await Task.Yield();
             try
             {
                 var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
@@ -505,6 +516,10 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             }
 
             FilasProcesando.Add(item.EmployeeId);
+            TituloSpinnerProceso = "Preparando resumen para WhatsApp...";
+            DetalleSpinnerProceso = $"{item.NombreEmpleado} ({item.TelefonoWhatsapp})";
+            StateHasChanged();
+            await Task.Yield();
             try
             {
                 var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
@@ -545,6 +560,10 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             }
 
             FilasProcesando.Add(item.EmployeeId);
+            TituloSpinnerProceso = "Enviando comprobante por WhatsApp API...";
+            DetalleSpinnerProceso = $"{item.NombreEmpleado} · Tel: {item.TelefonoWhatsapp}";
+            StateHasChanged();
+            await Task.Yield();
             try
             {
                 var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
@@ -591,16 +610,24 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             EnviandoMasivo = true;
             ProgresoActual = 0;
             ProgresoTotal = cola.Count;
+            TituloSpinnerProceso = "Enviando comprobantes por WhatsApp API...";
+            DetalleSpinnerProceso = $"Preparando envío de {cola.Count} comprobante(s)...";
+            StateHasChanged();
+            await Task.Yield();
+
             int exitosos = 0;
             int fallidos = 0;
             string ultimoMotivoFallo = string.Empty;
 
             try
             {
-                const int tamanoBloque = 3;
-                for (int i = 0; i < cola.Count; i += tamanoBloque)
+                for (int i = 0; i < cola.Count; i++)
                 {
-                    var bloque = cola.Skip(i).Take(tamanoBloque).ToList();
+                    var actual = cola[i];
+                    DetalleSpinnerProceso = $"Enviando {i + 1} de {cola.Count}: {actual.NombreEmpleado} ({actual.TelefonoWhatsapp})";
+                    StateHasChanged();
+                    await Task.Yield();
+
                     var resp = await OdooService.EnviarWhatsappIndividualNomina(new EnviarWhatsappIndividualRequestDto
                     {
                         ModoCanal = "META_API",
@@ -608,42 +635,38 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                         IncluirColilla = IncluirColilla,
                         IncluirDiasLaborados = IncluirDiasLaborados,
                         UsuarioEnvio = ObtenerUsuarioActual(),
-                        Colaboradores = bloque
+                        Colaboradores = new List<ColaboradorEnvioWhatsappDto> { actual }
                     });
 
-                    if (!resp.Respuesta.ExisteError && resp.Model != null)
+                    if (!resp.Respuesta.ExisteError && resp.Model != null && resp.Model.Count > 0)
                     {
-                        foreach (var r in resp.Model)
+                        var r = resp.Model.First();
+                        AplicarResultadoAColaborador(actual, r);
+                        if (r.Exito)
                         {
-                            var target = bloque.FirstOrDefault(b => b.EmployeeId == r.EmployeeId);
-                            if (target != null)
-                                AplicarResultadoAColaborador(target, r);
-                            if (r.Exito)
-                            {
-                                exitosos++;
-                            }
-                            else
-                            {
-                                fallidos++;
-                                if (string.IsNullOrWhiteSpace(ultimoMotivoFallo) && !string.IsNullOrWhiteSpace(r.DetalleRespuesta))
-                                    ultimoMotivoFallo = r.DetalleRespuesta;
-                            }
+                            exitosos++;
+                        }
+                        else
+                        {
+                            fallidos++;
+                            if (string.IsNullOrWhiteSpace(ultimoMotivoFallo) && !string.IsNullOrWhiteSpace(r.DetalleRespuesta))
+                                ultimoMotivoFallo = r.DetalleRespuesta;
                         }
                     }
                     else
                     {
-                        fallidos += bloque.Count;
+                        fallidos++;
                         if (string.IsNullOrWhiteSpace(ultimoMotivoFallo) && !string.IsNullOrWhiteSpace(resp.Respuesta.MensajeError))
                             ultimoMotivoFallo = resp.Respuesta.MensajeError;
                     }
 
-                    ProgresoActual = Math.Min(cola.Count, i + bloque.Count);
+                    ProgresoActual = i + 1;
                     StateHasChanged();
                 }
 
                 if (exitosos > 0 && fallidos == 0)
                 {
-                    Snackbar.Add($"Envío masivo completado: {exitosos} comprobantes enviados por WhatsApp API.", Severity.Success);
+                    Snackbar.Add($"Envío masivo completado: {exitosos} comprobante(s) enviado(s) por WhatsApp API.", Severity.Success);
                 }
                 else
                 {

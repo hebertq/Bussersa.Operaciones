@@ -402,12 +402,13 @@
 
                 <div>
                     <MudButton Variant="Variant.Filled"
-                               StartIcon="@Icons.Material.Filled.Send"
-                               Disabled="@(EnviandoMasivo || SeleccionadosIds.Count == 0)"
+                               StartIcon="@(EnviandoMasivo ? null : Icons.Material.Filled.Send)"
+                               Disabled="@(MostrarSpinnerEspera || SeleccionadosIds.Count == 0)"
                                OnClick="EnviarSeleccionadosMasivoApiAsync"
                                Class="wa-btn-masivo">
                         @if (EnviandoMasivo)
                         {
+                            <MudProgressCircular Size="Size.Small" Color="Color.Inherit" Indeterminate="true" Class="mr-2" />
                             <span>@($"Enviando {ProgresoActual} de {ProgresoTotal}...")</span>
                         }
                         else
@@ -523,7 +524,14 @@
                                 }
                             </td>
                             <td class="text-center">
-                                @if (string.Equals(item.UltimoEstadoEnvio, "ENVIADO_API", StringComparison.OrdinalIgnoreCase))
+                                @if (procesandoFila)
+                                {
+                                    <div class="d-inline-flex align-center gap-1 px-2 py-1 rounded-pill" style="background: #eff6ff; color: #1e3a8a; font-size: 0.75rem; font-weight: 700; border: 1px solid #93c5fd;">
+                                        <MudProgressCircular Size="Size.Small" Color="Color.Primary" Indeterminate="true" Style="width: 14px; height: 14px;" />
+                                        <span>Enviando...</span>
+                                    </div>
+                                }
+                                else if (string.Equals(item.UltimoEstadoEnvio, "ENVIADO_API", StringComparison.OrdinalIgnoreCase))
                                 {
                                     <MudTooltip Text="@($"{item.DetalleUltimoEnvio} ({item.FechaUltimoEnvio:dd/MM HH:mm})")">
                                         <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Enviado API</MudChip>
@@ -1063,6 +1071,46 @@
                     </div>
                 }
             </div>
+        </MudPaper>
+    </MudOverlay>
+}
+
+@* --- OVERLAY SPINNER DE ESPERA VISIBLE EN ENVÍO / GENERACIÓN DE COMPROBANTE --- *@
+@if (MostrarSpinnerEspera)
+{
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1500">
+        <MudPaper Elevation="12"
+                  Class="pa-6 rounded-xl d-flex flex-column align-center text-center"
+                  Style="width: 92vw; max-width: 440px; background: #ffffff; border-top: 4px solid #059669;">
+            <MudProgressCircular Color="Color.Success" Size="Size.Large" Indeterminate="true" />
+
+            <MudText Typo="Typo.h6" Class="mt-4" Style="font-weight: 800; color: #0f172a; line-height: 1.25;">
+                @(string.IsNullOrWhiteSpace(TituloSpinnerProceso) ? "Procesando envío por WhatsApp..." : TituloSpinnerProceso)
+            </MudText>
+
+            @if (!string.IsNullOrWhiteSpace(DetalleSpinnerProceso))
+            {
+                <MudText Typo="Typo.body2" Class="mt-2" Style="font-weight: 600; color: #1e3a8a;">
+                    @DetalleSpinnerProceso
+                </MudText>
+            }
+
+            @if (EnviandoMasivo && ProgresoTotal > 0)
+            {
+                <div style="width: 100%;" class="mt-3">
+                    <MudProgressLinear Color="Color.Success"
+                                       Rounded="true"
+                                       Size="Size.Medium"
+                                       Value="@((double)ProgresoActual * 100.0 / ProgresoTotal)" />
+                    <MudText Typo="Typo.caption" Class="mt-1 d-block" Style="color: #475569; font-weight: 700;">
+                        @($"Completados: {ProgresoActual} de {ProgresoTotal}")
+                    </MudText>
+                </div>
+            }
+
+            <MudText Typo="Typo.caption" Class="mt-3" Style="color: #64748b;">
+                Por favor espere unos segundos mientras se genera el comprobante y WhatsApp confirma la entrega...
+            </MudText>
         </MudPaper>
     </MudOverlay>
 }
