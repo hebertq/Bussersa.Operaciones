@@ -16,6 +16,20 @@ namespace HostService.Clases
         private const string BotWhatsappRelayBaseUrl = "https://bot.bussersa.com";
         private const string BotOperationsApiKey = "BussersaSecureApiKey2026*";
         private static readonly HttpClient _botRelayHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(35) };
+        private static readonly JsonSerializerSettings _jsonSinZonaHoraria = new JsonSerializerSettings
+        {
+            DateTimeZoneHandling = DateTimeZoneHandling.Unspecified
+        };
+
+        private static DateTime NormalizarFechaPura(DateTime dt)
+        {
+            if (dt.Kind == DateTimeKind.Local && dt.Hour >= 18)
+            {
+                var utc = dt.ToUniversalTime();
+                return new DateTime(utc.Year, utc.Month, utc.Day, 0, 0, 0, DateTimeKind.Unspecified);
+            }
+            return new DateTime(dt.Year, dt.Month, dt.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        }
 
         private class BotEstadoCanalResp
         {
@@ -195,7 +209,15 @@ namespace HostService.Clases
                     var reg = registro.Data;
                     if (reg.sucess && reg.detail != null)
                     {
-                        response.Model = JsonConvert.DeserializeObject<ConsultaEnvioWhatsappResponseDto>(reg.detail.ToString()!) ?? new();
+                        response.Model = JsonConvert.DeserializeObject<ConsultaEnvioWhatsappResponseDto>(reg.detail.ToString()!, _jsonSinZonaHoraria) ?? new();
+                        if (response.Model.Colaboradores != null)
+                        {
+                            foreach (var c in response.Model.Colaboradores)
+                            {
+                                c.FechaDesde = NormalizarFechaPura(c.FechaDesde);
+                                c.FechaHasta = NormalizarFechaPura(c.FechaHasta);
+                            }
+                        }
                         if (!response.Model.TieneApiConfigurada && taskBot.Result?.activo == true)
                         {
                             response.Model.TieneApiConfigurada = true;
@@ -366,7 +388,7 @@ namespace HostService.Clases
                             {
                                 var colabSrc = request.Colaboradores.FirstOrDefault(x => x.EmployeeId == item.EmployeeId);
                                 string periodLbl = colabSrc != null
-                                    ? $"{colabSrc.FechaDesde:dd/MM/yyyy} al {colabSrc.FechaHasta:dd/MM/yyyy}"
+                                    ? $"{NormalizarFechaPura(colabSrc.FechaDesde):dd/MM/yyyy} al {NormalizarFechaPura(colabSrc.FechaHasta):dd/MM/yyyy}"
                                     : "Período actual";
 
                                 if (string.IsNullOrWhiteSpace(item.TelefonoNormalizado) || item.TelefonoNormalizado.Length < 10)

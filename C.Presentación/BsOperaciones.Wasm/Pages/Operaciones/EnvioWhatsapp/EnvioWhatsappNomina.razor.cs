@@ -224,8 +224,8 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
                 {
                     PayslipRunId = LoteSeleccionadoId > 0 ? LoteSeleccionadoId : null,
                     OperacionId = OperacionSeleccionadaId > 0 ? OperacionSeleccionadaId : null,
-                    FechaDesde = FechaDesde.Value.Date,
-                    FechaHasta = FechaHasta.Value.Date,
+                    FechaDesde = DateTime.SpecifyKind(FechaDesde.Value.Date, DateTimeKind.Unspecified),
+                    FechaHasta = DateTime.SpecifyKind(FechaHasta.Value.Date, DateTimeKind.Unspecified),
                     IncluirColilla = IncluirColilla,
                     IncluirDiasLaborados = IncluirDiasLaborados
                 };
@@ -689,6 +689,13 @@ namespace BsOperaciones.Pages.Operaciones.EnvioWhatsapp
             item.TokenPublico = r.TokenPublico;
             item.UrlPdfPublico = r.UrlPdfPublico;
             item.UrlWhatsappWeb = r.UrlWhatsappWeb;
+
+            // Si solo fue descarga local de vista previa (PDF_PREVIEW / GENERADO), no pisar el estado real de envío (ej. ENVIADO_API)
+            bool esSoloDescargaLocal = string.Equals(r.CanalUsado, "PDF_PREVIEW", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(r.EstadoEnvio, "GENERADO", StringComparison.OrdinalIgnoreCase);
+            if (esSoloDescargaLocal && !string.IsNullOrWhiteSpace(item.UltimoEstadoEnvio))
+                return;
+
             item.UltimoCanalEnvio = r.CanalUsado;
             item.UltimoEstadoEnvio = r.EstadoEnvio;
             item.FechaUltimoEnvio = DateTime.Now;
