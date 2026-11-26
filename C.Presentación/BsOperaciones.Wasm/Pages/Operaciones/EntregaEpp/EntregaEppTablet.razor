@@ -134,9 +134,16 @@
                                                                ? "border: 2px solid #2563EB; background-color: rgba(37, 99, 235, 0.08); border-radius: 12px;" 
                                                                : "border-radius: 12px; transition: all 0.2s;")"
                                                       OnClick="@(() => SeleccionarPlantilla(tmpl))">
-                                                <MudIcon Icon="@ObtenerIconoPlantilla(tmpl.TemplateNombre)"
-                                                         Color="@(isSelected ? Color.Primary : Color.Default)"
-                                                         Size="Size.Large" Class="mb-1" />
+                                                @if (!string.IsNullOrWhiteSpace(tmpl.IconUrl))
+                                                {
+                                                    <img src="@tmpl.IconUrl" alt="@tmpl.TemplateNombre" style="width: 44px; height: 44px; object-fit: contain; display: block; margin: 0 auto 4px auto;" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@ObtenerIconoPlantilla(tmpl.TemplateNombre)"
+                                                             Color="@(isSelected ? Color.Primary : Color.Default)"
+                                                             Size="Size.Large" Class="mb-1" />
+                                                }
                                                 <MudText Typo="Typo.subtitle2" Class="fw-bold">@tmpl.TemplateNombre</MudText>
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@tmpl.VariantesCount variantes</MudText>
                                             </MudPaper>
@@ -148,28 +155,40 @@
                                 @if (plantillaSeleccionada != null)
                                 {
                                     <MudDivider Class="my-2" />
-                                    <MudText Typo="Typo.subtitle2" Class="fw-bold">Seleccione la Variante Exacta</MudText>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="flex-wrap">
+                                        <MudText Typo="Typo.subtitle2" Class="fw-bold">Seleccione la Variante Exacta</MudText>
+                                        <MudChipSet T="string" SelectedValue="filtroEstadoVariante" SelectedValueChanged="OnFiltroEstadoChanged" CheckMark="true" Variant="Variant.Outlined" Color="Color.Primary">
+                                            <MudChip T="string" Size="Size.Small" Value="@("Todos")">Todos</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Value="@("Nuevo")" Color="Color.Success">Nuevo</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Value="@("Usado")" Color="Color.Warning">Usado</MudChip>
+                                        </MudChipSet>
+                                    </MudStack>
 
                                     <MudGrid Spacing="2">
                                         <MudItem xs="12" sm="8">
                                             <MudSelect T="EppVarianteItemDto"
-                                                       Label="Variante (Tipo, Talla, Cintas)"
+                                                       Label="Variante (Tipo, Talla, Marca, Estado)"
                                                        Value="varianteSeleccionada"
                                                        ValueChanged="OnVarianteChanged"
-                                                       ToStringFunc="@(v => v == null ? "" : $"{v.DefaultCode} - {v.VarianteDescripcion}")"
+                                                       ToStringFunc="@(v => v == null ? "" : $"{(string.IsNullOrEmpty(v.DefaultCode) ? "S/C" : v.DefaultCode)} - {v.VarianteDescripcion}")"
                                                        Variant="Variant.Outlined"
                                                        Dense="true">
-                                                @foreach (var v in plantillaSeleccionada.Variantes)
+                                                @foreach (var v in VariantesFiltradas)
                                                 {
                                                     <MudSelectItem Value="@v">
                                                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                                                             <div>
-                                                                <span class="fw-bold">@v.DefaultCode</span>
+                                                                <span class="fw-bold">@(string.IsNullOrEmpty(v.DefaultCode) ? "S/C" : v.DefaultCode)</span>
                                                                 <small class="text-muted ms-2">@v.VarianteDescripcion</small>
                                                             </div>
-                                                            <MudChip T="string" Size="Size.Small" Color="@(v.StockDisponible > 0 ? Color.Success : Color.Default)" Variant="Variant.Outlined">
-                                                                Stock: @v.StockDisponible
-                                                            </MudChip>
+                                                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                                                <MudChip T="string" Size="Size.Small" Color="@(string.Equals(v.EstadoCondicion, "Usado", StringComparison.OrdinalIgnoreCase) ? Color.Warning : Color.Success)" Variant="Variant.Filled">
+                                                                    @(string.IsNullOrWhiteSpace(v.EstadoCondicion) ? "Nuevo" : v.EstadoCondicion)
+                                                                </MudChip>
+                                                                <MudChip T="string" Size="Size.Small" Color="@(v.StockDisponible > 0 ? Color.Success : Color.Default)" Variant="Variant.Outlined">
+                                                                    Stock: @v.StockDisponible
+                                                                </MudChip>
+                                                            </MudStack>
                                                         </MudStack>
                                                     </MudSelectItem>
                                                 }
@@ -505,10 +524,30 @@
         }
     }
 
+    private string filtroEstadoVariante = "Todos";
+
+    private IEnumerable<EppVarianteItemDto> VariantesFiltradas =>
+        plantillaSeleccionada == null
+            ? Enumerable.Empty<EppVarianteItemDto>()
+            : string.IsNullOrWhiteSpace(filtroEstadoVariante) || filtroEstadoVariante == "Todos"
+                ? plantillaSeleccionada.Variantes
+                : plantillaSeleccionada.Variantes.Where(v =>
+                    string.Equals(string.IsNullOrWhiteSpace(v.EstadoCondicion) ? "Nuevo" : v.EstadoCondicion,
+                                  filtroEstadoVariante, StringComparison.OrdinalIgnoreCase));
+
     private void SeleccionarPlantilla(EppCatalogoItemDto tmpl)
     {
         plantillaSeleccionada = tmpl;
-        varianteSeleccionada = tmpl.Variantes.FirstOrDefault();
+        varianteSeleccionada = VariantesFiltradas.FirstOrDefault();
+    }
+
+    private void OnFiltroEstadoChanged(string? nuevoFiltro)
+    {
+        filtroEstadoVariante = string.IsNullOrWhiteSpace(nuevoFiltro) ? "Todos" : nuevoFiltro;
+        if (varianteSeleccionada == null || !VariantesFiltradas.Contains(varianteSeleccionada))
+        {
+            varianteSeleccionada = VariantesFiltradas.FirstOrDefault();
+        }
     }
 
     private void OnVarianteChanged(EppVarianteItemDto? v)
@@ -521,7 +560,12 @@
         string n = (nombre ?? "").ToLowerInvariant();
         if (n.Contains("bota") || n.Contains("calzado")) return Icons.Material.Filled.Snowshoeing;
         if (n.Contains("casco") || n.Contains("craneal")) return Icons.Material.Filled.SportsMotorsports;
+        if (n.Contains("chaqueta") || n.Contains("polar") || n.Contains("abrigo")) return Icons.Material.Filled.AcUnit;
+        if (n.Contains("overall") || n.Contains("overol")) return Icons.Material.Filled.Engineering;
+        if (n.Contains("chaleco") || n.Contains("reflectivo")) return Icons.Material.Filled.HealthAndSafety;
         if (n.Contains("camisa") || n.Contains("uniforme")) return Icons.Material.Filled.Checkroom;
+        if (n.Contains("guante")) return Icons.Material.Filled.PanTool;
+        if (n.Contains("lente") || n.Contains("gafa")) return Icons.Material.Filled.Visibility;
         return Icons.Material.Filled.Shield;
     }
 

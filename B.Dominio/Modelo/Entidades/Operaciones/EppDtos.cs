@@ -21,6 +21,7 @@ namespace Modelo.Entidades.Operaciones
         public string DefaultCode { get; set; } = string.Empty;
         public string Nombre { get; set; } = string.Empty;
         public string VarianteDescripcion { get; set; } = string.Empty;
+        public string EstadoCondicion { get; set; } = "Nuevo";
         public decimal StockDisponible { get; set; }
     }
 
